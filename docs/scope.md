@@ -1,0 +1,33 @@
+# Scope — Ka0s Range Master
+
+## What it does
+
+Range Master shows how far away a unit is, as the narrowest bracket the game's range checks allow,
+on displays the player builds. Each display (a **container**) watches one unit: `target`, `focus`,
+`pet`, `mouseover`, or every enemy nameplate at once. It can show the bracket as a number, a band
+label, a colored indicator and a row of the player's own spells that light when in reach, all colored
+by a shared **band set**. A display sits on the screen, on a unit frame (Blizzard's, EllesmereUI's or
+any named frame), on a nameplate, or at the cursor. It can play a sound when the band changes, and it
+can hide by combat state, reaction or a missing unit.
+
+Three presets (Simple, Intermediate, Advanced) build a starter set, Test mode shows placeholders for
+placing and styling, and Sim mode walks a simulated target through the bands. It runs on Retail and
+WoW Forever from one codebase. The full feature list is the design spec,
+`docs/superpowers/specs/2026-11-18-rangemaster-design.md`, section 3.
+
+The v0.1.0 tree today is the scaffold (plan Task 1): the shell every Ka0s addon shares, and the two
+preview modes as session switches. The features above land in plan Tasks 2 to 8.
+
+## What it deliberately does not do
+
+- **No exact distance.** The client answers "in range of spell or item X", not a number of yards, so
+  the addon shows a bracket and never invents a figure between its edges.
+- **No guess when the answer is hidden.** A secret value or a failed check shows *unknown* (a gray
+  `?`), never "out of range".
+- **No GUID tracking.** Every memo and cache is keyed by unit token, because a GUID can be secret.
+- **No party, raid, arena or boss units** in v0.1.0, and no unit-frame providers beyond Blizzard,
+  EllesmereUI and a custom frame name (ElvUI, Shadowed Unit Frames and Cell are deferred).
+- **No import/export strings and no Edit Mode integration** in v0.1.0.
+- **No reading of another addon's saved variables.** EllesmereUI's frames are found by name only;
+  `EllesmereUIDB` is never read.
+- **No per-display timers.** One ticker serves the whole addon, and it stops when nothing is watched.

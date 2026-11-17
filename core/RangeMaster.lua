@@ -1,0 +1,209 @@
+local addonName, NS = ...
+-- core/RangeMaster.lua — the AceAddon, its lifecycle, the game events the addon itself hears, the two
+-- preview modes (Test mode and Sim mode) and the AceDB profile callbacks.
+
+-- The perf probe, taken as a load-time upvalue (core/PerfSetup.lua loads earlier), so a dormant
+-- bracket costs one upvalue read and one field read (performance-§2).
+local Perf = NS.Perf
+
+-- AceAddon promotion (architecture-§2): NS is passed in, so the namespace and the addon are one table.
+local AceAddon = LibStub("AceAddon-3.0")
+local addon = AceAddon:NewAddon(NS, addonName, "AceEvent-3.0", "AceTimer-3.0", "AceConsole-3.0")
+NS.addon = addon
+
+-- Reclaim NS.Print and NS.Printf from AceConsole's embed, which stamps its own :Print and :Printf
+-- over ours (architecture-§2, anti-pattern #36). core/CoreSetup.lua stashed the real printers at
+-- NS.Util.print and NS.Util.printf, the same objects every settings file captured.
+if NS.Util and NS.Util.print then NS.Print = NS.Util.print end
+if NS.Util and NS.Util.printf then NS.Printf = NS.Util.printf end
+
+local L = NS.L
+
+-- ---------------------------------------------------------------------------
+-- Lifecycle
+-- ---------------------------------------------------------------------------
+
+function addon:OnInitialize()
+    NS:InitDB()
+    -- The profile's skin, applied as soon as the store exists (skinning-§2): the owner registered at
+    -- file load wearing the client default, before AceDB, and nothing has been drawn for it yet.
+    NS.ApplySkinChoice()
+    if NS.Slash and NS.Slash.Register then NS.Slash:Register() end
+    -- AFTER InitDB, never before: the launcher is handed `db.global.minimap`, which AceDB
+    -- materializes from the declared default there.
+    if NS.Launcher then NS.Launcher:Register() end
+end
+
+function addon:OnEnable()
+    NS.ClearLSMCache()
+    NS.GetLSM()
+    -- THE HOLD IS TAKEN FROM THE STORED PATH, here, before anything registers. The same call the
+    -- checkbox, the two verbs and the profile callbacks make (core/LifecycleSetup.lua).
+    NS.SyncEnabledHold()
+    -- The panel and the dispatcher are SETUP and come up in either state; the events are a FEATURE
+    -- and come up only if the addon is actually running (slash-commands-§7).
+    if not NS.IsStoodDown() then self:RegisterLifecycleEvents() end
+    if NS.CreateOptionsPanel then NS.CreateOptionsPanel() end
+    if NS.MaybeShowSkinPicker then NS.MaybeShowSkinPicker() end
+end
+
+--- Every event the addon itself registers, and the method each calls. ONE list, read by both the
+--- stand-up and the stand-down, so the two cannot drift apart.
+local LIFECYCLE_EVENTS = {
+    { "PLAYER_ENTERING_WORLD", "OnEnterWorld" },
+    { "PLAYER_REGEN_DISABLED", "OnCombatChanged" },
+    { "PLAYER_REGEN_ENABLED",  "OnCombatChanged" },
+}
+-- Suite seam: tests/test_disabled.lua and tests/test_events.lua read the list the code registers.
+NS.__lifecycleEvents = LIFECYCLE_EVENTS
+
+--- Each registration goes through NS.SafeRegisterEvent: a name this client does not know costs only
+--- itself and is recorded in NS.State.rejectedEvents (events-frames-taint-§1), traced once.
+function addon:RegisterLifecycleEvents()
+    for _, pair in ipairs(LIFECYCLE_EVENTS) do
+        if not NS.SafeRegisterEvent(self, pair[1], pair[2], NS.State.rejectedEvents) then
+            NS.DebugOnce("rejected:" .. pair[1], "Events", "rejected %s", pair[1])
+        end
+    end
+end
+
+function addon:UnregisterLifecycleEvents()
+    for _, pair in ipairs(LIFECYCLE_EVENTS) do
+        self:UnregisterEvent(pair[1])
+    end
+end
+
+function addon:OnEnterWorld(_, isLogin, isReload)
+    NS.Debug("World", "entering world (%s)",
+        isLogin and "login" or isReload and "reload" or "zone change")
+end
+
+--- The combat edge. Both preview modes end when combat starts, while secure writes are still
+--- allowed (preview-mode): no placeholder covers a real range in a fight.
+function addon:OnCombatChanged(event)
+    local t0 = Perf.on and debugprofilestop()
+    local entering = event == "PLAYER_REGEN_DISABLED"
+    local ended = entering and NS.EndModes("combat started") or 0
+    NS.Debug("Combat", entering and "entered: %s preview mode(s) ended" or "left", ended)
+    if t0 then Perf.Note("combatEdge", debugprofilestop() - t0) end
+end
+
+-- ---------------------------------------------------------------------------
+-- Test mode and Sim mode (preview-mode, options-ui-§15)
+-- ---------------------------------------------------------------------------
+--
+-- Session state in NS.State (never in SavedVariables), each with ONE writer below. Every surface
+-- reaches it through that writer: the Master controls checkboxes (settings/General.lua), the launcher
+-- menu (core/LauncherSetup.lua), `/rm test` and `/rm sim` (settings/Slash.lua) and the skin picker's
+-- eye (core/SkinSetup.lua). A start is refused in combat and while the addon stands down; combat
+-- and a stand-down end both. What each mode DRAWS arrives with the renderer (the v0.1.0 plan,
+-- Task 7): the containers subscribe to MODE_CHANGED.
+
+local MODE_FIELD = { test = "testMode", sim = "simMode" }
+
+--- Why a mode cannot start right now, as the gray line to print, or nil.
+local function startRefusal()
+    if InCombatLockdown() then
+        return L["Cannot start a preview mode during combat."]
+    end
+    if NS.IsStoodDown() then
+        return L["Cannot start a preview mode while Range Master is stood down."]
+    end
+end
+
+--- Set one mode. Answers true when the mode is now `on`, false when the start was refused. A no-op
+--- write answers true and sends nothing.
+local function setMode(mode, on, why)
+    local field = MODE_FIELD[mode]
+    on = on and true or false
+    if NS.State[field] == on then return true end
+    if on then
+        local refusal = startRefusal()
+        if refusal then
+            NS.Printf("|cff808080%s|r", refusal)
+            NS.Debug("Mode", "%s start refused (%s)", mode, refusal)
+            return false
+        end
+    end
+    NS.State[field] = on
+    NS.Debug("Mode", "%s %s (%s)", mode, on and "on" or "off", tostring(why or "?"))
+    NS.bus:SendMessage(NS.MSG.MODE_CHANGED, mode, on)
+    if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
+    return true
+end
+
+--- The one writer of Test mode. @return boolean  false when a start was refused
+function NS.SetTestMode(on, why) return setMode("test", on, why) end
+--- The one writer of Sim mode. @return boolean  false when a start was refused
+function NS.SetSimMode(on, why) return setMode("sim", on, why) end
+
+function NS.IsTestMode() return NS.State.testMode == true end
+function NS.IsSimMode() return NS.State.simMode == true end
+
+--- The launcher's and the Master controls box's toggles: the slash verbs' own handlers, so the menu,
+--- the box and the verb confirm and refuse alike (launcher-§2). Resolved at call time.
+function NS.ToggleTestMode() NS.Slash.ToggleTestMode() end
+function NS.ToggleSimMode() NS.Slash.ToggleSimMode() end
+
+--- End both modes (combat, a stand-down). Answers how many were on.
+function NS.EndModes(why)
+    local n = 0
+    for mode, field in pairs(MODE_FIELD) do
+        if NS.State[field] then
+            setMode(mode, false, why)
+            n = n + 1
+        end
+    end
+    return n
+end
+
+--- Move every range display back to its default position: the Master controls Reset position button
+--- and `/rm resetposition`, one handler. Answers how many displays moved. The scaffold has no display
+--- yet, so the count is 0 until the container registry exists (the v0.1.0 plan, Tasks 4 and 6).
+function NS.ResetPositions()
+    local n = 0
+    NS.Debug("Position", "reset %s display position(s)", n)
+    return n
+end
+
+-- ---------------------------------------------------------------------------
+-- The AceDB profile callbacks (core/Database.lua)
+-- ---------------------------------------------------------------------------
+--
+-- A switch, a reset or a copy is AceDB replacing the profile whole, not a write through the seam, so
+-- each is traced ONCE here in its own words (debug-logging-§10). A switch can flip the enable path
+-- with no checkbox touched, so the latch is re-read from the new profile: this is why a disabled
+-- addon keeps AceDB's three callbacks (slash-commands-§7).
+
+local function currentProfile()
+    return (NS.db and NS.db.GetCurrentProfile and NS.db:GetCurrentProfile()) or "?"
+end
+
+local function adoptProfile(tag, fmt, ...)
+    NS.Debug(tag, fmt, ...)
+    -- The picker goes down first, unmarked: its dismissal puts back the OLD profile's skin, so it
+    -- must go before the new profile's skin is applied.
+    if NS.HideSkinPicker then NS.HideSkinPicker() end
+    NS:RunMigrations()
+    NS.ApplySkinChoice()
+    NS.SyncEnabledHold()
+    if NS.MaybeShowSkinPicker then NS.MaybeShowSkinPicker() end
+    if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
+end
+
+function NS.OnProfileChanged()
+    adoptProfile("Profile", "changed -> %s", currentProfile())
+end
+
+function NS.OnProfileReset()
+    local n = NS.ConsumeResetCount and NS.ConsumeResetCount()
+    if n then
+        adoptProfile("Set", "reset profile '%s' to defaults (%s rows)", currentProfile(), n)
+    else
+        adoptProfile("Set", "reset profile '%s' to defaults", currentProfile())
+    end
+end
+
+function NS.OnProfileCopied(source)
+    adoptProfile("Set", "copied profile '%s' -> '%s'", tostring(source or "?"), currentProfile())
+end

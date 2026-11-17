@@ -1,0 +1,39 @@
+# Slash dispatch — Ka0s Range Master
+
+`/rm` and `/rangemaster` (`settings/Slash.lua`), dispatched by `LibKa0s-Slash-1.0` over the ordered
+`NS.COMMANDS` table. The dispatcher, the help renderer, the formatters and the type-aware value parser
+are the library's; the verb table and the host verbs are this addon's. A bare `/rm` opens the
+settings panel in either state; `/rm options` is an alias of `config`.
+
+| Verb | Arguments | Live while disabled | What it does |
+|---|---|---|---|
+| `help` | — | yes | prints the command list |
+| `config` | — | yes | opens the settings panel (refused in combat by the library) |
+| `skin` | — | no | opens the skin picker (`NS.RunSkinVerb`, skinning-§3) |
+| `enable` | — | yes | writes `enabled = true` through the seam, re-reads the latch, echoes `enabled = true` |
+| `disable` | — | yes | writes `enabled = false`; the addon stands down |
+| `list` | — | yes | every setting and its value, grouped by page |
+| `get` | path | yes | one setting's value |
+| `set` | path value | yes | writes through `NS.SetByPath`; echoes the stored value |
+| `reset` | path | yes | one setting back to its default |
+| `resetall` | — | yes | every setting back to defaults (a profile reset) |
+| `profile` | [name] | yes | lists profiles, or switches to an existing one |
+| `lock` / `unlock` | — | no | writes `locked` and echoes it |
+| `resetposition` | — | no | `NS.ResetPositions`; 0 displays until the container registry exists |
+| `test` | [on\|off] | no | toggles or sets Test mode (`NS.SetTestMode`); refused in combat |
+| `sim` | [on\|off] | no | toggles or sets Sim mode (`NS.SetSimMode`); refused in combat |
+| `debug` | [on\|off\|diagnostics] | yes | bare: toggles the console window; on/off: session logging; diagnostics: the report |
+| `diagnostics` | — | yes | writes the diagnostics report to the console (debug-logging-§14) |
+| `perf` | [step] | yes | the perf harness's verb; bare prints the workflow (performance-§4) |
+| `version` | — | yes | prints the version |
+
+**Disabled.** The live set is the library's `LIVE_VERBS` plus `diagnostics` and `profile`. Every other
+verb answers one line, the library's `DisabledLine()`: `Ka0s Range Master is disabled — enable it with
+/rm enable`, and writes nothing (slash-commands-§7). Each refusal the dispatcher decides writes one
+`[Cmd]` line to the console; no host verb repeats it.
+
+**Library absent.** The stub answers every verb: the host verbs keep working, the schema verbs print
+`/rm <verb> is unavailable: the LibKa0s library did not load.`, and the help rows print plainly.
+
+The Containers, band-set and preset verbs (`containers`, `select`, `new`, `delete`, `pick`, `bands`,
+`preset`) arrive in plan Task 8.

@@ -1,0 +1,334 @@
+-- tests/test_surface_parity.lua — every degradation stub carries the whole live surface.
+--
+-- The addon adopts eleven LibKa0s seams — Core, Compat, DebugLog, Options, Slash, Launcher, Bus,
+-- Schema, Perf, Lifecycle and Skin — and each setup file carries a degradation stub for the install
+-- where libs/LibKa0s is missing. A stub is a
+-- second implementation of somebody else's surface, so it drifts the moment the library grows a
+-- member the host starts calling: the live path stays green, and the degraded path raises in
+-- exactly the install the stub exists for.
+--
+-- These cases assert the surface as a SET, in one message per seam, using the kit's
+-- T.assertSurfaceParity. Two rules they follow, both from testing-§8:
+--
+--   * The degraded arm comes from a real load with a partial file list (tests/degraded_env.lua
+--     loads the TOC and nothing from libs/), never from a hand-written stub. A hand-stub asserts
+--     the test author's typing, not the shipped file.
+--   * Where a member is live-only on purpose, it is named in the `ignore` set with the reason,
+--     because otherwise a deliberate omission and a bug read identically.
+--
+-- EVERY LIBRARY-BACKED SEAM BUT PERF CALLS THE KIT'S BY-NAME FORM — assertSurfaceParity(stub, major,
+-- ignore), new at kit 15 and vendored by M4-01. What it changes is which keys of the live half get
+-- walked: the by-name form compares only Kit.publicMembers, which drops LibStub's own MAJOR, MINOR
+-- and MODULES and every `__`-prefixed key. Those are the library talking to itself across its own
+-- file boundary — __bannerBand, __layoutTabs, __tabPlacement, __print — and a stub is obliged to
+-- carry none of them. Under the four-argument form this file exempted twelve of them BY HAND, and
+-- the list grew on every re-vendor that added an internal; libs/LibKa0s/Options.lua's own comment
+-- at O.__print states the rule the kit now enforces for us.
+--
+-- WHERE THE LIVE HALF COMES FROM, and why it is not the obvious place. tests/run.lua registers it
+-- with Kit.setSurfaceSource. It has to: five of the stubs mirror an INSTANCE — what
+-- `lib:New(descriptor)` returned — and not the library table LibStub answers for the same name.
+-- Left to Kit.expose's auto-wiring, which reaches for the mock's LibStub, "LibKa0s-Options-1.0"
+-- would resolve a four-member table (LAYOUT, New, PatchAlwaysShowScrollbar, STRINGS) and this case
+-- would go red for three reasons that have nothing to do with the stub.
+--
+-- Core stays on the four-argument form, because it is not a major's surface at all: its two halves
+-- are two blocks of one file of ours, and what they have in common is a set of NS names.
+--
+-- The member lists below are not typed from memory; each case names the grep that produces it.
+
+local T = _G.RM_TEST
+local test, assertTrue = T.test, T.assertTrue
+local NS = T.NS
+
+local loadDegraded = dofile("tests/degraded_env.lua")
+
+-- ── Core ───────────────────────────────────────────────────────────────────────────────────────
+
+test("parity: the Core stub publishes everything core/CoreSetup.lua publishes live", function()
+  -- The live and degraded halves of this seam are two blocks of ONE file, and what they have in
+  -- common is the set of names they hang on NS. Derived from the source rather than typed here, so
+  -- a publication added to the live half joins this case on the commit that adds it:
+  --   grep -nE "^NS\.[A-Za-z_]+ *=" core/CoreSetup.lua
+  local f = io.open("core/CoreSetup.lua", "r")
+  assertTrue(f ~= nil, "cannot open core/CoreSetup.lua (tests run from the repo root)")
+  local src = f:read("*a")
+  f:close()
+
+  local live = {}
+  local n = 0
+  for name in src:gmatch("\nNS%.([A-Za-z_]+)%s*=") do
+    if NS[name] ~= nil then live[name] = NS[name]; n = n + 1 end
+  end
+  assertTrue(n >= 3, "the derivation found only " .. n .. " NS publications in core/CoreSetup.lua " ..
+    "— a pattern that matches nothing passes this case without looking at anything")
+
+  local NS2 = loadDegraded()
+  T.assertSurfaceParity(live, NS2, "Core stub")
+end)
+
+-- ── DebugLog ───────────────────────────────────────────────────────────────────────────────────
+
+test("parity: the DebugLog stub carries the whole live surface", function()
+  -- The live half is the LibKa0s-DebugLog-1.0 instance core/DebugLogSetup.lua:123 builds, which
+  -- tests/run.lua registers under that name. Read off the built instance rather than the file,
+  -- which is the same list as
+  --   grep -nE "^function D[:.]|^  [A-Za-z_]+ *= *function" libs/LibKa0s/DebugLog.lua
+  -- without a parser.
+  local NS2 = loadDegraded()
+  T.assertSurfaceParity(NS2.DebugLog, "LibKa0s-DebugLog-1.0", {
+    -- The four formatters and the text accessors are live-only ON PURPOSE, and core/DebugLogSetup.lua
+    -- says so where the stub is written: nothing in the addon calls them (they are reached only
+    -- inside the library's own Add), and hand-copying the exact line format whose seven-way drift
+    -- this extraction exists to end is the duplicate testing-§8 most specifically forbids.
+    --   grep -nE "DebugLog[.:](FormatPlain|FormatColored|CopyText|Text)" core modules settings
+    -- returns nothing.
+    "FormatPlain", "FormatColored", "CopyText", "Text",
+    -- Test seams the library stamps on the instance when it BUILDS the console window (its
+    -- `EnsureFrame`, in libs/LibKa0s/DebugLog.lua). They are on the live instance by the time this case
+    -- runs because tests/test_debuglog.lua showed the window; a library-less build has no window to
+    -- build, so their absence from the stub is the condition under test, not a gap in it. Single
+    -- underscore, so Kit.publicMembers does not filter them — that exclusion is the `__` prefix.
+    "_frameForTest", "_toggleClickForTest",
+  })
+end)
+
+-- ── Options ────────────────────────────────────────────────────────────────────────────────────
+
+test("parity: the Options stub carries every helper the degraded build can reach", function()
+  -- The live half is the LibKa0s-Options-1.0 instance the live arm of settings/OptionsSetup.lua
+  -- assigns to NS.Helpers, decorated by settings/About.lua, and
+  -- registered under that name by tests/run.lua.
+  --   grep -n "Helpers\.[A-Za-z_]" core modules settings   names the addon's call sites.
+  local NS2 = loadDegraded()
+  T.assertSurfaceParity(NS2.Helpers, "LibKa0s-Options-1.0", {
+    -- Layout scalars. A host copy of a library constant is the copy that goes stale, and every
+    -- degraded reader of these sits behind an AceGUI a library-less build never gets.
+    -- tests/test_optionssetup.lua pins their absence directly, as a measured fact.
+    "ROW_VSPACER", "SECTION_HEADING_H", "BUTTON_PAIR_REL", "PADDING_X",
+    -- The chrome band's three scalars (options-ui-§13/§14), the same class as the four above:
+    -- lib.LAYOUT's numbers, with no reader in this addon. tests/test_optionssetup.lua pins their
+    -- absence beside the other three.
+    "CHROME_GAP", "TAB_H", "BANNER_H",
+    -- The panel machinery itself. settings/OptionsSetup.lua's stub answers these on NS (a single
+    -- honest "the settings panel is unavailable" line) rather than on Helpers, because there is no
+    -- panel for them to act on: NS.CreateOptionsPanel / NS.OpenOptionsPanel / NS.RegisterOptionsPage
+    -- are the degraded seam and tests/test_optionssetup.lua exercises them there.
+    "CreateOptionsPanel", "OpenOptionsPanel", "RegisterOptionsPage",
+    "BuildLandingPage", "RefreshScalars", "TextRow",
+    -- The AceGUI handle the live panel stashes. There is no AceGUI on the degraded path — that is
+    -- the condition, not a divergence.
+    "AceGUI",
+    -- New at Options minor 8 (libs/LibKa0s/Options.lua's O.RefreshPanel): the library's way for a
+    -- host to say "this one page's contents changed" without touching the private dirty flag. This
+    -- addon has no call site for it —
+    --   grep -rn "RefreshPanel" core modules settings   returns nothing —
+    -- and the Slash case below states the rule this follows: a stub member with no caller is a copy
+    -- waiting to go stale. It joins the stub on the commit that gives it a caller.
+    "RefreshPanel",
+    -- New at LibKa0s v1.73.0 (libs/LibKa0s/OptionsDrawer.lua, minor 1): O.Drawer, the drawer row,
+    -- exempt under the same rule. Its single roster consumer is QuickComms; this addon has none --
+    --   grep -rn Drawer core modules settings   returns nothing --
+    -- and the degraded build never reaches it.
+    "Drawer",
+    -- New at LibKa0s v1.24.0 (OptionsWidgets 13 / OptionsCompose 1), and exempt under the rule the
+    -- RefreshPanel entry above states. The five COMPOSERS this addon does call are in the stub,
+    -- hollow, because they must be for the page files to finish loading; these are the members it
+    -- does not call, or calls only from a panel build.
+    --
+    --   * The published CONSTANTS. `grep -rn "FONT_FLAGS\|VISIBILITY_\|CLASS_COLOR_NOTE" core
+    --     modules settings` returns nothing: the composers stamp those values onto the rows they
+    --     emit, so nothing outside the library ever reads the tables themselves. A stub copy would
+    --     be the same class of thing as a stub copy of lib.LAYOUT's numbers, one layer up.
+    "CLASS_COLOR_NOTE", "FONT_FLAGS", "FONT_FLAGS_SORT", "VISIBILITY_SORT", "VISIBILITY_VALUES",
+    --   * The banner and the secondary strip: no page of this addon draws either yet (the
+    --     Containers page's banner picker arrives with plan Task 8).
+    "PageBanner", "SubTabStrip",
+    --   * MASTER_GROUP, the Master controls tab's literal. Its one reader is settings/General.lua's
+    --     build(), which a library-less load never reaches (there is no panel to build), and the
+    --     stub's composers are hollow (options-ui-§1, anti-pattern #73), so no degraded
+    --     row is filed under that group for the literal to name either.
+    "MASTER_GROUP",
+    -- NOT on this list: the six members new at LibKa0s v1.35.0 (Options 18.16.5.3) -- ChoiceGrid,
+    -- IdInput, IdList, ResolveId, UnnamedCandidates and ID_NAME_HINT. This addon has no caller for
+    -- any of them, so the RefreshPanel rule above would exempt them, but the owner asked for them
+    -- inert on every consumer's stub (2026-09-14) and settings/OptionsSetup.lua carries them.
+    -- WHAT IS NO LONGER ON THIS LIST, and why the file got shorter rather than laxer. Twelve
+    -- `__`-prefixed live members used to be exempted here one at a time -- the six chrome
+    -- primitives, __pages, __lastUnitCtx, __releaseSubTabs, __resetTabArtHeight, __tabArtHeight and
+    -- __print. Kit.publicMembers drops the whole prefix, so the exemptions are the kit's rule now
+    -- instead of this file's typing, and the next internal the library publishes needs no edit
+    -- here. The library said as much where it published the last of them: O.__print's own comment
+    -- calls it "internal rather than surface" and cites this filter by name.
+  })
+end)
+
+-- ── Slash ──────────────────────────────────────────────────────────────────────────────────────
+
+test("parity: the Slash stub carries every dispatcher member the addon calls", function()
+  -- Both arms are the object settings/Slash.lua builds with SlashLib:New(...) — the library's
+  -- instance live, the file's own stub degraded — reached through Sl.__cli, because both are
+  -- otherwise file-scope locals. tests/run.lua registers the live one under the major's name.
+  --   grep -nE "cli[:.][A-Za-z_]+" settings/Slash.lua   names what the addon actually calls.
+  local NS2 = loadDegraded()
+  assertTrue(type(NS.Slash.__cli) == "table", "the live dispatcher is published for introspection")
+  assertTrue(type(NS2.Slash.__cli) == "table", "and so is the degraded one")
+  T.assertSurfaceParity(NS2.Slash.__cli, "LibKa0s-Slash-1.0", {
+    -- Live-only, with no call site in this addon: the grep above returns nothing for any of them.
+    -- The stub deliberately renders a plain help row instead of re-implementing the library's
+    -- header, its coloring or its list builder — LootHistory calls HelpHeader and its stub carries
+    -- one; this addon does not, and a stub member with no caller is a copy waiting to go stale.
+    "HelpHeader", "HelpRows", "BuildListLines", "CliVersion", "Text",
+  })
+end)
+
+-- ── Launcher ───────────────────────────────────────────────────────────────────────────────────
+
+test("parity: the Launcher stub carries the whole live surface", function()
+  -- The live half is the LibKa0s-Launcher-1.0 instance core/LauncherSetup.lua builds, which
+  -- tests/run.lua registers under that name. Read off the built instance rather than the file:
+  --   grep -nE "^  function Lb[:.]" libs/LibKa0s/Launcher.lua
+  -- names the same five.
+  --
+  -- NO `ignore` LIST, and that is the point of this stub rather than an oversight. The other three
+  -- seams have live-only members because the library owns formatting and drawing this addon never
+  -- calls; the launcher's whole surface is five questions about one button, and core/Data.lua and
+  -- core/RangeMaster.lua call three of them on the degraded path. A stub short one member would
+  -- raise inside the minimap row's own set (NS.SetMinimapShown) — on the very install the stub exists for.
+  local NS2 = loadDegraded()
+  assertTrue(type(NS2.Launcher) == "table", "core/LauncherSetup.lua publishes NS.Launcher either way")
+  T.assertSurfaceParity(NS2.Launcher, "LibKa0s-Launcher-1.0", {})
+end)
+
+-- ── Bus ────────────────────────────────────────────────────────────────────────────────────────
+
+test("parity: the Bus stub carries the library's whole surface", function()
+  -- The one stub in this file that mirrors the LIBRARY TABLE, not an instance: core/Bus.lua
+  -- stands the untracked-target stub in for LibStub("LibKa0s-Bus-1.0") and builds its record
+  -- from it either way. tests/run.lua registers the library table under the name. The members it
+  -- owes are `New` and `Catalog` (LibKa0s docs/api/Bus/members-1.json). No ignore list: the surface is two
+  -- members and core/Bus.lua calls both on the degraded path.
+  local NS2 = loadDegraded()
+  assertTrue(type(NS2.__busLib) == "table", "core/Bus.lua publishes its stub for this case")
+  T.assertSurfaceParity(NS2.__busLib, "LibKa0s-Bus-1.0")
+end)
+
+-- ── Schema ─────────────────────────────────────────────────────────────────────────────────────
+
+test("parity: the Schema stub carries the library's lib-level surface", function()
+  -- settings/Schema.lua's write-completing stub stands in for LibStub("LibKa0s-Schema-1.0") itself,
+  -- primitives included, so NS.ResolvePath / NS.SetPath keep answering on a degraded load.
+  -- STRINGS is live-only on purpose: the stub's refusals are the host's own words, not a copy of
+  -- the library's constants (the Schema API document, "The degradation stub").
+  local NS2 = loadDegraded()
+  assertTrue(type(NS2.__schemaLib) == "table", "settings/Schema.lua publishes its stub for this case")
+  T.assertSurfaceParity(NS2.__schemaLib, "LibKa0s-Schema-1.0", { "STRINGS" })
+end)
+
+test("parity: the Schema stub's instance carries every member of a live instance", function()
+  -- The instance surface is not in LibKa0s docs/api/Schema/members-1.json, so the two-table form pins it: the
+  -- live NS.SchemaRuntime against the degraded one, member for member. No ignore list: every member
+  -- the library's instance answers, the stub answers too (the host trims nothing it could reach).
+  local NS2 = loadDegraded()
+  T.assertSurfaceParity(NS.SchemaRuntime, NS2.SchemaRuntime, "schema instance vs host stub")
+end)
+
+-- ── Perf ───────────────────────────────────────────────────────────────────────────────────────
+
+test("parity: the Perf stub carries every Perf member the addon reaches", function()
+  -- NOT the whole-surface form, deliberately. The live half is the LibKa0s-Perf-1.0 instance
+  -- core/PerfSetup.lua builds, which publishes far more than the host ever touches (the report,
+  -- the panel, the dump, the bucket internals); its four-member stub is honest about carrying only
+  -- what the addon calls. An ignore set covering the rest would be most of the instance, and would
+  -- need an edit on every re-vendor that grew it. So the case asserts the member set the host
+  -- REACHES, derived from the source rather than typed from memory:
+  --   grep -rohE '\bPerf[.:][A-Za-z_]+' core modules settings | sort -u
+  -- which answers on, suspended, Note and OnCommand (and `Perf.lua`, a file name in a comment).
+  -- Each must be present on BOTH arms, and a function degraded wherever it is a function live —
+  -- the kit's two rules, applied to the reached subset. The live arm is the instance NS.Perf; the
+  -- degraded arm is the stub a real partial load builds (tests/degraded_env.lua).
+  local reached = { "on", "suspended", "Note", "OnCommand" }
+  local NS2 = loadDegraded()
+  assertTrue(type(NS.Perf) == "table", "core/PerfSetup.lua publishes the live instance as NS.Perf")
+  assertTrue(type(NS2.Perf) == "table", "and publishes its degradation stub under the same name")
+  local problems = {}
+  for _, k in ipairs(reached) do
+    local lv, dv = NS.Perf[k], NS2.Perf[k]
+    if lv == nil then problems[#problems + 1] = k .. " is missing live" end
+    if dv == nil then
+      problems[#problems + 1] = ("%s is missing degraded (live: %s)"):format(k, type(lv))
+    elseif type(lv) == "function" and type(dv) ~= "function" then
+      problems[#problems + 1] = ("%s is a function live but %s degraded"):format(k, type(dv))
+    end
+  end
+  assertTrue(#problems == 0, "LibKa0s-Perf-1.0: the stub diverges from what the addon reaches in "
+    .. #problems .. " place(s) — " .. table.concat(problems, "; "))
+end)
+
+-- ── Lifecycle ──────────────────────────────────────────────────────────────────────────────────
+
+test("parity: the Lifecycle stub carries the whole live surface", function()
+  -- The live half is the LibKa0s-Lifecycle-1.0 instance core/LifecycleSetup.lua builds, which
+  -- tests/run.lua registers under that name. The addon reaches
+  --   grep -rohE 'lifecycle[.:][A-Za-z_]+' core modules settings
+  -- Set, IsDown and Holds of it, but the stub mirrors the instance closely enough — it IS a hold
+  -- set, so it answers rather than reporting itself missing — that the whole-surface form applies.
+  --
+  -- NO `ignore` LIST, measured at this commit: the instance publishes name, Hold, Release, Set,
+  -- IsHeld, IsDown, Holds, Reevaluate and PrintHolds, and the stub carries all nine. A member the
+  -- library adds later lands here as a divergence to either copy or name with its reason.
+  local NS2 = loadDegraded()
+  assertTrue(type(NS2.lifecycle) == "table", "core/LifecycleSetup.lua publishes NS.lifecycle either way")
+  T.assertSurfaceParity(NS2.lifecycle, "LibKa0s-Lifecycle-1.0", {})
+end)
+
+-- ── Skin (the owner's facade, and the seam's NS members) ─────────────────────────────────────────
+
+test("parity: the degraded Skin facade answers every name the live facade carries", function()
+  -- core/SkinSetup.lua: live, NS.Skin is LibKa0s-Skin-1.0's `Skin:For("RangeMaster")`; without
+  -- the library it is the host's table, whose painting names are no-ops and whose Token / Color
+  -- answer nil ("leave the host's"). A facade is per owner and built by `For`, not a major's
+  -- lib-level surface, so this is the two-table form, key for key, with nothing ignored: a
+  -- vocabulary name the library adds fails here until the stub answers it (LootHistory's case).
+  local NS2 = loadDegraded()
+  T.assertSurfaceParity(NS.Skin, NS2.Skin, "Skin facade vs host stub", {})
+end)
+
+test("parity: the Skin seam publishes the same NS members on both paths", function()
+  -- Members from: grep -nE '^\s*function NS\.[A-Za-z_]+|^\s*NS\.[A-Za-z_]+\s*=' core/SkinSetup.lua
+  local f = io.open("core/SkinSetup.lua", "r")
+  assertTrue(f ~= nil, "cannot open core/SkinSetup.lua (tests run from the repo root)")
+  local src = f:read("*a")
+  f:close()
+  local found, n = {}, 0
+  for line in src:gmatch("[^\r\n]+") do
+    local key = line:match("^%s*function NS%.([A-Za-z_][A-Za-z0-9_]*)")
+      or line:match("^%s*NS%.([A-Za-z_][A-Za-z0-9_]*)%s*=")
+    if key and not found[key] then found[key] = true; n = n + 1 end
+  end
+  assertTrue(found.ApplySkinChoice and n >= 5, "the derivation found " .. n .. " NS members in "
+    .. "core/SkinSetup.lua and no NS.ApplySkinChoice -- the file changed shape and this case is now "
+    .. "asserting nothing")
+  local NS2 = loadDegraded()
+  local live, degraded = {}, {}
+  for key in pairs(found) do live[key], degraded[key] = NS[key], NS2[key] end
+  T.assertSurfaceParity(live, degraded, "Skin seam (NS members)")
+end)
+
+
+-- core/Compat.lua wires members one by one onto NS.Compat, so its stand-ins are held to the major's
+-- surface by name, ignoring what this addon deliberately does not wire (LibKa0s
+-- docs/api/Compat/version-4-docs.md, "The gate"). A member added to the major later fails here until
+-- the host decides.
+test("parity: the Compat seam carries the major's surface, less what it does not wire", function()
+  local NS2 = loadDegraded()
+  local lib = T.mocks.LibStub("LibKa0s-Compat-1.0", true)
+  local wired = { IsForever = true, IsRetail = true, ClientKey = true, ForClient = true,
+    IsSecret = true, CanAccess = true, IsSafeKey = true }
+  local ignore = {}
+  for name, v in pairs(lib) do
+    if type(v) == "function" and not wired[name] then ignore[#ignore + 1] = name end
+  end
+  for _, field in ipairs({ "MAJOR", "MINOR", "MODULES" }) do ignore[#ignore + 1] = field end
+  T.assertSurfaceParity(NS2.Compat, "LibKa0s-Compat-1.0", ignore)
+end)
