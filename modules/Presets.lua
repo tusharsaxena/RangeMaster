@@ -6,6 +6,7 @@ local _, NS = ...
 --   NS.Presets.Apply(key) -> snapshotBefore   key ∈ NS.Presets.ORDER; nil (and nothing done) otherwise
 --   NS.Presets.Undo() -> boolean              one level: the snapshot the last Apply took
 --   NS.Presets.CanUndo() -> boolean
+--   NS.Presets.ForgetUndo()                   drop the slot (a profile switch, copy or reset)
 --   NS.Presets.Describe(key) -> { name, count, items }   what the preset card shows
 --
 -- APPLYING REPLACES THE PROFILE'S CONTAINERS, and only through the registry's writer (NS.CM): every
@@ -16,7 +17,12 @@ local _, NS = ...
 -- the default set. Two presets touch the band-set registry, each through its writer and only to add:
 -- Intermediate's friendly override is the "Healer" set (the one named so, else a new one from the
 -- healer preset), and Advanced's out-of-range warning puts OOR_SOUND on the last band of the
--- target's set when that band has no sound yet. Undo restores both registries (NS.CM.Snapshot).
+-- target's set when that band has no sound yet (NS.BandSets.SetBandSound). Undo restores both
+-- registries (NS.CM.Snapshot).
+--
+-- THE UNDO SLOT BELONGS TO THE PROFILE IT WAS TAKEN ON. A switch, copy or reset replaces the profile
+-- whole, so core/RangeMaster.lua's adoptProfile calls ForgetUndo: an Undo there would otherwise put
+-- the old profile's containers and band sets over the new one's.
 --
 -- What each preset holds (the spec's text, where the mockup's Simple card shows three containers,
 -- the spec and the plan name four):
@@ -116,8 +122,7 @@ local function addOorSound(id)
     local set = c and NS.BandSets.Get(c.bandSet)
     local last = set and set.bands[#set.bands]
     if not last or last.sound ~= nil then return end
-    last.sound = Presets.OOR_SOUND
-    NS.BandSets.Normalize(c.bandSet)
+    NS.BandSets.SetBandSound(c.bandSet, #set.bands, Presets.OOR_SOUND)
 end
 
 --- Apply preset `key`: snapshot, clear, create. Answers the snapshot taken before, or nil for an
@@ -149,6 +154,12 @@ function Presets.Undo()
     lastSnapshot = nil
     NS.Debug("Presets", "undo")
     return NS.CM.RestoreSnapshot(snap)
+end
+
+--- Drop the Undo slot: the profile it was taken on is no longer the one in use.
+function Presets.ForgetUndo()
+    if lastSnapshot then NS.Debug("Presets", "undo dropped: the profile changed") end
+    lastSnapshot = nil
 end
 
 -- Suite seam (tests/test_presets.lua).

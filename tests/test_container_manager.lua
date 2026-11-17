@@ -50,11 +50,16 @@ local function nextFrame()
   return true
 end
 
---- How many coalescing timers are queued and not canceled.
-local function queuedFlushes()
-  local n = 0
-  for _, t in ipairs(M.__timers) do
-    if t == CM.__flushTimer() and not t.cancelled then n = n + 1 end
+--- Where the kit's timer queue ends now, so queuedFlushes can count what is armed after it.
+local function timerMark() return #M.__timers end
+
+--- How many timers armed since `mark` are still live: every one of them, not only the handle the
+--- registry holds, so a write that arms a second timer and drops the first is counted.
+local function queuedFlushes(mark)
+  local live, n = {}, 0
+  for _, handle in ipairs(M.__timers()) do live[handle] = true end
+  for i = mark + 1, #M.__timers do
+    if live[M.__timers[i]] then n = n + 1 end
   end
   return n
 end
@@ -198,7 +203,7 @@ test("cm: Snapshot and RestoreSnapshot put the registry back exactly, ids includ
     assertEqual(#p.containerOrder, 2)
     assertEqual(p.containerOrder[1], a, "the same ids")
     assertEqual(CM.Get(p.containerOrder[2]).name, "Focus")
-    assertEqual(p.nextContainerId, snap.nextContainerId)
+    assertTrue(p.nextContainerId > snap.nextContainerId, "the id counter is never rewound")
     assertTrue(p.containers ~= snap.containers, "restored as copies, so the snapshot stays reusable")
     assertFalse(CM.RestoreSnapshot(nil))
   end)
@@ -211,10 +216,11 @@ end)
 test("cm: test_apply_coalesced_once_per_frame — many writes in one frame announce once", function()
   withFreshProfile(function()
     local n = countChanged(function()
+      local mark = timerMark()
       CM.Create("target")
       CM.Create("focus")
       CM.RequestApply()
-      assertEqual(queuedFlushes(), 1, "one coalescing timer for the whole frame")
+      assertEqual(queuedFlushes(mark), 1, "one coalescing timer for the whole frame")
       assertTrue(nextFrame())
     end)
     assertEqual(n, 1, "one CONTAINERS_CHANGED")
@@ -260,5 +266,46 @@ test("cm: a stood-down addon arms no apply timer, and the stand-up announces onc
     end)
     if not ok then error(err, 0) end
     assertEqual(n, 1, "the stand-up re-applies everything once")
+  end)
+end)
+
+test("cm: a restore never rewinds the id counter, so a later Create mints an id never used", function()
+  withFreshProfile(function()
+    local snap = CM.Snapshot()
+    local used = {}
+    for _, unit in ipairs({ "target", "focus", "pet" }) do used[CM.Create(unit)] = true end
+    assertTrue(CM.RestoreSnapshot(snap))
+    local id = CM.Create("mouseover")
+    assertFalse(used[id] == true, "an id minted before the restore is not handed out again")
+  end)
+end)
+
+test("cm: Create keeps its positional unit; opts.unit cannot smuggle in an unwatched one", function()
+  withFreshProfile(function()
+    local id = CM.Create("target", { unit = "raid1" })
+    assertEqual(CM.Get(id).unit, "target")
+    local f = CM.Create("focus", { unit = "pet", name = "Mine" })
+    assertEqual(CM.Get(f).unit, "focus", "the positional unit wins over opts.unit")
+    assertEqual(CM.Get(f).name, "Mine", "opts.name still names it")
+  end)
+end)
+
+test("cm: a profile switch announces CONTAINERS_CHANGED once, on the next frame", function()
+  withFreshProfile(function()
+    CM.Create("target")
+    nextFrame()
+    local n = countChanged(function()
+      NS.OnProfileChanged()
+      assertTrue(nextFrame(), "the switch asked for an apply")
+    end)
+    assertEqual(n, 1, "the new profile's registry is announced")
+    assertEqual(countChanged(function()
+      NS.OnProfileCopied("Other")
+      nextFrame()
+    end), 1, "a copy is announced too")
+    assertEqual(countChanged(function()
+      NS.OnProfileReset()
+      nextFrame()
+    end), 1, "and a reset")
   end)
 end)

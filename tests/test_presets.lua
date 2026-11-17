@@ -231,3 +231,43 @@ test("presets: an apply announces CONTAINERS_CHANGED once, on the next frame", f
     assertEqual(n, 1)
   end)
 end)
+
+test("presets: a profile switch, copy or reset drops the Undo slot, so no other profile is overwritten", function()
+  withFreshProfile(function(p)
+    Presets.Apply("simple")
+    local other = {}
+    NS.Database.PrepareProfile(other)
+    NS.db.profile = other
+    local pet1, pet2 = CM.Create("pet"), CM.Create("pet")
+    NS.OnProfileChanged()
+    assertFalse(Presets.CanUndo(), "the slot belonged to the profile it was taken on")
+    assertFalse(Presets.Undo())
+    assertEqual(#CM.List(), 2, "the new profile's containers are untouched")
+    assertEqual(CM.Get(pet1).unit, "pet")
+    assertEqual(CM.Get(pet2).unit, "pet")
+    NS.db.profile = p
+    for _, adopt in ipairs({ NS.OnProfileCopied, NS.OnProfileReset }) do
+      Presets.Apply("simple")
+      adopt()
+      assertFalse(Presets.CanUndo())
+    end
+  end)
+end)
+
+test("presets: Advanced puts the OOR sound on through the band-set writer, which announces it", function()
+  withFreshProfile(function()
+    local target, n = NS.NewBusTarget(), 0
+    target:RegisterMessage(NS.MSG.BANDSETS_CHANGED, function() n = n + 1 end)
+    local saved = B.SetBandSound
+    local calls = 0
+    B.SetBandSound = function(...) calls = calls + 1 return saved(...) end
+    local ok, err = pcall(Presets.Apply, "advanced")
+    B.SetBandSound = saved
+    target:UnregisterMessage(NS.MSG.BANDSETS_CHANGED)
+    if not ok then error(err, 0) end
+    assertEqual(calls, 1, "one write, through NS.BandSets.SetBandSound")
+    assertTrue(n >= 1, "the band-set change is announced")
+    local bands = B.Get(B.DefaultId()).bands
+    assertEqual(bands[#bands].sound, Presets.OOR_SOUND)
+  end)
+end)

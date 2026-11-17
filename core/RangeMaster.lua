@@ -234,8 +234,12 @@ local function adoptProfile(tag, fmt, ...)
     -- must go before the new profile's skin is applied.
     if NS.HideSkinPicker then NS.HideSkinPicker() end
     NS:RunMigrations()
+    -- The registries are the new profile's now: a preset's Undo slot was the old one's, and the
+    -- renderer hears the new containers through the registry's own sender (modules/ContainerManager).
+    if NS.Presets and NS.Presets.ForgetUndo then NS.Presets.ForgetUndo() end
     NS.ApplySkinChoice()
     NS.SyncEnabledHold()
+    if NS.CM and NS.CM.RequestApply then NS.CM.RequestApply() end
     if NS.MaybeShowSkinPicker then NS.MaybeShowSkinPicker() end
     if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
 end

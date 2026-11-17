@@ -83,7 +83,7 @@ Total.
 - database: the load pass normalizes a stored band set and repairs its counter and order
 - database: the active profile was prepared at load
 
-### test_bandsets.lua (18)
+### test_bandsets.lua (20)
 
 - bandsets: test_resolve_by_max — (20, 25) in Melee / Ranged lands in MID 20-30
 - bandsets: test_resolve_by_min — matchBy min reads the near bound
@@ -103,8 +103,10 @@ Total.
 - bandsets: test_hunter_preset_per_client — Forever has the 5-8 dead zone, Retail does not
 - bandsets: the four presets have the spec's shape, every one well formed
 - bandsets: DefaultFor picks a class's preset, and an unknown class gets Melee / Ranged
+- bandsets: SetBandSound writes one band's sound, announces, and refuses a bad set or band
+- bandsets: a restore never rewinds the id counter, so a later Create mints an id never used
 
-### test_container_manager.lua (11)
+### test_container_manager.lua (14)
 
 - cm: test_create_defaults_unit_target — a bare Create is a target container on the default set
 - cm: Create seeds the spell list from the client's class seeds and takes a unit and opts
@@ -117,8 +119,11 @@ Total.
 - cm: test_apply_coalesced_once_per_frame — many writes in one frame announce once
 - cm: test_apply_deferred_in_combat — a flush in combat waits for PLAYER_REGEN_ENABLED
 - cm: a stood-down addon arms no apply timer, and the stand-up announces once
+- cm: a restore never rewinds the id counter, so a later Create mints an id never used
+- cm: Create keeps its positional unit; opts.unit cannot smuggle in an unwatched one
+- cm: a profile switch announces CONTAINERS_CHANGED once, on the next frame
 
-### test_presets.lua (9)
+### test_presets.lua (11)
 
 - presets: test_simple_four_free_containers — target, focus, pet, mouseover free on screen
 - presets: test_intermediate_shape — unit frames, cursor mouseover, friendly sets, hidden with no unit
@@ -129,6 +134,8 @@ Total.
 - presets: an unknown key applies nothing and keeps the Undo slot
 - presets: Describe answers each preset's name, container count and bullet items
 - presets: an apply announces CONTAINERS_CHANGED once, on the next frame
+- presets: a profile switch, copy or reset drops the Undo slot, so no other profile is overwritten
+- presets: Advanced puts the OOR sound on through the band-set writer, which announces it
 
 ### test_compat.lua (6)
 
@@ -581,9 +588,9 @@ Total.
 | test_loadorder.lua | 16 |
 | test_schema.lua | 36 |
 | test_database.lua | 14 |
-| test_bandsets.lua | 18 |
-| test_container_manager.lua | 11 |
-| test_presets.lua | 9 |
+| test_bandsets.lua | 20 |
+| test_container_manager.lua | 14 |
+| test_presets.lua | 11 |
 | test_compat.lua | 6 |
 | test_range.lua | 22 |
 | test_ticker.lua | 12 |
@@ -622,4 +629,4 @@ Total.
 | test_skin_switch.lua | 5 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **436** |
+| **Total** | **443** |

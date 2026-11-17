@@ -71,22 +71,27 @@ one per client, picked once at load (clients-§5): WoW Forever's has the 5-8 yd 
 
 `NS.CM` (`modules/ContainerManager.lua`) is the container registry's one runtime writer: `Create(unit?,
 opts?)` (a deep copy of the template on the default band set, the class's spell-chip seeds from
-`defaults/SpellSeeds.lua`, `opts` merged over it, a screen container staggered by id), `Delete`,
+`defaults/SpellSeeds.lua`, `opts` merged over it but never over the checked positional unit, a
+screen container staggered by id), `Delete`,
 `Duplicate` (after its source, `"<name> copy"`, a screen copy offset), `Rename`, `UniqueName`
 (`Target`, `Target 2`, case-insensitive), `CopySettings` (never name, enabled, unit or anchor),
 `Clear`, and `Snapshot` / `RestoreSnapshot`, which carry both registries, ids included, the band-set
-half through `NS.BandSets.Snapshot` / `RestoreSnapshot`. Every write calls `RequestApply`, which
+half through `NS.BandSets.Snapshot` / `RestoreSnapshot`. A restore never rewinds either id counter
+(each keeps the higher of its own and the snapshot's), so an id is never reused. Every write calls `RequestApply`, which
 arms one zero-delay `C_Timer`: a whole preset announces `CONTAINERS_CHANGED` once, on the next frame.
 A flush under combat lockdown is held (one debug line) and runs on `PLAYER_REGEN_ENABLED`; a stood-down
-addon arms no timer, and the stand-up asks for one apply.
+addon arms no timer, and the stand-up asks for one apply. A profile switch, copy or reset (the
+three AceDB callbacks, `adoptProfile` in `core/RangeMaster.lua`) replaces the registry whole, so it
+asks for one apply too.
 
 `NS.Presets.Apply(key)` (`simple`, `intermediate`, `advanced`) snapshots, clears and creates through
-`NS.CM`, and answers the snapshot; `Undo` restores it (one level). Simple: target, focus, pet and
+`NS.CM`, and answers the snapshot; `Undo` restores it (one level). The Undo slot belongs to the
+profile it was taken on: `adoptProfile` calls `ForgetUndo` on a switch, copy or reset. Simple: target, focus, pet and
 mouseover free on screen, number and band-colored border. Intermediate: target, focus and pet on their
 Blizzard unit frames, mouseover on the cursor, number + text + dot, hidden with no unit, the Healer set
 as the friendly override on target, focus and mouseover (reused by name, else created). Advanced:
 Intermediate with spell chips on focus and sounds on target (its set's out-of-range band gets
-`NS.Presets.OOR_SOUND` when it has no sound), plus target on its own nameplate (diamond + number) and
+`NS.Presets.OOR_SOUND` through `NS.BandSets.SetBandSound` when it has no sound), plus target on its own nameplate (diamond + number) and
 every hostile nameplate (dot + the `max` number), both in combat only. `Describe(key)` feeds the
 preset cards (plan Task 8).
 
@@ -130,14 +135,16 @@ band set, seeds the four preset band sets on a profile with none, points a conta
 set when its `bandSet` names none, and sets `seeded` to `false` when absent.
 
 - **Band sets**: `bandSets`, `bandSetOrder`, `nextBandSetId`. Runtime writer `modules/BandSets.lua`
-  (`Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`); its seed routine `BandSets.Seed` and its
+  (`Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`, `SetBandSound`, `RestoreSnapshot`); its
+  seed routine `BandSets.Seed` and its
   per-set repair `BandSets.NormalizeSet` are shared with the load pass. `Delete` also rewrites the
   `bandSet` / `bandSetFriendly` references of the containers that used the deleted set; no
   `container.*` row exists yet, and when Task 8 adds `container.bandSet` that write goes through the
   helper (architecture-§5, "a row wins over a key").
 - **Containers**: `containers`, `containerOrder`, `nextContainerId`, and the first-run sentinel
   `seeded`. Runtime writer `modules/ContainerManager.lua` (`NS.CM`: `Create`, `Delete`, `Duplicate`,
-  `Rename`, `CopySettings`, `Clear`, `RestoreSnapshot`); `seeded` is written by the first-run picker
+  `Rename`, `CopySettings`, `Clear`, `RestoreSnapshot`), whose apply a profile switch, copy or reset
+  also requests; `seeded` is written by the first-run picker
   (plan Task 8). No `container.*` row exists yet; Task 8's rows write through the seam.
 
 The member shapes are `NS.CONTAINER_TEMPLATE`, `NS.BANDSET_TEMPLATE` and `NS.BAND_TEMPLATE`
@@ -161,7 +168,7 @@ stand-down takes every subscription down and a stand-up replays it.
 |---|---|---|---|---|
 | `RANGE_UPDATED` | `Ka0s_RangeMaster_RangeUpdated` | `modules/Ticker.lua` | `unit, state, minYd, maxYd` | the containers watching that unit (Task 5) |
 | `CONTAINERS_CHANGED` | `Ka0s_RangeMaster_ContainersChanged` | `modules/ContainerManager.lua` (`FlushPending`, coalesced to the next frame, held in combat) | none | the renderer and the settings pages |
-| `BANDSETS_CHANGED` | `Ka0s_RangeMaster_BandSetsChanged` | `modules/BandSets.lua` (`Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`; never the load pass) | none | the renderer and the settings pages |
+| `BANDSETS_CHANGED` | `Ka0s_RangeMaster_BandSetsChanged` | `modules/BandSets.lua` (`Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`, `SetBandSound`, `RestoreSnapshot`; never the load pass) | none | the renderer and the settings pages |
 | `MODE_CHANGED` | `Ka0s_RangeMaster_ModeChanged` | `core/RangeMaster.lua` (`NS.SetTestMode`, `NS.SetSimMode`) | `mode` (`"test"` or `"sim"`), `on` | the renderer (Task 7) |
 
 Ten or fewer messages, so `docs/message-bus.md` is not required; this table is the register.

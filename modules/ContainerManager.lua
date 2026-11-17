@@ -3,7 +3,8 @@ local _, NS = ...
 -- writer of profile.containers, containerOrder and nextContainerId (architecture-§5; the other
 -- writer is core/Database.lua's load pass) and the sole sender of NS.MSG.CONTAINERS_CHANGED.
 --
---   NS.CM.Create(unit?, opts?) -> id         unit defaults to "target"; opts merge over the template
+--   NS.CM.Create(unit?, opts?) -> id         unit defaults to "target"; opts merge over the template,
+--                                            never over the unit (the positional one is the checked one)
 --   NS.CM.Delete(id) -> boolean, Duplicate(id) -> id, Rename(id, name) -> boolean
 --   NS.CM.UniqueName(base, exceptId?) -> name    "Target", "Target 2", ... (case-insensitive)
 --   NS.CM.CopySettings(fromId, toId, sections?) -> boolean   never identity or placement
@@ -185,9 +186,10 @@ local function insert(p, c, afterId)
 end
 
 --- A new container on `unit` from the template: the default band set, the class's spell seeds,
---- then `opts` merged over it, and a unique name (opts.name, else the unit's). A new screen container
---- is staggered down from the center by its id, so two new ones never stack exactly. Answers its id,
---- or nil for a unit RangeMaster does not watch or before the db exists.
+--- then `opts` merged over it, and a unique name (opts.name, else the unit's). opts.unit is ignored:
+--- the positional `unit` is the one checked against the watched units, so it is the one stored. A new
+--- screen container is staggered down from the center by its id, so two new ones never stack exactly.
+--- Answers its id, or nil for a unit RangeMaster does not watch or before the db exists.
 function CM.Create(unit, opts)
     local p = profile()
     unit = unit or "target"
@@ -197,6 +199,7 @@ function CM.Create(unit, opts)
     c.elements.spells.list = seedSpells()
     c.anchor.y = -(((p.nextContainerId or 1) - 1) % 8) * 30
     if type(opts) == "table" then merge(c, opts) end
+    c.unit = unit
     c.name = CM.UniqueName(type(opts) == "table" and opts.name or UNIT_NAME[unit])
     local id = insert(p, c)
     NS.Debug("Containers", "created %s '%s' (%s)", id, c.name, unit)
@@ -273,12 +276,16 @@ function CM.Snapshot()
     return snap
 end
 
---- Put snapshot `snap` back: the containers, their order and the id counter replaced by copies (ids
---- kept, so the snapshot stays reusable), then the band sets through their own writer.
+--- Put snapshot `snap` back: the containers and their order replaced by copies (ids kept, so the
+--- snapshot stays reusable), then the band sets through their own writer. The id counter is never
+--- rewound: it keeps the higher of its own and the snapshot's, so an id minted after the snapshot is
+--- never handed to a different container (the renderer's pool and a selection key by id).
 function CM.RestoreSnapshot(snap)
     local p = profile()
     if type(snap) ~= "table" or type(p) ~= "table" or type(snap.containers) ~= "table" then return false end
+    local counter = math.max(tonumber(p.nextContainerId) or 1, tonumber(snap.nextContainerId) or 1)
     for _, field in ipairs(SNAPSHOT_FIELDS) do p[field] = copy(snap[field]) end
+    p.nextContainerId = counter
     if type(p.containerOrder) ~= "table" then p.containerOrder = {} end
     if snap.bandSets then NS.BandSets.RestoreSnapshot(snap.bandSets) end
     NS.Debug("Containers", "restored a snapshot: %d container(s)", #p.containerOrder)

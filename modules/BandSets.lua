@@ -7,6 +7,7 @@ local _, NS = ...
 --   NS.BandSets.Delete(id, reassignTo?) -> boolean        never the last set
 --   NS.BandSets.Duplicate(id) -> id, Rename(id, name) -> boolean
 --   NS.BandSets.List() -> { id, ... }, Get(id) -> set, DefaultId() -> id, Normalize(id) -> boolean
+--   NS.BandSets.SetBandSound(id, bandIndex, sound?) -> boolean   one band's LSM sound key (nil clears)
 --   NS.BandSets.Resolve(setId, state, minYd, maxYd) -> bandIndex | "unknown" | nil (state "none")
 --   NS.BandSets.ForUnit(container, unit) -> setId
 --   NS.BandSets.Snapshot() -> snap, RestoreSnapshot(snap) -> boolean   the registry whole, for an Undo
@@ -19,7 +20,8 @@ local _, NS = ...
 -- EVERY STORED SET IS NORMALIZED: bands sorted by edge, contiguous from 0 (band n's `from` is band
 -- n-1's `to`), the last one open-ended, none of zero width, at least one. That is what makes Resolve
 -- total over [0, infinity) whatever the editor or a hand-edited SavedVariables file handed in. Create,
--- Duplicate and Normalize normalize on write; core/Database.lua's load pass normalizes every stored set.
+-- Duplicate, Normalize and RestoreSnapshot normalize on write; core/Database.lua's load pass normalizes
+-- every stored set. SetBandSound touches no edge, so it has nothing to normalize.
 --
 -- Two of the registry's helpers are the load pass's too (architecture-§5): the seed routine (Seed)
 -- and the per-set repair (NormalizeSet), both called from core/Database.lua's PrepareProfile.
@@ -260,6 +262,17 @@ function BandSets.Normalize(id)
     return true
 end
 
+--- Put LSM sound key `sound` on band `bandIndex` of set `id` (nil clears it). Refuses an unknown set,
+--- a band the set does not have and a sound that is neither a string nor nil.
+function BandSets.SetBandSound(id, bandIndex, sound)
+    local set = BandSets.Get(id)
+    local band = set and set.bands[bandIndex]
+    if not band or (sound ~= nil and type(sound) ~= "string") then return false end
+    band.sound = sound
+    announce()
+    return true
+end
+
 --- Point every container reference to `id` at `target`. The friendly override follows only a set the
 --- caller named; otherwise it falls away, and the container uses its own set for every reaction.
 local function reassign(p, id, target, named)
@@ -319,13 +332,16 @@ function BandSets.Snapshot()
     return snap
 end
 
---- Put snapshot `snap` back: the sets, their order and the id counter replaced by copies, ids kept
---- (a container names its set by id), every set normalized. Refuses a snapshot with no set in it,
---- because the registry is never left empty.
+--- Put snapshot `snap` back: the sets and their order replaced by copies, ids kept (a container
+--- names its set by id), every set normalized. The id counter is never rewound (the higher of its own
+--- and the snapshot's), so an id is never reused. Refuses a snapshot with no set in it, because the
+--- registry is never left empty.
 function BandSets.RestoreSnapshot(snap)
     local p = profile()
     if type(p) ~= "table" or type(snap) ~= "table" or not defaultIdOf(snap) then return false end
+    local counter = math.max(tonumber(p.nextBandSetId) or 1, tonumber(snap.nextBandSetId) or 1)
     for _, field in ipairs(SNAPSHOT_FIELDS) do p[field] = copy(snap[field]) end
+    p.nextBandSetId = counter
     for _, set in pairs(p.bandSets) do BandSets.NormalizeSet(set) end
     announce()
     return true
