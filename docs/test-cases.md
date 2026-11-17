@@ -66,7 +66,7 @@ Total.
 - degraded Schema stub: Get forwards the instance id to a row's own get
 - degraded Schema stub: ApplyDefault forwards the instance id to Set
 
-### test_database.lua (13)
+### test_database.lua (14)
 
 - database: the account-wide schemaVersion default is 0 (savedvariables-§1)
 - database: v0.1.0 ships the first data shape, so the ladder is empty and the target is 0
@@ -78,6 +78,7 @@ Total.
 - database: the session-only state is in no defaults tree
 - database: a profile reset re-reads the latch and traces once
 - database: test_template_fill_missing_keys — a stored container gains what a later build added
+- database: the load pass repairs a container whose band set ids name no stored set
 - database: test_first_run_seeds_presets — a fresh profile gets the four sets, class default first
 - database: the load pass normalizes a stored band set and repairs its counter and order
 - database: the active profile was prepared at load
@@ -553,7 +554,7 @@ Total.
 |-------|------:|
 | test_loadorder.lua | 16 |
 | test_schema.lua | 36 |
-| test_database.lua | 13 |
+| test_database.lua | 14 |
 | test_bandsets.lua | 18 |
 | test_compat.lua | 6 |
 | test_range.lua | 22 |
@@ -593,4 +594,4 @@ Total.
 | test_skin_switch.lua | 5 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **415** |
+| **Total** | **416** |

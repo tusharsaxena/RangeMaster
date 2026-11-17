@@ -134,6 +134,19 @@ test("database: test_template_fill_missing_keys — a stored container gains wha
   assertEqual(c.bandSet, NS.BandSets.DefaultId(), "a container with no band set gets the default")
 end)
 
+test("database: the load pass repairs a container whose band set ids name no stored set", function()
+  local c = D.DeepCopy(NS.CONTAINER_TEMPLATE)
+  c.bandSet = 999
+  c.bandSetFriendly = 998
+  local p = { containers = { [1] = c }, containerOrder = { 1 } }
+  withProfile(p, function()
+    D.PrepareProfile(p)
+    assertNil(p.bandSets[999], "precondition: no set 999 is stored")
+    assertEqual(c.bandSet, NS.BandSets.DefaultId(), "a dangling bandSet is pointed at the default")
+    assertNil(c.bandSetFriendly, "a dangling bandSetFriendly is cleared")
+  end)
+end)
+
 test("database: test_first_run_seeds_presets — a fresh profile gets the four sets, class default first", function()
   local p = {}
   withProfile(p, function()
