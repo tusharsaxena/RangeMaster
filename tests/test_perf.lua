@@ -191,6 +191,10 @@ test("perf: the addon holds a real LibKa0s-Perf instance, on this addon's latch"
     "the descriptor's declared buckets, in report order, and nothing undeclared")
 end)
 
+test("perf: range.get declares its nesting within ticker.tick (performance-§3)", function()
+  assertEqual(P.BUCKET_WITHIN["range.get"], "ticker.tick", "declared with `within`, not in prose")
+end)
+
 test("perf: records identify this addon and land in its own global", function()
   reset()
   P.Save(P.BuildRecord("cap"))

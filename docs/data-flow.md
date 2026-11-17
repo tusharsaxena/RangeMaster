@@ -7,15 +7,19 @@ pipeline; the two must not contradict each other.
 
 ```
 consumer ─► NS.Ticker.Watch(unit)     a count per unit token; the first live unit starts the ticker
-game events (target, focus, pet, mouseover, nameplate added/removed)
+game events (target, focus, pet, mouseover, nameplate added)
   ─► NS.Ticker.Refresh(unit)          re-read now, between ticks; restarts a stopped ticker
+NAME_PLATE_UNIT_REMOVED
+  ─► NS.Ticker.Removed(token)         "none" at once: the token still resolves while the event runs
 the ticker (one C_Timer.NewTicker, 10 Hz idle / 20 Hz in combat, stopped while no watched unit exists)
   ─► each tick: NS.Range.BeginTick()  the per-tick memo goes stale
   ─► NS.Range.Get(unit), once per unit however many consumers watch it
         no unit                        → "none"
-        pcall(LibRangeCheck:GetRange(unit, true)); raised or secret → "unknown"
+        pcall(LibRangeCheck:GetRange(unit, true, nil, 0)); raised or secret → "unknown"
+                                       (maxCacheAge 0: the library's own 0.1 s cache, keyed by
+                                       token when the GUID is a secret, is never read)
         no answer, on WoW Forever      → the Compat ladder walk (spell rungs only on a friendly
-                                         unit in combat)
+                                         unit in combat; a spell rung only while it is usable)
         still no answer                → "unknown"
         otherwise                      → "known", minYd, maxYd (maxYd nil: open-ended)
   ─► RANGE_UPDATED (unit, state, minYd, maxYd)   sent only when the triple moved

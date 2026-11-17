@@ -10,16 +10,25 @@ local _, NS = ...
 --                        open-ended ("40+")
 --   NS.Range.InSpellRange(id, unit)    -> true | false | nil (nil: not known, no unit, no answer)
 --   NS.Range.BeginTick()               clear the per-tick memo
+--   NS.Range.SetPerfParent(key|false)  the bucket the reads that follow run inside (performance-§3):
+--                                      modules/Ticker.lua names "ticker.tick" for its tick, false after
 --   NS.Range.Rebuild()                 rebuild the ladder and the known-spell cache, 0.5 s after
 --                                      the last call (SPELLS_CHANGED comes in bursts)
 --
--- THE ESTIMATOR is LibRangeCheck-3.0's GetRange(unit, true), called inside pcall with both answers
--- passed through NS.Compat.IsSecret before anything compares them. It already restricts a friendly
+-- THE ESTIMATOR is LibRangeCheck-3.0's GetRange(unit, true, nil, 0), called inside pcall with both
+-- answers passed through NS.Compat.IsSecret before anything compares them. The 0 is maxCacheAge: the
+-- library otherwise keeps an answer 0.1 s, keyed by the unit TOKEN whenever the GUID is a secret, so a
+-- target swap or a recycled nameplateN inside that window would read back the previous unit's bracket,
+-- and a 20 Hz ticker would see fresh data only every other tick. This file's memo is the only cache. It already restricts a friendly
 -- unit in combat to its spell-only checker lists. On WoW Forever, when it answers nothing for a
 -- unit that exists, the Compat ladder is walked instead (NS.Compat.RangeLadder: items at the three
 -- reliable yards, the two interact distances, known seed spells); in combat on a unit the player
 -- cannot attack that walk asks the spell rungs only, because the client refuses item and interact
 -- checks there.
+--
+-- A SPELL is trusted only while it is known AND usable (research lesson 9): a spell unusable in the
+-- current form or stance can report "in range" from anywhere. Knowing is cached until the next
+-- Rebuild; usability is asked on every check, because a shapeshift fires no SPELLS_CHANGED.
 --
 -- THE MEMO is keyed by unit token (nameplateN included), never by GUID: a GUID can be a secret on
 -- 12.x and a secret is not a legal table key. N containers on one unit cost one query per tick.
@@ -43,6 +52,7 @@ local memo = {}            -- [unit] = { tick, state, minYd, maxYd }
 local ladder               -- NS.Compat.RangeLadder(), built on first use and on Rebuild
 local known = {}           -- [spellID] = boolean, wiped on Rebuild
 local rebuildTimer
+local perfParent = false   -- the observed parent handed to Perf.Note("range.get")
 
 -- ---------------------------------------------------------------------------
 -- The Forever ladder walk
@@ -51,7 +61,11 @@ local rebuildTimer
 local CHECK = {
     item     = function(e, unit) return Compat.ItemInRange(e.id, unit) end,
     interact = function(e, unit) return Compat.InteractInRange(e.id, unit) end,
-    spell    = function(e, unit) return Compat.SpellInRange(e.id, unit) end,
+    -- An unusable spell rung answers nothing: its "in range" is not evidence (research lesson 9).
+    spell    = function(e, unit)
+        if not Compat.IsSpellUsable(e.id) then return nil end
+        return Compat.SpellInRange(e.id, unit)
+    end,
 }
 
 local function currentLadder()
@@ -97,7 +111,7 @@ end
 --- (raised or secret), which no fallback may paper over.
 local function estimator(unit)
     if not LRC then return nil, nil end
-    local ok, lo, hi = pcall(LRC.GetRange, LRC, unit, true)
+    local ok, lo, hi = pcall(LRC.GetRange, LRC, unit, true, nil, 0)
     if not ok or Compat.IsSecret(lo) or Compat.IsSecret(hi) then return false end
     return lo, hi
 end
@@ -127,7 +141,7 @@ function Range.Get(unit)
     if m and m[1] == tickId then return m[2], m[3], m[4] end
     local t0 = Perf.on and debugprofilestop()
     local state, lo, hi = query(unit)
-    if t0 then Perf.Note("range.get", debugprofilestop() - t0) end
+    if t0 then Perf.Note("range.get", debugprofilestop() - t0, perfParent) end
     if not m then
         m = {}
         memo[unit] = m
@@ -137,7 +151,7 @@ function Range.Get(unit)
 end
 
 --- Whether `unit` is within the spell's range: true, false, or nil when the player does not know
---- the spell, the unit does not exist, or the client gave no usable answer.
+--- the spell, cannot use it right now, the unit does not exist, or the client gave no usable answer.
 --- @return boolean|nil
 function Range.InSpellRange(spellID, unit)
     if type(spellID) ~= "number" or not UnitExists(unit) then return nil end
@@ -146,13 +160,21 @@ function Range.InSpellRange(spellID, unit)
         k = Compat.IsSpellKnown(spellID)
         known[spellID] = k
     end
-    if not k then return nil end
+    if not k or not Compat.IsSpellUsable(spellID) then return nil end
     return Compat.SpellInRange(spellID, unit)
 end
 
 --- Start a new tick: every memo entry from the last one goes stale. Nothing is freed.
 function Range.BeginTick()
     tickId = tickId + 1
+end
+
+--- Name the perf bucket the reads that follow run inside, or false for none: what range.get records
+--- as its OBSERVED parent (performance-§3), so a capture shows it nested in ticker.tick on a tick and
+--- at top level on an event's forced refresh, rather than a reader summing the two.
+--- @param key string|false
+function Range.SetPerfParent(key)
+    perfParent = key or false
 end
 
 --- The rebuild itself: the ladder and the known-spell cache are taken again from the client.

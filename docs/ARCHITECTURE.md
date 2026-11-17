@@ -129,7 +129,7 @@ Each verb, its arguments and its refusals: `docs/slash-dispatch.md`.
 | `UPDATE_MOUSEOVER_UNIT` | `addon:OnUnitChanged` | `NS.Ticker.Refresh("mouseover")` |
 | `UNIT_PET` | `addon:OnPetChanged` | `NS.Ticker.Refresh("pet")`, for the player's own pet only |
 | `NAME_PLATE_UNIT_ADDED` | `addon:OnNamePlateChanged` | `NS.Ticker.Refresh(token)` |
-| `NAME_PLATE_UNIT_REMOVED` | `addon:OnNamePlateChanged` | the same; a removed plate's token reads `"none"` |
+| `NAME_PLATE_UNIT_REMOVED` | `addon:OnNamePlateChanged` | `NS.Ticker.Removed(token)`: `"none"` is sent outright, because the client still resolves the token while this event dispatches and a re-read would see the plate as live |
 | `SPELLS_CHANGED` | `addon:OnSpellsChanged` | `NS.Range.Rebuild()`: the ladder and the known-spell cache, debounced 0.5 s |
 
 The ticker itself is a `C_Timer.NewTicker`, not an event; the stand-down cancels it with the pending

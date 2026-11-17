@@ -130,11 +130,25 @@ function Compat.IsEventValid(name)
 end
 
 --- Whether the player knows the spell `id`. Only a known spell is ever range-checked: an unlearned
---- or unusable one can report "in range" from anywhere (research, lesson 9).
+--- one can report "in range" from anywhere (research, lesson 9). Knowing is half of that rule; the
+--- other half, usable right now, is IsSpellUsable below.
 --- @return boolean
 function Compat.IsSpellKnown(id)
     if type(id) ~= "number" or not (C_SpellBook and C_SpellBook.IsSpellKnown) then return false end
     return rangeAnswer(pcall(C_SpellBook.IsSpellKnown, id)) == true
+end
+
+--- Whether the spell `id` is usable right now, the second half of research lesson 9: a known spell
+--- that is unusable in the current form or stance can report "in range" from anywhere. Short of
+--- power still counts as usable (the range answer stays true; only the cast is refused). A raise,
+--- a secret or a missing API answers false, so the caller never trusts a range it cannot vouch
+--- for. Asked per call and never cached: a shapeshift fires no SPELLS_CHANGED.
+--- @return boolean
+function Compat.IsSpellUsable(id)
+    if type(id) ~= "number" or not (C_Spell and C_Spell.IsSpellUsable) then return false end
+    local ok, usable, noPower = pcall(C_Spell.IsSpellUsable, id)
+    if not ok or Compat.IsSecret(usable) or Compat.IsSecret(noPower) then return false end
+    return usable == true or noPower == true
 end
 
 --- Whether `unit` is within the spell `id`'s range: true, false, or nil (not applicable, no unit,

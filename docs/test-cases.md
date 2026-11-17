@@ -87,9 +87,10 @@ Total.
 - compat: the degraded load answers Retail and keeps the guards' one-rung bodies
 - compat: no file outside the library reads a WOW_PROJECT global or an interface number
 
-### test_range.lua (17)
+### test_range.lua (22)
 
 - range: test_known_bracket — a 20 to 25 yd answer reads known 20, 25
+- range: the library is asked with no cache of its own (maxCacheAge 0)
 - range: test_open_ended — a min with no max reads known and open-ended
 - range: test_secret_is_unknown — a secret bound reads unknown, never out of range
 - range: test_error_is_unknown — the library raising reads unknown, and nothing escapes
@@ -98,16 +99,20 @@ Total.
 - range: test_range_unit_vanishes — a unit gone after BeginTick reads none, no error
 - range: the memo is keyed by unit token, nameplate tokens included
 - range: test_spell_unknown_spell_nil — a spell the player does not know answers nil
+- range: a known spell that is unusable right now is not trusted (research lesson 9)
+- range: a secret or raising usability answer is not trusted
 - range: InSpellRange answers nil for a secret, an error or a missing unit
 - range: test_forever_ladder — Forever's ladder holds only the reliable yards
 - range: the interact rungs are race-adjusted
+- range: a known seed spell is a rung at its own max range; unknown, min-range and secret are not
 - range: on Forever an empty library answer falls back to the ladder
 - range: the ladder walk is open-ended past its last rung
+- range: the Forever walk trusts a spell rung only while the spell is usable
 - range: friendly in combat, the ladder asks spells only (items and interact are blocked)
 - range: Rebuild is debounced to one rebuild after the last call
 - range: every class seed table is well-formed on both clients
 
-### test_ticker.lua (10)
+### test_ticker.lua (12)
 
 - ticker: test_rate_idle_10hz — out of combat one ticker runs at 10 Hz and re-arms
 - ticker: test_rate_combat_20hz — combat restarts the one ticker at 20 Hz, and back
@@ -117,6 +122,8 @@ Total.
 - ticker: test_mouseover_revalidated_each_tick — mouseover leaving with no event reads none
 - ticker: N watches of one unit cost one range query per tick
 - ticker: the unit events refresh their unit; UNIT_PET only for the player
+- ticker: NAME_PLATE_UNIT_REMOVED sends none for its token at once
+- ticker: a range read inside a tick is recorded within ticker.tick, a forced one at top level
 - ticker: PLAYER_FOCUS_CHANGED registers only where the client knows it
 - ticker: a stand-down cancels the ticker and a stand-up rebuilds it from the watch list
 
@@ -194,7 +201,7 @@ Total.
 - a refused `update` publishes nothing on the bus
 - /rm profile <name> switches while the addon is disabled
 
-### test_perf.lua (15)
+### test_perf.lua (16)
 
 - debug: the flag still flips and acks with LibKa0s absent
 - debug: /rm debug names the missing library instead of erroring
@@ -204,6 +211,7 @@ Total.
 - every perf step label the library renders is prose, not its own STRINGS key
 - Perf: the descriptor hands the library the FOLDER name, not just the frame name
 - perf: the addon holds a real LibKa0s-Perf instance, on this addon's latch
+- perf: range.get declares its nesting within ticker.tick (performance-§3)
 - perf: records identify this addon and land in its own global
 - perf: the ring is reachable through its own global and nowhere in AceDB
 - perf: brackets record nothing while capture is off
@@ -522,15 +530,15 @@ Total.
 | test_schema.lua | 36 |
 | test_database.lua | 9 |
 | test_compat.lua | 6 |
-| test_range.lua | 17 |
-| test_ticker.lua | 10 |
+| test_range.lua | 22 |
+| test_ticker.lua | 12 |
 | test_envsetup.lua | 6 |
 | test_coresetup.lua | 8 |
 | test_mediasetup.lua | 10 |
 | test_debuglog.lua | 14 |
 | test_slash.lua | 11 |
 | test_slashgate.lua | 7 |
-| test_perf.lua | 15 |
+| test_perf.lua | 16 |
 | test_bus.lua | 8 |
 | test_layers.lua | 2 |
 | test_launcher.lua | 30 |
@@ -559,4 +567,4 @@ Total.
 | test_skin_switch.lua | 5 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **385** |
+| **Total** | **393** |

@@ -56,6 +56,22 @@ test("range: test_known_bracket — a 20 to 25 yd answer reads known 20, 25", fu
   end)
 end)
 
+test("range: the library is asked with no cache of its own (maxCacheAge 0)", function()
+  -- LibRangeCheck keeps an answer 0.1 s by default, keyed by the unit TOKEN when the GUID is a
+  -- secret: a target swap inside that window would hand back the previous target's bracket.
+  local shape
+  withRange(function(unit, checkVisible, noItems, maxCacheAge)
+    shape = { unit, checkVisible, noItems, maxCacheAge }
+    return 20, 25
+  end, { target = true }, function()
+    NS.Range.Get("target")
+  end)
+  assertEqual(shape[1], "target")
+  assertEqual(shape[2], true, "checkVisible")
+  assertNil(shape[3], "noItems is left to the library")
+  assertEqual(shape[4], 0, "maxCacheAge 0: the library always queries again")
+end)
+
 test("range: test_open_ended — a min with no max reads known and open-ended", function()
   withRange(answers(40, nil), { target = true }, function()
     local state, lo, hi = NS.Range.Get("target")
@@ -139,18 +155,22 @@ test("range: the memo is keyed by unit token, nameplate tokens included", functi
   assertEqual(#seen, 2, "one query per token")
 end)
 
---- Swap the spell APIs for the case's length.
-local function withSpells(known, inRange, body)
+--- Swap the spell APIs for the case's length. `usable(id)` answers C_Spell.IsSpellUsable (every
+--- spell usable when omitted).
+local function withSpells(known, inRange, body, usable)
   local realBook, realSpell = M.C_SpellBook.IsSpellKnown, M.C_Spell.IsSpellInRange
+  local realUsable = M.C_Spell.IsSpellUsable
   local asked = 0
   M.C_SpellBook.IsSpellKnown = function(id) return known[id] == true end
   M.C_Spell.IsSpellInRange = function(id, unit)
     asked = asked + 1
     return inRange(id, unit)
   end
+  M.C_Spell.IsSpellUsable = usable or function() return true, false end
   NS.Range.__rebuildNow()
   local ok, err = pcall(body, function() return asked end)
   M.C_SpellBook.IsSpellKnown, M.C_Spell.IsSpellInRange = realBook, realSpell
+  M.C_Spell.IsSpellUsable = realUsable
   NS.Range.__rebuildNow()
   if not ok then error(err, 0) end
 end
@@ -166,6 +186,39 @@ test("range: test_spell_unknown_spell_nil — a spell the player does not know a
     assertEqual(NS.Range.InSpellRange(133, "target"), false, "a known spell out of range")
   end)
   M.__unitExists.target = false
+end)
+
+test("range: a known spell that is unusable right now is not trusted (research lesson 9)", function()
+  -- Wrath in Cat Form: known, unusable in the form, and the client can report it in range from
+  -- anywhere. Usability is asked per call, never cached, so a form change needs no rebuild.
+  local usableNow = false
+  M.__unitExists.target = true
+  withSpells({ [5176] = true }, function() return true end, function(asked)
+    assertNil(NS.Range.InSpellRange(5176, "target"), "unusable: no answer")
+    assertEqual(asked(), 0, "and the range API is not asked")
+    usableNow = true
+    assertEqual(NS.Range.InSpellRange(5176, "target"), true, "usable again, trusted again")
+  end, function() return usableNow, false end)
+  withSpells({ [5176] = true }, function() return false end, function()
+    assertEqual(NS.Range.InSpellRange(5176, "target"), false, "short of power is still usable")
+  end, function() return false, true end)
+  M.__unitExists.target = false
+end)
+
+test("range: a secret or raising usability answer is not trusted", function()
+  local restore = T.installSecretValue()
+  local ok, err = pcall(function()
+    M.__unitExists.target = true
+    withSpells({ [133] = true }, function() return true end, function()
+      assertNil(NS.Range.InSpellRange(133, "target"), "a secret usability is nil")
+    end, function() return T.secret(true), false end)
+    withSpells({ [133] = true }, function() return true end, function()
+      assertNil(NS.Range.InSpellRange(133, "target"), "a raising usability is nil")
+    end, function() error("boom") end)
+  end)
+  restore()
+  M.__unitExists.target = false
+  if not ok then error(err, 0) end
 end)
 
 test("range: InSpellRange answers nil for a secret, an error or a missing unit", function()
@@ -193,6 +246,8 @@ end)
 
 local FOREVER_YARDS = { [20] = true, [30] = true, [35] = true, [28] = true, [10] = true }
 
+-- The item and interact rungs are held to the reliable yards; a spell rung sits at its own max
+-- range (the spell-rung cases below), so the subset holds for those two kinds only.
 test("range: test_forever_ladder — Forever's ladder holds only the reliable yards", function()
   local ladder = NS.Compat.RangeLadder()
   assertEqual(type(ladder), "table", "RangeLadder answers a list")
@@ -203,7 +258,7 @@ test("range: test_forever_ladder — Forever's ladder holds only the reliable ya
     assertEqual(type(e.yd), "number", "entry yd " .. i)
     if i > 1 then assertTrue(ladder[i - 1].yd <= e.yd, "sorted by yd ascending") end
     kinds[e.kind] = (kinds[e.kind] or 0) + 1
-    if profile == "forever" then
+    if profile == "forever" and e.kind ~= "spell" then
       assertTrue(FOREVER_YARDS[e.yd], ("Forever entry %s:%d at %d yd is not a reliable yard")
         :format(e.kind, e.id, e.yd))
     end
@@ -227,6 +282,53 @@ test("range: the interact rungs are race-adjusted", function()
   for _, e in ipairs(ladder) do if e.kind == "interact" then yds[e.id] = e.yd end end
   assertEqual(yds[3], 8, "a Tauren's duel distance is shorter")
   assertEqual(yds[4], 25, "and so is the follow distance")
+end)
+
+--- Run `body` with the player knowing `known` and C_Spell.GetSpellInfo answering `info[id]`
+--- ({ minRange, maxRange }); the ladder is rebuilt around the swap and after it.
+local function withSpellInfo(known, info, body)
+  local realBook, realInfo = M.C_SpellBook.IsSpellKnown, M.C_Spell.GetSpellInfo
+  M.C_SpellBook.IsSpellKnown = function(id) return known[id] == true end
+  M.C_Spell.GetSpellInfo = function(id)
+    local r = info[id]
+    if r then return { name = "spell" .. id, iconID = 1, castTime = 0, minRange = r[1], maxRange = r[2], spellID = id } end
+  end
+  NS.Range.__rebuildNow()
+  local ok, err = pcall(body)
+  M.C_SpellBook.IsSpellKnown, M.C_Spell.GetSpellInfo = realBook, realInfo
+  NS.Range.__rebuildNow()
+  if not ok then error(err, 0) end
+end
+
+local function spellRungs()
+  local out = {}
+  for _, e in ipairs(NS.Compat.RangeLadder()) do
+    if e.kind == "spell" then out[#out + 1] = e.id .. "@" .. e.yd end
+  end
+  return table.concat(out, ",")
+end
+
+test("range: a known seed spell is a rung at its own max range; unknown, min-range and secret are not", function()
+  -- The kit's player is a MAGE: the seeds are 133, 116, 2136 on Forever and 116, 118 on Retail.
+  local restore = T.installSecretValue()
+  local ok, err = pcall(function()
+    local seeds = NS.SpellSeeds[profile].MAGE.ladder
+    local a, b = seeds[1], seeds[2]
+    withSpellInfo({ [a] = true, [b] = true }, { [a] = { 0, 40 }, [b] = { 5, 30 } }, function()
+      assertEqual(spellRungs(), a .. "@40", "known with no min range; the min-range one is dropped")
+    end)
+    withSpellInfo({ [b] = true }, { [a] = { 0, 40 }, [b] = { 0, 30 } }, function()
+      assertEqual(spellRungs(), b .. "@30", "an unknown seed is no rung")
+    end)
+    withSpellInfo({ [a] = true }, { [a] = { 0, T.secret(40) } }, function()
+      assertEqual(spellRungs(), "", "a secret max range is no rung")
+    end)
+    withSpellInfo({ [a] = true }, { [a] = { 0, 0 } }, function()
+      assertEqual(spellRungs(), "", "a max range of 0 is no rung")
+    end)
+  end)
+  restore()
+  if not ok then error(err, 0) end
 end)
 
 --- Answer item and interact checks as a unit at `distance` yards would.
@@ -275,6 +377,34 @@ test("range: the ladder walk is open-ended past its last rung", function()
       assertNil(hi)
     end)
   end)
+end)
+
+test("range: the Forever walk trusts a spell rung only while the spell is usable", function()
+  if profile ~= "forever" then return end
+  local realUsable, realInRange = M.C_Spell.IsSpellUsable, M.C_Spell.IsSpellInRange
+  local usableNow = true
+  M.C_Spell.IsSpellUsable = function() return usableNow, false end
+  M.C_Spell.IsSpellInRange = function() return true end    -- what an unusable spell may report
+  local ok, err = pcall(function()
+    withSpellInfo({ [133] = true }, { [133] = { 0, 40 } }, function()
+      atDistance(50, function()
+        withRange(answers(nil, nil), { target = true }, function()
+          local state, lo, hi = NS.Range.Get("target")
+          assertEqual(state, "known")
+          assertEqual(lo, 35, "past every item")
+          assertEqual(hi, 40, "inside the usable spell rung")
+          usableNow = false
+          NS.Range.BeginTick()
+          state, lo, hi = NS.Range.Get("target")
+          assertEqual(state, "known")
+          assertEqual(lo, 35)
+          assertNil(hi, "an unusable spell rung bounds nothing")
+        end)
+      end)
+    end)
+  end)
+  M.C_Spell.IsSpellUsable, M.C_Spell.IsSpellInRange = realUsable, realInRange
+  if not ok then error(err, 0) end
 end)
 
 test("range: friendly in combat, the ladder asks spells only (items and interact are blocked)", function()

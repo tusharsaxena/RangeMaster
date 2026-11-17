@@ -105,9 +105,12 @@ function addon:OnPetChanged(_, owner)
     if owner == "player" then NS.Ticker.Refresh("pet") end
 end
 
---- A plate came or went: its token is re-read (a removed one reads "none" and its consumers hear it).
-function addon:OnNamePlateChanged(_, token)
-    if type(token) == "string" and NS.Compat.IsSafeKey(token) then NS.Ticker.Refresh(token) end
+--- A plate came or went. An added plate's token is re-read. A removed one is sent as "none"
+--- outright: the client still resolves the token while NAME_PLATE_UNIT_REMOVED dispatches, so a
+--- re-read would see the plate as live until the next tick.
+function addon:OnNamePlateChanged(event, token)
+    if type(token) ~= "string" or not NS.Compat.IsSafeKey(token) then return end
+    if event == "NAME_PLATE_UNIT_REMOVED" then NS.Ticker.Removed(token) else NS.Ticker.Refresh(token) end
 end
 
 function addon:OnSpellsChanged()

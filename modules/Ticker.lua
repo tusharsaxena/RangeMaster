@@ -5,6 +5,8 @@ local _, NS = ...
 --   NS.Ticker.Watch(unit)      count one more consumer of `unit` (a container, a nameplate instance)
 --   NS.Ticker.Unwatch(unit)    count one fewer; the last one drops the unit
 --   NS.Ticker.Refresh(unit?)   re-read `unit` now (every watched unit when nil), outside the cadence
+--   NS.Ticker.Removed(unit)    the unit is gone now: send "none" without asking the client, which
+--                              still resolves a plate's token while NAME_PLATE_UNIT_REMOVED dispatches
 --
 -- Each tick starts a new Range memo and reads every watched unit once, however many consumers
 -- watch it, so the cost scales with units and never with containers. RANGE_UPDATED goes out with
@@ -39,9 +41,9 @@ local inCombat = false
 -- One unit, one pass
 -- ---------------------------------------------------------------------------
 
---- Read `unit` and send RANGE_UPDATED if its triple moved. Answers whether the unit exists.
-local function evaluate(unit)
-    local state, lo, hi = NS.Range.Get(unit)
+--- Send RANGE_UPDATED for `unit` if this triple differs from the last one sent. Answers whether
+--- the unit exists.
+local function publish(unit, state, lo, hi)
     local l = last[unit]
     if not l then
         l = {}
@@ -52,6 +54,11 @@ local function evaluate(unit)
         NS.bus:SendMessage(NS.MSG.RANGE_UPDATED, unit, state, lo, hi)
     end
     return state ~= "none"
+end
+
+--- Read `unit` and publish its triple.
+local function evaluate(unit)
+    return publish(unit, NS.Range.Get(unit))
 end
 
 --- Read every watched unit once, over a snapshot of the watch list.
@@ -91,7 +98,9 @@ local reconcile
 local function tick()
     local t0 = Perf.on and debugprofilestop()
     NS.Range.BeginTick()
+    NS.Range.SetPerfParent("ticker.tick")
     evaluateAll()
+    NS.Range.SetPerfParent(false)
     reconcile()
     if t0 then Perf.Note("ticker.tick", debugprofilestop() - t0) end
 end
@@ -123,6 +132,14 @@ function Ticker.Refresh(unit)
     if unit ~= nil and not watched[unit] then return end
     NS.Range.BeginTick()
     if unit ~= nil then evaluate(unit) else evaluateAll() end
+    reconcile()
+end
+
+--- `unit` is gone as of now (a nameplate being removed): its consumers hear "none" at once, and
+--- the ticker stops if nothing live is left. An unwatched unit is ignored.
+function Ticker.Removed(unit)
+    if not watched[unit] or NS.IsStoodDown() then return end
+    publish(unit, "none")
     reconcile()
 end
 

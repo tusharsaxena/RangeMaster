@@ -44,6 +44,8 @@ return function()
   M.C_Spell = M.C_Spell or {}
   M.C_Spell.IsSpellInRange = M.C_Spell.IsSpellInRange or function() return nil end
   M.C_Spell.GetSpellInfo = M.C_Spell.GetSpellInfo or function() return nil end
+  -- No usability answer either, so an unswapped spell is never trusted (research lesson 9).
+  M.C_Spell.IsSpellUsable = M.C_Spell.IsSpellUsable or function() return nil end
   M.C_Item = M.C_Item or {}
   M.C_Item.IsItemInRange = M.C_Item.IsItemInRange or function() return nil end
   M.UnitRace = M.UnitRace or function() return "Human", "Human", 1 end

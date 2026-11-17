@@ -69,6 +69,12 @@ test("ticker: test_rate_idle_10hz — out of combat one ticker runs at 10 Hz and
     assertEqual(Ticker.Interval(), 0.1, "10 Hz")
     local h = Ticker.__handle()
     assertEqual(h.delay, 0.1, "the C_Timer ticker itself runs at 0.1 s")
+    -- Take the handle off the queue first, as the client's dispatch does, so only a re-arm can
+    -- put it back.
+    for i = #M.__timers, 1, -1 do
+      if M.__timers[i] == h then table.remove(M.__timers, i) end
+    end
+    assertFalse(queued(h), "precondition: the fired handle is off the queue")
     h.fn()
     assertTrue(queued(h), "the ticker re-arms after firing")
     Ticker.Watch("target")
@@ -170,6 +176,45 @@ test("ticker: the unit events refresh their unit; UNIT_PET only for the player",
     M.__fireEvent("NAME_PLATE_UNIT_ADDED", "nameplate2")
     assertEqual(table.concat(heard, ",", 4),
       "pet=known:5-8,mouseover=known:8-10,nameplate2=known:30-35", "each event refreshed its unit")
+  end)
+end)
+
+test("ticker: NAME_PLATE_UNIT_REMOVED sends none for its token at once", function()
+  -- The client still resolves the token while the event dispatches, so a re-read would see the
+  -- plate as live: the removal itself is the answer.
+  fixture({ "nameplate4", "target" }, function(_, heard)
+    Ticker.Watch("nameplate4")
+    Ticker.Watch("target")
+    assertTrue(M.__unitExists.nameplate4, "precondition: the token still resolves")
+    M.__fireEvent("NAME_PLATE_UNIT_REMOVED", "nameplate4")
+    assertEqual(heard[#heard], "nameplate4=none:nil-nil", "the removed plate reads none")
+    local n = #heard
+    M.__unitExists.nameplate4 = false
+    tick()
+    assertEqual(#heard, n, "and the next tick, seeing it gone, sends nothing new")
+    M.__unitExists.nameplate4 = true
+    M.__fireEvent("NAME_PLATE_UNIT_ADDED", "nameplate4")
+    assertEqual(heard[#heard], "nameplate4=known:20-25", "a recycled token is read fresh")
+  end)
+end)
+
+test("ticker: a range read inside a tick is recorded within ticker.tick, a forced one at top level", function()
+  local P = NS.Perf
+  fixture({ "target" }, function()
+    Ticker.Watch("target")
+    local realNote, seen = P.Note, {}
+    P.Note = function(key, _, parent)
+      if key == "range.get" then seen[#seen + 1] = tostring(parent) end
+    end
+    local realOn = P.on
+    P.on = true
+    local ok, err = pcall(function()
+      tick()
+      Ticker.Refresh("target")
+    end)
+    P.on, P.Note = realOn, realNote
+    if not ok then error(err, 0) end
+    assertEqual(table.concat(seen, ","), "ticker.tick,false", "the observed parent of each read")
   end)
 end)
 

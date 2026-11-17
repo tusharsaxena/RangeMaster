@@ -16,7 +16,7 @@
 |---|---|---|---|---|
 | 0 | Repo, labels, branch, spec, research, plan | done | d140c26 + this | yes |
 | 1 | Scaffold (born compliant) + vendor LibKa0s + LibRangeCheck | done | 30b77b8 + 6ed49cb + b6d243f + `Scaffold: review fixes` | yes |
-| 2 | Range engine, Compat, spell seeds, ticker | done | `Range engine: LibRangeCheck wrapper, per-client ladder, shared ticker` | no |
+| 2 | Range engine, Compat, spell seeds, ticker | done | aef104b + `Task 2: review fixes` | no |
 | 3 | Data model, band sets, migrations | todo | | |
 | 4 | ContainerManager + presets | todo | | |
 | 5 | Container rendering + elements | todo | | |

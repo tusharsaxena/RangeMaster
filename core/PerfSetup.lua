@@ -54,9 +54,10 @@ NS.Perf = lib:New({
         -- a second while a watched unit exists. The addon's steady-state cost.
         { key = "ticker.tick" },
         -- modules/Range.lua's query on a memo miss: LibRangeCheck's GetRange (and on Forever the
-        -- ladder walk). Not declared `within` ticker.tick: an event's forced refresh runs it
-        -- outside any tick, so the containment is not a fact about every call.
-        { key = "range.get" },
+        -- ladder walk). Nested in ticker.tick on every tick; an event's forced refresh runs it at
+        -- top level, so each call passes the parent it OBSERVED (NS.Range.SetPerfParent) and the
+        -- record shows the mix instead of a reader summing the two totals.
+        { key = "range.get", within = "ticker.tick" },
     },
 
     -- THE LATCH, AND THE ONLY ROUTE THIS PROBE HAS TO MAKING THE ADDON INERT (Perf 12): the suspended

@@ -18,8 +18,10 @@ off.
 | `ticker.tick` | the ticker's callback (`modules/Ticker.lua`) | a fresh memo and one read of every watched unit, 10 or 20 times a second while a watched unit exists: the addon's steady cost, bounded by units, never by containers |
 | `range.get` | `NS.Range.Get` on a memo miss (`modules/Range.lua`) | LibRangeCheck's `GetRange` behind the guards, and on Forever the ladder walk |
 
-`range.get` is not declared `within = "ticker.tick"`: an event's forced refresh runs it outside any
-tick, so the containment is not true of every call.
+`range.get` is declared `within = "ticker.tick"`: every tick runs it there. An event's forced refresh
+runs it at top level, so each call passes the parent it observed to `Perf.Note` (the ticker names
+`"ticker.tick"` through `NS.Range.SetPerfParent` for the length of its pass, `false` otherwise), and the
+record reports the mix rather than a reader summing two totals that overlap.
 
 ## Taking a capture
 
