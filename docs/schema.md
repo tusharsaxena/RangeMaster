@@ -40,7 +40,7 @@ addresses them, and an AceDB default with no row is a setting nobody can reach (
 | `bandSets` | the four presets | `modules/BandSets.lua` | `[id] = NS.BANDSET_TEMPLATE` shape: `name`, `matchBy` (`"max"`/`"min"`), `unknown = { label = "?", color }`, `bands = { { from, to, label, frameColor, textColor, indicatorColor, sound }, ... }` |
 | `bandSetOrder` | `{ 1, 2, 3, 4 }` | `modules/BandSets.lua` | the first id is the **default set**; the seed puts the class default first |
 | `nextBandSetId` | `5` | `modules/BandSets.lua` | the id counter, bumped past the highest stored id on load |
-| `containers` | `{}` | `modules/ContainerManager.lua` (plan Task 4) | `[id] = NS.CONTAINER_TEMPLATE` shape (design spec 5.2) |
+| `containers` | `{}` | `modules/ContainerManager.lua` (`NS.CM`) | `[id] = NS.CONTAINER_TEMPLATE` shape (design spec 5.2) |
 | `containerOrder` | `{}` | likewise | rebuilt on load to hold exactly the stored ids |
 | `nextContainerId` | `1` | likewise | |
 | `seeded` | `false` | the first-run preset picker (plan Task 8) | whether the container preset picker has run on this profile |

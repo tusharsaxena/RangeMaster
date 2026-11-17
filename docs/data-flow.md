@@ -32,6 +32,18 @@ Everything down to the band resolve exists (plan Tasks 2 and 3: `NS.BandSets.Res
 `NS.BandSets.ForUnit`, which picks the friendly override for a friendly unit); nothing watches a unit
 until the containers arrive (plan Task 5).
 
+## Container writes (plan Task 4)
+
+```
+NS.CM.Create / Delete / Duplicate / Rename / CopySettings / RestoreSnapshot, NS.Presets.Apply / Undo
+  ─► the registry written at once
+  ─► NS.CM.RequestApply()             one zero-delay C_Timer per frame, however many writes
+  ─► next frame: FlushPending         in combat: held (one debug line) until PLAYER_REGEN_ENABLED
+  ─► CONTAINERS_CHANGED               once; the renderer (Task 5) and the settings pages (Task 8)
+```
+
+A stood-down addon arms no timer; the stand-up asks for one apply.
+
 ## Startup and the latch (plan Task 1)
 
 ```

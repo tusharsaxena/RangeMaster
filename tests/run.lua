@@ -102,6 +102,8 @@ Kit.run{
     "test_schema",
     "test_database",
     "test_bandsets",
+    "test_container_manager",
+    "test_presets",
     "test_compat",
     "test_range",
     "test_ticker",

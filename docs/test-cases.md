@@ -104,6 +104,32 @@ Total.
 - bandsets: the four presets have the spec's shape, every one well formed
 - bandsets: DefaultFor picks a class's preset, and an unknown class gets Melee / Ranged
 
+### test_container_manager.lua (11)
+
+- cm: test_create_defaults_unit_target — a bare Create is a target container on the default set
+- cm: Create seeds the spell list from the client's class seeds and takes a unit and opts
+- cm: test_unique_name_suffix — a taken name gets the next free number
+- cm: Rename trims, keeps names unique and refuses a blank name or an unknown id
+- cm: test_delete_removes_from_order — the member and its order slot both go
+- cm: test_duplicate_deep_copy — a duplicate is its own tables, after its source
+- cm: CopySettings copies the named sections deep, and never identity or placement
+- cm: Snapshot and RestoreSnapshot put the registry back exactly, ids included
+- cm: test_apply_coalesced_once_per_frame — many writes in one frame announce once
+- cm: test_apply_deferred_in_combat — a flush in combat waits for PLAYER_REGEN_ENABLED
+- cm: a stood-down addon arms no apply timer, and the stand-up announces once
+
+### test_presets.lua (9)
+
+- presets: test_simple_four_free_containers — target, focus, pet, mouseover free on screen
+- presets: test_intermediate_shape — unit frames, cursor mouseover, friendly sets, hidden with no unit
+- presets: Intermediate creates the Healer set when the profile has none, and reuses one it has
+- presets: test_advanced_shape — six containers with plates, spell chips, a sound and rules
+- presets: Advanced keeps a sound the player already put on the out-of-range band
+- presets: test_preset_undo_restores — Undo puts back the containers and band sets from before
+- presets: an unknown key applies nothing and keeps the Undo slot
+- presets: Describe answers each preset's name, container count and bullet items
+- presets: an apply announces CONTAINERS_CHANGED once, on the next frame
+
 ### test_compat.lua (6)
 
 - compat: the client answer follows the kit profile this run uses
@@ -556,6 +582,8 @@ Total.
 | test_schema.lua | 36 |
 | test_database.lua | 14 |
 | test_bandsets.lua | 18 |
+| test_container_manager.lua | 11 |
+| test_presets.lua | 9 |
 | test_compat.lua | 6 |
 | test_range.lua | 22 |
 | test_ticker.lua | 12 |
@@ -594,4 +622,4 @@ Total.
 | test_skin_switch.lua | 5 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **416** |
+| **Total** | **436** |

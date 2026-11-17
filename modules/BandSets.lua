@@ -9,6 +9,7 @@ local _, NS = ...
 --   NS.BandSets.List() -> { id, ... }, Get(id) -> set, DefaultId() -> id, Normalize(id) -> boolean
 --   NS.BandSets.Resolve(setId, state, minYd, maxYd) -> bandIndex | "unknown" | nil (state "none")
 --   NS.BandSets.ForUnit(container, unit) -> setId
+--   NS.BandSets.Snapshot() -> snap, RestoreSnapshot(snap) -> boolean   the registry whole, for an Undo
 --
 -- THE DEFAULT SET IS THE FIRST ONE IN bandSetOrder. The first-run seed puts the class default there
 -- (defaults/BandSetPresets.lua's DefaultFor), so a fresh container lands on it; deleting it makes the
@@ -301,4 +302,31 @@ function BandSets.Seed(p)
         n = n + 1
     end
     return n
+end
+
+-- ---------------------------------------------------------------------------
+-- Snapshot (a preset's one-level Undo, modules/Presets.lua through NS.CM.Snapshot)
+-- ---------------------------------------------------------------------------
+
+local SNAPSHOT_FIELDS = { "bandSets", "bandSetOrder", "nextBandSetId" }
+
+--- A deep copy of the band-set registry, in the shape RestoreSnapshot takes. Nil with no profile.
+function BandSets.Snapshot()
+    local p = profile()
+    if type(p) ~= "table" then return nil end
+    local snap = {}
+    for _, field in ipairs(SNAPSHOT_FIELDS) do snap[field] = copy(p[field]) end
+    return snap
+end
+
+--- Put snapshot `snap` back: the sets, their order and the id counter replaced by copies, ids kept
+--- (a container names its set by id), every set normalized. Refuses a snapshot with no set in it,
+--- because the registry is never left empty.
+function BandSets.RestoreSnapshot(snap)
+    local p = profile()
+    if type(p) ~= "table" or type(snap) ~= "table" or not defaultIdOf(snap) then return false end
+    for _, field in ipairs(SNAPSHOT_FIELDS) do p[field] = copy(snap[field]) end
+    for _, set in pairs(p.bandSets) do BandSets.NormalizeSet(set) end
+    announce()
+    return true
 end

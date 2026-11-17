@@ -124,13 +124,15 @@ end
 
 --- The combat edge. Both preview modes end when combat starts, while secure writes are still
 --- allowed (preview-mode): no placeholder covers a real range in a fight. The range ticker is
---- re-armed at the edge's rate.
+--- re-armed at the edge's rate, and the leave edge runs a container apply combat held.
 function addon:OnCombatChanged(event)
     local t0 = Perf.on and debugprofilestop()
     local entering = event == "PLAYER_REGEN_DISABLED"
     local ended = entering and NS.EndModes("combat started") or 0
     -- The range ticker's rate follows the edge: 20 Hz in combat, 10 Hz out of it.
     NS.Ticker.SetCombat(entering)
+    -- A container apply held by combat runs on the leave edge (modules/ContainerManager.lua).
+    if not entering then NS.CM.FlushPending("regen") end
     NS.Debug("Combat", entering and "entered: %s preview mode(s) ended" or "left", ended)
     if t0 then Perf.Note("combatEdge", debugprofilestop() - t0) end
 end

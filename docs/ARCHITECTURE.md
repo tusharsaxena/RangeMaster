@@ -11,7 +11,7 @@ indicator and a row of spell chips, colored by a shared **band set**. The design
 record are `docs/superpowers/specs/2026-11-18-rangemaster-design.md` and
 `docs/superpowers/plans/2026-11-18-rangemaster-v0.1.0.md`.
 
-**State of the tree: the scaffold, the range engine and the data model (plan Tasks 1 to 3).** What exists is the
+**State of the tree: the scaffold, the range engine, the data model and the container registry (plan Tasks 1 to 4).** What exists is the
 born-compliant shell every Ka0s addon shares (the Ace3 addon object, AceDB with its migration runner,
 the LibKa0s setup files, the Master controls and Skin tabs, the slash surface, the launcher, the
 stand-down latch, the diagnostics report, and the two session preview modes with their one writer
@@ -20,9 +20,11 @@ the one ticker and the sender of `RANGE_UPDATED`), the range reads and the per-c
 `core/Compat.lua`, and the per-client spell seeds in `defaults/SpellSeeds.lua`; plus the data model:
 the container and band-set templates (`defaults/Profile.lua`), the four preset band sets
 (`defaults/BandSetPresets.lua`), the band-set registry and its resolver (`modules/BandSets.lua`) and
-the registries' load pass (`core/Database.lua`'s `PrepareProfile`). Nothing watches a unit yet: the
-containers, the anchors and the settings pages arrive in plan Tasks 4 to 8, and each section below
-says where a later task plugs in.
+the registries' load pass (`core/Database.lua`'s `PrepareProfile`); plus the container registry's
+writer (`modules/ContainerManager.lua`, `NS.CM`) and the three container presets
+(`modules/Presets.lua`, `NS.Presets`). Nothing draws or watches a unit yet: the renderer, the anchors
+and the settings pages arrive in plan Tasks 5 to 8, and each section below says where a later task
+plugs in.
 
 **The design is dictated by one client fact.** The game answers "is this unit within reach of
 spell or item X", never "how far". The range engine asks LibRangeCheck-3.0 (vendored,
@@ -64,6 +66,29 @@ first-run seed puts the class default there (`NS.BandSetPresets.DefaultFor`). De
 every container on it to the named replacement or the default (a friendly override on it falls away
 unless a replacement was named), and the last set cannot be deleted. The Hunter preset is two lists,
 one per client, picked once at load (clients-§5): WoW Forever's has the 5-8 yd Auto Shot dead zone.
+
+### Containers and presets
+
+`NS.CM` (`modules/ContainerManager.lua`) is the container registry's one runtime writer: `Create(unit?,
+opts?)` (a deep copy of the template on the default band set, the class's spell-chip seeds from
+`defaults/SpellSeeds.lua`, `opts` merged over it, a screen container staggered by id), `Delete`,
+`Duplicate` (after its source, `"<name> copy"`, a screen copy offset), `Rename`, `UniqueName`
+(`Target`, `Target 2`, case-insensitive), `CopySettings` (never name, enabled, unit or anchor),
+`Clear`, and `Snapshot` / `RestoreSnapshot`, which carry both registries, ids included, the band-set
+half through `NS.BandSets.Snapshot` / `RestoreSnapshot`. Every write calls `RequestApply`, which
+arms one zero-delay `C_Timer`: a whole preset announces `CONTAINERS_CHANGED` once, on the next frame.
+A flush under combat lockdown is held (one debug line) and runs on `PLAYER_REGEN_ENABLED`; a stood-down
+addon arms no timer, and the stand-up asks for one apply.
+
+`NS.Presets.Apply(key)` (`simple`, `intermediate`, `advanced`) snapshots, clears and creates through
+`NS.CM`, and answers the snapshot; `Undo` restores it (one level). Simple: target, focus, pet and
+mouseover free on screen, number and band-colored border. Intermediate: target, focus and pet on their
+Blizzard unit frames, mouseover on the cursor, number + text + dot, hidden with no unit, the Healer set
+as the friendly override on target, focus and mouseover (reused by name, else created). Advanced:
+Intermediate with spell chips on focus and sounds on target (its set's out-of-range band gets
+`NS.Presets.OOR_SOUND` when it has no sound), plus target on its own nameplate (diamond + number) and
+every hostile nameplate (dot + the `max` number), both in combat only. `Describe(key)` feeds the
+preset cards (plan Task 8).
 
 ### Libraries
 
@@ -111,8 +136,9 @@ set when its `bandSet` names none, and sets `seeded` to `false` when absent.
   `container.*` row exists yet, and when Task 8 adds `container.bandSet` that write goes through the
   helper (architecture-§5, "a row wins over a key").
 - **Containers**: `containers`, `containerOrder`, `nextContainerId`, and the first-run sentinel
-  `seeded`. Runtime writer `modules/ContainerManager.lua` (plan Task 4); the load pass above already
-  prepares it.
+  `seeded`. Runtime writer `modules/ContainerManager.lua` (`NS.CM`: `Create`, `Delete`, `Duplicate`,
+  `Rename`, `CopySettings`, `Clear`, `RestoreSnapshot`); `seeded` is written by the first-run picker
+  (plan Task 8). No `container.*` row exists yet; Task 8's rows write through the seam.
 
 The member shapes are `NS.CONTAINER_TEMPLATE`, `NS.BANDSET_TEMPLATE` and `NS.BAND_TEMPLATE`
 (`defaults/Profile.lua`); the keys are bookkeeping with no schema row, so none is an AceDB default.
@@ -134,7 +160,7 @@ stand-down takes every subscription down and a stand-up replays it.
 | Constant | Wire name | Sender | Payload | Consumers |
 |---|---|---|---|---|
 | `RANGE_UPDATED` | `Ka0s_RangeMaster_RangeUpdated` | `modules/Ticker.lua` | `unit, state, minYd, maxYd` | the containers watching that unit (Task 5) |
-| `CONTAINERS_CHANGED` | `Ka0s_RangeMaster_ContainersChanged` | `modules/ContainerManager.lua` (Task 4) | none | the renderer and the settings pages |
+| `CONTAINERS_CHANGED` | `Ka0s_RangeMaster_ContainersChanged` | `modules/ContainerManager.lua` (`FlushPending`, coalesced to the next frame, held in combat) | none | the renderer and the settings pages |
 | `BANDSETS_CHANGED` | `Ka0s_RangeMaster_BandSetsChanged` | `modules/BandSets.lua` (`Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`; never the load pass) | none | the renderer and the settings pages |
 | `MODE_CHANGED` | `Ka0s_RangeMaster_ModeChanged` | `core/RangeMaster.lua` (`NS.SetTestMode`, `NS.SetSimMode`) | `mode` (`"test"` or `"sim"`), `on` | the renderer (Task 7) |
 
@@ -158,7 +184,7 @@ Each verb, its arguments and its refusals: `docs/slash-dispatch.md`.
 |---|---|---|
 | `PLAYER_ENTERING_WORLD` | `addon:OnEnterWorld` | a traced world-entry edge |
 | `PLAYER_REGEN_DISABLED` | `addon:OnCombatChanged` | combat ends Test mode and Sim mode, and the range ticker goes to 20 Hz (bracketed `combatEdge`) |
-| `PLAYER_REGEN_ENABLED` | `addon:OnCombatChanged` | the leave edge; the ticker back to 10 Hz |
+| `PLAYER_REGEN_ENABLED` | `addon:OnCombatChanged` | the leave edge; the ticker back to 10 Hz, and a container apply combat held runs (`NS.CM.FlushPending("regen")`) |
 | `PLAYER_TARGET_CHANGED` | `addon:OnUnitChanged` | `NS.Ticker.Refresh("target")` |
 | `PLAYER_FOCUS_CHANGED` | `addon:OnUnitChanged` | `NS.Ticker.Refresh("focus")`; registered only where `NS.Compat.IsEventValid` knows it (`ifValid`) |
 | `UPDATE_MOUSEOVER_UNIT` | `addon:OnUnitChanged` | `NS.Ticker.Refresh("mouseover")` |
@@ -186,8 +212,10 @@ secure writes are still allowed.
 
 - The scaffold shows no range display yet: Test mode and Sim mode switch, announce `MODE_CHANGED`
   and refuse in combat, but draw nothing until the renderer lands (plan Task 7).
-- `/rm resetposition` and the Reset position button report 0 displays until the container registry
-  exists (plan Tasks 4 and 6).
+- `/rm resetposition` and the Reset position button report 0 displays until the anchors
+  place containers (plan Task 6).
+- The Advanced preset's out-of-range sound key (`NS.Presets.OOR_SOUND`) is not yet registered with
+  LibSharedMedia, so it plays nothing until the band sounds land (plan Task 7).
 - On a load where LibKa0s is missing, the bus's degraded stub keeps no stand-down record, so a disable
   leaves bus subscriptions live there (the untracked-target stub, `core/Bus.lua`).
 - A unit LibRangeCheck will not measure because the client does not draw it (`UnitIsVisible` false)

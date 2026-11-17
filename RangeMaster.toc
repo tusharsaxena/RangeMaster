@@ -98,6 +98,11 @@ modules\BandSets.lua
 modules\Range.lua
 # Conventional: the one range ticker; NS.Range and the bus are reached at call time.
 modules\Ticker.lua
+# Conventional: the container registry's one writer and the coalesced, combat-deferred apply; the db,
+# the band sets, the spell seeds and the bus are reached at call time.
+modules\ContainerManager.lua
+# Conventional: the three container presets; NS.CM and NS.BandSets are reached at call time.
+modules\Presets.lua
 # Conventional: the diagnostics report's sections (debug-logging-§14); the DebugLog descriptor asks
 # for them when a report runs.
 modules\Diagnostics.lua

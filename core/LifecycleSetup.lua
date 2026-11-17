@@ -27,6 +27,8 @@ local function StandDown()
     if addon and addon.UnregisterLifecycleEvents then addon:UnregisterLifecycleEvents() end
     -- The range ticker and the pending spell rebuild: no timer survives a stand-down.
     if NS.Ticker and NS.Ticker.StandDown then NS.Ticker.StandDown() end
+    -- The container registry's coalescing timer; an owed apply stays owed for the stand-up.
+    if NS.CM and NS.CM.StandDown then NS.CM.StandDown() end
     if NS.BusStandDown then NS.BusStandDown() end
 end
 
@@ -37,6 +39,8 @@ local function StandUp()
     if addon and addon.RegisterLifecycleEvents then addon:RegisterLifecycleEvents() end
     -- Last, once every receiver is back: each watched unit is read and announced again.
     if NS.Ticker and NS.Ticker.StandUp then NS.Ticker.StandUp() end
+    -- One apply of every container as the settings are now (CONTAINERS_CHANGED on the next frame).
+    if NS.CM and NS.CM.StandUp then NS.CM.StandUp() end
 end
 
 NS.StandDown, NS.StandUp = StandDown, StandUp
