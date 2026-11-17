@@ -171,6 +171,24 @@ test("loadorder: the runner loaded exactly the vendored XML's library files, in 
     "tests/run.lua's library load list has drifted from libs/LibKa0s/LibKa0s.xml")
 end)
 
+test("loadorder: the runner loads LibRangeCheck-3.0 as the TOC does, and it registers whole", function()
+  -- The TOC lists it on its own libs\ line, which Loader.tocFiles skips, so the runner names it.
+  -- Registered at MINOR 39 and with its public query and its load-time frame, so a load that
+  -- raised halfway (LibStub registers the major before the file body runs) is red too.
+  local toc = readFile("RangeMaster.toc")
+  assertTrue(toc:find("libs\\LibRangeCheck-3.0\\LibRangeCheck-3.0.lua", 1, true) ~= nil,
+    "the TOC lists the vendored LibRangeCheck-3.0")
+  local loaded = T.loadedRangeCheckFiles
+  assertTrue(type(loaded) == "table", "tests/run.lua publishes the LibRangeCheck files it loaded")
+  assertEqual(table.concat(loaded, "\n"), "libs/LibRangeCheck-3.0/LibRangeCheck-3.0.lua")
+  local lrc, minor = mocks.LibStub("LibRangeCheck-3.0", true)
+  assertTrue(lrc ~= nil, "LibRangeCheck-3.0 registered its major")
+  assertEqual(minor, 39, "at the vendored MINOR")
+  assertTrue(type(lrc.GetRange) == "function", "with its range query")
+  assertTrue(lrc.frame ~= nil and lrc.cacheResetTimer ~= nil,
+    "and the file ran to its closing activate(), which armed its frame and its cache ticker")
+end)
+
 test("loadorder: the loaded library registered — NS.Perf is the lib, not the degradation stub", function()
   -- The consequence a short list has, and the reason it goes unnoticed: a missing Perf.lua raises
   -- nothing at all. LibStub never sees the major, core/PerfSetup.lua takes its `if not lib` arm,

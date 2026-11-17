@@ -93,9 +93,9 @@ modules\Diagnostics.lua
 settings\Schema.lua
 # LOAD-BEARING: publishes NS.COMMANDS and NS.Slash before settings\OptionsSetup.lua.
 settings\Slash.lua
-# LOAD-BEARING: publishes NS.Helpers, captured at load by settings\General.lua, and NS.RegisterOptionsPage, called at load by every page file below.
+# LOAD-BEARING: publishes NS.Helpers, captured at load by settings\About.lua and settings\General.lua, and NS.RegisterOptionsPage, called at load by every page file below.
 settings\OptionsSetup.lua
-# Conventional: the landing page's spec, read at render time.
+# LOAD-BEARING: captures NS.Helpers at load and defines Helpers.BuildMainContent on it, so it must follow settings\OptionsSetup.lua; the spec itself is read at render time.
 settings\About.lua
 # LOAD-BEARING: the first registered page after the landing page, so General leads the sidebar.
 settings\General.lua

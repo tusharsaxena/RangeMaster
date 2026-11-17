@@ -186,9 +186,9 @@ end)
 -- LEFT-click opens the settings panel, on every addon, in either state. RIGHT-click opens the
 -- client's own context menu, built by the LIBRARY out of the accessor-and-toggle pairs the
 -- descriptor passes. What is this addon's, and what these cases pin, is WHICH pairs it passes --
--- Enabled and Locked, the row WowAddonStandards' ADDONS.md records; no Test mode (options-ui-§15's
--- exemption: the lock IS the preview) and no Show window (there is no primary window) -- and that
--- each toggle is the SAME handler its slash verb runs, so the refusals and the echo are the verb's.
+-- Enabled, Locked, Test mode and Sim mode, the row WowAddonStandards' ADDONS.md records, and no
+-- Show window (there is no primary window) -- and that each toggle is the SAME handler its slash
+-- verb runs, so the refusals and the echo are the verb's.
 
 local Menu = dofile("tests/mock_menu.lua")(T.mocks)
 
@@ -307,6 +307,47 @@ test("launcher menu: Locked runs the /rm lock and /rm unlock handlers themselves
   end)
 end)
 
+--- Clear the printer, run `fn`, and hand back what it printed: the echo a verb's handler prints.
+local function printedBy(fn)
+  T.mocks.__resetPrinted()
+  fn()
+  local out = {}
+  for i, line in ipairs(T.mocks.__printed()) do out[i] = line end
+  return table.concat(out, " / ")
+end
+
+-- Test mode and Sim mode run core/RangeMaster.lua's NS.ToggleTestMode / NS.ToggleSimMode, which call
+-- settings/Slash.lua's runTest("") / runSim("") -- the very functions the `test` and `sim` entries in
+-- NS.COMMANDS call. Those are file locals, so the cases pin it by what the handler DOES: the mode
+-- flips, and the line printed is byte for byte the one the bare verb prints.
+for _, mode in ipairs({
+  { entry = "Test mode", verb = "test", is = function() return NS.IsTestMode() end },
+  { entry = "Sim mode",  verb = "sim",  is = function() return NS.IsSimMode() end },
+}) do
+  test("launcher menu: " .. mode.entry .. " runs the /rm " .. mode.verb .. " handler itself", function()
+    -- red under: a toggle that writes the mode itself (no echo), or one that ignores the stored state.
+    fakes()
+    NS.Launcher:Register()
+    NS.SetByPath("enabled", true)
+    NS.EndModes("test baseline")
+    withMenu(function()
+      assertFalse(openMenu():Checked(mode.entry), mode.entry .. " reads unchecked while off")
+      local clicked = printedBy(function() openMenu():Click(mode.entry) end)
+      assertTrue(mode.is(), "clicking " .. mode.entry .. " turned it on")
+      assertTrue(openMenu():Checked(mode.entry), "and the next open reads it checked")
+      local clickedOff = printedBy(function() openMenu():Click(mode.entry) end)
+      assertFalse(mode.is(), "clicking it again turned it off")
+
+      local typed = printedBy(function() NS.Slash:OnSlash(mode.verb) end)
+      local typedOff = printedBy(function() NS.Slash:OnSlash(mode.verb) end)
+      assertTrue(clicked ~= "", "the click echoed")
+      assertEqual(clicked, typed, "the click's echo is `/rm " .. mode.verb .. "`'s")
+      assertEqual(clickedOff, typedOff, "and so is the second click's")
+    end)
+    NS.EndModes("test baseline")
+  end)
+end
+
 test("launcher: with no client menu API, right-click falls back to the settings panel", function()
   -- The harness's default: no MenuUtil, as on a pre-11.0 client. The panel holds every toggle the
   -- menu would have.
@@ -325,10 +366,9 @@ end)
 --
 -- The LIBRARY draws the tooltip, in one shape across the collection. What is this addon's, and
 -- what these cases pin, is the descriptor that feeds it: `version` out of the TOC, `isLocked` off
--- the `locked` row, and NO `isTestMode` —
--- options-ui-§15's exemption means this addon has no Test mode row, so a `Test mode:` line would
--- report a state the player can find nowhere else. No `onTooltipShow` either: there is nothing of
--- this addon's own to append, and a host hook that drew a title or a hint would draw it twice.
+-- the `locked` row, and `isTestMode` off the session's Test mode (NS.IsTestMode), the same state
+-- the Master controls box and `/rm test` report. No `onTooltipShow`: there is nothing of this
+-- addon's own to append, and a host hook that drew a title or a hint would draw it twice.
 
 --- A GameTooltip stand-in that records each line, raw. The kit's GameTooltip is a bare frame with
 --- no AddLine, so the library's draw is driven against this instead of against it.

@@ -8,7 +8,7 @@ Total.
 
 **Generated — do not hand-edit.** Regenerate with `lua tests/run.lua --list > docs/test-cases.md`.
 
-### test_loadorder.lua (15)
+### test_loadorder.lua (16)
 
 - loadorder: tocFiles returns every addon lua file, in TOC order
 - loadorder: core/MediaSetup.lua loads before core/Constants.lua
@@ -20,6 +20,7 @@ Total.
 - loadorder: tests/perf.lua derives its list from the TOC too
 - loadorder: xmlFiles returns every LibKa0s script the vendored XML lists, in its order
 - loadorder: the runner loaded exactly the vendored XML's library files, in its order
+- loadorder: the runner loads LibRangeCheck-3.0 as the TOC does, and it registers whole
 - loadorder: the loaded library registered — NS.Perf is the lib, not the degradation stub
 - loadorder: tests/perf.lua derives its library half from the vendored XML too
 - loadorder: LibStub raises for a missing major without the silent flag
@@ -194,7 +195,7 @@ Total.
 - LAYERS names the HUD strata and an ordered level ladder
 - no strata literal and no absolute level at any call site
 
-### test_launcher.lua (28)
+### test_launcher.lua (30)
 
 - launcher: Register builds ONE broker object and hands that same object to LibDBIcon
 - launcher: LibDBIcon is handed db.global.minimap ITSELF, not a copy
@@ -205,6 +206,8 @@ Total.
 - launcher menu: each entry reads its state on every open
 - launcher menu: Enabled runs the /rm enable and /rm disable handlers themselves
 - launcher menu: Locked runs the /rm lock and /rm unlock handlers themselves
+- launcher menu: Test mode runs the /rm test handler itself
+- launcher menu: Sim mode runs the /rm sim handler itself
 - launcher: with no client menu API, right-click falls back to the settings panel
 - launcher tooltip: the version is the TOC's, and absent it the title is the label alone
 - launcher tooltip: Locked follows the lock on every show, green Yes and red No
@@ -351,12 +354,13 @@ Total.
 - prose self-test: the disclosure names what each entry suppressed, and says when it is bounded
 - prose self-test: a malformed waived is a failure, not a silence
 
-### test_surface_parity.lua (13)
+### test_surface_parity.lua (14)
 
 - parity: the Core stub publishes everything core/CoreSetup.lua publishes live
 - parity: the DebugLog stub carries the whole live surface
 - parity: the Options stub carries every helper the degraded build can reach
 - parity: the Slash stub carries every dispatcher member the addon calls
+- parity: the Slash stub's DISABLED_LINE_FORMAT copy is the library's, byte for byte
 - parity: the Launcher stub carries the whole live surface
 - parity: the Bus stub carries the library's whole surface
 - parity: the Schema stub carries the library's lib-level surface
@@ -393,7 +397,7 @@ Total.
 - disabled 3: writing the enable path leaves NOTHING registered
 - disabled 4: no timer, ticker or OnUpdate is left armed, and both preview modes end
 - disabled 5: a preview mode cannot be started while disabled, so nothing can be shown
-- disabled 6: firing every baseline event writes nothing, says nothing, runs nothing
+- disabled 6: every baseline event, fired anyway, reaches its handler and writes, prints and shows nothing
 - disabled 7: every reserved verb answers, and only a feature verb refuses
 - disabled 7: a refused feature verb reaches no write seam
 - disabled 8: the left click opens the panel; the menu grays the rest and still re-enables
@@ -481,7 +485,7 @@ Total.
 
 | Suite | Cases |
 |-------|------:|
-| test_loadorder.lua | 15 |
+| test_loadorder.lua | 16 |
 | test_schema.lua | 36 |
 | test_database.lua | 9 |
 | test_compat.lua | 6 |
@@ -494,7 +498,7 @@ Total.
 | test_perf.lua | 15 |
 | test_bus.lua | 8 |
 | test_layers.lua | 2 |
-| test_launcher.lua | 28 |
+| test_launcher.lua | 30 |
 | test_launcher_skin_entry.lua | 1 |
 | test_modes.lua | 7 |
 | test_optionssetup.lua | 16 |
@@ -506,7 +510,7 @@ Total.
 | test_locale.lua | 4 |
 | test_docs.lua | 5 |
 | test_prose.lua | 15 |
-| test_surface_parity.lua | 13 |
+| test_surface_parity.lua | 14 |
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
 | test_events.lua | 3 |
@@ -520,4 +524,4 @@ Total.
 | test_skin_switch.lua | 5 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **354** |
+| **Total** | **358** |

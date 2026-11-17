@@ -90,7 +90,7 @@ Nameplates: unit's own plate vs every plate: owner chose **both**.
   stopped when no enabled container has a live unit. Forced refresh on `PLAYER_TARGET_CHANGED`,
   `PLAYER_FOCUS_CHANGED` (if valid), `UNIT_PET`, `UPDATE_MOUSEOVER_UNIT`,
   `NAME_PLATE_UNIT_ADDED/REMOVED`, `PLAYER_REGEN_*`, `SPELLS_CHANGED` (debounced: rebuild seeds).
-  Mouseover re-validates `UnitExists("mouseover")` every tick. Sends `NS.Bus` messages
+  Mouseover re-validates `UnitExists("mouseover")` every tick. Sends `NS.MSG` messages
   `RANGE_UPDATED(unit)` only when that unit's (state,min,max) changed.
 
 ### 5.2 Data model (AceDB, `defaults/Profile.lua`, `core/Database.lua`)

@@ -15,7 +15,7 @@
 | # | Task | Status | Commit | Pushed |
 |---|---|---|---|---|
 | 0 | Repo, labels, branch, spec, research, plan | done | d140c26 + this | yes |
-| 1 | Scaffold (born compliant) + vendor LibKa0s + LibRangeCheck | done | 30b77b8 + 6ed49cb + this | no |
+| 1 | Scaffold (born compliant) + vendor LibKa0s + LibRangeCheck | done | 30b77b8 + 6ed49cb + b6d243f + `Scaffold: review fixes` | no |
 | 2 | Range engine, Compat, spell seeds, ticker | todo | | |
 | 3 | Data model, band sets, migrations | todo | | |
 | 4 | ContainerManager + presets | todo | | |
@@ -66,7 +66,7 @@ row (status, short SHA) in the same commit that finishes it. Push after tasks 1,
 **Files:** everything NEW_ADDON.md creates (TOC, `core/`, `defaults/`, `settings/`, `locales/`, `modules/`, `media/logos/rangemaster.logo.128.tga`, `libs/`, `tests/`, `docs/` trio + tier docs, `README.md`, `CLAUDE.md` stub, `DEPENDENCIES.md`, `LICENSE`, `.luacheckrc`, `.pkgmeta`). Plus `libs/LibRangeCheck-3.0/LibRangeCheck-3.0.lua` (MINOR 39 from github.com/WeakAuras/LibRangeCheck-3.0 main; record the commit SHA in `DEPENDENCIES.md`).
 
 **Interfaces:**
-- Produces: `NS` namespace, `NS.Bus` message constants (add `RANGE_UPDATED`, `CONTAINERS_CHANGED`, `BANDSETS_CHANGED`, `MODE_CHANGED`), `NS.Compat` with `NS.Compat.IsForever() -> boolean`, `NS.db` (AceDB), the Lifecycle latch, the options registration, launcher with entries Enabled · Locked · Test mode · Sim mode.
+- Produces: `NS` namespace, `NS.MSG` message constants (the strict `Bus.Catalog` architecture-§4 names; sent through `NS.bus`) (add `RANGE_UPDATED`, `CONTAINERS_CHANGED`, `BANDSETS_CHANGED`, `MODE_CHANGED`), `NS.Compat` with `NS.Compat.IsForever() -> boolean`, `NS.db` (AceDB), the Lifecycle latch, the options registration, launcher with entries Enabled · Locked · Test mode · Sim mode.
 
 - [ ] **Step 1:** Run `/dev-copilot:wow-new-addon` (or follow `WowAddonStandards/NEW_ADDON.md` to the letter) for name `RangeMaster`, title `Ka0s Range Master`, slash `rm`/`rangemaster`, clients `Retail · Forever`, launcher entries `Enabled · Locked · Test mode · Sim mode`, skin preview `test`, sim checkbox `next to Test mode`, tagline "Build your own range displays for target, focus, pet, mouseover and nameplates."
 - [ ] **Step 2:** Vendor LibRangeCheck-3.0 into `libs/`, list it in the TOC Libraries section after LibKa0s, add it to `.pkgmeta` ignore-nothing / `DEPENDENCIES.md`, and to `tests/wow_mock.lua` load path so suites can load it.
@@ -83,7 +83,7 @@ row (status, short SHA) in the same commit that finishes it. Push after tasks 1,
   - `NS.Range.BeginTick()` (clears memo), `NS.Range.Rebuild()` (on `SPELLS_CHANGED`, debounced 0.5 s).
   - `NS.Compat.RangeLadder() -> { {kind="item"|"interact"|"spell", id=number, yd=number}, ... }` for the active client/class (Forever: items at 20/30/35, interact 3/4 race-adjusted).
   - `NS.SpellSeeds[client][classFile] = { chips = {spellID,...}, ladder = {spellID,...} }`, `client ∈ {"retail","forever"}`.
-  - `NS.Ticker.Watch(unit)`, `NS.Ticker.Unwatch(unit)`, `NS.Ticker.Refresh(unit?)`; sends `NS.Bus.RANGE_UPDATED` with `(unit, state, min, max)` only on change.
+  - `NS.Ticker.Watch(unit)`, `NS.Ticker.Unwatch(unit)`, `NS.Ticker.Refresh(unit?)`; sends `NS.MSG.RANGE_UPDATED` with `(unit, state, min, max)` only on change.
 
 - [ ] **Step 1: Write failing tests** `test_range.lua`: `test_known_bracket` (LRC mock returns 20,25 → `"known",20,25`); `test_open_ended` (40,nil → `"known",40,nil`); `test_secret_is_unknown` (kit secret value → `"unknown"`); `test_error_is_unknown` (LRC throws → `"unknown"`); `test_no_unit_is_none`; `test_memo_one_query_per_tick` (3 Gets on `target` → 1 LRC call); `test_range_unit_vanishes` (unit exists at Get 1, gone after BeginTick → `"none"`); `test_spell_unknown_spell_nil` (spell not known → nil); `test_forever_ladder` (under `KA0S_KIT_CLIENT=forever`, ladder yds ⊆ {20,30,35,28,10}). `test_ticker.lua`: `test_rate_combat_20hz`, `test_rate_idle_10hz`, `test_stops_when_nothing_watched`, `test_update_only_on_change`, `test_mouseover_revalidated_each_tick`.
 - [ ] **Step 2:** Run both clients; expect failures (module missing).
@@ -100,7 +100,7 @@ row (status, short SHA) in the same commit that finishes it. Push after tasks 1,
   - `NS.BandSets.Resolve(setId, state, minYd, maxYd) -> bandIndex|"unknown"|nil` (nil when state `"none"`).
   - `NS.BandSets.ForUnit(container, unit) -> setId` (friendly + `bandSetFriendly` set → that, else `bandSet`).
   - `NS.BandSetPresets = { melee_ranged, caster40, healer, hunter }` each `{name, matchBy, bands}`; `hunter` differs per client (spec §5.2). `NS.BandSetPresets.DefaultFor(classFile) -> key`.
-  - Sends `NS.Bus.BANDSETS_CHANGED`.
+  - Sends `NS.MSG.BANDSETS_CHANGED`.
 
 - [ ] **Step 1: Write failing tests:** `test_resolve_by_max` ((20,25) in melee_ranged → index of MID 20–30); `test_resolve_by_min`; `test_resolve_open_ended` ((40,nil) → OOR); `test_resolve_unknown`; `test_resolve_none_nil`; `test_bandset_normalise` (bands `{0-5, 3-20, 30-nil, 20-30}` → sorted, contiguous, last `to=nil`, `Resolve` defined for every yd in 0..100); `test_bandset_delete_reassigns` (2 containers on set B, delete B → both on `DefaultId()`); `test_for_unit_friendly_override`; `test_hunter_preset_per_client` (forever has DEAD 5–8, retail does not); `test_template_fill_missing_keys` (stored container lacking `elements.spells` gets it on load); `test_first_run_seeds_presets` (fresh profile → 4 band sets, class default chosen).
 - [ ] **Step 2:** Run → fail. **Step 3:** Implement (deep-copy templates; Database fills `== nil` keys; `RunMigrations` stays at schemaVersion 0). **Step 4:** Gate, commit `Data model and shared band sets`, ledger row 3.

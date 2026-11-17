@@ -17,12 +17,49 @@ local function regKey(r)
   return ("%s|%s|%s|%s"):format(r.kind, tostring(r.event), tostring(r.unit), tostring(r.target))
 end
 
+-- What the vendored LibRangeCheck-3.0 arms at its own load (libs/LibRangeCheck-3.0/LibRangeCheck-3.0.lua,
+-- lib:activate()): its event frame, which also carries its OnUpdate, and its 5 s cache ticker. A
+-- library's, not this addon's, and loaded before the addon exists, so the stand-down does not own them
+-- and every count below leaves them out. Nothing else is exempt.
+local LRC = M.LibStub("LibRangeCheck-3.0", true)
+local function libraryOwned(x)
+  return LRC ~= nil and x ~= nil and (x == LRC.frame or x == LRC.cacheResetTimer)
+end
+
+--- The addon's live registrations, the library's left out.
+local function addonRegistrations()
+  local out = {}
+  for _, r in ipairs(M.__registrations()) do
+    if not libraryOwned(r.target) then out[#out + 1] = r end
+  end
+  return out
+end
+
 --- The live registration set (events, unit events, bus messages), as sorted keys.
 local function regSet()
   local out = {}
-  for i, r in ipairs(M.__registrations()) do out[i] = regKey(r) end
+  for i, r in ipairs(addonRegistrations()) do out[i] = regKey(r) end
   table.sort(out)
   return out
+end
+
+--- The addon's armed timers, tickers and OnUpdate scripts, the library's left out.
+local function addonTimers()
+  local out = {}
+  for _, t in ipairs(M.__timers()) do
+    if not libraryOwned(t) then out[#out + 1] = t end
+  end
+  return out
+end
+
+--- How many of THIS addon's handlers M.__fire reached: the library frame, which the mock counts once
+--- per event it is registered for, is taken back out.
+local function addonFire(event)
+  local lib = 0
+  for _, r in ipairs(M.__registrations()) do
+    if r.event == event and libraryOwned(r.target) then lib = 1 end
+  end
+  return M.__fire(event) - lib
 end
 
 local function joined(list) return table.concat(list, "\n  ") end
@@ -47,7 +84,7 @@ local function enable()  NS.SetByPath("enabled", true)  end
 test("disabled 1: the enabled addon registers something to stand down from", function()
   local R_on = bringUp()
   local events = {}
-  for _, r in ipairs(M.__registrations()) do
+  for _, r in ipairs(addonRegistrations()) do
     if r.kind == "event" then events[r.event] = true end
   end
   for _, pair in ipairs(NS.__lifecycleEvents) do
@@ -78,7 +115,7 @@ test("disabled 4: no timer, ticker or OnUpdate is left armed, and both preview m
   NS.SetTestMode(true, "test")
   NS.SetSimMode(true, "test")
   disable()
-  assertEqual(#M.__timers(), 0, "timers left armed on a stood-down addon: " .. #M.__timers())
+  assertEqual(#addonTimers(), 0, "timers left armed on a stood-down addon: " .. #addonTimers())
   assertFalse(NS.IsTestMode(), "Test mode ended with the stand-down")
   assertFalse(NS.IsSimMode(), "Sim mode ended with the stand-down")
   enable()
@@ -94,31 +131,40 @@ test("disabled 5: a preview mode cannot be started while disabled, so nothing ca
   enable()
 end)
 
-test("disabled 6: firing every baseline event writes nothing, says nothing, runs nothing", function()
+test("disabled 6: every baseline event, fired anyway, reaches its handler and writes, prints and shows nothing", function()
   local R_on = bringUp()
-  local events = {}
-  for _, r in ipairs(M.__registrations()) do
-    if r.kind == "event" then events[r.event] = true end
+  -- R_on as (target, event) pairs: the addon's OWN stood-down targets, captured before the
+  -- stand-down removes them from the registry. Bus messages are not game events; step 9 covers them.
+  local fires, sawCombat = {}, false
+  for _, r in ipairs(addonRegistrations()) do
+    if r.kind == "event" or r.kind == "frame" or r.kind == "unit" then
+      fires[#fires + 1] = { target = r.target, event = r.event, key = regKey(r) }
+      if r.event == "PLAYER_REGEN_DISABLED" then sawCombat = true end
+    end
   end
-  assertTrue(events.PLAYER_REGEN_DISABLED, "the combat-entry event is in the baseline set by name")
+  assertTrue(#fires > 0, "precondition: the baseline registers game events")
+  assertTrue(sawCombat, "the combat-entry event is in the baseline set by name")
 
   disable()
   M.__resetSvWrites()
   M.__resetPrinted()
-  local ran = 0
-  for event in pairs(events) do ran = ran + M.__fire(event) end
+  local shownBefore = #M.__shownFrames()
+
+  -- The client fires at the live registry only, which is empty now: nothing may run.
+  local seen, ran = {}, 0
+  for _, f in ipairs(fires) do
+    if not seen[f.event] then seen[f.event] = true; ran = ran + addonFire(f.event) end
+  end
   assertEqual(ran, 0, "a handler ran off a game event while the addon was disabled")
+
+  -- And the falsification half, PER EVENT: each fire is driven at the target that registered it
+  -- and MUST reach a handler, so the silence below is the addon's and not the harness's.
+  for _, f in ipairs(fires) do
+    assertTrue(M.__fireUnconditional(f.target, f.event) >= 1, f.key .. " reached no handler")
+  end
   assertEqual(#M.__svWrites(), 0, "SavedVariables writes from a game event")
   assertEqual(#M.__printed(), 0, "lines printed: " .. table.concat(M.__printed(), " / "))
-
-  -- The silence above must be the addon's, not the harness's: a frame the client still dispatches
-  -- to reaches its handler.
-  local probe = M.CreateFrame("Frame")
-  local heard = 0
-  probe:SetScript("OnEvent", function() heard = heard + 1 end)
-  assertTrue(M.__fireUnconditional(probe, "PLAYER_REGEN_DISABLED") >= 1,
-    "the harness could not dispatch to an unregistered frame at all")
-  assertEqual(heard, 1, "and the probe's handler ran")
+  assertEqual(#M.__shownFrames(), shownBefore, "a frame was shown by a game event while disabled")
 
   enable()
   assertEqual(table.concat(regSet(), "\n"), table.concat(R_on, "\n"), "and the set comes back")

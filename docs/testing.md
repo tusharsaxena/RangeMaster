@@ -45,7 +45,8 @@ kit's `test_lizard_sighted` suite pins the sanitizer.
 
 ## What the headless suite is
 
-`tests/run.lua` loads the vendored LibKa0s files in `LibKa0s.xml` order, then the addon's own files
+`tests/run.lua` loads the vendored LibKa0s files in `LibKa0s.xml` order, then the vendored
+LibRangeCheck-3.0 (its own TOC line, which `Loader.tocFiles` skips), then the addon's own files
 straight from `RangeMaster.toc` (testing-§9), on the mock from `tests/wow_mock.lua` (a thin extender
 over the kit's `mock_base.lua`). It mirrors the in-game lifecycle (`OnInitialize`, then `OnEnable`)
 and runs the declared suite list through `Kit.run`, which fails the run on a suite on disk but not

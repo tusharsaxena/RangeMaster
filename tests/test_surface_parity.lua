@@ -182,6 +182,14 @@ test("parity: the Slash stub carries every dispatcher member the addon calls", f
   })
 end)
 
+test("parity: the Slash stub's DISABLED_LINE_FORMAT copy is the library's, byte for byte", function()
+  -- The one library string the degradation stub carries (slash-commands-§7). Both builds publish it
+  -- as Sl.__STUB_DISABLED_LINE_FORMAT, so the copy that could drift is pinned against the live major.
+  local NS2 = loadDegraded()
+  T.assertLibraryConstant(NS2.Slash.__STUB_DISABLED_LINE_FORMAT, "LibKa0s-Slash-1.0", "DISABLED_LINE_FORMAT")
+  T.assertLibraryConstant(NS.Slash.__STUB_DISABLED_LINE_FORMAT, "LibKa0s-Slash-1.0", "DISABLED_LINE_FORMAT")
+end)
+
 -- ── Launcher ───────────────────────────────────────────────────────────────────────────────────
 
 test("parity: the Launcher stub carries the whole live surface", function()

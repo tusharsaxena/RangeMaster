@@ -20,11 +20,16 @@ Loader.addonName = "RangeMaster"
 -- raise -- the module never registers, its degradation stub takes over, and the suite measures the
 -- stub (testing-§9).
 local LIB_FILES = Loader.xmlFiles("libs/LibKa0s/LibKa0s.xml")
+-- LibRangeCheck-3.0, which the TOC lists by its own line rather than through an XML, so neither
+-- derivation above reaches it. Loaded after LibKa0s, as the TOC orders it, so a suite reaches the
+-- vendored estimator through LibStub; tests/wow_mock.lua answers what it reads at load.
+local RANGECHECK_FILES = { "libs/LibRangeCheck-3.0/LibRangeCheck-3.0.lua" }
 
 -- The addon's own files come from the TOC, so this runner cannot drift from what the client loads.
 local ADDON_FILES = Loader.tocFiles("RangeMaster.toc")
 
 Loader.loadAll(LIB_FILES, NS, mocks)
+Loader.loadAll(RANGECHECK_FILES, NS, mocks)
 Loader.loadAll(ADDON_FILES, NS, mocks)
 
 -- Mirror the in-game lifecycle: OnInitialize (the database, the skin, the slash command, the
@@ -49,6 +54,7 @@ _G.RM_TEST = Kit.expose{
   NS = NS, mocks = mocks,
   loadedAddonFiles = ADDON_FILES,
   loadedLibFiles   = LIB_FILES,
+  loadedRangeCheckFiles = RANGECHECK_FILES,
   -- A raw profile write that bypasses the seam, for a case that sets up stored state.
   rawSet = function(path, value) NS.SetPath(NS.db.profile, path, value) end,
 }
