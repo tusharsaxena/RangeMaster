@@ -15,7 +15,7 @@
 | # | Task | Status | Commit | Pushed |
 |---|---|---|---|---|
 | 0 | Repo, labels, branch, spec, research, plan | done | d140c26 + this | yes |
-| 1 | Scaffold (born compliant) + vendor LibKa0s + LibRangeCheck | todo | | |
+| 1 | Scaffold (born compliant) + vendor LibKa0s + LibRangeCheck | done | 30b77b8 + 6ed49cb + this | no |
 | 2 | Range engine, Compat, spell seeds, ticker | todo | | |
 | 3 | Data model, band sets, migrations | todo | | |
 | 4 | ContainerManager + presets | todo | | |
