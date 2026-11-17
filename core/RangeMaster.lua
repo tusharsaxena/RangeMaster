@@ -49,10 +49,23 @@ end
 
 --- Every event the addon itself registers, and the method each calls. ONE list, read by both the
 --- stand-up and the stand-down, so the two cannot drift apart.
+--- `ifValid` marks an event some client the TOC admits may not carry (PLAYER_FOCUS_CHANGED on WoW
+--- Forever, design spec 3): it is registered only where NS.Compat.IsEventValid says the client knows
+--- it, so a focus-less client skips it rather than recording a rejection.
 local LIFECYCLE_EVENTS = {
     { "PLAYER_ENTERING_WORLD", "OnEnterWorld" },
     { "PLAYER_REGEN_DISABLED", "OnCombatChanged" },
     { "PLAYER_REGEN_ENABLED",  "OnCombatChanged" },
+    -- The range engine's forced refreshes (design spec 5.1): each re-reads its unit at once,
+    -- between ticks, and starts the ticker if the unit is watched and exists.
+    { "PLAYER_TARGET_CHANGED", "OnUnitChanged" },
+    { "PLAYER_FOCUS_CHANGED",  "OnUnitChanged", ifValid = true },
+    { "UPDATE_MOUSEOVER_UNIT", "OnUnitChanged" },
+    { "UNIT_PET",              "OnPetChanged" },
+    { "NAME_PLATE_UNIT_ADDED",   "OnNamePlateChanged" },
+    { "NAME_PLATE_UNIT_REMOVED", "OnNamePlateChanged" },
+    -- Learned, unlearned or swapped spells: the ladder and the known-spell cache, debounced.
+    { "SPELLS_CHANGED",        "OnSpellsChanged" },
 }
 -- Suite seam: tests/test_disabled.lua and tests/test_events.lua read the list the code registers.
 NS.__lifecycleEvents = LIFECYCLE_EVENTS
@@ -61,8 +74,10 @@ NS.__lifecycleEvents = LIFECYCLE_EVENTS
 --- itself and is recorded in NS.State.rejectedEvents (events-frames-taint-§1), traced once.
 function addon:RegisterLifecycleEvents()
     for _, pair in ipairs(LIFECYCLE_EVENTS) do
-        if not NS.SafeRegisterEvent(self, pair[1], pair[2], NS.State.rejectedEvents) then
-            NS.DebugOnce("rejected:" .. pair[1], "Events", "rejected %s", pair[1])
+        if not pair.ifValid or NS.Compat.IsEventValid(pair[1]) then
+            if not NS.SafeRegisterEvent(self, pair[1], pair[2], NS.State.rejectedEvents) then
+                NS.DebugOnce("rejected:" .. pair[1], "Events", "rejected %s", pair[1])
+            end
         end
     end
 end
@@ -73,17 +88,46 @@ function addon:UnregisterLifecycleEvents()
     end
 end
 
+--- The unit each forced-refresh event names (design spec 5.1).
+local EVENT_UNIT = {
+    PLAYER_TARGET_CHANGED = "target",
+    PLAYER_FOCUS_CHANGED  = "focus",
+    UPDATE_MOUSEOVER_UNIT = "mouseover",
+}
+
+function addon:OnUnitChanged(event)
+    local unit = EVENT_UNIT[event]
+    if unit then NS.Ticker.Refresh(unit) end
+end
+
+--- UNIT_PET names the OWNER whose pet changed; only the player's is the `pet` token.
+function addon:OnPetChanged(_, owner)
+    if owner == "player" then NS.Ticker.Refresh("pet") end
+end
+
+--- A plate came or went: its token is re-read (a removed one reads "none" and its consumers hear it).
+function addon:OnNamePlateChanged(_, token)
+    if type(token) == "string" and NS.Compat.IsSafeKey(token) then NS.Ticker.Refresh(token) end
+end
+
+function addon:OnSpellsChanged()
+    NS.Range.Rebuild()
+end
+
 function addon:OnEnterWorld(_, isLogin, isReload)
     NS.Debug("World", "entering world (%s)",
         isLogin and "login" or isReload and "reload" or "zone change")
 end
 
 --- The combat edge. Both preview modes end when combat starts, while secure writes are still
---- allowed (preview-mode): no placeholder covers a real range in a fight.
+--- allowed (preview-mode): no placeholder covers a real range in a fight. The range ticker is
+--- re-armed at the edge's rate.
 function addon:OnCombatChanged(event)
     local t0 = Perf.on and debugprofilestop()
     local entering = event == "PLAYER_REGEN_DISABLED"
     local ended = entering and NS.EndModes("combat started") or 0
+    -- The range ticker's rate follows the edge: 20 Hz in combat, 10 Hz out of it.
+    NS.Ticker.SetCombat(entering)
     NS.Debug("Combat", entering and "entered: %s preview mode(s) ended" or "left", ended)
     if t0 then Perf.Note("combatEdge", debugprofilestop() - t0) end
 end

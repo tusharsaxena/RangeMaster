@@ -187,8 +187,8 @@ end)
 test("perf: the addon holds a real LibKa0s-Perf instance, on this addon's latch", function()
   assertTrue(type(P.Note) == "function" and type(P.BuildRecord) == "function",
     "NS.Perf is the library instance, not the degradation stub")
-  assertEqual(P.BUCKET_ORDER[1], "combatEdge", "the descriptor's one declared bucket")
-  assertEqual(#P.BUCKET_ORDER, 1, "and nothing undeclared")
+  assertEqual(table.concat(P.BUCKET_ORDER, ","), "combatEdge,ticker.tick,range.get",
+    "the descriptor's declared buckets, in report order, and nothing undeclared")
 end)
 
 test("perf: records identify this addon and land in its own global", function()
@@ -227,6 +227,16 @@ test("perf: every declared bucket is reached by a real bracket", function()
   mocks.__profileMs = 1
   NS.addon:OnCombatChanged("PLAYER_REGEN_DISABLED")
   NS.addon:OnCombatChanged("PLAYER_REGEN_ENABLED")
+  -- The range engine's two: one watched unit, read once on the watch (range.get) and once by a
+  -- tick of the live ticker (ticker.tick, with a second range.get inside it).
+  local LRC = mocks.LibStub("LibRangeCheck-3.0", true)
+  local realGet, hadTarget = LRC.GetRange, mocks.__unitExists.target
+  LRC.GetRange = function() return 20, 25 end
+  mocks.__unitExists.target = true
+  NS.Ticker.Watch("target")
+  NS.Ticker.__handle().fn()
+  NS.Ticker.Unwatch("target")
+  LRC.GetRange, mocks.__unitExists.target = realGet, hadTarget
   P.on = false
   local recorded = P.__buckets()
   for _, key in ipairs(P.BUCKET_ORDER) do

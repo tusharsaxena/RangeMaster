@@ -48,9 +48,15 @@ NS.Perf = lib:New({
     -- Ordered for the report, and the nesting is DECLARED rather than left as prose (performance-§3).
     buckets = {
         -- core/RangeMaster.lua's combat edge (PLAYER_REGEN_DISABLED / _ENABLED): ends the preview
-        -- modes and re-evaluates visibility. The scaffold's one event-driven path; the range engine
-        -- adds its ticker and range buckets with the code that reaches them (v0.1.0 plan, Task 2).
+        -- modes and re-arms the range ticker at the edge's rate.
         { key = "combatEdge" },
+        -- modules/Ticker.lua's tick: a fresh memo and one read of every watched unit, 10 or 20 times
+        -- a second while a watched unit exists. The addon's steady-state cost.
+        { key = "ticker.tick" },
+        -- modules/Range.lua's query on a memo miss: LibRangeCheck's GetRange (and on Forever the
+        -- ladder walk). Not declared `within` ticker.tick: an event's forced refresh runs it
+        -- outside any tick, so the containment is not a fact about every call.
+        { key = "range.get" },
     },
 
     -- THE LATCH, AND THE ONLY ROUTE THIS PROBE HAS TO MAKING THE ADDON INERT (Perf 12): the suspended

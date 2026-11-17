@@ -11,18 +11,40 @@ indicator and a row of spell chips, colored by a shared **band set**. The design
 record are `docs/superpowers/specs/2026-11-18-rangemaster-design.md` and
 `docs/superpowers/plans/2026-11-18-rangemaster-v0.1.0.md`.
 
-**State of the tree: the v0.1.0 scaffold (plan Task 1).** What exists is the born-compliant shell
-every Ka0s addon shares: the Ace3 addon object, AceDB with its migration runner, the LibKa0s setup
-files, the Master controls and Skin tabs, the slash surface, the launcher, the stand-down latch, the
-diagnostics report, and the two session preview modes (Test mode, Sim mode) with their one writer
-each. The range engine, the data model, the containers, the anchors and the settings pages for them
-arrive in plan Tasks 2 to 8; each section below says where a later task plugs in.
+**State of the tree: the scaffold and the range engine (plan Tasks 1 and 2).** What exists is the
+born-compliant shell every Ka0s addon shares (the Ace3 addon object, AceDB with its migration runner,
+the LibKa0s setup files, the Master controls and Skin tabs, the slash surface, the launcher, the
+stand-down latch, the diagnostics report, and the two session preview modes with their one writer
+each), plus the range engine: `modules/Range.lua` (`NS.Range`), `modules/Ticker.lua` (`NS.Ticker`,
+the one ticker and the sender of `RANGE_UPDATED`), the range reads and the per-client ladder in
+`core/Compat.lua`, and the per-client spell seeds in `defaults/SpellSeeds.lua`. Nothing watches a unit
+yet: the data model, the containers, the anchors and the settings pages arrive in plan Tasks 3 to 8,
+and each section below says where a later task plugs in.
 
 **The design is dictated by one client fact.** The game answers "is this unit within reach of
-spell or item X", never "how far". The range engine (Task 2) asks LibRangeCheck-3.0 (vendored,
+spell or item X", never "how far". The range engine asks LibRangeCheck-3.0 (vendored,
 `libs/LibRangeCheck-3.0/`) for the narrowest bracket those answers allow, behind `pcall` and an
 `issecretvalue` check (`NS.Compat.IsSecret`), and one shared ticker publishes `RANGE_UPDATED` on
 change. A secret or failed answer reads as *unknown*, never as out of range.
+
+### The range engine
+
+`NS.Range.Get(unit)` answers `state, minYd, maxYd`: `"none"` (no such unit), `"unknown"` (it exists
+and nothing could bound it: no answer, a raise, a secret) or `"known"` (`minYd` a number, `maxYd` a
+number or nil for open-ended). It is memoized per tick and keyed by unit token, never by GUID (a GUID
+can be secret on 12.x), so N containers on one unit cost one query per tick. On WoW Forever, when
+LibRangeCheck answers nothing for a unit that exists, the Compat ladder is walked instead
+(`NS.Compat.RangeLadder()`: items at the three reliable yards 20/30/35, the duel and follow interact
+distances race-adjusted, known seed spells); in combat on a unit the player cannot attack it asks the
+spell rungs only, because the client refuses item and interact checks there. `NS.Range.InSpellRange`
+asks `C_Spell.IsSpellInRange` only for a spell the player knows.
+
+`NS.Ticker` holds the watch list (a count per unit token) and the one `C_Timer.NewTicker`: 10 Hz out of
+combat, 20 Hz in combat (re-armed on the combat edge), stopped while no watched unit exists and
+restarted by the event that brings one back. Each tick reads every watched unit once and sends
+`RANGE_UPDATED` only for a unit whose triple changed; mouseover, which has no "cleared" event, is
+re-read through `UnitExists` every tick. The stand-down cancels the ticker and the debounced spell
+rebuild; the stand-up re-reads and re-announces every watched unit. Pipeline: `docs/data-flow.md`.
 
 ### Libraries
 
@@ -43,8 +65,11 @@ descriptor, the options descriptor and the pages.
 
 All features serve both clients. The client is asked only through `core/Compat.lua`'s routing of
 `LibKa0s-Compat-1.0` (clients-§3); no file reads a `WOW_PROJECT_*` global or decides the client from
-an interface number (`tests/test_compat.lua` pins that). Per-client range ladders and spell seeds
-arrive with the range engine as per-client data (plan Task 2, clients-§5).
+an interface number (`tests/test_compat.lua` pins that). What differs per client is data, picked by
+`NS.Compat.ClientKey()` at call time (clients-§5): the range ladder (`core/Compat.lua`, Forever only:
+items and interact distances; spells on both) and the spell seeds (`defaults/SpellSeeds.lua`, keyed
+`[client][classFile]`; Forever has no Death Knight, Monk, Demon Hunter or Evoker). Forever's
+`PLAYER_FOCUS_CHANGED` is registered only where `NS.Compat.IsEventValid` says the client knows it.
 
 ## Settings Schema
 
@@ -73,7 +98,7 @@ stand-down takes every subscription down and a stand-up replays it.
 
 | Constant | Wire name | Sender | Payload | Consumers |
 |---|---|---|---|---|
-| `RANGE_UPDATED` | `Ka0s_RangeMaster_RangeUpdated` | `modules/Ticker.lua` (Task 2) | `unit, state, minYd, maxYd` | the containers watching that unit (Task 5) |
+| `RANGE_UPDATED` | `Ka0s_RangeMaster_RangeUpdated` | `modules/Ticker.lua` | `unit, state, minYd, maxYd` | the containers watching that unit (Task 5) |
 | `CONTAINERS_CHANGED` | `Ka0s_RangeMaster_ContainersChanged` | `modules/ContainerManager.lua` (Task 4) | none | the renderer and the settings pages |
 | `BANDSETS_CHANGED` | `Ka0s_RangeMaster_BandSetsChanged` | `modules/BandSets.lua` (Task 3) | none | the renderer and the settings pages |
 | `MODE_CHANGED` | `Ka0s_RangeMaster_ModeChanged` | `core/RangeMaster.lua` (`NS.SetTestMode`, `NS.SetSimMode`) | `mode` (`"test"` or `"sim"`), `on` | the renderer (Task 7) |
@@ -97,17 +122,26 @@ Each verb, its arguments and its refusals: `docs/slash-dispatch.md`.
 | Event | Handler | Why |
 |---|---|---|
 | `PLAYER_ENTERING_WORLD` | `addon:OnEnterWorld` | a traced world-entry edge |
-| `PLAYER_REGEN_DISABLED` | `addon:OnCombatChanged` | combat ends Test mode and Sim mode (bracketed `combatEdge`) |
-| `PLAYER_REGEN_ENABLED` | `addon:OnCombatChanged` | the leave edge |
+| `PLAYER_REGEN_DISABLED` | `addon:OnCombatChanged` | combat ends Test mode and Sim mode, and the range ticker goes to 20 Hz (bracketed `combatEdge`) |
+| `PLAYER_REGEN_ENABLED` | `addon:OnCombatChanged` | the leave edge; the ticker back to 10 Hz |
+| `PLAYER_TARGET_CHANGED` | `addon:OnUnitChanged` | `NS.Ticker.Refresh("target")` |
+| `PLAYER_FOCUS_CHANGED` | `addon:OnUnitChanged` | `NS.Ticker.Refresh("focus")`; registered only where `NS.Compat.IsEventValid` knows it (`ifValid`) |
+| `UPDATE_MOUSEOVER_UNIT` | `addon:OnUnitChanged` | `NS.Ticker.Refresh("mouseover")` |
+| `UNIT_PET` | `addon:OnPetChanged` | `NS.Ticker.Refresh("pet")`, for the player's own pet only |
+| `NAME_PLATE_UNIT_ADDED` | `addon:OnNamePlateChanged` | `NS.Ticker.Refresh(token)` |
+| `NAME_PLATE_UNIT_REMOVED` | `addon:OnNamePlateChanged` | the same; a removed plate's token reads `"none"` |
+| `SPELLS_CHANGED` | `addon:OnSpellsChanged` | `NS.Range.Rebuild()`: the ladder and the known-spell cache, debounced 0.5 s |
 
-The range engine's events (target, focus, pet, mouseover, nameplate and spell changes, design spec
-section 5.1) join this list in plan Task 2. The skin picker holds one `PLAYER_REGEN_ENABLED` target of
-its own while a first-run show waits out combat (`core/SkinSetup.lua`).
+The ticker itself is a `C_Timer.NewTicker`, not an event; the stand-down cancels it with the pending
+rebuild. The skin picker holds one `PLAYER_REGEN_ENABLED` target of its own while a first-run show
+waits out combat (`core/SkinSetup.lua`).
 
 ## Taint Notes
 
-The scaffold draws no secure frame and hooks nothing. The rules the range work is built to: every
-range API call is wrapped in `pcall` and every result checked with `NS.Compat.IsSecret`; no
+The addon draws no secure frame and hooks nothing yet. The rules the range work is built to: every
+range API call is wrapped in `pcall` and every result checked with `NS.Compat.IsSecret` before it is
+compared (`core/Compat.lua`'s range reads, `modules/Range.lua`'s LibRangeCheck call); item and
+interact checks are never made on a unit the player cannot attack while in combat; no
 `SetPoint` or `SetParent` on a frame anchored to a secure frame in combat (queued for
 `PLAYER_REGEN_ENABLED`); the options panel refuses to open in combat and a page shown in combat is
 covered by the library's lock (options-ui-§2). Preview modes end on `PLAYER_REGEN_DISABLED`, while
@@ -121,6 +155,11 @@ secure writes are still allowed.
   exists (plan Tasks 4 and 6).
 - On a load where LibKa0s is missing, the bus's degraded stub keeps no stand-down record, so a disable
   leaves bus subscriptions live there (the untracked-target stub, `core/Bus.lua`).
+- A unit LibRangeCheck will not measure because the client does not draw it (`UnitIsVisible` false)
+  reads *unknown*, not out of range: the engine never guesses a distance it was not given.
+- Forever's interact rungs (duel 10 yd, follow 28 yd, race-adjusted) and both clients' seed spell IDs
+  (`defaults/SpellSeeds.lua`) are not yet confirmed in a client; `docs/smoke-tests.md` carries the
+  checks.
 
 ## Documentation map
 
@@ -147,7 +186,7 @@ generated directories are named once and never enumerated: `docs/audits/`, `docs
 | `perf-analysis/README.md` | Present | The performance harness is wired (`core/PerfSetup.lua`) |
 | `slash-dispatch.md` | Present | 20 commands in `NS.COMMANDS`, over the eight-or-more threshold |
 | `midnight-quirks.md` | Present | Always (documentation-§3): the vendored `client-quirks` catalog block, then the addon's own section |
-| `compat-layer.md` | Not applicable | `core/Compat.lua` routes `LibKa0s-Compat-1.0` members and carries their library-absent stand-ins; it publishes no addon-specific shim beyond what LibKa0s supplies, under the three-or-more threshold |
+| `compat-layer.md` | Present | `core/Compat.lua` publishes the range reads and the per-client ladder, seven addon-specific shims beyond what LibKa0s supplies, over the three-or-more threshold |
 | `message-bus.md` | Not applicable | 4 messages in `NS.MSG`; the trigger is more than ten. The table lives in `## Message Bus` above |
 | `profiles.md` | Present | AceDB profiles are user-visible: the Profiles sub-page is a profile control in the options UI |
 | `known-limitations.md` | Not applicable | `## Known Limitations` above is under ~60 lines |

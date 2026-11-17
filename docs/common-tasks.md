@@ -37,7 +37,20 @@ Recipes for the changes made most often here. Each names the real files; run the
 
 - Add `{ "EVENT", "Handler" }` to `LIFECYCLE_EVENTS` in `core/RangeMaster.lua` and the handler as an
   `addon:` method. The stand-down and stand-up read the same list, so nothing else changes.
-- An event one client lacks is gated with `NS.Compat.ForClient` at registration (clients-§4).
+- An event one client lacks is gated with `NS.Compat.ForClient` at registration (clients-§4); an
+  event a client may simply not know (`PLAYER_FOCUS_CHANGED` on Forever) carries `ifValid = true`,
+  which asks `NS.Compat.IsEventValid` first.
+- A range-engine event refreshes its unit through `NS.Ticker.Refresh(unit)` and does nothing else.
+
+## Add a seed spell or a ladder rung
+
+- A class's chip or ladder spell: add the ID to `defaults/SpellSeeds.lua` under the client it exists
+  on (`retail` or `forever`) and the class token. A ladder spell becomes a rung only when the player
+  knows it and it has a max range with no min range, so a melee or min-range spell belongs in
+  `chips`, not `ladder`. Add a RANGE-5 run for it in `docs/smoke-tests.md`.
+- A Forever item or interact rung: add it to `FOREVER_ITEMS` or `FOREVER_INTERACT` in
+  `core/Compat.lua`, only at a yard Forever answers reliably, and update the table in
+  `docs/compat-layer.md`. `tests/test_range.lua`'s `test_forever_ladder` holds the yards.
 
 ## Add a locale string
 

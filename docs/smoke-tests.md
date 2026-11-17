@@ -20,8 +20,9 @@ unless a check names one.
 | DIAG-1..3 | Diagnostics | the console, the report, the perf verb |
 | DEGRADED-1 | Degraded | the library-absent install |
 | LOC-1 | Non-English client | a deDE or frFR client |
+| RANGE-1..5 | Range engine | brackets, unknown, the Forever ladder, the ticker's rate and stop, the seed spells |
 
-The range-display themes (RANGE, ANCHOR, BANDS, SOUND, NAMEPLATE) join with plan Tasks 2 to 8.
+The range-display themes (ANCHOR, BANDS, SOUND, NAMEPLATE) join with plan Tasks 3 to 8.
 
 ## Before you start
 
@@ -134,8 +135,31 @@ The addon's own seams that a client language could reach, enumerated from the sc
   witness for a Blizzard global the client localizes that a later task starts reading, so when the
   range engine lands this check is re-run on a deDE client. Result:
 
+## Range engine
+
+The engine has no display of its own until the containers land (plan Task 5); RANGE-1 to RANGE-4 are
+run through the first container. RANGE-5 needs only the chat frame.
+
+- **RANGE-1. Brackets.** Target a training dummy and walk away from it → the bracket widens in steps
+  (`0–5`, `5–8`, … `40+`), never a single exact yard; it never flashes out of range while you stand
+  still. Result:
+- **RANGE-2. Unknown, not out of range.** In combat, target a friendly player and walk away → the
+  bracket either follows (spell checks) or reads unknown `?`; it never reads out of range while the
+  player stands next to you. Result:
+- **RANGE-3. Forever ladder (WoW Forever only).** On a character with no ranged spell (a fresh
+  warrior), target a dummy → brackets land on 10, 20, 28, 30 and 35 yd edges only. A Tauren's
+  edges are 8 and 25 yd for the two interact rungs. Result:
+- **RANGE-4. Ticker.** `/rm debug on`, `/rm perf`: with a container on target the `ticker.tick`
+  bucket fills; clear the target → it stops filling (the ticker stopped); enter combat → it fills
+  twice as fast. Result:
+- **RANGE-5. Seed spells resolve.** For your class, paste the `chips` and `ladder` IDs from
+  `defaults/SpellSeeds.lua` (this client's block) into
+  `/run for _, id in ipairs({ 133, 116 }) do print(id, C_Spell.GetSpellName(id)) end` → every ID
+  prints a spell name, none prints `nil`. Result:
+
 ## Pending sign-off
 
 | ID | Origin | Why it is owed |
 |---|---|---|
 | every check above | the v0.1.0 scaffold, 2026-11-18 | no client pass recorded yet |
+| RANGE-1..5 | the v0.1.0 range engine (plan Task 2), 2026-11-18 | the Forever interact distances and the seed IDs are unconfirmed in a client |

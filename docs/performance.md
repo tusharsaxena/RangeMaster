@@ -14,11 +14,12 @@ off.
 
 | Bucket | Bracket | Why |
 |---|---|---|
-| `combatEdge` | `addon:OnCombatChanged` (`core/RangeMaster.lua`) | the scaffold's one event-driven path: ends the preview modes at the pull |
+| `combatEdge` | `addon:OnCombatChanged` (`core/RangeMaster.lua`) | ends the preview modes at the pull and re-arms the range ticker at the edge's rate |
+| `ticker.tick` | the ticker's callback (`modules/Ticker.lua`) | a fresh memo and one read of every watched unit, 10 or 20 times a second while a watched unit exists: the addon's steady cost, bounded by units, never by containers |
+| `range.get` | `NS.Range.Get` on a memo miss (`modules/Range.lua`) | LibRangeCheck's `GetRange` behind the guards, and on Forever the ladder walk |
 
-The range engine's hot paths join with plan Task 2: `tickerTick` (the shared ticker's pass) and
-`rangeGet` (one unit's range read, `within = "tickerTick"`). That ticker, 10 Hz idle and 20 Hz in
-combat, is where this addon's steady cost will live, and it is bounded to the units a display watches.
+`range.get` is not declared `within = "ticker.tick"`: an event's forced refresh runs it outside any
+tick, so the containment is not true of every call.
 
 ## Taking a capture
 
@@ -32,8 +33,12 @@ Captures land in `RangeMasterPerfDB`, outside AceDB, and are recorded into `docs
 
 `lua tests/perf.lua` runs deterministic offline scenarios (allocations per pass, never wall-clock
 time) outside the commit gate, recorded by the automated-test runner's `perf` suite: the combat edge,
-the settings read, and the zero-overhead scenario that proves a dormant bracket costs nothing an armed
-one does not. Offline numbers are never cited as in-game evidence; in-game captures are their own
+the settings read, a range read on a memo miss (`range.get`, asserted not to allocate) and on a hit,
+the ticker's tick at the design spec's load (ten containers over target, focus, pet and mouseover
+plus twenty plates, 24 units: `ticker.tick` with nothing moving, asserted near-free, and
+`ticker.tick.moving` with every unit moving every tick), and the zero-overhead scenario that proves a
+dormant bracket costs nothing an armed one does not. LibRangeCheck's own `GetRange` answers a fixed
+bracket there: its cost is the library's. Offline numbers are never cited as in-game evidence; in-game captures are their own
 store.
 
 ## What it cannot resolve

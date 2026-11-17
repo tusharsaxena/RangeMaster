@@ -82,8 +82,16 @@ core\RangeMaster.lua
 # Defaults
 # Conventional: the profile defaults; reads NS.DEFAULT_SKIN (core\SkinSetup.lua) at load.
 defaults\Profile.lua
+# Conventional: the per-client, per-class spell seeds; data only, read at call time by
+# core\Compat.lua's RangeLadder.
+defaults\SpellSeeds.lua
 
 # Modules
+# LOAD-BEARING: before modules\Ticker.lua, whose tick reads NS.Range; captures NS.Perf and
+# LibRangeCheck-3.0 at load.
+modules\Range.lua
+# Conventional: the one range ticker; NS.Range and the bus are reached at call time.
+modules\Ticker.lua
 # Conventional: the diagnostics report's sections (debug-logging-§14); the DebugLog descriptor asks
 # for them when a report runs.
 modules\Diagnostics.lua

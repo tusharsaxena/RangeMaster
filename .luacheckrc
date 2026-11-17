@@ -21,6 +21,11 @@ read_globals = {
   "issecretvalue", "canaccessvalue",         -- core/Compat.lua's guard stand-ins
   "debugprofilestop",                        -- the perf bracket's clock (performance-§2)
   "DEFAULT_CHAT_FRAME", "StaticPopup_Show",
+  -- core/Compat.lua's range reads and the per-client ladder (design spec 5.1)
+  "C_Spell", "C_SpellBook", "C_Item", "CheckInteractDistance", "UnitCanAttack", "UnitRace",
+  "C_EventUtils",                            -- core/Compat.lua's IsEventValid
+  "UnitExists",                              -- modules/Range.lua: "none" is a unit that does not exist
+  "C_Timer",                                 -- modules/Ticker.lua's ticker, modules/Range.lua's rebuild debounce
 }
 
 globals = {

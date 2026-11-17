@@ -17,7 +17,7 @@ runner's load list to the TOC.
 | File | Responsibility |
 |---|---|
 | `core/Namespace.lua` | `NS.name`, the fallback `NS.version`, the cyan `[RM]` `NS.PREFIX`. LOAD-BEARING |
-| `core/Compat.lua` | The client seam (`IsForever`, `IsRetail`, `ClientKey`, `ForClient`) and the secret guards (`IsSecret`, `CanAccess`, `IsSafeKey`), routed from `LibKa0s-Compat-1.0` with library-absent stand-ins |
+| `core/Compat.lua` | The client seam (`IsForever`, `IsRetail`, `ClientKey`, `ForClient`), the secret guards and `GetSpellInfo`, routed from `LibKa0s-Compat-1.0` with library-absent stand-ins; the range reads (`IsEventValid`, `IsSpellKnown`, `SpellInRange`, `ItemInRange`, `InteractInRange`, `CanAttack`) and the per-client `RangeLadder` (`docs/compat-layer.md`) |
 | `core/EnvSetup.lua` | `LibKa0s-Env-1.0`: `NS.Meta(field)` and `NS.Version()` |
 | `core/MediaSetup.lua` | `LibKa0s-Media-1.0`: `NS.Icon`, `NS.MediaFont`, the one `RegisterLSM`. LOAD-BEARING: before Constants |
 | `core/Constants.lua` | Fallback media, `FONT_MONO`, the logo paths, `BRAND`, `MINIMAP_PATH`, the band color ramp, `LAYERS` |
@@ -38,6 +38,9 @@ runner's load list to the TOC.
 | File | Responsibility |
 |---|---|
 | `defaults/Profile.lua` | `NS.defaults`: the Master controls, the skin choice, the global schema stamp and `minimap` |
+| `defaults/SpellSeeds.lua` | `NS.SpellSeeds[client][classFile] = { chips, ladder }`: the per-client, per-class spell seeds; data only |
+| `modules/Range.lua` | `NS.Range`: `Get` (the guarded LibRangeCheck bracket, the per-tick memo by unit token, Forever's ladder fallback), `InSpellRange`, `BeginTick`, `Rebuild`. LOAD-BEARING: before Ticker |
+| `modules/Ticker.lua` | `NS.Ticker`: the watch list, the one adaptive `C_Timer` ticker, `RANGE_UPDATED` on change; `StandDown` / `StandUp` |
 | `modules/Diagnostics.lua` | The `/rm diagnostics` report's sections |
 | `settings/Schema.lua` | `LibKa0s-Schema-1.0` instance and its runtime-completing stub: `NS.SetByPath`, `NS.FindSchemaRow`, `NS.ApplyDefault`, `NS.SchemaForPage`, `NS.ValidateSchema`. LOAD-BEARING |
 | `settings/Slash.lua` | `NS.COMMANDS` and the `LibKa0s-Slash-1.0` descriptor. LOAD-BEARING |

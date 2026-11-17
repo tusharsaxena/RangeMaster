@@ -87,6 +87,39 @@ Total.
 - compat: the degraded load answers Retail and keeps the guards' one-rung bodies
 - compat: no file outside the library reads a WOW_PROJECT global or an interface number
 
+### test_range.lua (17)
+
+- range: test_known_bracket — a 20 to 25 yd answer reads known 20, 25
+- range: test_open_ended — a min with no max reads known and open-ended
+- range: test_secret_is_unknown — a secret bound reads unknown, never out of range
+- range: test_error_is_unknown — the library raising reads unknown, and nothing escapes
+- range: test_no_unit_is_none — a unit that does not exist reads none, and is never queried
+- range: test_memo_one_query_per_tick — three reads of one unit in a tick are one query
+- range: test_range_unit_vanishes — a unit gone after BeginTick reads none, no error
+- range: the memo is keyed by unit token, nameplate tokens included
+- range: test_spell_unknown_spell_nil — a spell the player does not know answers nil
+- range: InSpellRange answers nil for a secret, an error or a missing unit
+- range: test_forever_ladder — Forever's ladder holds only the reliable yards
+- range: the interact rungs are race-adjusted
+- range: on Forever an empty library answer falls back to the ladder
+- range: the ladder walk is open-ended past its last rung
+- range: friendly in combat, the ladder asks spells only (items and interact are blocked)
+- range: Rebuild is debounced to one rebuild after the last call
+- range: every class seed table is well-formed on both clients
+
+### test_ticker.lua (10)
+
+- ticker: test_rate_idle_10hz — out of combat one ticker runs at 10 Hz and re-arms
+- ticker: test_rate_combat_20hz — combat restarts the one ticker at 20 Hz, and back
+- ticker: test_stops_when_nothing_watched — the last unwatch cancels the ticker
+- ticker: it also stops when every watched unit is gone, and an event restarts it
+- ticker: test_update_only_on_change — RANGE_UPDATED fires on a change and never on a repeat
+- ticker: test_mouseover_revalidated_each_tick — mouseover leaving with no event reads none
+- ticker: N watches of one unit cost one range query per tick
+- ticker: the unit events refresh their unit; UNIT_PET only for the player
+- ticker: PLAYER_FOCUS_CHANGED registers only where the client knows it
+- ticker: a stand-down cancels the ticker and a stand-up rebuilds it from the watch list
+
 ### test_envsetup.lua (6)
 
 - EnvSetup: NS.Meta asks about THIS addon's folder, not its title or its frame prefix
@@ -489,6 +522,8 @@ Total.
 | test_schema.lua | 36 |
 | test_database.lua | 9 |
 | test_compat.lua | 6 |
+| test_range.lua | 17 |
+| test_ticker.lua | 10 |
 | test_envsetup.lua | 6 |
 | test_coresetup.lua | 8 |
 | test_mediasetup.lua | 10 |
@@ -524,4 +559,4 @@ Total.
 | test_skin_switch.lua | 5 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **358** |
+| **Total** | **385** |

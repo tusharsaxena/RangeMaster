@@ -57,6 +57,9 @@ _G.RM_TEST = Kit.expose{
   loadedRangeCheckFiles = RANGECHECK_FILES,
   -- A raw profile write that bypasses the seam, for a case that sets up stored state.
   rawSet = function(path, value) NS.SetPath(NS.db.profile, path, value) end,
+  -- The kit's secret-value simulator (tests/_kit/secrets.lua), for the range and compat suites.
+  secret = Kit.secret,
+  installSecretValue = Kit.installSecretValue,
 }
 
 -- The kit's diagnostics contract (debug-logging-§14), run against this addon's own dispatcher.
@@ -99,6 +102,8 @@ Kit.run{
     "test_schema",
     "test_database",
     "test_compat",
+    "test_range",
+    "test_ticker",
     "test_envsetup",
     "test_coresetup",
     "test_mediasetup",

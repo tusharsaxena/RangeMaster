@@ -15,7 +15,8 @@ local Loader = dofile("tests/_kit/loader.lua")
 local profile = Loader.MockClient.current()
 
 -- The members core/Compat.lua wires; the major carries more, which this addon does not reach yet.
-local WIRED = { "IsForever", "IsRetail", "ClientKey", "ForClient", "IsSecret", "CanAccess", "IsSafeKey" }
+local WIRED = { "IsForever", "IsRetail", "ClientKey", "ForClient", "IsSecret", "CanAccess", "IsSafeKey",
+  "GetSpellInfo" }
 
 test("compat: the client answer follows the kit profile this run uses", function()
   -- red under: a Compat that hard-codes Retail on a full load.
@@ -36,7 +37,7 @@ end)
 test("compat: every wired member is the library's on a full load", function()
   local lib = M.LibStub("LibKa0s-Compat-1.0", true)
   assertTrue(lib ~= nil, "the major loaded")
-  for _, name in ipairs({ "IsSecret", "CanAccess", "IsSafeKey" }) do
+  for _, name in ipairs({ "IsSecret", "CanAccess", "IsSafeKey", "GetSpellInfo" }) do
     assertTrue(NS.Compat[name] == lib[name], name .. " is handed over by reference")
   end
   for _, name in ipairs(WIRED) do

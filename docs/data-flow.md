@@ -6,19 +6,28 @@ pipeline; the two must not contradict each other.
 ## The range pipeline (plan Tasks 2 to 5)
 
 ```
-game events (target, focus, pet, mouseover, nameplates, spells changed)
-  ─► NS.Ticker.Watch(unit)            one shared C_Timer ticker, 10 Hz idle / 20 Hz in combat
-  ─► each tick: NS.Range.BeginTick()  the per-tick memo cleared
-  ─► NS.Range.Get(unit)               pcall(LibRangeCheck:GetRange(unit, true)), issecretvalue
-                                      checked; secret or error → "unknown"; no unit → "none"
-  ─► RANGE_UPDATED (unit, state, minYd, maxYd)   sent only when the bracket moved
+consumer ─► NS.Ticker.Watch(unit)     a count per unit token; the first live unit starts the ticker
+game events (target, focus, pet, mouseover, nameplate added/removed)
+  ─► NS.Ticker.Refresh(unit)          re-read now, between ticks; restarts a stopped ticker
+the ticker (one C_Timer.NewTicker, 10 Hz idle / 20 Hz in combat, stopped while no watched unit exists)
+  ─► each tick: NS.Range.BeginTick()  the per-tick memo goes stale
+  ─► NS.Range.Get(unit), once per unit however many consumers watch it
+        no unit                        → "none"
+        pcall(LibRangeCheck:GetRange(unit, true)); raised or secret → "unknown"
+        no answer, on WoW Forever      → the Compat ladder walk (spell rungs only on a friendly
+                                         unit in combat)
+        still no answer                → "unknown"
+        otherwise                      → "known", minYd, maxYd (maxYd nil: open-ended)
+  ─► RANGE_UPDATED (unit, state, minYd, maxYd)   sent only when the triple moved
   ─► each container watching the unit: NS.BandSets.Resolve → band index → recolor and re-text
-                                      only on change
+                                      only on change                          (plan Tasks 3 to 5)
+SPELLS_CHANGED ─► NS.Range.Rebuild()  0.5 s after the last one: the ladder and the known-spell cache
 ```
 
-None of this exists in the scaffold. It is the plan of record, and each stage arrives with its task.
+Everything above the band resolve exists (plan Task 2); nothing watches a unit until the containers
+arrive (plan Task 5).
 
-## What exists today (plan Task 1)
+## Startup and the latch (plan Task 1)
 
 ```
 login ─► OnInitialize: InitDB → RunMigrations → ApplySkinChoice → slash → launcher
@@ -31,8 +40,9 @@ login ─► OnInitialize: InitDB → RunMigrations → ApplySkinChoice → slas
   store, one `[Set]` debug line, the row's `onChange`. `enabled`'s onChange moves the latch.
 - **The latch.** `core/LifecycleSetup.lua` holds two named holds, `disabled` (the stored switch) and
   `perf` (a capture's suspended arm). The first hold taken runs `StandDown` (both modes end, the skin
-  picker goes down, the lifecycle events and every tracked bus subscription unregister); the last
-  released runs `StandUp`, which re-registers from the settings as they are then.
+  picker goes down, the lifecycle events unregister, the range ticker and the pending spell rebuild
+  are canceled, and every tracked bus subscription unregisters); the last released runs `StandUp`,
+  which re-registers from the settings as they are then and re-reads every watched unit.
 - **The preview modes.** `NS.SetTestMode` and `NS.SetSimMode` are the one writer of each. A start is
   refused in combat and while stood down; a change sends `MODE_CHANGED (mode, on)` and refreshes an
   open panel. `PLAYER_REGEN_DISABLED` ends both (`addon:OnCombatChanged`, bracketed `combatEdge`).

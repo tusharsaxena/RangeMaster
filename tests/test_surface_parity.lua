@@ -332,7 +332,7 @@ test("parity: the Compat seam carries the major's surface, less what it does not
   local NS2 = loadDegraded()
   local lib = T.mocks.LibStub("LibKa0s-Compat-1.0", true)
   local wired = { IsForever = true, IsRetail = true, ClientKey = true, ForClient = true,
-    IsSecret = true, CanAccess = true, IsSafeKey = true }
+    IsSecret = true, CanAccess = true, IsSafeKey = true, GetSpellInfo = true }
   local ignore = {}
   for name, v in pairs(lib) do
     if type(v) == "function" and not wired[name] then ignore[#ignore + 1] = name end

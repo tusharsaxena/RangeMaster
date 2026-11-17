@@ -25,6 +25,8 @@ local function StandDown()
     if NS.HideSkinPicker then NS.HideSkinPicker() end
     local addon = NS.addon
     if addon and addon.UnregisterLifecycleEvents then addon:UnregisterLifecycleEvents() end
+    -- The range ticker and the pending spell rebuild: no timer survives a stand-down.
+    if NS.Ticker and NS.Ticker.StandDown then NS.Ticker.StandDown() end
     if NS.BusStandDown then NS.BusStandDown() end
 end
 
@@ -33,6 +35,8 @@ local function StandUp()
     if NS.BusStandUp then NS.BusStandUp() end
     local addon = NS.addon
     if addon and addon.RegisterLifecycleEvents then addon:RegisterLifecycleEvents() end
+    -- Last, once every receiver is back: each watched unit is read and announced again.
+    if NS.Ticker and NS.Ticker.StandUp then NS.Ticker.StandUp() end
 end
 
 NS.StandDown, NS.StandUp = StandDown, StandUp
