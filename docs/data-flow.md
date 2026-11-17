@@ -28,8 +28,9 @@ the ticker (one C_Timer.NewTicker, 10 Hz idle / 20 Hz in combat, stopped while n
 SPELLS_CHANGED ─► NS.Range.Rebuild()  0.5 s after the last one: the ladder and the known-spell cache
 ```
 
-Everything above the band resolve exists (plan Task 2); nothing watches a unit until the containers
-arrive (plan Task 5).
+Everything down to the band resolve exists (plan Tasks 2 and 3: `NS.BandSets.Resolve` and
+`NS.BandSets.ForUnit`, which picks the friendly override for a friendly unit); nothing watches a unit
+until the containers arrive (plan Task 5).
 
 ## Startup and the latch (plan Task 1)
 

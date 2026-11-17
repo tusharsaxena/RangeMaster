@@ -66,7 +66,7 @@ Total.
 - degraded Schema stub: Get forwards the instance id to a row's own get
 - degraded Schema stub: ApplyDefault forwards the instance id to Set
 
-### test_database.lua (9)
+### test_database.lua (13)
 
 - database: the account-wide schemaVersion default is 0 (savedvariables-§1)
 - database: v0.1.0 ships the first data shape, so the ladder is empty and the target is 0
@@ -77,6 +77,31 @@ Total.
 - database: Backfill fills only missing keys, deep-copied, and keeps a stored false
 - database: the session-only state is in no defaults tree
 - database: a profile reset re-reads the latch and traces once
+- database: test_template_fill_missing_keys — a stored container gains what a later build added
+- database: test_first_run_seeds_presets — a fresh profile gets the four sets, class default first
+- database: the load pass normalizes a stored band set and repairs its counter and order
+- database: the active profile was prepared at load
+
+### test_bandsets.lua (18)
+
+- bandsets: test_resolve_by_max — (20, 25) in Melee / Ranged lands in MID 20-30
+- bandsets: test_resolve_by_min — matchBy min reads the near bound
+- bandsets: test_resolve_open_ended — (40, nil) is out of range under either matchBy
+- bandsets: test_resolve_unknown — unknown state reads the unknown band
+- bandsets: test_resolve_none_nil — no unit resolves to nil
+- bandsets: test_bandset_normalize — overlaps, gaps and order are repaired
+- bandsets: normalize swaps a reversed band, closes a gap and drops a swallowed one
+- bandsets: normalize gives an open-ended band in the middle the next band's edge
+- bandsets: normalize turns an empty set into one band over everything
+- bandsets: normalize fills a band's colors and repairs matchBy and the unknown band
+- bandsets: Create, Rename, Duplicate and List keep the order and announce each change
+- bandsets: test_bandset_delete_reassigns — containers on a deleted set move to the default
+- bandsets: Delete honors reassignTo, refuses the last set and an unknown id
+- bandsets: deleting the default set makes the next one the default
+- bandsets: test_for_unit_friendly_override — a friendly unit reads bandSetFriendly when set
+- bandsets: test_hunter_preset_per_client — Forever has the 5-8 dead zone, Retail does not
+- bandsets: the four presets have the spec's shape, every one well formed
+- bandsets: DefaultFor picks a class's preset, and an unknown class gets Melee / Ranged
 
 ### test_compat.lua (6)
 
@@ -528,7 +553,8 @@ Total.
 |-------|------:|
 | test_loadorder.lua | 16 |
 | test_schema.lua | 36 |
-| test_database.lua | 9 |
+| test_database.lua | 13 |
+| test_bandsets.lua | 18 |
 | test_compat.lua | 6 |
 | test_range.lua | 22 |
 | test_ticker.lua | 12 |
@@ -567,4 +593,4 @@ Total.
 | test_skin_switch.lua | 5 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **393** |
+| **Total** | **415** |

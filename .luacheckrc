@@ -25,6 +25,7 @@ read_globals = {
   "C_Spell", "C_SpellBook", "C_Item", "CheckInteractDistance", "UnitCanAttack", "UnitRace",
   "C_EventUtils",                            -- core/Compat.lua's IsEventValid
   "UnitExists",                              -- modules/Range.lua: "none" is a unit that does not exist
+  "UnitIsFriend",                            -- core/Compat.lua's IsFriend (modules/BandSets.lua's friendly override)
   "C_Timer",                                 -- modules/Ticker.lua's ticker, modules/Range.lua's rebuild debounce
 }
 

@@ -40,6 +40,26 @@ L["%s, so the minimap button is unavailable."] = "%s, so the minimap button is u
 L["Cannot start a preview mode during combat."] = "Cannot start a preview mode during combat."
 L["Cannot start a preview mode while Range Master is stood down."] = "Cannot start a preview mode while Range Master is stood down."
 
+-- defaults/BandSetPresets.lua
+L["Melee / Ranged"] = "Melee / Ranged"
+L["MELEE"] = "MELEE"
+L["CLOSE"] = "CLOSE"
+L["MID"] = "MID"
+L["LONG"] = "LONG"
+L["OOR"] = "OOR"
+L["Caster 40"] = "Caster 40"
+L["Healer"] = "Healer"
+L["NEAR"] = "NEAR"
+L["FAR"] = "FAR"
+L["Hunter"] = "Hunter"
+L["DEAD"] = "DEAD"
+L["AUTO"] = "AUTO"
+L["RANGED"] = "RANGED"
+
+-- modules/BandSets.lua
+L["New band set"] = "New band set"
+L["%s copy"] = "%s copy"
+
 -- settings/Slash.lua
 L["List available commands"] = "List available commands"
 L["Open the settings panel"] = "Open the settings panel"

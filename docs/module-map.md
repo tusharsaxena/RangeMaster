@@ -17,10 +17,10 @@ runner's load list to the TOC.
 | File | Responsibility |
 |---|---|
 | `core/Namespace.lua` | `NS.name`, the fallback `NS.version`, the cyan `[RM]` `NS.PREFIX`. LOAD-BEARING |
-| `core/Compat.lua` | The client seam (`IsForever`, `IsRetail`, `ClientKey`, `ForClient`), the secret guards and `GetSpellInfo`, routed from `LibKa0s-Compat-1.0` with library-absent stand-ins; the range reads (`IsEventValid`, `IsSpellKnown`, `IsSpellUsable`, `SpellInRange`, `ItemInRange`, `InteractInRange`, `CanAttack`) and the per-client `RangeLadder` (`docs/compat-layer.md`) |
+| `core/Compat.lua` | The client seam (`IsForever`, `IsRetail`, `ClientKey`, `ForClient`), the secret guards and `GetSpellInfo`, routed from `LibKa0s-Compat-1.0` with library-absent stand-ins; the range reads (`IsEventValid`, `IsSpellKnown`, `IsSpellUsable`, `SpellInRange`, `ItemInRange`, `InteractInRange`, `CanAttack`), the band sets' unit reads (`IsFriend`, `PlayerClass`) and the per-client `RangeLadder` (`docs/compat-layer.md`) |
 | `core/EnvSetup.lua` | `LibKa0s-Env-1.0`: `NS.Meta(field)` and `NS.Version()` |
 | `core/MediaSetup.lua` | `LibKa0s-Media-1.0`: `NS.Icon`, `NS.MediaFont`, the one `RegisterLSM`. LOAD-BEARING: before Constants |
-| `core/Constants.lua` | Fallback media, `FONT_MONO`, the logo paths, `BRAND`, `MINIMAP_PATH`, the band color ramp, `LAYERS` |
+| `core/Constants.lua` | Fallback media, `FONT_MONO`, the logo paths, `BRAND`, `MINIMAP_PATH`, the band color ramp and `HexColor`, `LAYERS` |
 | `core/State.lua` | Session-only state: `debug`, `testMode`, `simMode`, `rejectedEvents` |
 | `core/CoreSetup.lua` | `LibKa0s-Core-1.0`: `NS.Print` / `NS.Printf`, `SafeToString`, `ResolveColor`, `SafeRegister*`, `SKIN`, the one `NS.MakeCloseButton` wrapper. LOAD-BEARING |
 | `core/SkinSetup.lua` | `LibKa0s-Skin-1.0`: the owner registered at load, the skin choice seam, the first-run picker (preview in Test mode) and `/rm skin`. LOAD-BEARING |
@@ -28,7 +28,7 @@ runner's load list to the TOC.
 | `core/LifecycleSetup.lua` | `LibKa0s-Lifecycle-1.0`: the one latch, `StandDown` / `StandUp`, `NS.SyncEnabledHold`. LOAD-BEARING: before PerfSetup |
 | `core/PerfSetup.lua` | `LibKa0s-Perf-1.0`: `NS.Perf`, the declared buckets, `RangeMasterPerfDB`. LOAD-BEARING |
 | `core/Data.lua` | `NS.GetSetting`, the minimap row's inverted storage, `NS.GetLSM` |
-| `core/Database.lua` | AceDB, the profile backfill, the migration runner |
+| `core/Database.lua` | AceDB, the profile backfill, the migration runner, the registries' load pass (`PrepareProfile`) |
 | `core/DebugLogSetup.lua` | `LibKa0s-DebugLog-1.0`: `NS.DebugLog`, `NS.Debug` and its gates, the diagnostics brand and sections. LOAD-BEARING |
 | `core/LauncherSetup.lua` | `LibKa0s-Launcher-1.0`: one broker object registered twice, menu Enabled · Locked · Test mode · Sim mode |
 | `core/RangeMaster.lua` | The AceAddon; `OnInitialize` / `OnEnable`; the lifecycle events; Test mode and Sim mode's one writer each; the profile callbacks. LOAD-BEARING: reclaims `NS.Print` |
@@ -37,8 +37,10 @@ runner's load list to the TOC.
 
 | File | Responsibility |
 |---|---|
-| `defaults/Profile.lua` | `NS.defaults`: the Master controls, the skin choice, the global schema stamp and `minimap` |
+| `defaults/Profile.lua` | `NS.defaults`: the Master controls, the skin choice, the global schema stamp and `minimap`; `NS.CONTAINER_TEMPLATE`, `NS.BANDSET_TEMPLATE`, `NS.BAND_TEMPLATE` |
 | `defaults/SpellSeeds.lua` | `NS.SpellSeeds[client][classFile] = { chips, ladder }`: the per-client, per-class spell seeds; data only |
+| `defaults/BandSetPresets.lua` | `NS.BandSetPresets`: the four preset band sets (the Hunter set per client), `ORDER`, `DefaultFor(classFile)`; data only |
+| `modules/BandSets.lua` | `NS.BandSets`: the band-set registry's writer (`Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`), `List`, `Get`, `DefaultId`, `Resolve`, `ForUnit`, and the load pass's `Seed` and `NormalizeSet`; sender of `BANDSETS_CHANGED` |
 | `modules/Range.lua` | `NS.Range`: `Get` (the guarded LibRangeCheck bracket, the per-tick memo by unit token, Forever's ladder fallback), `InSpellRange`, `BeginTick`, `SetPerfParent`, `Rebuild`. LOAD-BEARING: before Ticker |
 | `modules/Ticker.lua` | `NS.Ticker`: the watch list, the one adaptive `C_Timer` ticker, `RANGE_UPDATED` on change, `Removed` for a plate going away; `StandDown` / `StandUp` |
 | `modules/Diagnostics.lua` | The `/rm diagnostics` report's sections |

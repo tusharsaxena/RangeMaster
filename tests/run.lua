@@ -101,6 +101,7 @@ Kit.run{
     "test_loadorder",
     "test_schema",
     "test_database",
+    "test_bandsets",
     "test_compat",
     "test_range",
     "test_ticker",

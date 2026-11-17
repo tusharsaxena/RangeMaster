@@ -52,6 +52,15 @@ Recipes for the changes made most often here. Each names the real files; run the
   `core/Compat.lua`, only at a yard Forever answers reliably, and update the table in
   `docs/compat-layer.md`. `tests/test_range.lua`'s `test_forever_ladder` holds the yards.
 
+## Change a preset band set
+
+- Edit `defaults/BandSetPresets.lua`: bands are `band(from, to, label, rampColor)`, `to` nil for
+  open-ended, colors from `NS.Constants.BAND_RAMP`. A per-client difference goes in two lists, as
+  `HUNTER_BY_CLIENT` does (clients-§5). A new preset key joins `ORDER`, its name and labels join
+  `locales/enUS.lua`, and the table in `docs/schema.md` follows. Presets are copied into a profile
+  only on a fresh profile (the seed) or by `NS.BandSets.Create(name, key)`; a stored set is the
+  player's and is never rewritten. `tests/test_bandsets.lua` holds the shapes.
+
 ## Add a locale string
 
 - Use `L["The English sentence."]` at the call site, one whole sentence per key with `%s` slots, and

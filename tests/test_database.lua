@@ -93,3 +93,94 @@ test("database: a profile reset re-reads the latch and traces once", function()
   db:ResetProfile()
   assertFalse(NS.IsStoodDown(), "the reset profile is enabled, and the addon came back up")
 end)
+
+-- ---------------------------------------------------------------------------
+-- The registries' load pass (NS.Database.PrepareProfile; the v0.1.0 plan, Task 3)
+-- ---------------------------------------------------------------------------
+
+--- Run `body(p)` with the db swapped for a bare { profile = p, global } pair; restores the real one.
+local function withProfile(p, body, classToken)
+  local savedDb, savedClass = NS.db, T.mocks.__context.classToken
+  if classToken then T.mocks.__context.classToken = classToken end
+  NS.db = { profile = p, global = savedDb.global }
+  local ok, err = pcall(body, p)
+  NS.db = savedDb
+  T.mocks.__context.classToken = savedClass
+  if not ok then error(err, 0) end
+end
+
+test("database: test_template_fill_missing_keys — a stored container gains what a later build added", function()
+  local c = D.DeepCopy(NS.CONTAINER_TEMPLATE)
+  c.elements.spells = nil
+  c.anchor.frame = nil
+  c.elements.number.enabled = false
+  c.elements.order = { "number", "text" }
+  c.visibility = "junk"
+  local p = { containers = { [4] = c, [9] = "junk" }, containerOrder = { 4, 4, 12 } }
+  withProfile(p, function()
+    D.PrepareProfile(p)
+  end)
+  assertEqual(type(c.elements.spells), "table", "elements.spells filled on load")
+  assertEqual(c.elements.spells.enabled, false)
+  assertEqual(type(c.elements.spells.list), "table")
+  assertEqual(c.anchor.frame.provider, "blizzard", "a nested section filled")
+  assertFalse(c.elements.number.enabled, "a stored false survives")
+  assertEqual(table.concat(c.elements.order, ","), "number,text,indicator,spells",
+    "an array is never backfilled index by index; the missing names are appended once")
+  assertEqual(type(c.visibility), "table", "a section stored as a non-table is repaired")
+  assertNil(p.containers[9], "a member that is not a table is dropped")
+  assertEqual(table.concat(p.containerOrder, ","), "4", "dangling and duplicate ids dropped")
+  assertEqual(p.nextContainerId, 5, "the counter is bumped past the highest stored id")
+  assertEqual(c.bandSet, NS.BandSets.DefaultId(), "a container with no band set gets the default")
+end)
+
+test("database: test_first_run_seeds_presets — a fresh profile gets the four sets, class default first", function()
+  local p = {}
+  withProfile(p, function()
+    D.PrepareProfile(p)
+    assertEqual(#p.bandSetOrder, 4, "four band sets seeded")
+    assertEqual(p.nextBandSetId, 5)
+    assertEqual(p.seeded, false, "the first-run container picker has not run")
+    assertEqual(NS.BandSets.Get(NS.BandSets.DefaultId()).name, NS.BandSetPresets.caster40.name,
+      "a Mage's default is Caster 40")
+    -- idempotent: a second pass seeds nothing more
+    D.PrepareProfile(p)
+    assertEqual(#p.bandSetOrder, 4)
+  end, "MAGE")
+  local h = {}
+  withProfile(h, function()
+    D.PrepareProfile(h)
+    assertEqual(NS.BandSets.Get(NS.BandSets.DefaultId()).name, NS.BandSetPresets.hunter.name,
+      "a Hunter's default is the Hunter set")
+    local seen = {}
+    for _, id in ipairs(h.bandSetOrder) do seen[NS.BandSets.Get(id).name] = true end
+    for _, key in ipairs(NS.BandSetPresets.ORDER) do
+      assertTrue(seen[NS.BandSetPresets[key].name], key .. " seeded")
+    end
+  end, "HUNTER")
+end)
+
+test("database: the load pass normalizes a stored band set and repairs its counter and order", function()
+  local p = {
+    bandSets = { [7] = { name = "Hand-edited", bands = { { from = 30, to = 10, label = "X" } } } },
+    bandSetOrder = { 3, 7 }, nextBandSetId = 2,
+  }
+  withProfile(p, function()
+    D.PrepareProfile(p)
+  end)
+  assertEqual(table.concat(p.bandSetOrder, ","), "7", "no seeding over a stored set; dangling id dropped")
+  assertEqual(p.nextBandSetId, 8)
+  local set = p.bandSets[7]
+  assertEqual(set.matchBy, "max", "the template filled matchBy")
+  assertEqual(set.bands[1].from, 0)
+  assertNil(set.bands[#set.bands].to)
+end)
+
+test("database: the active profile was prepared at load", function()
+  local p = NS.db.profile
+  assertEqual(type(p.containers), "table")
+  assertEqual(type(p.containerOrder), "table")
+  assertTrue(#p.bandSetOrder >= 1, "the live profile carries its seeded band sets")
+  assertEqual(type(p.nextContainerId), "number")
+  assertTrue(p.seeded ~= nil)
+end)

@@ -43,6 +43,15 @@ C.BAND_RAMP = { "4ade80", "a3e635", "facc15", "fb923c", "ef4444" }
 C.UNKNOWN_COLOR = "9ca3af"
 C.UNKNOWN_LABEL = "?"
 
+--- A stored color from a ramp entry: `{ r, g, b, a }` in 0..1, a NEW table every call, so no two
+--- stored colors ever share one. `hex` is six hex digits, with or without a leading "#".
+--- @return table
+function C.HexColor(hex, a)
+    hex = tostring(hex or ""):gsub("^#", "")
+    local r, g, b = tonumber(hex:sub(1, 2), 16), tonumber(hex:sub(3, 4), 16), tonumber(hex:sub(5, 6), 16)
+    return { r = (r or 255) / 255, g = (g or 255) / 255, b = (b or 255) / 255, a = a or 1 }
+end
+
 -- ---------------------------------------------------------------------------
 -- Frame layering (frame-layering-§1..§6)
 -- ---------------------------------------------------------------------------

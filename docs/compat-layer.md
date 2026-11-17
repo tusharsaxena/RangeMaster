@@ -1,17 +1,17 @@
 # Compat layer — Ka0s Range Master
 
-`core/Compat.lua` is the whole compat family (compat) and publishes **11** shims on `NS.Compat`,
+`core/Compat.lua` is the whole compat family (compat) and publishes **14** shims on `NS.Compat`,
 counted with the command documentation-§3 fixes:
 
 ```sh
-cat core/Compat*.lua | grep -cE '^\s*function\s+[A-Za-z_][A-Za-z0-9_]*\.'    # 11
+cat core/Compat*.lua | grep -cE '^\s*function\s+[A-Za-z_][A-Za-z0-9_]*\.'    # 14
 ```
 
 Four of them (`IsForever`, `IsRetail`, `ClientKey`, `ForClient`) only route `LibKa0s-Compat-1.0`'s
 answer to "which client is this" (clients-§3), each with a library-absent stand-in that answers
 Retail. The secret guards (`IsSecret`, `CanAccess`, `IsSafeKey`) and the spell-info reader
 (`GetSpellInfo`) are the library's members handed over by reference, with the one-rung bodies the
-library's degradation rule asks for; they are LibKa0s's and are not documented again here. The seven
+library's degradation rule asks for; they are LibKa0s's and are not documented again here. The ten
 below are this addon's own.
 
 ## The range reads and the ladder
@@ -31,6 +31,8 @@ secret, or a value that is neither a boolean nor 1/0 answers `nil`, "no answer",
 | 6 | `InteractInRange(index, unit)` | `CheckInteractDistance(unit, index)` | `nil` | Forever's interact rungs. Protected on a friendly unit in combat; skipped there | `modules/Range.lua` (the ladder walk) |
 | 7 | `CanAttack(unit)` | `UnitCanAttack("player", unit)` | `nil`, which the caller reads as "cannot", the side that never asks a blocked check | The combat restriction's one question | `modules/Range.lua` (the ladder walk) |
 | 8 | `RangeLadder()` | `ClientKey`, `UnitRace`, `UnitClass`, shim 2, `GetSpellInfo` | Retail: spell rungs only; no class or race read: no spell rungs, no race offset | The per-client rung list, sorted by yd (below) | `modules/Range.lua`, built on first use and again on `SPELLS_CHANGED` |
+| 9 | `IsFriend(unit)` | `UnitIsFriend("player", unit)` (pcall, secret-checked) | `nil`, which the caller reads as "not friendly": the container stays on its own band set | A band set's friendly override applies only to a unit the client says is friendly | `modules/BandSets.lua` (`ForUnit`) |
+| 10 | `PlayerClass()` | `UnitClass("player")`'s class token (pcall, secret-checked) | `nil`: the seed picks Melee / Ranged | The first-run band-set seed puts the class default first | `modules/BandSets.lua` (the seed routine) |
 
 ## `RangeLadder()`: what each client gets
 

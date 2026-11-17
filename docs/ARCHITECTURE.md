@@ -11,15 +11,18 @@ indicator and a row of spell chips, colored by a shared **band set**. The design
 record are `docs/superpowers/specs/2026-11-18-rangemaster-design.md` and
 `docs/superpowers/plans/2026-11-18-rangemaster-v0.1.0.md`.
 
-**State of the tree: the scaffold and the range engine (plan Tasks 1 and 2).** What exists is the
+**State of the tree: the scaffold, the range engine and the data model (plan Tasks 1 to 3).** What exists is the
 born-compliant shell every Ka0s addon shares (the Ace3 addon object, AceDB with its migration runner,
 the LibKa0s setup files, the Master controls and Skin tabs, the slash surface, the launcher, the
 stand-down latch, the diagnostics report, and the two session preview modes with their one writer
 each), plus the range engine: `modules/Range.lua` (`NS.Range`), `modules/Ticker.lua` (`NS.Ticker`,
 the one ticker and the sender of `RANGE_UPDATED`), the range reads and the per-client ladder in
-`core/Compat.lua`, and the per-client spell seeds in `defaults/SpellSeeds.lua`. Nothing watches a unit
-yet: the data model, the containers, the anchors and the settings pages arrive in plan Tasks 3 to 8,
-and each section below says where a later task plugs in.
+`core/Compat.lua`, and the per-client spell seeds in `defaults/SpellSeeds.lua`; plus the data model:
+the container and band-set templates (`defaults/Profile.lua`), the four preset band sets
+(`defaults/BandSetPresets.lua`), the band-set registry and its resolver (`modules/BandSets.lua`) and
+the registries' load pass (`core/Database.lua`'s `PrepareProfile`). Nothing watches a unit yet: the
+containers, the anchors and the settings pages arrive in plan Tasks 4 to 8, and each section below
+says where a later task plugs in.
 
 **The design is dictated by one client fact.** The game answers "is this unit within reach of
 spell or item X", never "how far". The range engine asks LibRangeCheck-3.0 (vendored,
@@ -45,6 +48,22 @@ restarted by the event that brings one back. Each tick reads every watched unit 
 `RANGE_UPDATED` only for a unit whose triple changed; mouseover, which has no "cleared" event, is
 re-read through `UnitExists` every tick. The stand-down cancels the ticker and the debounced spell
 rebuild; the stand-up re-reads and re-announces every watched unit. Pipeline: `docs/data-flow.md`.
+
+### Band sets
+
+A band set is a named, ordered list of yard bands shared by every container that picks it
+(`modules/BandSets.lua`, `NS.BandSets`). `Resolve(setId, state, minYd, maxYd)` turns a range triple
+into a band index: `"none"` answers nil, `"unknown"` answers `"unknown"` (the set's own label and
+gray), `"known"` picks by the far bound (`matchBy = "max"`, a band holds `(from, to]`, an open-ended
+bracket reads as infinitely far) or the near one (`"min"`, `[from, to)`). Every stored set is
+normalized on each write and on load (sorted, contiguous from 0, last band open-ended, no zero-width
+band, at least one band), so `Resolve` is total over [0, infinity). `ForUnit(container, unit)` picks
+the container's `bandSetFriendly` when it is set, exists and `NS.Compat.IsFriend` says the unit is
+friendly, else its `bandSet`, else the default. The default set is the first in `bandSetOrder`; the
+first-run seed puts the class default there (`NS.BandSetPresets.DefaultFor`). Deleting a set moves
+every container on it to the named replacement or the default (a friendly override on it falls away
+unless a replacement was named), and the last set cannot be deleted. The Hunter preset is two lists,
+one per client, picked once at load (clients-§5): WoW Forever's has the 5-8 yd Auto Shot dead zone.
 
 ### Libraries
 
@@ -78,10 +97,26 @@ write seam, `NS.SetByPath` (architecture-§5), on `LibKa0s-Schema-1.0` (`setting
 rows today are the composed Master controls (`settings/General.lua`) and the Skin tab's skip-render
 rows. The full shape, every default and the migration path: `docs/schema.md`.
 
-**Structural registries.** None yet. The container registry (`containers`, `containerOrder`,
-`nextContainerId`, its one writer `modules/ContainerManager.lua`) and the band-set registry
-(`bandSets`, `bandSetOrder`, `nextBandSetId`, its one writer `modules/BandSets.lua`) arrive in plan
-Tasks 3 and 4.
+**Structural registries.** Two, both in the profile, with one load pass between them,
+`core/Database.lua`'s `Database.PrepareProfile` (called from `NS:RunMigrations`, so only from
+`InitDB` and the three AceDB profile callbacks): it re-keys and backfills every member from its
+template, rebuilds each order array, bumps each counter past the highest stored id, normalizes every
+band set, seeds the four preset band sets on a profile with none, points a container at the default
+set when its `bandSet` names none, and sets `seeded` to `false` when absent.
+
+- **Band sets**: `bandSets`, `bandSetOrder`, `nextBandSetId`. Runtime writer `modules/BandSets.lua`
+  (`Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`); its seed routine `BandSets.Seed` and its
+  per-set repair `BandSets.NormalizeSet` are shared with the load pass. `Delete` also rewrites the
+  `bandSet` / `bandSetFriendly` references of the containers that used the deleted set; no
+  `container.*` row exists yet, and when Task 8 adds `container.bandSet` that write goes through the
+  helper (architecture-§5, "a row wins over a key").
+- **Containers**: `containers`, `containerOrder`, `nextContainerId`, and the first-run sentinel
+  `seeded`. Runtime writer `modules/ContainerManager.lua` (plan Task 4); the load pass above already
+  prepares it.
+
+The member shapes are `NS.CONTAINER_TEMPLATE`, `NS.BANDSET_TEMPLATE` and `NS.BAND_TEMPLATE`
+(`defaults/Profile.lua`); the keys are bookkeeping with no schema row, so none is an AceDB default.
+Detail: `docs/schema.md`.
 
 **Named non-setting state.** `global.minimap` is LibDBIcon's own table (its `hide` and its saved
 angle); the owner is `core/LauncherSetup.lua`, and its writers are LibDBIcon itself and
@@ -100,7 +135,7 @@ stand-down takes every subscription down and a stand-up replays it.
 |---|---|---|---|---|
 | `RANGE_UPDATED` | `Ka0s_RangeMaster_RangeUpdated` | `modules/Ticker.lua` | `unit, state, minYd, maxYd` | the containers watching that unit (Task 5) |
 | `CONTAINERS_CHANGED` | `Ka0s_RangeMaster_ContainersChanged` | `modules/ContainerManager.lua` (Task 4) | none | the renderer and the settings pages |
-| `BANDSETS_CHANGED` | `Ka0s_RangeMaster_BandSetsChanged` | `modules/BandSets.lua` (Task 3) | none | the renderer and the settings pages |
+| `BANDSETS_CHANGED` | `Ka0s_RangeMaster_BandSetsChanged` | `modules/BandSets.lua` (`Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`; never the load pass) | none | the renderer and the settings pages |
 | `MODE_CHANGED` | `Ka0s_RangeMaster_ModeChanged` | `core/RangeMaster.lua` (`NS.SetTestMode`, `NS.SetSimMode`) | `mode` (`"test"` or `"sim"`), `on` | the renderer (Task 7) |
 
 Ten or fewer messages, so `docs/message-bus.md` is not required; this table is the register.
@@ -186,7 +221,7 @@ generated directories are named once and never enumerated: `docs/audits/`, `docs
 | `perf-analysis/README.md` | Present | The performance harness is wired (`core/PerfSetup.lua`) |
 | `slash-dispatch.md` | Present | 20 commands in `NS.COMMANDS`, over the eight-or-more threshold |
 | `midnight-quirks.md` | Present | Always (documentation-§3): the vendored `client-quirks` catalog block, then the addon's own section |
-| `compat-layer.md` | Present | `core/Compat.lua` publishes the range reads and the per-client ladder, seven addon-specific shims beyond what LibKa0s supplies, over the three-or-more threshold |
+| `compat-layer.md` | Present | `core/Compat.lua` publishes the range reads, the two band-set unit reads and the per-client ladder, ten addon-specific shims beyond what LibKa0s supplies, over the three-or-more threshold |
 | `message-bus.md` | Not applicable | 4 messages in `NS.MSG`; the trigger is more than ten. The table lives in `## Message Bus` above |
 | `profiles.md` | Present | AceDB profiles are user-visible: the Profiles sub-page is a profile control in the options UI |
 | `known-limitations.md` | Not applicable | `## Known Limitations` above is under ~60 lines |

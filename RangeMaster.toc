@@ -85,8 +85,14 @@ defaults\Profile.lua
 # Conventional: the per-client, per-class spell seeds; data only, read at call time by
 # core\Compat.lua's RangeLadder.
 defaults\SpellSeeds.lua
+# Conventional: the preset band sets; data only, after defaults\Profile.lua and core\Compat.lua, whose
+# ClientKey picks the hunter set at load (clients-§5).
+defaults\BandSetPresets.lua
 
 # Modules
+# Conventional: the band-set registry's writer, Resolve and ForUnit; the db, the presets and the bus
+# are reached at call time (the load pass calls Seed and NormalizeSet from OnInitialize).
+modules\BandSets.lua
 # LOAD-BEARING: before modules\Ticker.lua, whose tick reads NS.Range; captures NS.Perf and
 # LibRangeCheck-3.0 at load.
 modules\Range.lua

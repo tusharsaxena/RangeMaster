@@ -29,9 +29,43 @@ Two globals, both declared in `RangeMaster.toc` and `.luacheckrc`:
 | `skin.outline` | `"hud"` | Font outline | `all`, `hud` or `off` |
 | `skin.pickerSeen` | `false` | (none drawn) | the first-run skin picker's memory |
 
-The range containers and band sets join the profile in plan Task 3: `containers`, `containerOrder`,
-`nextContainerId`, `bandSets`, `bandSetOrder`, `nextBandSetId` and `seeded`, with the container and
-band-set templates in the design spec, section 5.2.
+## The registries (`db.profile`, not AceDB defaults)
+
+Two structural registries and their bookkeeping live in the profile too, created and repaired by
+`core/Database.lua`'s load pass, `Database.PrepareProfile`, never by AceDB's defaults: no schema row
+addresses them, and an AceDB default with no row is a setting nobody can reach (architecture-§5).
+
+| Key | Fresh profile | Writer | Notes |
+|---|---|---|---|
+| `bandSets` | the four presets | `modules/BandSets.lua` | `[id] = NS.BANDSET_TEMPLATE` shape: `name`, `matchBy` (`"max"`/`"min"`), `unknown = { label = "?", color }`, `bands = { { from, to, label, frameColor, textColor, indicatorColor, sound }, ... }` |
+| `bandSetOrder` | `{ 1, 2, 3, 4 }` | `modules/BandSets.lua` | the first id is the **default set**; the seed puts the class default first |
+| `nextBandSetId` | `5` | `modules/BandSets.lua` | the id counter, bumped past the highest stored id on load |
+| `containers` | `{}` | `modules/ContainerManager.lua` (plan Task 4) | `[id] = NS.CONTAINER_TEMPLATE` shape (design spec 5.2) |
+| `containerOrder` | `{}` | likewise | rebuilt on load to hold exactly the stored ids |
+| `nextContainerId` | `1` | likewise | |
+| `seeded` | `false` | the first-run preset picker (plan Task 8) | whether the container preset picker has run on this profile |
+
+The preset band sets (`defaults/BandSetPresets.lua`), each `matchBy = "max"`:
+
+| Key | Bands |
+|---|---|
+| `melee_ranged` | 0-5 MELEE, 5-20 CLOSE, 20-30 MID, 30-40 LONG, 40+ OOR |
+| `caster40` | 0-8 CLOSE, 8-30 MID, 30-40 LONG, 40+ OOR |
+| `healer` | 0-30 NEAR, 30-40 FAR, 40+ OOR (meant as a friendly override) |
+| `hunter` | WoW Forever: 0-5 MELEE, 5-8 DEAD, 8-35 AUTO, 35+ OOR. Retail: 0-5 MELEE, 5-40 RANGED, 40+ OOR |
+
+Class defaults (`NS.BandSetPresets.DefaultFor`): Hunter → `hunter`; Mage, Warlock, Priest, Evoker →
+`caster40`; every other class, or an unreadable one → `melee_ranged`.
+
+**What the load pass repairs.** A member that is not a table, or is stored under a key that is not a
+positive integer, is dropped (a numeric string key is moved to its number); every member is backfilled
+from its template with `== nil` tests, a section stored as a non-table is replaced by the template's,
+and an array in the template (`elements.order`) is never filled index by index: a missing element
+name is appended once and an unknown one dropped. Every band set is normalized (`BandSets.NormalizeSet`:
+edges coerced to finite yards, a reversed pair swapped, sorted, chained so each band starts where the
+one before it ends, zero-width bands dropped, the last band open-ended, at least one band, an unknown
+`matchBy` read as `"max"`). A container whose `bandSet` names no set gets the default; a dangling
+`bandSetFriendly` is cleared.
 
 ## The global store (`db.global`)
 
@@ -53,5 +87,5 @@ band-set templates in the design spec, section 5.2.
 a fresh install stays stamped 0. The runner climbs from `db.global.schemaVersion`, advances the stamp
 only past a step that returned, and on a raising step prints one line and leaves the stamp where it
 was. After the ladder, the active profile is backfilled from the defaults with `== nil` tests, so a
-stored `false` survives (savedvariables-§5). The first real step will be the first change to a stored
+stored `false` survives (savedvariables-§5), and the registries' load pass runs (above). The first real step will be the first change to a stored
 shape after v0.1.0 ships.

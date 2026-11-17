@@ -50,6 +50,9 @@ return function()
   M.C_Item.IsItemInRange = M.C_Item.IsItemInRange or function() return nil end
   M.UnitRace = M.UnitRace or function() return "Human", "Human", 1 end
   M.UnitCanAttack = M.UnitCanAttack or function() return false end
+  -- Not friendly unless a case says so, so a band set's friendly override is opt-in per case. Set
+  -- outright: the kit carries no UnitIsFriend, and an `or` here would push this builder past CCN 15.
+  M.UnitIsFriend = function() return false end
 
   -- C_Timer.NewTicker, which the kit's C_Timer does not carry (LibRangeCheck arms a 5 s cache
   -- ticker at load; modules/Ticker.lua is one). Built on the kit's NewTimer, so it queues, cancels

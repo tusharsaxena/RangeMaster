@@ -5,8 +5,9 @@ local _, NS = ...
 -- It routes three things from LibKa0s-Compat-1.0: the client questions (IsForever, IsRetail,
 -- ClientKey, ForClient; clients-§3), the secret-value guards (IsSecret, CanAccess, IsSafeKey;
 -- events-frames-taint-§8) and the spell-info reader (GetSpellInfo). It owns the range engine's client
--- reads (IsEventValid, IsSpellKnown, SpellInRange, ItemInRange, InteractInRange, CanAttack), each
--- pcall-wrapped and secret-checked, and the per-client range ladder (RangeLadder). No other file of
+-- reads (IsEventValid, IsSpellKnown, SpellInRange, ItemInRange, InteractInRange, CanAttack) and the
+-- two unit reads the band sets make (IsFriend, PlayerClass), each pcall-wrapped and secret-checked,
+-- and the per-client range ladder (RangeLadder). No other file of
 -- this addon reads a WOW_PROJECT_* global or decides the client from an interface number. Every
 -- shim, what it wraps and who calls it: docs/compat-layer.md.
 NS.Compat = NS.Compat or {}
@@ -182,6 +183,15 @@ function Compat.CanAttack(unit)
     return rangeAnswer(pcall(UnitCanAttack, "player", unit))
 end
 
+--- Whether `unit` is friendly to the player: true, false, or nil when the client will not say (a
+--- raise or a secret). A band set's friendly override (modules/BandSets.lua's ForUnit) applies only
+--- on a true, so an unreadable reaction keeps the container on its own set.
+--- @return boolean|nil
+function Compat.IsFriend(unit)
+    if not UnitIsFriend then return nil end
+    return rangeAnswer(pcall(UnitIsFriend, "player", unit))
+end
+
 -- ---------------------------------------------------------------------------
 -- The per-client range ladder (clients-§5)
 -- ---------------------------------------------------------------------------
@@ -216,6 +226,11 @@ local function playerClass()
     if not ok or Compat.IsSecret(classFile) then return nil end
     return classFile
 end
+
+--- The player's class token ("HUNTER", "MAGE", ...), or nil when the client will not say. Read by
+--- the band-set seed (modules/BandSets.lua) to pick the class default.
+--- @return string|nil
+function Compat.PlayerClass() return playerClass() end
 
 local function addForeverRungs(out)
     for _, group in ipairs(FOREVER_ITEMS) do
