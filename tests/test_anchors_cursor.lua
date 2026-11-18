@@ -11,7 +11,7 @@ local test, assertEqual, assertTrue, assertFalse =
 local H = dofile("tests/anchors_env.lua")
 local Cursor = NS.Anchors.Cursor
 
-local function cursorOpts(x, y) return { anchor = { mode = "cursor", x = x or 0, y = y or 0 } } end
+local function cursorOpts(x, y) return { anchor = { mode = "cursor", cursor = { x = x or 0, y = y or 0 } } } end
 
 test("cursor: test_cursor_single_onupdate — three cursor containers, one OnUpdate script", function()
   H.with(function()
@@ -45,7 +45,8 @@ end)
 
 test("cursor: a container drawn at another scale is placed in its own units", function()
   H.with(function()
-    local _, inst = H.container("target", { anchor = { mode = "cursor" }, layout = { scale = 2 } })
+    local _, inst = H.container("target", { anchor = { mode = "cursor", cursor = { x = 0, y = 0 } },
+                                                layout = { scale = 2 } })
     M.__cursor[1], M.__cursor[2] = 400, 300
     local calls = H.points(inst.frame, function() Cursor.__driver():__fire("OnUpdate", 0.016) end)
     assertEqual(calls[#calls][4] .. " " .. calls[#calls][5], "200 150")
@@ -89,5 +90,19 @@ test("cursor: the stand-down leaves the follow disarmed, and the stand-up arms i
     NS.SyncEnabledHold()
     NS.CM.FlushPending()
     assertEqual(#H.onUpdates(), 1)
+  end)
+end)
+
+test("cursor: a new cursor container sits at the cursor default offset, whatever its id or screen point", function()
+  H.with(function()
+    for _ = 1, 3 do H.container("focus") end
+    local id, inst = H.container("target", { anchor = { mode = "cursor" } })
+    NS.CM.SetPosition(id, "TOPLEFT", "BOTTOMLEFT", 100, 200)
+    NS.CM.FlushPending()
+    M.__cursor[1], M.__cursor[2] = 400, 300
+    local calls = H.points(inst.frame, function() Cursor.__driver():__fire("OnUpdate", 0.016) end)
+    local p = calls[#calls]
+    assertEqual(p[1] .. " " .. p[3] .. " " .. p[4] .. " " .. p[5], "CENTER BOTTOMLEFT 412 260",
+      "(400 + 12, 300 - 40): the cursor's own offset, not the screen point or the id's stagger")
   end)
 end)

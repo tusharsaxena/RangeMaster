@@ -98,8 +98,13 @@ test("presets: test_intermediate_shape — unit frames, cursor mouseover, friend
       local c = find(unit)
       assertEqual(c.anchor.mode, "frame", unit)
       assertEqual(c.anchor.frame.provider, "blizzard", unit)
+      local f = c.anchor.frame
+      assertEqual(f.point .. " " .. f.relPoint .. " " .. f.x .. " " .. f.y, "BOTTOM TOP 0 2",
+        unit .. " sits above its unit frame, whatever its id's screen stagger")
     end
     assertEqual(find("mouseover").anchor.mode, "cursor")
+    local cur = find("mouseover").anchor.cursor
+    assertEqual(cur.point .. " " .. cur.x .. " " .. cur.y, "CENTER 12 -40", "below and right of the cursor")
     for _, c in ipairs(list) do
       assertEqual(enabledElements(c), "indicator,number,text", c.name)
       assertEqual(c.elements.indicator.shape, "dot", c.name)

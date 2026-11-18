@@ -107,8 +107,10 @@ CONTAINER_TEMPLATE:
 ```
 name, enabled=true, unit="target", bandSet=<id>, bandSetFriendly=nil (nil = use bandSet for every reaction),
 anchor = { mode="screen"|"frame"|"nameplate"|"cursor",
-           frame = { provider="blizzard"|"ellesmere"|"custom", name="" },
-           point="CENTER", relPoint="CENTER", x=0, y=0, strata="MEDIUM" },
+           frame = { provider="blizzard"|"ellesmere"|"custom", name="",
+                     point="BOTTOM", relPoint="TOP", x=0, y=2 },   (on the unit frame)
+           cursor = { point="CENTER", x=12, y=-40 },               (offset from the cursor)
+           point="CENTER", relPoint="CENTER", x=0, y=0, strata="MEDIUM" },  (screen only)
 layout = { direction="row"|"column", spacing=4, padding=4, scale=1, alpha=1 },
 frame  = { border = { enabled, texture(LSM), size, colorMode="band"|"fixed"|"class", color },
            background = { enabled, colorMode, color, bandAlpha=0.15 } },

@@ -21,8 +21,8 @@ local function withGlobal(name, frame, fn)
 end
 
 local function onFrame(provider, name)
-  return { anchor = { mode = "frame", frame = { provider = provider, name = name or "" }, point = "BOTTOM",
-                      relPoint = "TOP", x = 0, y = 4 } }
+  return { anchor = { mode = "frame", frame = { provider = provider, name = name or "", point = "BOTTOM",
+                                                relPoint = "TOP", x = 0, y = 4 } } }
 end
 
 -- ---------------------------------------------------------------------------
@@ -86,6 +86,48 @@ test("frames: an EllesmereUI container anchors to EllesmereUI's frame for its un
     withGlobal("EllesmereUIUnitFrames_Focus", ef, function()
       local _, inst = H.container("focus", onFrame("ellesmere"))
       assertTrue(inst.anchorTarget == ef)
+    end)
+  end)
+end)
+
+--- The SetPoint a fresh Apply of container `id` makes, as "point relPoint x y" plus its relative frame.
+local function appliedPoint(id, inst)
+  local calls = H.points(inst.frame, function() NS.Anchors.Apply(inst, NS.CM.Get(id)) end)
+  local p = calls[#calls]
+  return p[1] .. " " .. p[3] .. " " .. p[4] .. " " .. p[5], p[2]
+end
+
+test("frames: a new frame container sits on its frame at the frame default point, whatever its id", function()
+  H.with(function()
+    local tf = H.frame("TargetFrame")
+    withGlobal("TargetFrame", tf, function()
+      for _ = 1, 3 do H.container("focus") end
+      local id, inst = H.container("target", { anchor = { mode = "frame", frame = { provider = "blizzard" } } })
+      local at, rel = appliedPoint(id, inst)
+      assertTrue(rel == tf)
+      assertEqual(at, "BOTTOM TOP 0 2", "above the unit frame, not the screen stagger of its id")
+    end)
+  end)
+end)
+
+test("frames: a screen position does not carry onto the unit frame when the mode changes", function()
+  H.with(function()
+    local tf = H.frame("TargetFrame")
+    withGlobal("TargetFrame", tf, function()
+      local id, inst = H.container("target")
+      NS.CM.SetPosition(id, "TOPLEFT", "BOTTOMLEFT", 100, 200)
+      NS.CM.FlushPending()
+      NS.CM.Get(id).anchor.mode = "frame"
+      NS.CM.RequestApply()
+      NS.CM.FlushPending()
+      assertEqual(inst.anchorMode, "frame")
+      assertEqual((appliedPoint(id, inst)), "BOTTOM TOP 0 2", "the frame point is its own")
+      NS.CM.Get(id).anchor.mode = "screen"
+      NS.CM.RequestApply()
+      NS.CM.FlushPending()
+      local a = NS.CM.Get(id).anchor
+      assertEqual(a.point .. " " .. a.relPoint .. " " .. a.x .. " " .. a.y, "TOPLEFT BOTTOMLEFT 100 200",
+        "and the screen point is kept for the way back")
     end)
   end)
 end)

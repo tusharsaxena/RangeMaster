@@ -93,7 +93,7 @@ test("anchors: Reset position puts every screen container back at its default po
   H.with(function()
     local a = H.container("target", { anchor = { point = "TOPLEFT", x = 300, y = 300 } })
     local b = H.container("focus", { anchor = { x = -40, y = 90 } })
-    H.container("mouseover", { anchor = { mode = "cursor", x = 9, y = 9 } })
+    H.container("mouseover", { anchor = { mode = "cursor", cursor = { x = 9, y = 9 } } })
     assertEqual(NS.ResetPositions(), 2, "the two screen containers")
     local sa, sb = NS.CM.Get(a).anchor, NS.CM.Get(b).anchor
     assertEqual(sa.point .. " " .. sa.relPoint .. " " .. sa.x .. " " .. sa.y, "CENTER CENTER 0 0")

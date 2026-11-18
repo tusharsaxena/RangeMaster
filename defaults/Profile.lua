@@ -61,9 +61,15 @@ local function white() return C.HexColor("ffffff") end
 NS.CONTAINER_TEMPLATE = {
     name = "", enabled = true, unit = "target",
     bandSet = nil, bandSetFriendly = nil,
+    -- Each mode keeps its own placement, so a screen drag (or a new container's screen stagger)
+    -- never carries onto a unit frame or the cursor: point/relPoint/x/y here are the screen's,
+    -- `frame` holds the point on the unit frame (above it), `cursor` the offset from the cursor
+    -- (below and right of it), and `nameplate` (below) the point on a plate.
     anchor = {
         mode = "screen",                                   -- "screen"|"frame"|"nameplate"|"cursor"
-        frame = { provider = "blizzard", name = "" },      -- "blizzard"|"ellesmere"|"custom"
+        frame = { provider = "blizzard", name = "",        -- "blizzard"|"ellesmere"|"custom"
+                  point = "BOTTOM", relPoint = "TOP", x = 0, y = 2 },
+        cursor = { point = "CENTER", x = 12, y = -40 },
         point = "CENTER", relPoint = "CENTER", x = 0, y = 0, strata = "MEDIUM",
     },
     layout = { direction = "row", spacing = 4, padding = 4, scale = 1, alpha = 1 },

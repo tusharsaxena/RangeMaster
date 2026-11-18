@@ -1,6 +1,8 @@
 local _, NS = ...
 -- modules/Anchors_Frame.lua — the `frame` anchor (design spec 5.4): a container on a unit frame from
--- one of three providers (modules/FrameProviders.lua), at its stored point relative to that frame.
+-- one of three providers (modules/FrameProviders.lua), at the point stored in `anchor.frame` (its
+-- own, above the frame by default: never the screen point, so neither a drag nor a new container's
+-- screen stagger carries onto the unit frame).
 --
 --   NS.Anchors.Frame.UsesCursor(c) -> boolean   a mouseover container with no named frame of its
 --                                    own follows the cursor (modules/Anchors.lua picks the mode)
@@ -62,10 +64,10 @@ function Frame.Apply(inst, c)
     local f = cfgOf(c)
     local target = NS.FrameProviders.Resolve(f.provider, c.unit, f.name)
     if not target then return missing(inst, c, "not found") end
-    local a, root = c.anchor, inst.frame
+    local root = inst.frame
     root:ClearAllPoints()
-    local ok = pcall(root.SetPoint, root, Anchors.Point(a.point), target, Anchors.Point(a.relPoint),
-        Anchors.Offset(a.x), Anchors.Offset(a.y))
+    local ok = pcall(root.SetPoint, root, Anchors.Point(f.point, "BOTTOM"), target, Anchors.Point(f.relPoint, "TOP"),
+        Anchors.Offset(f.x), Anchors.Offset(f.y))
     if not ok then
         root:ClearAllPoints()
         return missing(inst, c, "refused the anchor")

@@ -190,12 +190,14 @@ Total.
 - anchors: Reset position puts every screen container back at its default point
 - anchors: switching a container's mode detaches the old anchor
 
-### test_anchors_frame.lua (14)
+### test_anchors_frame.lua (16)
 
 - frames: the providers name Blizzard's and EllesmereUI's frames per unit, and nothing for mouseover
 - frames: Resolve answers the live global frame, and nil for a missing, forbidden or non-frame one
 - frames: test_frame_blizzard_target — a target container anchors to TargetFrame
 - frames: an EllesmereUI container anchors to EllesmereUI's frame for its unit
+- frames: a new frame container sits on its frame at the frame default point, whatever its id
+- frames: a screen position does not carry onto the unit frame when the mode changes
 - frames: test_frame_missing_then_loaded — hidden with one debug line, anchored on ADDON_LOADED
 - frames: a frame that appears by PLAYER_ENTERING_WORLD is found there too
 - frames: test_frame_anchor_deferred_in_combat — no anchor write in combat, done on the leave edge
@@ -224,7 +226,7 @@ Total.
 - plates: deleting the nameplates container releases every plate instance
 - plates: the stand-down releases every plate instance and leaves no re-check armed; the stand-up rescans
 
-### test_anchors_cursor.lua (6)
+### test_anchors_cursor.lua (7)
 
 - cursor: test_cursor_single_onupdate — three cursor containers, one OnUpdate script
 - cursor: the follow places each shown container at the cursor over UIParent's scale, plus its offset
@@ -232,6 +234,7 @@ Total.
 - cursor: the follow runs only while a cursor container is shown
 - cursor: a container leaving the cursor mode, or deleted, drops out of the follow
 - cursor: the stand-down leaves the follow disarmed, and the stand-up arms it again
+- cursor: a new cursor container sits at the cursor default offset, whatever its id or screen point
 
 ### test_compat.lua (6)
 
@@ -695,9 +698,9 @@ Total.
 | test_number_format.lua | 5 |
 | test_container_render.lua | 31 |
 | test_anchors_screen.lua | 8 |
-| test_anchors_frame.lua | 14 |
+| test_anchors_frame.lua | 16 |
 | test_anchors_nameplate.lua | 14 |
-| test_anchors_cursor.lua | 6 |
+| test_anchors_cursor.lua | 7 |
 | test_compat.lua | 6 |
 | test_range.lua | 22 |
 | test_ticker.lua | 13 |
@@ -736,4 +739,4 @@ Total.
 | test_skin_switch.lua | 6 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **526** |
+| **Total** | **529** |

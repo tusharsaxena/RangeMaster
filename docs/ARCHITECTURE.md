@@ -153,7 +153,9 @@ is missing (`inst:SetAnchorHidden`), and the renderer tells the anchors each sho
 - **frame** (`modules/Anchors_Frame.lua`): on a unit frame from `NS.FrameProviders`
   (`modules/FrameProviders.lua`): `blizzard` (TargetFrame, FocusFrame, PetFrame), `ellesmere`
   (EllesmereUIUnitFrames_Target, _Focus, _Pet, read as globals, never `EllesmereUIDB`) or `custom` (a
-  global frame name, typed or picked). A missing frame hides the container at its screen point with
+  global frame name, typed or picked), at the container's own `anchor.frame` point (above the frame by
+  default), never its screen point, so a drag or a new container's screen stagger never carries onto
+  the unit frame. A missing frame hides the container at its screen point with
   one debug line, and is looked for again on `ADDON_LOADED` and `PLAYER_ENTERING_WORLD`. No anchor
   write onto a unit frame happens in combat: it is held and runs on `PLAYER_REGEN_ENABLED`
   (`FlushDeferred`). Mouseover has no frame from either addon, so a mouseover container with no custom
@@ -171,7 +173,8 @@ is missing (`inst:SetAnchorHidden`), and the renderer tells the anchors each sho
   touched.
 - **cursor** (`modules/Anchors_Cursor.lua`): one shared driver frame, its `OnUpdate` armed only while
   a cursor container is shown, places each at `GetCursorPosition()` over `UIParent`'s effective
-  scale plus the stored offset (bucket `cursor.follow`).
+  scale plus the container's own `anchor.cursor` offset (below and right of the cursor by default,
+  never the screen point) (bucket `cursor.follow`).
 
 `NS.FramePicker.Start(onPick)` (`modules/FramePicker.lua`) is the custom provider's click-to-pick: an
 overlay outlines the nearest named ancestor of the frame under the cursor; left click picks it, right
@@ -277,12 +280,12 @@ Each verb, its arguments and its refusals: `docs/slash-dispatch.md`.
 | `PLAYER_ENTERING_WORLD` | `addon:OnEnterWorld` | a traced world-entry edge; `NS.Anchors.Frame.Retry` (EllesmereUI spawns its unit frames at `PLAYER_LOGIN`) |
 | `PLAYER_REGEN_DISABLED` | `addon:OnCombatChanged` | combat ends Test mode, Sim mode and a frame pick, and the range ticker goes to 20 Hz (bracketed `combatEdge`) |
 | `PLAYER_REGEN_ENABLED` | `addon:OnCombatChanged` | the leave edge; the ticker back to 10 Hz, and a container apply combat held runs (`NS.CM.FlushPending("regen")`), then every anchor write onto a unit frame combat held (`NS.Anchors.FlushDeferred`) |
-| `PLAYER_TARGET_CHANGED` | `addon:OnUnitChanged` | a unit change on `"target"`: `NS.Container.UnitChanged`, then `NS.Ticker.Changed` |
+| `PLAYER_TARGET_CHANGED` | `addon:OnUnitChanged` | a unit change on `"target"`: `NS.Container.UnitChanged`, then `NS.Anchors.UnitChanged` (an own-plate container moves to the new unit's plate, and a plate token's eligibility for the `nameplates` containers is asked again), then `NS.Ticker.Changed` |
 | `PLAYER_FOCUS_CHANGED` | `addon:OnUnitChanged` | the same on `"focus"`; registered only where `NS.Compat.IsEventValid` knows it (`ifValid`) |
 | `UPDATE_MOUSEOVER_UNIT` | `addon:OnUnitChanged` | the same on `"mouseover"` |
 | `UNIT_PET` | `addon:OnPetChanged` | the same on `"pet"`, for the player's own pet only |
 | `NAME_PLATE_UNIT_ADDED` | `addon:OnNamePlateChanged` | `NS.Plates.Added(token)` (the plate tracked, its instances built, a re-check a frame later), then the same unit change on the plate's token |
-| `UNIT_FACTION` | `addon:OnUnitFaction` | the same on the unit named, a reaction change (the band set follows `bandSetFriendly`); `ifValid` |
+| `UNIT_FACTION` | `addon:OnUnitFaction` | the same on the unit named, a reaction change (the band set follows `bandSetFriendly`, and `NS.Anchors.UnitChanged` moves a plate into or out of a hostile-only `nameplates` container); `ifValid` |
 | `NAME_PLATE_UNIT_REMOVED` | `addon:OnNamePlateChanged` | `NS.Plates.Removed(token)` (its instances parked, an own-plate container on that plate frame hidden), then `NS.Ticker.Removed(token)`: `"none"` is sent outright, because the client still resolves the token while this event dispatches and a re-read would see the plate as live |
 | `SPELLS_CHANGED` | `addon:OnSpellsChanged` | `NS.Range.Rebuild()`: the ladder and the known-spell cache, debounced 0.5 s |
 | `ADDON_LOADED` | `addon:OnAddonLoaded` | `NS.Anchors.Frame.Retry`: a unit frame a container waits for may exist now |

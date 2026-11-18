@@ -189,7 +189,8 @@ c.anchor.mode = "frame"; a.CM.RequestApply()`. Run each on Retail and on WoW For
   `/reload` → it is where it was dropped. `/rm lock` hides the strips; in combat a drag does not
   start. `/rm resetposition` puts screen containers back near the center. Result:
 - **ANCHOR-2. Blizzard frames.** Target, focus and pet containers on provider `blizzard` sit on
-  TargetFrame, FocusFrame and PetFrame (Forever: FocusFrame only if the client has focus). Result:
+  TargetFrame, FocusFrame and PetFrame, just above each (Forever: FocusFrame only if the client has
+  focus); a mouseover container sits below and right of the cursor. Result:
 - **ANCHOR-3. EllesmereUI frames.** With EllesmereUI Unit Frames enabled and its target, focus and pet
   frames on, provider `ellesmere` → each sits on EllesmereUI's frame from login, with no `/reload`.
   With the addon off, the container is hidden and `/rm debug` shows one `[Anchor]` line. Result:

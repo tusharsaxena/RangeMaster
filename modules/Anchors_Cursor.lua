@@ -1,6 +1,7 @@
 local _, NS = ...
 -- modules/Anchors_Cursor.lua — the `cursor` anchor (design spec 5.4): the container follows the
--- cursor, offset by its stored x and y.
+-- cursor, offset by the x and y stored in `anchor.cursor` (its own, below and right of the cursor
+-- by default: never the screen point or a new container's screen stagger).
 --
 -- ONE OnUpdate FOR EVERY CURSOR CONTAINER (the v0.1.0 plan's Global Constraints): a single driver
 -- frame, its OnUpdate set only while at least one cursor container is SHOWN and cleared the moment
@@ -31,7 +32,7 @@ local function uiScale()
 end
 
 local function place(inst, x, y, s)
-    local a, root = inst.container.anchor, inst.frame
+    local a, root = inst.container.anchor.cursor or {}, inst.frame
     local k = inst.appliedScale or 1
     if k <= 0 then k = 1 end
     root:ClearAllPoints()
