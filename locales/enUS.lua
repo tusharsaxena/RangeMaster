@@ -21,6 +21,9 @@ L["%s; running on reduced built-in fallbacks."] = "%s; running on reduced built-
 -- core/SkinSetup.lua
 L["%s is unavailable: the LibKa0s library did not load."] = "%s is unavailable: the LibKa0s library did not load."
 
+-- core/LifecycleSetup.lua
+L["Not available during a performance capture."] = "Not available during a performance capture."
+
 -- core/PerfSetup.lua
 L["%s, so performance measurement is unavailable."] = "%s, so performance measurement is unavailable."
 

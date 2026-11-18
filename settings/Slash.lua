@@ -387,6 +387,29 @@ if not SlashLib then
 end
 
 -- ---------------------------------------------------------------------------
+-- The perf hold's refusal (slash-commands-§7, *Which refusal, by hold*)
+-- ---------------------------------------------------------------------------
+--
+-- The library's gate reads the stored `enabled` path, so under a performance capture's `perf` hold
+-- alone it lets a feature verb through. Each feature verb (every verb not in liveVerbs) is wrapped
+-- once, here, to answer NS.RefusalLine() on one line instead: the capture line, never the disabled
+-- one, which names `/rm enable` and would be false advice while `enabled` is on.
+do
+    local live = {}
+    for _, name in ipairs(liveVerbs()) do live[name] = true end
+    for _, e in ipairs(NS.COMMANDS) do
+        if not live[e[1]] then
+            local run = e[3]
+            e[3] = function(rest)
+                local line = NS.RefusalLine()
+                if line then return print(line) end
+                return run(rest)
+            end
+        end
+    end
+end
+
+-- ---------------------------------------------------------------------------
 -- The dispatcher
 -- ---------------------------------------------------------------------------
 

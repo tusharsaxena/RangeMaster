@@ -13,7 +13,9 @@ local _, NS = ...
 --   NS.Range.SetPerfParent(key|false)  the bucket the reads that follow run inside (performance-§3):
 --                                      modules/Ticker.lua names "ticker.tick" for its tick, false after
 --   NS.Range.Rebuild()                 rebuild the ladder and the known-spell cache, 0.5 s after
---                                      the last call (SPELLS_CHANGED comes in bursts)
+--                                      the last call (SPELLS_CHANGED comes in bursts); while stood
+--                                      down it arms nothing and the rebuild is owed
+--   NS.Range.RunOwedRebuild()          the stand-up's step (modules/Ticker.lua): an owed rebuild, now
 --   NS.Range.SetSource(src|nil)        the preview modes' fake range (modules/Preview.lua is its one
 --                                      caller): while set, every read answers src.Get(unit) and
 --                                      src.InSpell(spellID, unit) instead of the client
@@ -61,6 +63,7 @@ local memo = {}            -- [unit] = { tick, state, minYd, maxYd }
 local ladder               -- NS.Compat.RangeLadder(), built on first use and on Rebuild
 local known = {}           -- [spellID] = boolean, wiped on Rebuild
 local rebuildTimer
+local rebuildOwed = false  -- a rebuild asked for or canceled while stood down: the stand-up runs it
 local perfParent = false   -- the observed parent handed to Perf.Note("range.get")
 local source               -- the preview's fake range, or nil (live)
 
@@ -211,6 +214,7 @@ end
 --- The rebuild itself: the ladder and the known-spell cache are taken again from the client.
 local function rebuildNow()
     rebuildTimer = nil
+    rebuildOwed = false
     ladder = Compat.RangeLadder()
     for id in pairs(known) do known[id] = nil end
     Range.BeginTick()
@@ -218,14 +222,29 @@ end
 -- Suite seam: tests/test_range.lua rebuilds synchronously around a swapped spell API.
 Range.__rebuildNow = rebuildNow
 
---- Rebuild the ladder and the known-spell cache, REBUILD_DELAY after the last call.
+--- Rebuild the ladder and the known-spell cache, REBUILD_DELAY after the last call. A stood-down
+--- addon arms nothing (slash-commands-§7): the rebuild is owed, and the stand-up runs it.
 function Range.Rebuild()
+    if NS.IsStoodDown and NS.IsStoodDown() then
+        Range.CancelRebuild()
+        rebuildOwed = true
+        return
+    end
     if rebuildTimer then rebuildTimer:Cancel() end
     rebuildTimer = C_Timer.NewTimer(REBUILD_DELAY, rebuildNow)
 end
 
---- Cancel a pending rebuild (the stand-down: no timer survives it, slash-commands-§7).
+--- Cancel a pending rebuild (the stand-down: no timer survives it, slash-commands-§7). A rebuild
+--- that was pending stays owed.
 function Range.CancelRebuild()
-    if rebuildTimer then rebuildTimer:Cancel() end
+    if rebuildTimer then
+        rebuildTimer:Cancel()
+        rebuildOwed = true
+    end
     rebuildTimer = nil
+end
+
+--- Run an owed rebuild now (the stand-up, modules/Ticker.lua): synchronous, no timer.
+function Range.RunOwedRebuild()
+    if rebuildOwed then rebuildNow() end
 end

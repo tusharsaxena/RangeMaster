@@ -39,6 +39,12 @@ verb answers one line, the library's `DisabledLine()`: `Ka0s Range Master is dis
 /rm enable`, and writes nothing (slash-commands-§7). Each refusal the dispatcher decides writes one
 `[Cmd]` line to the console; no host verb repeats it.
 
+**Perf-suspended.** Under a performance capture's `perf` hold alone the stored `enabled` path is on,
+so the library's gate lets a feature verb through; each feature verb is wrapped once
+(`settings/Slash.lua`) to answer `NS.RefusalLine()` on one line, `Not available during a performance
+capture.`, and do nothing else. It never names `/rm enable`, which would change nothing. Under both
+holds the disabled line wins (slash-commands-§7, *Which refusal, by hold*).
+
 **Library absent.** The stub answers every verb: the host verbs keep working, the schema verbs print
 `/rm <verb> is unavailable: the LibKa0s library did not load.`, and the help rows print plainly.
 

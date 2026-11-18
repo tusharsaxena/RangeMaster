@@ -107,7 +107,7 @@ Total.
 - bandsets: SetBandSound writes one band's sound, announces, and refuses a bad set or band
 - bandsets: a restore never rewinds the id counter, so a later Create mints an id never used
 
-### test_container_manager.lua (15)
+### test_container_manager.lua (16)
 
 - cm: test_create_defaults_unit_target — a bare Create is a target container on the default set
 - cm: Create seeds the spell list from the client's class seeds and takes a unit and opts
@@ -124,6 +124,7 @@ Total.
 - cm: a restore never rewinds the id counter, so a later Create mints an id never used
 - cm: Create keeps its positional unit; opts.unit cannot smuggle in an unwatched one
 - cm: a profile switch announces CONTAINERS_CHANGED once, on the next frame
+- cm: MarkSeeded is the first-run sentinel's one runtime writer
 
 ### test_presets.lua (11)
 
@@ -277,7 +278,7 @@ Total.
 - compat: the degraded load answers Retail and keeps the guards' one-rung bodies
 - compat: no file outside the library reads a WOW_PROJECT global or an interface number
 
-### test_range.lua (22)
+### test_range.lua (23)
 
 - range: test_known_bracket — a 20 to 25 yd answer reads known 20, 25
 - range: the library is asked with no cache of its own (maxCacheAge 0)
@@ -300,6 +301,7 @@ Total.
 - range: the Forever walk trusts a spell rung only while the spell is usable
 - range: friendly in combat, the ladder asks spells only (items and interact are blocked)
 - range: Rebuild is debounced to one rebuild after the last call
+- range: a Rebuild asked while stood down arms nothing and runs at the stand-up
 - range: every class seed table is well-formed on both clients
 
 ### test_ticker.lua (13)
@@ -618,13 +620,15 @@ Total.
 - locale: no key is defined twice in enUS.lua
 - locale: every enUS value is its own key, so the English build shows the source string
 
-### test_docs.lua (5)
+### test_docs.lua (7)
 
 - README.md carries no angle-bracket argument placeholders
 - README.md carries ## Reporting a bug with the standard's text, placed and pointed at
 - README.md carries no numbered list
 - every Tier 2 documentation-map row agrees with docs/
 - docs/smoke-tests.md carries a non-English-client section
+- README.md's H1 is `# Ka0s <Name>`, the brand
+- docs/midnight-quirks.md carries the vendored client-quirks block, then its own section
 
 ### test_prose.lua (15)
 
@@ -681,18 +685,22 @@ Total.
 - events: one unknown lifecycle name costs only itself, and is listed once
 - events: the registered set is exactly the one lifecycle list
 
-### test_disabled.lua (13)
+### test_disabled.lua (17)
 
 - disabled 1: the enabled addon registers something to stand down from
 - disabled 2: the hold follows the STORED path, read when the addon comes up
 - disabled 3: writing the enable path leaves NOTHING registered
 - disabled 4: no timer, ticker or OnUpdate is left armed, and both preview modes end
+- disabled 4: a skin notice owed through combat leaves nothing armed and writes nothing
+- disabled 5: every frame the enabled addon drew is hidden
 - disabled 5: a preview mode cannot be started while disabled, so nothing can be shown
 - disabled 6: every baseline event, fired anyway, reaches its handler and writes, prints and shows nothing
 - disabled 7: every reserved verb answers, and only a feature verb refuses
 - disabled 7: a refused feature verb reaches no write seam
+- disabled 7: under the perf hold alone a feature verb answers the capture line, not the enable one
 - disabled 8: the left click opens the panel; the menu grays the rest and still re-enables
 - disabled 9: re-enabling restores the registration set, from the settings as they are NOW
+- disabled 9: a range display made while disabled is the one the stand-up rebuilds
 - disabled 9: a bus subscription comes back once, and reaches its receiver once
 - disabled 10: releasing one hold does not stand up an addon the other still holds down
 - disabled 10: the perf hold is session-only and the disabled hold is the stored path
@@ -781,7 +789,7 @@ Total.
 | test_schema.lua | 36 |
 | test_database.lua | 14 |
 | test_bandsets.lua | 21 |
-| test_container_manager.lua | 15 |
+| test_container_manager.lua | 16 |
 | test_presets.lua | 11 |
 | test_number_format.lua | 5 |
 | test_container_render.lua | 32 |
@@ -792,7 +800,7 @@ Total.
 | test_visibility.lua | 11 |
 | test_sounds.lua | 12 |
 | test_compat.lua | 6 |
-| test_range.lua | 22 |
+| test_range.lua | 23 |
 | test_ticker.lua | 13 |
 | test_envsetup.lua | 6 |
 | test_coresetup.lua | 8 |
@@ -816,13 +824,13 @@ Total.
 | test_skin_picker_preview.lua | 9 |
 | test_glyphs.lua | 1 |
 | test_locale.lua | 4 |
-| test_docs.lua | 5 |
+| test_docs.lua | 7 |
 | test_prose.lua | 15 |
 | test_surface_parity.lua | 15 |
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
 | test_events.lua | 3 |
-| test_disabled.lua | 13 |
+| test_disabled.lua | 17 |
 | test_diagnostics.lua | 8 |
 | test_diagnostics_contract.lua | 8 |
 | test_eol.lua | 2 |
@@ -832,4 +840,4 @@ Total.
 | test_skin_switch.lua | 6 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **602** |
+| **Total** | **610** |

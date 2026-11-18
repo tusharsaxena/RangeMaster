@@ -55,7 +55,7 @@ the AceDB defaults, the templates and the data tables; `modules/` the band sets,
 and its ticker, the container registry and presets, the renderer with its style and element files,
 and the diagnostics sections; `settings/` the schema runtime, the slash
 descriptor, the options descriptor and the pages (General with its Presets tab, Containers with
-its five rail entries, Band sets, Profiles).
+its rail entries General, Display, Indicator, Visibility and Sounds, Band sets, Profiles).
 
 ### Per-client features
 
@@ -66,6 +66,15 @@ an interface number (`tests/test_compat.lua` pins that). What differs per client
 items and interact distances; spells on both) and the spell seeds (`defaults/SpellSeeds.lua`, keyed
 `[client][classFile]`; Forever has no Death Knight, Monk, Demon Hunter or Evoker). Forever's
 `PLAYER_FOCUS_CHANGED` is registered only where `NS.Compat.IsEventValid` says the client knows it.
+
+**How the seed lists are maintained (clients-§10).** Neither per-client list in
+`defaults/SpellSeeds.lua` is derived from the client's DB2 yet. Each is hand-kept: a short list per
+class of long-stable spell IDs (rank 1 on Forever), and each ID is checked in a client by
+`docs/smoke-tests.md` RANGE-5 (every seed resolves on its own client). A stale ID cannot report a
+wrong range: the range engine trusts a spell only while it is known and usable, so an ID the client
+does not know is skipped. The first re-validation against wago.tools
+(`SpellName` and `SpellRange` at a pinned `wow` and `wowf` build) freezes its run as a dated bundle
+under `docs/`, and this paragraph then points at it.
 
 ## Settings Schema
 
@@ -106,9 +115,9 @@ set when its `bandSet` names none, and sets `seeded` to `false` when absent.
   `RemoveBand`, each normalizing after the write.
 - **Containers**: `containers`, `containerOrder`, `nextContainerId`, and the first-run sentinel
   `seeded`. Runtime writer `modules/ContainerManager.lua` (`NS.CM`: `Create`, `Delete`, `Duplicate`,
-  `Rename`, `CopySettings`, `Clear`, `RestoreSnapshot`, and `SetField` for one dotted field, which
-  the `container.*` rows reach), whose apply a profile switch, copy or reset also requests; `seeded`
-  is written by `NS.Presets.MarkPickerSeen`.
+  `Rename`, `CopySettings`, `Clear`, `RestoreSnapshot`, `SetField` for one dotted field, which
+  the `container.*` rows reach, and `MarkSeeded` for `seeded`, which `NS.Presets.MarkPickerSeen`
+  calls), whose apply a profile switch, copy or reset also requests.
 
 The member shapes are `NS.CONTAINER_TEMPLATE`, `NS.BANDSET_TEMPLATE` and `NS.BAND_TEMPLATE`
 (`defaults/Profile.lua`); the keys are bookkeeping with no schema row, so none is an AceDB default.
@@ -144,6 +153,8 @@ Ten or fewer messages, so `docs/message-bus.md` is not required; this table is t
 `preset`, `test`, `sim`, `debug`, `diagnostics`, `perf`, `version`. A bare
 `/rm` opens the settings panel. While the addon is disabled the reserved verbs, the schema CLI,
 `diagnostics` and `profile` keep answering, and the feature verbs refuse on the collection's one line.
+Under a performance capture's `perf` hold alone a feature verb answers `Not available during a
+performance capture.` instead; `NS.RefusalLine()` (`core/LifecycleSetup.lua`) picks the line by hold.
 Each verb, its arguments and its refusals: `docs/slash-dispatch.md`.
 
 ## Event Subscriptions
@@ -167,8 +178,10 @@ Each verb, its arguments and its refusals: `docs/slash-dispatch.md`.
 | `ADDON_LOADED` | `addon:OnAddonLoaded` | `NS.Anchors.Frame.Retry`: a unit frame a container waits for may exist now |
 
 The ticker itself is a `C_Timer.NewTicker`, not an event; the stand-down cancels it with the pending
-rebuild. The skin picker holds one `PLAYER_REGEN_ENABLED` target of its own while a first-run show
-waits out combat (`core/SkinSetup.lua`).
+rebuild, which stays owed: a `Rebuild` asked while stood down arms nothing, and the stand-up runs an
+owed rebuild at once (`NS.Range.RunOwedRebuild`). The skin picker holds one `PLAYER_REGEN_ENABLED`
+target of its own while a first-run show waits out combat, and the one-time skin notice holds another
+while it is owed through combat (`core/SkinSetup.lua`); the stand-down drops both.
 
 ## Taint Notes
 
@@ -252,10 +265,10 @@ generated directories are named once and never enumerated: `docs/audits/`, `docs
 | Doc | Status | Trigger |
 |---|---|---|
 | `perf-analysis/README.md` | Present | The performance harness is wired (`core/PerfSetup.lua`) |
-| `slash-dispatch.md` | Present | 27 commands in `NS.COMMANDS`, over the eight-or-more threshold |
+| `slash-dispatch.md` | Present | 27 commands in `NS.COMMANDS` as measured on 2026-11-18, over the eight-or-more threshold |
 | `midnight-quirks.md` | Present | Always (documentation-§3): the vendored `client-quirks` catalog block, then the addon's own section |
-| `compat-layer.md` | Present | `core/Compat.lua` publishes the range reads, the two band-set unit reads, the anchors' four frame reads and the per-client ladder, 18 shims by documentation-§3's count, fourteen of them addon-specific beyond what LibKa0s supplies, over the three-or-more threshold |
-| `message-bus.md` | Not applicable | 4 messages in `NS.MSG`; the trigger is more than ten. The table lives in `## Message Bus` above |
+| `compat-layer.md` | Present | `core/Compat.lua` publishes the range reads, the two band-set unit reads, the anchors' four frame reads and the per-client ladder, 18 shims by documentation-§3's count as measured on 2026-11-18, fourteen of them addon-specific beyond what LibKa0s supplies, over the three-or-more threshold |
+| `message-bus.md` | Not applicable | 4 messages in `NS.MSG` as measured on 2026-11-18 (`RANGE_UPDATED`, `CONTAINERS_CHANGED`, `BANDSETS_CHANGED`, `MODE_CHANGED`); the trigger is more than ten. The table lives in `## Message Bus` above |
 | `profiles.md` | Present | AceDB profiles are user-visible: the Profiles sub-page is a profile control in the options UI |
 | `known-limitations.md` | Not applicable | `## Known Limitations` above is under ~60 lines |
 | `taint.md` | Not applicable | `## Taint Notes` above is under ~60 lines |

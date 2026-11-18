@@ -3,7 +3,10 @@
 -- What this checks: README.md carries no angle-bracket placeholders (CurseForge strips `<path>` even
 -- inside backticks), carries documentation-§1 item 9's `## Reporting a bug` text verbatim and no
 -- numbered list; docs/ARCHITECTURE.md's Tier 2 map agrees with docs/; and docs/smoke-tests.md carries
--- its non-English-client section. The US-English prose gate is the kit's (tests/_kit/test_prose.lua).
+-- its non-English-client section; README.md's H1 is the brand (documentation-§1 item 1); and
+-- docs/midnight-quirks.md carries the vendored client-quirks block, whole between its two markers, then
+-- this addon's own section (documentation-§3, client-quirks-§1). The US-English prose gate is the
+-- kit's (tests/_kit/test_prose.lua).
 
 local T = _G.RM_TEST
 local test, assertEqual, assertTrue = T.test, T.assertEqual, T.assertTrue
@@ -201,3 +204,40 @@ test("docs/smoke-tests.md carries a non-English-client section", function()
     .. "heading with a sentence under it records the gap as coverage, which is the failure M5-08 "
     .. "was filed for")
 end)
+
+
+-- ── README: the brand H1 ───────────────────────────────────────────────────────────────────
+
+test("README.md's H1 is `# Ka0s <Name>`, the brand", function()
+  -- red under: an H1 without the Ka0s prefix (the template's `# Ka0s <Name>`, documentation-§1).
+  local first = readFile("README.md"):match("^([^\r\n]*)")
+  assertEqual(first, "# " .. T.NS.Constants.BRAND, "README.md's first line")
+end)
+
+
+-- ── docs/midnight-quirks.md: the vendored block, then ours ─────────────────────────────────
+
+test("docs/midnight-quirks.md carries the vendored client-quirks block, then its own section", function()
+  -- red under: the block deleted or cut (commit a756304 dropped it and no suite noticed), a marker
+  -- re-spelled, or the own-section heading lost.
+  local body = readFile("docs/midnight-quirks.md")
+  local begins, ends, beginAt, endAt, ownAt = 0, 0, nil, nil, nil
+  local lineNo = 0
+  for line in (body .. "\n"):gmatch("([^\n]*)\n") do
+    lineNo = lineNo + 1
+    line = line:gsub("\r$", "")
+    if line:match("^<!%-%- BEGIN VENDORED: quirks catalog v%d+%.%d+%.%d+ %(source: WowAddonStandards%) %-%->$") then
+      begins, beginAt = begins + 1, lineNo
+    elseif line == "<!-- END VENDORED -->" then
+      ends, endAt = ends + 1, lineNo
+    elseif line == "## RangeMaster-specific quirks" then
+      ownAt = lineNo
+    end
+  end
+  assertEqual(begins, 1, "one BEGIN VENDORED marker line")
+  assertEqual(ends, 1, "one END VENDORED marker line")
+  assertTrue(beginAt < endAt, "BEGIN before END")
+  assertTrue(endAt - beginAt > 100, "the catalog is whole between the markers")
+  assertTrue(ownAt ~= nil and ownAt > endAt, "the `## RangeMaster-specific quirks` section follows the block")
+end)
+

@@ -1,7 +1,8 @@
 local _, NS = ...
 -- modules/ContainerManager.lua — the container registry (design spec 5.2, 5.3): the ONE runtime
--- writer of profile.containers, containerOrder and nextContainerId (architecture-§5; the other
--- writer is core/Database.lua's load pass) and the sole sender of NS.MSG.CONTAINERS_CHANGED.
+-- writer of profile.containers, containerOrder, nextContainerId and the first-run sentinel seeded
+-- (architecture-§5; the other writer is core/Database.lua's load pass) and the sole sender of
+-- NS.MSG.CONTAINERS_CHANGED.
 --
 --   NS.CM.Create(unit?, opts?) -> id         unit defaults to "target"; opts merge over the template,
 --                                            never over the unit (the positional one is the checked one)
@@ -15,6 +16,8 @@ local _, NS = ...
 --   NS.CM.ResetPosition(id) -> boolean       back to the new-container point (Reset position)
 --   NS.CM.SetField(id, field, value) -> boolean   one setting of one container, by its dotted field
 --                                            (the settings pages' and `/rm set container.<field>`'s writer)
+--   NS.CM.MarkSeeded()                       the first-run preset picker has shown on this profile
+--                                            (profile.seeded; NS.Presets.MarkPickerSeen's write)
 --   NS.CM.IsElementOrder(v) -> boolean       an array naming each of the four elements once: the only
 --                                            `elements.order` SetField stores (the drag list's, the CLI's)
 --
@@ -386,6 +389,16 @@ function CM.RestoreSnapshot(snap)
     NS.Debug("Containers", "restored a snapshot: %d container(s)", #p.containerOrder)
     CM.RequestApply()
     return true
+end
+
+--- Record that the first-run preset picker was shown (or a preset applied) on the active profile:
+--- the registry's sentinel, so it is written here and nowhere else (architecture-§5).
+function CM.MarkSeeded()
+    local p = profile()
+    if type(p) == "table" and p.seeded ~= true then
+        p.seeded = true
+        NS.Debug("Presets", "first-run picker marked seen")
+    end
 end
 
 --- Delete every container (a preset replacing the profile's set). Answers how many went.

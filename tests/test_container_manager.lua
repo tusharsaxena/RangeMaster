@@ -325,3 +325,25 @@ test("cm: a profile switch announces CONTAINERS_CHANGED once, on the next frame"
     end), 1, "and a reset")
   end)
 end)
+
+test("cm: MarkSeeded is the first-run sentinel's one runtime writer", function()
+  -- red under: profile.seeded written anywhere but modules/ContainerManager.lua (architecture-§5,
+  -- anti-pattern #78: a registry with two writers), or MarkSeeded not setting it.
+  withFreshProfile(function(p)
+    assertEqual(p.seeded, false, "precondition: a fresh profile owes the picker")
+    CM.MarkSeeded()
+    assertEqual(p.seeded, true, "marked")
+    CM.MarkSeeded()
+    assertEqual(p.seeded, true, "and a repeat is harmless")
+  end)
+  for _, path in ipairs(T.loadedAddonFiles) do
+    path = path:gsub("\\", "/")
+    if path ~= "modules/ContainerManager.lua" and path ~= "core/Database.lua" then
+      local f = io.open(path, "r")
+      local src = f and f:read("*a") or ""
+      if f then f:close() end
+      assertNil(src:find("%.seeded%s*=[^=]"), path .. " writes profile.seeded around the registry's writer")
+    end
+  end
+end)
+

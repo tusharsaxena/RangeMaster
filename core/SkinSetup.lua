@@ -284,9 +284,11 @@ end
 -- A release that wants every account to learn skins exist raises lib.SKIN_NOTICE_VERSION. The first
 -- addon to ask in a session claims the notice and shows the picker; every other addon records the
 -- version and stays quiet. The record is `db.global.skinNotice`, a number: account-wide, so a profile
--- switch never shows it twice. In combat nothing is claimed; it asks again every NOTICE_RETRY seconds until combat ends.
-local NOTICE_RETRY = 5   -- seconds between asks while the player is in combat
-local noticeWaiting = false
+-- switch never shows it twice. In combat nothing is claimed; it asks again once, on the combat edge,
+-- through a one-shot PLAYER_REGEN_ENABLED on a tracked bus target. Never a C_Timer poll: the
+-- stand-down drops the wait (NS.DropSkinNoticeWait, from core/LifecycleSetup.lua's StandDown), so
+-- nothing stays armed to fire into a stood-down addon (slash-commands-§7).
+local noticeTarget       -- the one-shot PLAYER_REGEN_ENABLED target, while an owed notice waits
 
 local function noticeGlobal()
     local d = NS.db or (NS.addon and NS.addon.db)
@@ -298,6 +300,22 @@ local noticeStore = {
     set = function(v) local g = noticeGlobal(); if g then g.skinNotice = v end end,
 }
 
+--- Drop the notice's combat wait, if one is armed (the stand-down's step).
+function NS.DropSkinNoticeWait()
+    if noticeTarget then noticeTarget:UnregisterAllEvents(); noticeTarget = nil end
+end
+
+--- Wait for the combat edge to ask again: one target, however many asks it takes.
+local function waitForCombatEnd()
+    if noticeTarget or not NS.NewBusTarget then return end
+    noticeTarget = NS.NewBusTarget()
+    if not noticeTarget then return end
+    NS.SafeRegisterEvent(noticeTarget, "PLAYER_REGEN_ENABLED", function()
+        NS.DropSkinNoticeWait()
+        NS.MaybeShowSkinNotice()
+    end, NS.State and NS.State.rejectedEvents)
+end
+
 function NS.MaybeShowSkinNotice()
     local O = options()
     if not (O and type(O.SkinNotice) == "function" and noticeGlobal()) then return nil, "unavailable" end
@@ -308,13 +326,7 @@ function NS.MaybeShowSkinNotice()
     end
     local spec = NS.SkinPickerSpec()
     local frame, why = O.SkinNotice(spec, noticeStore)
-    if why == "combat" and not noticeWaiting and type(_G.C_Timer) == "table" and _G.C_Timer.After then
-        noticeWaiting = true
-        _G.C_Timer.After(NOTICE_RETRY, function()
-            noticeWaiting = false
-            NS.MaybeShowSkinNotice()
-        end)
-    end
+    if why == "combat" then waitForCombatEnd() end
     return frame, why
 end
 

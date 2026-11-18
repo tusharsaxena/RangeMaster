@@ -9,7 +9,7 @@ local _, NS = ...
 --   NS.Presets.ForgetUndo()                   drop the slot (a profile switch, copy or reset)
 --   NS.Presets.Describe(key) -> { name, count, items }   what the preset card shows
 --   NS.Presets.PickerDue() -> boolean        the first-run picker has not been shown on this profile
---   NS.Presets.MarkPickerSeen()              it has (profile.seeded, this file its one runtime writer)
+--   NS.Presets.MarkPickerSeen()              it has (profile.seeded, written by NS.CM.MarkSeeded)
 --
 -- APPLYING REPLACES THE PROFILE'S CONTAINERS, and only through the registry's writer (NS.CM): every
 -- container goes, the preset's are created, and the coalesced apply announces once on the next frame.
@@ -168,8 +168,8 @@ end
 -- The first-run picker's sentinel (profile.seeded)
 -- ---------------------------------------------------------------------------
 --
--- core/Database.lua's load pass creates `seeded` as false on a profile that has none; this is its one
--- runtime writer. settings/Presets.lua shows the picker while it is due and marks it seen as it shows,
+-- core/Database.lua's load pass creates `seeded` as false on a profile that has none; its one runtime
+-- writer is the container registry's (NS.CM.MarkSeeded), which this reaches. settings/Presets.lua shows the picker while it is due and marks it seen as it shows,
 -- so a /reload, a dismissal by Escape or a crash never offers it twice on one profile.
 
 --- Whether the first-run preset picker is still owed on the active profile.
@@ -180,11 +180,7 @@ end
 
 --- Record that the picker was shown (or a preset applied) on the active profile.
 function Presets.MarkPickerSeen()
-    local p = NS.db and NS.db.profile
-    if type(p) == "table" and p.seeded ~= true then
-        p.seeded = true
-        NS.Debug("Presets", "first-run picker marked seen")
-    end
+    NS.CM.MarkSeeded()
 end
 
 -- Suite seam (tests/test_presets.lua).

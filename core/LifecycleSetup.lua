@@ -17,6 +17,7 @@ local addonName, NS = ...
 -- descriptor field and raises without one; after core/Bus.lua, whose stand-down record it drives.
 
 local lib = LibStub and LibStub("LibKa0s-Lifecycle-1.0", true)
+local L = NS.L
 
 --- Run NS[module][fn]() for each { module, fn } in `steps` whose module and function are loaded.
 local function runSteps(steps)
@@ -56,6 +57,8 @@ local function StandDown()
     -- The two preview modes are session state that draws; a stood-down addon draws nothing.
     if NS.EndModes then NS.EndModes("stood down") end
     if NS.HideSkinPicker then NS.HideSkinPicker() end
+    -- The one-time skin notice's combat wait: dropped, so nothing fires into the stood-down addon.
+    if NS.DropSkinNoticeWait then NS.DropSkinNoticeWait() end
     if NS.HidePresetPicker then NS.HidePresetPicker() end
     local addon = NS.addon
     if addon and addon.UnregisterLifecycleEvents then addon:UnregisterLifecycleEvents() end
@@ -131,6 +134,16 @@ end
 --- names `/rm enable`: a perf capture is not something `/rm enable` fixes.
 function NS.IsDisabled()
     return NS.lifecycle:IsHeld(NS.HOLD_DISABLED)
+end
+
+--- The one refusal helper (slash-commands-§7, *Which refusal, by hold*): the line a feature verb, or
+--- any other site that refuses on a stood-down addon, prints, chosen by WHICH hold is taken. The
+--- disabled line wins when both are; the perf hold alone answers the capture line, which names no
+--- command (the harness releases its own hold); nil while the addon stands up.
+function NS.RefusalLine()
+    if NS.IsDisabled() then return NS.Slash and NS.Slash:DisabledLine() or nil end
+    if NS.lifecycle:IsHeld(NS.HOLD_PERF) then return L["Not available during a performance capture."] end
+    return nil
 end
 
 --- Is the addon enabled, from the stored path? EXPLICITLY false only: before core/Database.lua

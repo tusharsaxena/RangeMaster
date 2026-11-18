@@ -208,6 +208,8 @@ end
 --- The stand-up: every watched unit is read again and announced.
 function Ticker.StandUp()
     inCombat = InCombatLockdown() and true or false
+    -- Spells learned while stood down: the ladder is taken again before the first read.
+    NS.Range.RunOwedRebuild()
     Ticker.Refresh()
 end
 

@@ -43,7 +43,7 @@ addresses them, and an AceDB default with no row is a setting nobody can reach (
 | `containers` | `{}` | `modules/ContainerManager.lua` (`NS.CM`) | `[id] = NS.CONTAINER_TEMPLATE` shape (design spec 5.2) |
 | `containerOrder` | `{}` | likewise | rebuilt on load to hold exactly the stored ids |
 | `nextContainerId` | `1` | likewise | |
-| `seeded` | `false` | `NS.Presets.MarkPickerSeen` | whether the first-run preset picker has shown on this profile (set as it shows, and by any preset applied) |
+| `seeded` | `false` | `NS.CM.MarkSeeded` (reached through `NS.Presets.MarkPickerSeen`) | whether the first-run preset picker has shown on this profile (set as it shows, and by any preset applied) |
 
 The preset band sets (`defaults/BandSetPresets.lua`), each `matchBy = "max"`:
 

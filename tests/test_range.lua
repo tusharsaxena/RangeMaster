@@ -447,6 +447,37 @@ test("range: Rebuild is debounced to one rebuild after the last call", function(
   if not ok then error(err, 0) end
 end)
 
+test("range: a Rebuild asked while stood down arms nothing and runs at the stand-up", function()
+  -- red under: Range.Rebuild arming its timer whatever the latch says (a SPELLS_CHANGED handler
+  -- reached on a stood-down addon leaves a timer armed), or Ticker.StandUp not running the owed
+  -- rebuild (spells learned while disabled are never seen).
+  local realNew, handles = M.C_Timer.NewTimer, {}
+  M.C_Timer.NewTimer = function(delay, fn)
+    local h = realNew(delay, fn)
+    -- The rebuild's debounce only: the stand-up's container apply arms its own zero-delay timer.
+    if delay == 0.5 then handles[#handles + 1] = h end
+    return h
+  end
+  local realLadder, built = NS.Compat.RangeLadder, 0
+  NS.Compat.RangeLadder = function(...) built = built + 1; return realLadder(...) end
+  local ok, err = pcall(function()
+    NS.SetByPath("enabled", false)
+    NS.Range.Rebuild()
+    assertEqual(#handles, 0, "a stood-down addon arms no rebuild timer")
+    assertEqual(built, 0, "and rebuilds nothing")
+    NS.SetByPath("enabled", true)
+    assertEqual(built, 1, "the stand-up runs the owed rebuild, once")
+    assertEqual(#handles, 0, "synchronously, with no timer")
+    NS.SetByPath("enabled", false)
+    NS.SetByPath("enabled", true)
+    assertEqual(built, 1, "nothing owed, nothing rebuilt")
+  end)
+  M.C_Timer.NewTimer = realNew
+  NS.Compat.RangeLadder = realLadder
+  NS.SetByPath("enabled", true)
+  if not ok then error(err, 0) end
+end)
+
 test("range: every class seed table is well-formed on both clients", function()
   for _, client in ipairs({ "retail", "forever" }) do
     local byClass = NS.SpellSeeds[client]
