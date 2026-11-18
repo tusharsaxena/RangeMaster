@@ -20,6 +20,13 @@ settings panel in either state; `/rm options` is an alias of `config`.
 | `profile` | [name] | yes | lists profiles, or switches to an existing one |
 | `lock` / `unlock` | — | no | writes `locked` and echoes it |
 | `resetposition` | — | no | `NS.ResetPositions`: every screen container back at its new-container point; echoes how many moved |
+| `containers` | — | no | lists the containers as `n. Name (unit, anchor)`, the selected one marked `*` |
+| `select` | number or name | no | selects a container (a name matches in any case); `container.*` paths then mean it |
+| `new` | [unit] | no | creates a container (`target` when bare; `focus`, `pet`, `mouseover`, `nameplates`) and selects it; an unknown unit prints the usage line |
+| `delete` | number or name | no | deletes a container and selects its neighbor |
+| `pick` | — | no | starts the click-to-pick overlay for the selected container; a pick attaches it to that frame by name (refused in combat by the picker) |
+| `bands` | [number or name] | no | bare: lists the band sets, the selected one marked, and the selected set's ribbon; with an argument selects one (`bandSet.*` paths then mean it) |
+| `preset` | `simple`, `intermediate`, `advanced` or `undo` | no | applies a preset behind the same confirm as the Presets tab (none on an empty profile); `undo` puts back what the last one replaced |
 | `test` | [on\|off] | no | toggles or sets Test mode (`NS.SetTestMode`); refused in combat |
 | `sim` | [on\|off], or a simulator verb | no | bare, `on` or `off` toggles or sets Sim mode (`NS.SetSimMode`), refused in combat; any other word is LibKa0s-Sim's own verb (`status`, `step`, `pause`, `resume`, `restart`, `stop`, `panel`, `start sweep`; `NS.Sim.RunVerb`), its answer printed in chat |
 | `debug` | [on\|off\|diagnostics] | yes | bare: toggles the console window; on/off: session logging; diagnostics: the report |
@@ -35,5 +42,6 @@ verb answers one line, the library's `DisabledLine()`: `Ka0s Range Master is dis
 **Library absent.** The stub answers every verb: the host verbs keep working, the schema verbs print
 `/rm <verb> is unavailable: the LibKa0s library did not load.`, and the help rows print plainly.
 
-The Containers, band-set and preset verbs (`containers`, `select`, `new`, `delete`, `pick`, `bands`,
-`preset`) arrive in plan Task 8.
+**Selection-relative paths.** `get`, `set` and `reset` take `container.<field>` and `bandSet.<field>`
+paths (`/rm set container.unit focus`), which mean the selected container or band set
+(`docs/schema.md`). With no container, a `container.` write is refused with a line naming `/rm new`.

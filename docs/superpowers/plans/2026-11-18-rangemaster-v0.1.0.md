@@ -19,10 +19,10 @@
 | 2 | Range engine, Compat, spell seeds, ticker | done | aef104b + `Task 2: review fixes` | yes |
 | 3 | Data model, band sets, migrations | done | 5415e55 + `Task 3: review fixes` | yes |
 | 4 | ContainerManager + presets | done | 54a9721 + `Task 4: review fixes` | yes |
-| 5 | Container rendering + elements | done | 6a50bdf + `Task 5: review fixes` | no |
-| 6 | Anchors (screen, frame, nameplate, cursor) | done | ffccb82 + `Task 6: review fixes` | no |
-| 7 | Visibility, sounds, lock, Test mode, Sim mode | done | 9ad54b6 + `Task 7: review fixes` | no |
-| 8 | Settings pages + slash verbs | todo | | |
+| 5 | Container rendering + elements | done | 6a50bdf + `Task 5: review fixes` | yes |
+| 6 | Anchors (screen, frame, nameplate, cursor) | done | ffccb82 + `Task 6: review fixes` | yes |
+| 7 | Visibility, sounds, lock, Test mode, Sim mode | done | 9ad54b6 + `Task 7: review fixes` | yes |
+| 8 | Settings pages + slash verbs | done | `Settings: Containers, Band sets, Presets pages and slash verbs` | no |
 | 9 | Docs set, roster row, automated-test + audit bundles, GitHub issues | todo | | |
 | 10 | Whole-branch review + fixes, push, await merge go-ahead | todo | | |
 

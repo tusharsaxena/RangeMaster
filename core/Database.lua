@@ -53,7 +53,8 @@ end
 -- Two structural registries live in the profile: the containers (profile.containers, containerOrder,
 -- nextContainerId; runtime writer modules/ContainerManager.lua, Task 4) and the band sets
 -- (profile.bandSets, bandSetOrder, nextBandSetId; runtime writer modules/BandSets.lua), plus the
--- first-run sentinel profile.seeded (the container preset picker, Task 8). PrepareProfile is their
+-- first-run sentinel profile.seeded (the container preset picker; runtime writer modules/Presets.lua's
+-- MarkPickerSeen). PrepareProfile is their
 -- load pass: reached only from RunMigrations (InitDB and the AceDB profile callbacks), it repairs and
 -- seeds and never applies a player's choice.
 

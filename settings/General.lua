@@ -1,7 +1,7 @@
 local _, NS = ...
--- settings/General.lua — the General page: the Master controls tab and the Skin tab.
+-- settings/General.lua — the General page: the Master controls tab, the Presets tab and the Skin tab.
 --
---     [ Master controls ][ Skin ]
+--     [ Master controls ][ Presets ][ Skin ]
 --
 --     Master controls  [Enable Range Master]  [General visibility]
 --                      [Master scale]         [Master opacity]
@@ -216,7 +216,14 @@ local function build(mainCategory)
         H.ClearScroll(c)
         -- RenderTabbedSchema: the page's groups become the strip (options-ui-§13). H.MASTER_GROUP is
         -- both the composer's group literal and the tab's label, read off the instance.
-        H.RenderTabbedSchema(c, "general", { [H.MASTER_GROUP] = masterTail }, nil, { tabs = { SKIN_TAB } })
+        -- A deep link (the first-run preset picker's Choose a preset, settings/Presets.lua) names the
+        -- tab to land on once; the page's own tab memory is the library's after that.
+        if NS.__generalTab then
+            c.activeTab, NS.__generalTab = NS.__generalTab, nil
+        end
+        -- The Presets tab (settings/Presets.lua) after Master controls, the Skin tab last (skinning-§3).
+        H.RenderTabbedSchema(c, "general", { [H.MASTER_GROUP] = masterTail }, nil,
+            { tabs = { NS.PRESETS_TAB, SKIN_TAB } })
     end)
 
     return Settings.RegisterCanvasLayoutSubcategory(mainCategory, ctx.panel, "General")

@@ -173,14 +173,20 @@ end))
 
 test("Skin picker: a new profile and a reset profile show it again", clean(function()
   -- Both start from the defaults, pickerSeen false (O3). red under: no call on adoptProfile's path.
+  -- A new or reset profile also owes the first-run PRESET picker (settings/Presets.lua), which goes
+  -- first; the skin picker is offered when that prompt closes, which its OnHide stands in for here.
   local db = NS.db
+  local presetClosed = T.mocks.StaticPopupDialogs.RANGEMASTER_PRESET_PICKER.OnHide
   quietly(function()
     NS.SetByPath(PATH, true)
     spying(function(calls)
       db:SetProfile("PickerProbe")
+      assertEqual(#calls, 0, "the preset picker goes first")
+      presetClosed()
       assertEqual(#calls, 1, "a new profile shows the picker")
       NS.SetByPath(PATH, true)
       db:ResetProfile()
+      presetClosed()
       assertEqual(#calls, 2, "a reset profile shows it again")
       NS.SetByPath(PATH, true)
       db:SetProfile("Default")

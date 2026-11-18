@@ -28,6 +28,7 @@ Sl.__STUB_DISABLED_LINE_FORMAT = STUB_DISABLED_LINE_FORMAT
 local cli
 
 local runEnabled, runResetAll, runResetPosition, runLock, runTest, runSim, runDebug, runPerf
+local runContainers, runSelect, runNew, runDelete, runPick, runBands, runPreset
 
 NS.COMMANDS = {
     {"help",          L["List available commands"],
@@ -61,6 +62,22 @@ NS.COMMANDS = {
         function() runLock(false) end},
     {"resetposition", L["Move every range display back to its default position"],
         function() runResetPosition() end},
+    -- The containers and band sets (design spec 5.7). `container.<field>` and `bandSet.<field>` paths
+    -- in get / set / reset mean the selected one (settings/Schema.lua).
+    {"containers",    L["List the range displays; the selected one is marked"],
+        function() runContainers() end},
+    {"select",        L["Select a range display by number or name \226\128\148 /rm select 2"],
+        function(rest) runSelect(rest) end},
+    {"new",           L["Create a range display \226\128\148 /rm new [target|focus|pet|mouseover|nameplates]"],
+        function(rest) runNew(rest) end},
+    {"delete",        L["Delete a range display by number or name \226\128\148 /rm delete 2"],
+        function(rest) runDelete(rest) end},
+    {"pick",          L["Attach the selected range display to a frame you click on screen"],
+        function() runPick() end},
+    {"bands",         L["List the band sets, or select one by number or name \226\128\148 /rm bands 2"],
+        function(rest) runBands(rest) end},
+    {"preset",        L["Apply a preset, or undo the last \226\128\148 /rm preset simple|intermediate|advanced|undo"],
+        function(rest) runPreset(rest) end},
     {"test",          L["Toggle Test mode: placeholder ranges on every display \226\128\148 /rm test [on|off]"],
         function(rest) runTest(rest) end},
     {"sim",           L["Toggle Sim mode: a simulated target walks through your range bands \226\128\148 /rm sim [on|off]"],
@@ -182,6 +199,92 @@ function runSim(rest)
     if NS.SetSimMode(want, "/rm sim") then
         print(want and L["Sim mode on \226\128\148 a simulated target walks through your range bands"] or L["Sim mode off"])
     end
+end
+
+-- ---------------------------------------------------------------------------
+-- The container and band-set verbs
+-- ---------------------------------------------------------------------------
+
+local function trimmed(rest) return ((rest or ""):match("^%s*(.-)%s*$")) end
+
+--- The id in `ids` that `arg` names: a position in the list ("2"), else a name (any case). Nil when
+--- it names none.
+local function resolveIn(ids, arg, nameOf)
+    local n = tonumber(arg)
+    if n and ids[n] then return ids[n] end
+    local want = arg:lower()
+    for _, id in ipairs(ids) do
+        if tostring(nameOf(id)):lower() == want then return id end
+    end
+end
+
+local function containerName(id) return NS.CM.Get(id).name end
+local function bandSetName(id) return NS.BandSets.Get(id).name end
+
+function runContainers()
+    local ids = NS.CM.List()
+    if #ids == 0 then return print(L["No range displays yet \226\128\148 /rm new or /rm preset simple makes some."]) end
+    local _, selected = NS.SelectedContainer()
+    for i, id in ipairs(ids) do
+        local c = NS.CM.Get(id)
+        printf(L["%s%d. %s (%s, %s)"], id == selected and "* " or "  ", i, c.name, c.unit, c.anchor.mode)
+    end
+end
+
+function runSelect(rest)
+    local arg = trimmed(rest)
+    if arg == "" then return print(L["Usage: /rm select <number or name> \226\128\148 /rm containers lists them"]) end
+    local id = resolveIn(NS.CM.List(), arg, containerName)
+    if not id then return printf(L["No range display '%s' \226\128\148 /rm containers lists them"], arg) end
+    NS.ShowContainer(id)
+    printf(L["Selected '%s': container.* settings now mean this display."], containerName(id))
+end
+
+function runNew(rest)
+    local unit = firstWord(rest)
+    if unit == "" then unit = "target" end
+    local id = NS.NewContainer(unit)
+    if not id then return print(L["Usage: /rm new [target|focus|pet|mouseover|nameplates]"]) end
+    printf(L["Created '%s' and selected it."], containerName(id))
+end
+
+function runDelete(rest)
+    local arg = trimmed(rest)
+    if arg == "" then return print(L["Usage: /rm delete <number or name> \226\128\148 /rm containers lists them"]) end
+    local id = resolveIn(NS.CM.List(), arg, containerName)
+    if not id then return printf(L["No range display '%s' \226\128\148 /rm containers lists them"], arg) end
+    printf(L["Deleted container '%s'."], NS.DeleteContainer(id))
+end
+
+function runPick()
+    if NS.PickFrameForSelected() then
+        print(L["Click a frame to attach the selected range display to it; right-click or Escape cancels."])
+    end
+end
+
+function runBands(rest)
+    local arg = trimmed(rest)
+    local ids = NS.BandSets.List()
+    if arg ~= "" then
+        local id = resolveIn(ids, arg, bandSetName)
+        if not id then return printf(L["No band set '%s' \226\128\148 /rm bands lists them"], arg) end
+        NS.ShowBandSet(id)
+        return printf(L["Selected band set '%s': bandSet.* settings now mean this set."], bandSetName(id))
+    end
+    local set, selected = NS.SelectedBandSet()
+    for i, id in ipairs(ids) do
+        printf(L["%s%d. %s"], id == selected and "* " or "  ", i, bandSetName(id))
+    end
+    if set then print(NS.BandRibbon(set)) end
+end
+
+local PRESET_KEYS = { simple = true, intermediate = true, advanced = true }
+
+function runPreset(rest)
+    local word = firstWord(rest)
+    if word == "undo" then return NS.UndoPreset() end
+    if not PRESET_KEYS[word] then return print(L["Usage: /rm preset simple|intermediate|advanced|undo"]) end
+    NS.ConfirmPreset(word)
 end
 
 -- /rm debug             toggles the console WINDOW (the logging flag is untouched).

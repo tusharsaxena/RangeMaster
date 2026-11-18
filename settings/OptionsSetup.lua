@@ -138,7 +138,7 @@ if not lib then
         "AddSpacer", "AttachTooltip", "InlineButtonPair", "RenderField", "RenderGrid", "RenderRows",
         "RenderSchema", "SessionCheckbox", "RefreshAllPanels", "RestoreDefaults",
         "PatchAlwaysShowScrollbar", "SetRenderer",
-        "SetChromeHeight", "TabStrip", "PageHeader", "RenderTabbedSchema",
+        "SetChromeHeight", "TabStrip", "PageHeader", "PageBanner", "RefreshPanel", "RenderTabbedSchema",
     }) do
         Helpers[name] = function() end
     end
@@ -183,5 +183,6 @@ local Helpers = NS.Helpers
 
 NS.RegisterOptionsPage = function(key, name, builder) Helpers.RegisterOptionsPage(key, name, builder) end
 NS.CreateOptionsPanel  = function() Helpers.CreateOptionsPanel() end
-NS.OpenOptionsPanel    = function() Helpers.OpenOptionsPanel() end
+-- `pageKey` (optional) opens that page; the answer is the library's (false: refused in combat).
+NS.OpenOptionsPanel    = function(pageKey) return Helpers.OpenOptionsPanel(pageKey) end
 NS.RefreshOptionsPanel = function() Helpers.RefreshAllPanels() end

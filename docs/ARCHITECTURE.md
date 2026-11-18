@@ -101,7 +101,9 @@ as the friendly override on target, focus and mouseover (reused by name, else cr
 Intermediate with spell chips on focus and sounds on target (its set's out-of-range band gets
 `NS.Presets.OOR_SOUND` through `NS.BandSets.SetBandSound` when it has no sound), plus target on its own nameplate (diamond + number) and
 every hostile nameplate (dot + the `max` number), both in combat only. `Describe(key)` feeds the
-preset cards (plan Task 8).
+preset cards on General › Presets. `PickerDue` / `MarkPickerSeen` are the one runtime reader and
+writer of `profile.seeded`, the first-run preset picker's sentinel (`settings/Presets.lua` shows the
+picker and marks it seen as it shows).
 
 ### Rendering
 
@@ -249,7 +251,8 @@ the stand-down latch, the database and the AceAddon entry (`core/RangeMaster.lua
 the AceDB defaults, the templates and the data tables; `modules/` the band sets, the range engine
 and its ticker, the container registry and presets, the renderer with its style and element files,
 and the diagnostics sections; `settings/` the schema runtime, the slash
-descriptor, the options descriptor and the pages.
+descriptor, the options descriptor and the pages (General with its Presets tab, Containers with
+its five rail entries, Band sets, Profiles).
 
 ### Per-client features
 
@@ -265,8 +268,23 @@ items and interact distances; spells on both) and the spell seeds (`defaults/Spe
 
 One schema row per setting, `NS.Schema`, driving the panel, the slash CLI and the resets through one
 write seam, `NS.SetByPath` (architecture-§5), on `LibKa0s-Schema-1.0` (`settings/Schema.lua`). The
-rows today are the composed Master controls (`settings/General.lua`) and the Skin tab's skip-render
-rows. The full shape, every default and the migration path: `docs/schema.md`.
+rows are the composed Master controls (`settings/General.lua`), the Skin tab's skip-render rows, the
+Containers page's `container.<field>` rows (`settings/Containers*.lua`) and the Band sets page's
+`bandSet.<field>` rows (`settings/BandSets.lua`). The full shape, every default and the migration
+path: `docs/schema.md`.
+
+**Selection-relative paths.** A container or band set is made at runtime, so no row names one by id:
+`container.<field>` means the SELECTED container's field and `bandSet.<field>` the selected band
+set's (design spec 5.6). The selection is session state (`NS.State.selectedContainer`,
+`selectedBandSet`), written only by `NS.SelectContainer` / `NS.SelectBandSet` (the page banners,
+`/rm select`, `/rm bands`); an unset or stale selection reads the first in order. `NS.StampSelectionRows`
+gives each such row its own `get`, `set` and `validate`: the set hands the value to the registry's
+writer (`NS.CM.SetField` / `Rename`, `NS.BandSets.SetField` / `Rename`), never a raw store at a path,
+so the panel, `/rm set` and every reset take one route (`tests/test_settings_containers.lua` spies
+both writers over every row). The default is the registry template's; a field the template leaves
+nil declares `nilAs` (0 for "no band set"), and one stored as `""` declares `emptyAs` (`Skin`,
+`Solid`), because the CLI cannot type an empty value. `NS.ValidateSchema` resolves each path against
+its template. A delete re-selects the deleted item's neighbor (`NS.NeighborAfterDelete`).
 
 **Structural registries.** Two, both in the profile, with one load pass between them,
 `core/Database.lua`'s `Database.PrepareProfile` (called from `NS:RunMigrations`, so only from
@@ -279,14 +297,15 @@ set when its `bandSet` names none, and sets `seeded` to `false` when absent.
   (`Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`, `SetBandSound`, `RestoreSnapshot`); its
   seed routine `BandSets.Seed` and its
   per-set repair `BandSets.NormalizeSet` are shared with the load pass. `Delete` also rewrites the
-  `bandSet` / `bandSetFriendly` references of the containers that used the deleted set; no
-  `container.*` row exists yet, and when Task 8 adds `container.bandSet` that write goes through the
-  helper (architecture-§5, "a row wins over a key").
+  `bandSet` / `bandSetFriendly` references of the containers that used the deleted set. The Band
+  sets page writes through `SetField` (match rule, unknown label and color), `SetBand` (an edge, a
+  label, a color; an edge that would leave a band without width is refused), `AddBand` and
+  `RemoveBand`, each normalizing after the write.
 - **Containers**: `containers`, `containerOrder`, `nextContainerId`, and the first-run sentinel
   `seeded`. Runtime writer `modules/ContainerManager.lua` (`NS.CM`: `Create`, `Delete`, `Duplicate`,
-  `Rename`, `CopySettings`, `Clear`, `RestoreSnapshot`), whose apply a profile switch, copy or reset
-  also requests; `seeded` is written by the first-run picker
-  (plan Task 8). No `container.*` row exists yet; Task 8's rows write through the seam.
+  `Rename`, `CopySettings`, `Clear`, `RestoreSnapshot`, and `SetField` for one dotted field, which
+  the `container.*` rows reach), whose apply a profile switch, copy or reset also requests; `seeded`
+  is written by `NS.Presets.MarkPickerSeen`.
 
 The member shapes are `NS.CONTAINER_TEMPLATE`, `NS.BANDSET_TEMPLATE` and `NS.BAND_TEMPLATE`
 (`defaults/Profile.lua`); the keys are bookkeeping with no schema row, so none is an AceDB default.
@@ -308,8 +327,8 @@ stand-down takes every subscription down and a stand-up replays it.
 | Constant | Wire name | Sender | Payload | Consumers |
 |---|---|---|---|---|
 | `RANGE_UPDATED` | `Ka0s_RangeMaster_RangeUpdated` | `modules/Ticker.lua` | `unit, state, minYd, maxYd` | `modules/Container.lua`: the instances watching that unit |
-| `CONTAINERS_CHANGED` | `Ka0s_RangeMaster_ContainersChanged` | `modules/ContainerManager.lua` (`FlushPending`, coalesced to the next frame, held in combat) | none | the renderer (`NS.Container.Sync`) and the settings pages (Task 8) |
-| `BANDSETS_CHANGED` | `Ka0s_RangeMaster_BandSetsChanged` | `modules/BandSets.lua` (`Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`, `SetBandSound`, `RestoreSnapshot`; never the load pass) | none | the renderer and the settings pages |
+| `CONTAINERS_CHANGED` | `Ka0s_RangeMaster_ContainersChanged` | `modules/ContainerManager.lua` (`FlushPending`, coalesced to the next frame, held in combat) | none | the renderer (`NS.Container.Sync`) |
+| `BANDSETS_CHANGED` | `Ka0s_RangeMaster_BandSetsChanged` | `modules/BandSets.lua` (every writer: `Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`, `SetField`, `SetBand`, `AddBand`, `RemoveBand`, `SetBandSound`, `RestoreSnapshot`; never the load pass) | none | the renderer (`Repaint`) and `settings/BandSets.lua` (a redraw of the pages, coalesced to the next frame) |
 | `MODE_CHANGED` | `Ka0s_RangeMaster_ModeChanged` | `core/RangeMaster.lua` (`NS.SetTestMode`, `NS.SetSimMode`) | `mode` (`"test"` or `"sim"`), `on`, `why` | `modules/Preview.lua` (what the displays draw) and `modules/Sim.lua` (starts or stops the sweep) |
 
 Ten or fewer messages, so `docs/message-bus.md` is not required; this table is the register.
@@ -318,7 +337,8 @@ Ten or fewer messages, so `docs/message-bus.md` is not required; this table is t
 
 `/rm` and `/rangemaster`, dispatched by `LibKa0s-Slash-1.0` over `NS.COMMANDS` (`settings/Slash.lua`):
 `help`, `config`, `skin`, `enable`, `disable`, `list`, `get`, `set`, `reset`, `resetall`, `profile`,
-`lock`, `unlock`, `resetposition`, `test`, `sim`, `debug`, `diagnostics`, `perf`, `version`. A bare
+`lock`, `unlock`, `resetposition`, `containers`, `select`, `new`, `delete`, `pick`, `bands`,
+`preset`, `test`, `sim`, `debug`, `diagnostics`, `perf`, `version`. A bare
 `/rm` opens the settings panel. While the addon is disabled the reserved verbs, the schema CLI,
 `diagnostics` and `profile` keep answering, and the feature verbs refuse on the collection's one line.
 Each verb, its arguments and its refusals: `docs/slash-dispatch.md`.
@@ -381,14 +401,16 @@ placed out of combat, because both modes are refused in it and ended at its star
 
 ## Known Limitations
 
-- The visibility rules, the band sounds and the preview modes have no settings rows yet: the
-  Containers page's Visibility and Sounds sections arrive with plan Task 8.
+- Three container fields have no settings row: the element order (`elements.order`), the spell
+  chips' list (`elements.spells.list`, seeded per client and class on create) and the icon
+  indicator's spell (`elements.indicator.spellID`, nil = the first chip). They keep their stored
+  values and are copied by Duplicate and Copy settings from.
+- The first-run preset picker is a popup that opens the General page's Presets tab, not a window of
+  its own with the cards in it; a disabled addon that is enabled later is not offered it.
 - Sim mode's sweep moves every container through one simulated distance; it does not simulate a
   unit's reaction, class or existence.
 - A container on a nameplate is anchored to the plate but stays a child of `UIParent`: it does not
   take the plate's scale or fade, and it draws in the HUD strata over the plates.
-- The frame picker and the frame providers have no settings row or verb yet: `pick` and the
-  Containers page's provider rows arrive with plan Task 8.
 - Without LibKa0s-Widgets-1.0 the bar indicator draws as a flat strip in the band color, not a fill.
 - The built-in out-of-range chime is a stock game sound by file id (567397, the raid warning); it is
   not yet heard on WoW Forever (`docs/smoke-tests.md`, SOUND-1).

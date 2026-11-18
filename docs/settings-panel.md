@@ -9,10 +9,14 @@ by the sidebar is covered by the library's lock (options-ui-§2).
 | Page | Covers |
 |---|---|
 | Ka0s Range Master (landing) | The logo, the TOC Notes line and the slash command list (`settings/About.lua`) |
-| General | Master controls and the skin (`settings/General.lua`) |
+| General | Master controls, the presets and the skin (`settings/General.lua`, `settings/Presets.lua`) |
+| Containers | One range container at a time: a banner picker with New container, and a nav rail of five entries (`settings/Containers*.lua`) |
+| Band sets | One band set at a time: a banner picker with New band set, its General tab and the Bands editor (`settings/BandSets.lua`) |
 | Profiles | AceDB profiles: switch, copy, delete, reset (`settings/Profiles.lua`) |
 
-The Containers, Band sets and Presets pages arrive in plan Task 8 (design spec section 5.6).
+Every Containers and Band sets row is selection-relative, `container.<field>` or `bandSet.<field>`
+(`docs/schema.md`), so `/rm get` and `/rm set` reach the item the banner shows, through the registry's
+own writer.
 
 ## General
 
@@ -37,11 +41,51 @@ Composed by `H.MasterControls` from one declaration; the words and the order are
 
 The header **Defaults** button restores every General row on this profile except the minimap row.
 
+### Presets
+
+A host tab (options-ui-§13) between Master controls and Skin: one card per preset (Simple,
+Intermediate, Advanced), each its `NS.Presets.Describe` lines and an **Apply <name>…** button, then
+**Undo last preset**. Apply goes through `NS.ConfirmPreset`: a profile with containers is asked first
+(the popup names the preset and the count it replaces); an empty one applies at once. `/rm preset`
+takes the same route. The first-run picker (a popup shown once per profile while `seeded` is false,
+marked seen as it shows, held through combat) offers **Choose a preset**, which opens this tab.
+
 ### Skin
 
 The library's `O.AppearanceTab` (skinning-§3), drawn over the `skin.*` skip-render rows: source, skin,
 the Scope's Ignore settings panel and Ignore fonts, the Font and Texture overrides and the Font outline.
 A pick lands through `NS.WriteSkinChoice` and the write seam.
+
+## Containers
+
+The band carries the page's only picker and **New container** (`O.PageBanner` with `action`). The nav
+rail picks which part of the selected container is shown; each entry is its own page key, so the
+header **Defaults** restores every tab of the entry on screen, for the container in the band. The
+**Sounds** entry is not listed for a `nameplates` container, and the rail heals to General when the
+selection moves to one.
+
+| Entry (page key) | Tabs | Rows |
+|---|---|---|
+| General (`containers`) | General, Position | Name, Enable this container; What it tracks: Unit, Band set, Friendly band set; then Duplicate container, Delete container… (confirmed), Copy settings from and the band Preview. Position: Attach to, and the rows of the chosen placement only (`shownWhen`, options-ui-§22): on the unit frame (Unit frames from, Frame name for a custom frame, points, offsets, **Pick on screen**), on screen (points, offsets, Frame strata), at the cursor, on the nameplate (and Friendly nameplates too for All nameplates) |
+| Display (`containers_display`) | Layout, Frame, Number, Text | Direction, Spacing, Padding, Container scale, Container opacity; the composed border block and the background pair; Show number and Format with the composed Font block; Show text label and Uppercase with the composed Font block |
+| Indicator (`containers_indicator`) | Indicator, Spell chips | Show indicator, Shape, Size and the composed color pair; Show spell chips, Style, Size |
+| Visibility (`containers_visibility`) | Visibility | Show (always, in combat, out of combat), Reaction, Hide with no unit, Out of combat opacity |
+| Sounds (`containers_sounds`) | Sounds | Play band sounds, Sound channel |
+
+Every color swatch's companion is the container's three-value **Color from** (band, fixed, class;
+options-ui-§17), declared `classColorSource = "unit"`: a range container describes its unit.
+
+## Band sets
+
+The band carries the band-set picker (the default set marked) and **New band set**. **General**:
+Name, Match band by, and the Unknown range subsection (Unknown label, Unknown color, a palette swatch
+with no class companion), then the containers using the set and **Duplicate band set** / **Delete
+band set…** (confirmed; its containers move to the default set; the last set is never deleted).
+**Bands** (a host editor): the distance ribbon, then per band Up to (yards), Label, Frame / Text /
+Indicator color and Sound on enter, Remove band, and **Add band** at the foot. The bands are ordered
+by their edges (`modules/BandSets.lua` normalizes every write), so a band moves by moving its edge and
+there is no reorder control. The header **Defaults** restores the match rule and the unknown label and
+color; the name and the bands are kept.
 
 ## The launcher
 

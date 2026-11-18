@@ -75,18 +75,19 @@ test("first OnShow builds the General Defaults button, with the collection's res
   assertTrue(panel.defaultsBtn.callbacks.OnClick ~= nil, "the parked click handler got wired")
 end)
 
-test("the General page draws Master controls first and the Skin tab last", function()
+test("the General page draws Master controls first, then Presets, and the Skin tab last", function()
   -- options-ui-§13/§15, skinning-§3: the page a player opens first leads with Master controls, and
-  -- with no Keybindings tab the library's Skin tab closes the strip.
+  -- with no Keybindings tab the library's Skin tab closes the strip. The Presets host tab
+  -- (settings/Presets.lua) sits between them.
   local panel = T.mocks.__subcategories["General"]
   panel:__fire("OnShow")
   local ctx = renderedCtx("general")
   assertTrue(ctx ~= nil, "the General page rendered")
   local tabs = tabButtons(ctx)
-  assertEqual(#tabs, 2, "Master controls and the Skin tab")
+  assertEqual(#tabs, 3, "Master controls, Presets and the Skin tab")
   assertEqual(ctx.activeTab, "Master controls", "the General page opens on Master controls")
   assertFalse(tabs[1].__enabled, "the first tab is the selected one")
-  assertTrue(tabs[2].__enabled, "and the Skin tab is clickable")
+  assertTrue(tabs[2].__enabled and tabs[3].__enabled, "and the Presets and Skin tabs are clickable")
 
   local labels = {}
   local function walk(w)

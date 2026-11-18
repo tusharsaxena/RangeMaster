@@ -122,10 +122,24 @@ test("every row's default matches the value in defaults.profile", function()
   -- has nothing to say about it and defaults.global disagrees with the row on purpose (`hide =
   -- false` is `Minimap button = true`). tests/test_launcher.lua pins that pair head-on, which is
   -- where a reader should look for it.
+  --
+  -- A selection-relative row (`container.<field>`, `bandSet.<field>`; settings/Schema.lua) means a
+  -- field of a registry member, so its one other source is that registry's TEMPLATE, which a new
+  -- container or band set is deep-copied from. A field the template leaves nil (a band-set
+  -- reference) agrees through the row's declared `nilAs`.
   local defaults = NS.defaults.profile
+  local TEMPLATES = { container = NS.CONTAINER_TEMPLATE, bandSet = NS.BANDSET_TEMPLATE }
+  local function expected(row)
+    local prefix, field = row.path:match("^(%a+)%.(.+)$")
+    local template = prefix and TEMPLATES[prefix]
+    if not template then return NS.ResolvePath(defaults, row.path) end
+    local v = NS.ResolvePath(template, field)
+    if v == nil then return row.nilAs end
+    return v
+  end
   for _, row in ipairs(NS.Schema) do
     local skip = row.sessionOnly or row.path == NS.Constants.MINIMAP_PATH
-    local want = NS.ResolvePath(defaults, row.path)
+    local want = expected(row)
     if type(row.default) == "table" and not skip then
       assertEqual(type(want), "table", row.path .. " default should be a table in both places")
       for k, v in pairs(row.default) do
@@ -224,8 +238,14 @@ test("no color row carries `disabledIf`, and every pair declares whose class it 
   -- every one of the four surfaces paints the tracked unit's own bar, so every pair is "unit" --
   -- and that declaration is what an audit reads.
   -- red under: a `disabledIf` coming back, or a pair silently reverting to the player's class.
+  --
+  -- A PALETTE swatch (`paletteSwatch`) is options-ui-§17's one exemption: a color that identifies
+  -- something other than a player -- the band set's unknown gray -- has no class to take, so it has
+  -- no companion and declares no source. It still may never gray itself out.
   for _, row in ipairs(NS.Schema) do
-    if row.type == "color" then
+    if row.type == "color" and row.paletteSwatch then
+      assertEqual(row.disabledIf, nil, row.path .. " must never gray itself out")
+    elseif row.type == "color" then
       assertEqual(row.disabledIf, nil, row.path .. " must never gray itself out")
       assertEqual(row.classColorSource, "unit", row.path .. " does not declare whose class it means")
       assertEqual(row.classColorUnit, row.unit, row.path .. " names a unit other than its own")
@@ -233,7 +253,7 @@ test("no color row carries `disabledIf`, and every pair declares whose class it 
   end
   -- The companion carries the same declaration, so an audit reading either row gets one answer.
   for i, row in ipairs(NS.Schema) do
-    if row.type == "color" then
+    if row.type == "color" and not row.paletteSwatch then
       local companion = NS.Schema[i + 1]
       assertEqual(companion.classColorSource, row.classColorSource,
         row.path .. " and its companion disagree about whose class")
@@ -258,7 +278,9 @@ test("`disabledIf` names a real sibling setting", function()
 end)
 
 test("every schema row lands on a page the panel actually builds", function()
-  local pages = { general = true, appearance = true, profiles = true }
+  local pages = { general = true, appearance = true, profiles = true, bandsets = true, containers = true,
+    containers_display = true, containers_indicator = true, containers_visibility = true,
+    containers_sounds = true }
   for _, row in ipairs(NS.Schema) do
     assertTrue(pages[row.page], tostring(row.path) .. " is on unknown page " .. tostring(row.page))
   end

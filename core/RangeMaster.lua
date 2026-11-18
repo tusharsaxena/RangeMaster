@@ -34,6 +34,13 @@ function addon:OnInitialize()
     if NS.Launcher then NS.Launcher:Register() end
 end
 
+--- The two first-run prompts, one at a time: the preset picker first (settings/Presets.lua), and the
+--- skin picker only when that one is not up or held; its close offers the skin picker then.
+local function showFirstRunPickers()
+    if NS.MaybeShowPresetPicker and NS.MaybeShowPresetPicker() then return end
+    if NS.MaybeShowSkinPicker then NS.MaybeShowSkinPicker() end
+end
+
 function addon:OnEnable()
     NS.ClearLSMCache()
     NS.GetLSM()
@@ -44,7 +51,7 @@ function addon:OnEnable()
     -- and come up only if the addon is actually running (slash-commands-§7).
     if not NS.IsStoodDown() then self:RegisterLifecycleEvents() end
     if NS.CreateOptionsPanel then NS.CreateOptionsPanel() end
-    if NS.MaybeShowSkinPicker then NS.MaybeShowSkinPicker() end
+    showFirstRunPickers()
 end
 
 --- Every event the addon itself registers, and the method each calls. ONE list, read by both the
@@ -287,6 +294,7 @@ local function adoptProfile(tag, fmt, ...)
     -- The picker goes down first, unmarked: its dismissal puts back the OLD profile's skin, so it
     -- must go before the new profile's skin is applied.
     if NS.HideSkinPicker then NS.HideSkinPicker() end
+    if NS.HidePresetPicker then NS.HidePresetPicker() end
     NS:RunMigrations()
     -- The registries are the new profile's now: a preset's Undo slot was the old one's, and the
     -- renderer hears the new containers through the registry's own sender (modules/ContainerManager).
@@ -294,7 +302,10 @@ local function adoptProfile(tag, fmt, ...)
     NS.ApplySkinChoice()
     NS.SyncEnabledHold()
     if NS.CM and NS.CM.RequestApply then NS.CM.RequestApply() end
-    if NS.MaybeShowSkinPicker then NS.MaybeShowSkinPicker() end
+    -- The selections named the old profile's containers and band sets.
+    NS.SelectContainer(nil)
+    NS.SelectBandSet(nil)
+    showFirstRunPickers()
     if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
 end
 

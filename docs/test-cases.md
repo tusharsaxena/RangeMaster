@@ -365,7 +365,7 @@ Total.
 - /rm debug on writes an [Init] summary naming our version, schema and profile
 - the console checkbox label the library renders is prose, not its own STRINGS key
 
-### test_slash.lua (11)
+### test_slash.lua (17)
 
 - NS.Print survives AceConsole's embed and stays the [RM]-prefixed printer
 - bare /rm opens the settings panel through the config verb, not the help index
@@ -378,6 +378,12 @@ Total.
 - OpenOptionsPanel logs [Cfg] refused in combat
 - the schema CLI's list header the library renders is prose, not its own STRINGS key
 - slash verbs: the stub's split agrees with the live dispatcher's over a corpus
+- slash: test_new_unit_arg — /rm new takes a unit, defaults to target, and refuses one it does not watch
+- slash: test_select_by_name — /rm select takes a number or a name in any case
+- slash: /rm delete takes a number or a name and selects the neighbor
+- slash: test_preset_verb — /rm preset confirms, applies, undoes and refuses an unknown key
+- slash: /rm bands lists the band sets with the selection marked, and selects one
+- slash: /rm pick starts the frame picker for the selected container, whose pick attaches it
 
 ### test_slashgate.lua (7)
 
@@ -510,8 +516,41 @@ Total.
 - re-rendering the About page replaces its body rather than stacking a second copy
 - the General page registered a real Blizzard subcategory at build time
 - first OnShow builds the General Defaults button, with the collection's reset tooltip
-- the General page draws Master controls first and the Skin tab last
+- the General page draws Master controls first, then Presets, and the Skin tab last
 - the General page is covered in combat on the sidebar path, and the window stays open (options-ui-§2)
+
+### test_settings_containers.lua (13)
+
+- settings: surface parity — every Containers and Band sets row answers /rm get and /rm set, through its registry's writer
+- settings: surface parity — every Containers row is drawn on its rail entry's tab
+- settings: test_container_paths_get_set — /rm set container.unit focus changes the selected container
+- settings: a band-set reference reads 0 for none, and 0 writes nil back
+- settings: with no container, a container. write is refused with how to make one
+- settings: no selection reads the first container, and the selection never outlives its container
+- settings: deleting the selected container selects its neighbor, not the first
+- settings: test_sounds_section_hidden_for_nameplates — the rail lists no Sounds for a nameplates container
+- settings: the Containers page draws the banner with New container, and New selects what it made
+- settings: Delete container… confirms first, and the confirm deletes the one it named
+- settings: the Containers Defaults button restores the entry on screen, for the selected container only
+- settings: test_open_in_combat_refused — opening a page in combat is refused with the gray line, and a shown page is covered
+- settings: every rail entry is one page key, and every Containers row names a template field
+
+### test_settings_bandsets.lua (6)
+
+- bandsets: test_bandset_paths_get_set — /rm set bandSet.matchBy changes the selected band set
+- bandsets: SetBand moves an edge and the next band follows; an edge that would leave no width is refused
+- bandsets: AddBand splits the open-ended band, RemoveBand closes the gap, and the last band stays
+- bandsets: SetField refuses what is not a band-set field, and the name is Rename's
+- bandsets: deleting the selected band set selects its neighbor and moves its containers to the default
+- bandsets: the Band sets page draws General and Bands, and the editor's controls reach the writers
+
+### test_settings_presets.lua (5)
+
+- presets: test_preset_apply_confirms — Apply asks first when there is something to replace, and Undo puts it back
+- presets: an empty profile applies at once, with nothing to confirm
+- presets: test_first_run_picker_once — the picker shows once per profile, marks it seen as it shows, and waits out combat
+- presets: the picker's Choose a preset opens the General page on its Presets tab
+- presets: the Presets tab draws the three cards with Apply and the Undo button
 
 ### test_skinsetup.lua (12)
 
@@ -750,7 +789,7 @@ Total.
 | test_coresetup.lua | 8 |
 | test_mediasetup.lua | 10 |
 | test_debuglog.lua | 14 |
-| test_slash.lua | 11 |
+| test_slash.lua | 17 |
 | test_slashgate.lua | 7 |
 | test_perf.lua | 17 |
 | test_bus.lua | 8 |
@@ -760,6 +799,9 @@ Total.
 | test_modes.lua | 18 |
 | test_optionssetup.lua | 16 |
 | test_realpages.lua | 7 |
+| test_settings_containers.lua | 13 |
+| test_settings_bandsets.lua | 6 |
+| test_settings_presets.lua | 5 |
 | test_skinsetup.lua | 12 |
 | test_skin_picker.lua | 16 |
 | test_skin_picker_preview.lua | 9 |
@@ -781,4 +823,4 @@ Total.
 | test_skin_switch.lua | 6 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **563** |
+| **Total** | **593** |

@@ -3,7 +3,7 @@
 ![WoW](https://img.shields.io/badge/WoW-Midnight_12.1.5_and_Forever_1.60.1-purple)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
-![Tests](https://img.shields.io/badge/Tests-563%2F563_passing-green)
+![Tests](https://img.shields.io/badge/Tests-593%2F593_passing-green)
 
 Supports Retail and WoW Forever. Range Master lets you build your own range displays for your
 target, your focus, your pet, whatever is under your mouse, and every enemy nameplate on screen.
@@ -36,6 +36,18 @@ sound change in turn. Both stop as soon as you enter combat, and neither can be 
 `/rm skin` opens the skin picker, where you choose how Range Master's windows, settings pages and
 displays look. `/rm help` lists every command, and `/rm diagnostics` writes a report you can paste
 into a bug report.
+
+On first run Range Master offers a preset: **Simple** (four displays free on screen),
+**Intermediate** (displays on your unit frames and the cursor) or **Advanced** (adds nameplates, spell
+chips and a sound). Applying one asks first if you already have displays, and **Undo last preset**
+(or `/rm preset undo`) puts them back. The presets are also on General → Presets, and
+`/rm preset simple` applies one from chat.
+
+Build your own on the **Containers** page: New container, then pick its unit, its band set, where it
+sits (free on screen, on its unit frame, on its nameplate, or at the cursor) and what it shows. From
+chat, `/rm new focus` makes one, `/rm containers` lists them and `/rm select 2` picks the one that
+`container.` settings mean, for example `/rm set container.anchor.mode cursor`. The **Band sets**
+page edits the distance bands every display colors by; `/rm bands` lists them.
 
 Everything else is under Settings → AddOns → Ka0s Range Master, and every setting can also be read
 and changed from chat: `/rm list` shows them all.

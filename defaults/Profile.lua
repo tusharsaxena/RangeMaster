@@ -81,9 +81,9 @@ NS.CONTAINER_TEMPLATE = {
         -- An ARRAY: the load pass never backfills it index by index; it appends a missing name once.
         order = { "indicator", "number", "text", "spells" },
         number = { enabled = true, format = "range", font = "", size = 14, outline = "OUTLINE",
-                   colorMode = "band", color = white() },
-        text = { enabled = false, font = "", size = 12, outline = "OUTLINE", colorMode = "band",
-                 color = white(), upper = true },
+                   shadow = false, colorMode = "band", color = white() },
+        text = { enabled = false, font = "", size = 12, outline = "OUTLINE", shadow = false,
+                 colorMode = "band", color = white(), upper = true },
         indicator = { enabled = false, shape = "dot", size = 12, colorMode = "band", color = white(),
                       spellID = nil },
         -- `list` is the player's (seeded per client and class on create, Task 4); empty here, so the

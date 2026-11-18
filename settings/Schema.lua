@@ -350,6 +350,9 @@ local function chatPrint(line) NS.Print(line) end
 -- per-arm choice.
 local WRITE_THROUGH = { "enabled", "locked" }
 
+-- The two selection-relative prefixes (the section after the bindings below).
+local CONTAINER, BANDSET = "container", "bandSet"
+
 local S = SchemaLib:New({
     -- The live array, never copied: the page files register into it through NS.RegisterSchemaRows.
     rows = NS.Schema,
@@ -364,6 +367,11 @@ local S = SchemaLib:New({
     resolveRoot = function(parts)
         local db = NS.db
         if parts[1] == "global" then return db and db.global, 2 end
+        -- A SELECTION-RELATIVE path (the section below): read against the selected container or
+        -- band set. Every row under either prefix carries its own get and set, which reach the
+        -- registry's writer, so only a row-less READ (`/rm get container.anchor`) lands here.
+        if parts[1] == CONTAINER then return (NS.SelectedContainer()), 2 end
+        if parts[1] == BANDSET then return (NS.SelectedBandSet()), 2 end
         return db and db.profile, 1
     end,
 
@@ -500,6 +508,173 @@ function NS.FormatSchemaValue(row, v)
 end
 
 -- ---------------------------------------------------------------------
+-- The selection-relative paths: `container.<field>` and `bandSet.<field>`
+-- ---------------------------------------------------------------------
+--
+-- Containers and band sets are made by the player at runtime, so no row can name one by id. A row on
+-- the Containers page is spelled `container.<field>` and means the SELECTED container's field; a row
+-- on the Band sets page, `bandSet.<field>`, the selected band set's (design spec 5.6). The selection
+-- is session state (NS.State.selectedContainer / selectedBandSet, never persisted), written only by
+-- NS.SelectContainer and NS.SelectBandSet below: the page banners, `/rm select` and `/rm bands`.
+-- A selection that names nothing (a fresh login, a delete) reads the first in order, so `/rm get
+-- container.unit` always means something while a container exists.
+--
+-- ONE WRITER EACH. A container belongs to modules/ContainerManager.lua and a band set to
+-- modules/BandSets.lua (architecture-§5), so a stamped row's `set` hands the value to NS.CM.SetField
+-- or NS.BandSets.SetField (the name to Rename) rather than letting the seam store it at a path. The
+-- write still goes through NS.SetByPath, so the panel, `/rm set` and every reset take one route, log
+-- one [Set] line and validate once. A row whose field stores nil for "none" declares `nilAs`, the
+-- value nil reads as (0 for a band-set reference), which its set turns back into nil; a row whose
+-- field stores "" for "the skin's" or "Solid" declares `emptyAs`, the word "" reads as, because the
+-- CLI cannot type an empty value.
+
+local function noop() end
+
+--- The selected container, and its id; else the first in order; else nil.
+--- @return table|nil container, number|nil id
+function NS.SelectedContainer()
+    local CM = NS.CM
+    if not (CM and CM.Get and NS.db) then return nil end
+    local id = NS.State.selectedContainer
+    local c = id ~= nil and CM.Get(id) or nil
+    if c then return c, id end
+    id = CM.List()[1]
+    if id == nil then return nil end
+    return CM.Get(id), id
+end
+
+--- The selected band set, and its id; else the first (the default set); else nil.
+--- @return table|nil set, number|nil id
+function NS.SelectedBandSet()
+    local B = NS.BandSets
+    if not (B and B.Get and NS.db) then return nil end
+    local id = NS.State.selectedBandSet
+    local set = id ~= nil and B.Get(id) or nil
+    if set then return set, id end
+    id = B.DefaultId()
+    if id == nil then return nil end
+    return B.Get(id), id
+end
+
+--- Select container `id` (nil: the first). Refuses an id that names no container.
+function NS.SelectContainer(id)
+    if id ~= nil and not (NS.CM and NS.CM.Get(id)) then return false end
+    NS.State.selectedContainer = id
+    return true
+end
+
+--- Select band set `id` (nil: the default). Refuses an id that names no band set.
+function NS.SelectBandSet(id)
+    if id ~= nil and not (NS.BandSets and NS.BandSets.Get(id)) then return false end
+    NS.State.selectedBandSet = id
+    return true
+end
+
+--- After `deletedIndex` of `ids` (the order as it was BEFORE the delete) went, the id that took its
+--- place: the next one, else the one before it, else nil. A delete re-selects the neighbor, never
+--- the first in the list.
+function NS.NeighborAfterDelete(ids, deletedIndex)
+    return ids[deletedIndex + 1] or ids[deletedIndex - 1]
+end
+
+local SELECTION = {
+    [CONTAINER] = {
+        selected = function() return NS.SelectedContainer() end,
+        template = function() return NS.CONTAINER_TEMPLATE end,
+        write = function(id, field, v)
+            if field == "name" then return NS.CM.Rename(id, v) end
+            return NS.CM.SetField(id, field, v)
+        end,
+        none = function() return NS.L["No container exists yet: create one with /rm new."] end,
+    },
+    [BANDSET] = {
+        selected = function() return NS.SelectedBandSet() end,
+        template = function() return NS.BANDSET_TEMPLATE end,
+        write = function(id, field, v)
+            if field == "name" then return NS.BandSets.Rename(id, v) end
+            return NS.BandSets.SetField(id, field, v)
+        end,
+        none = function() return NS.L["No band set exists yet."] end,
+    },
+}
+
+local function copyValue(v)
+    if type(v) ~= "table" then return v end
+    local out = {}
+    for k, x in pairs(v) do out[k] = copyValue(x) end
+    return out
+end
+
+--- The template a selection-relative row's path is checked against: a copy of the registry's
+--- template with each `nilAs` row's declared value filled in where the template holds nil.
+local function validationRoot(prefix)
+    local sel = SELECTION[prefix]
+    local root = copyValue(sel.template())
+    for _, row in ipairs(NS.Schema) do
+        local field = type(row.path) == "string" and row.path:match("^" .. prefix .. "%.(.+)$")
+        if field and row.nilAs ~= nil and SchemaLib.Read(root, field) == nil then
+            SchemaLib.Write(root, field, row.nilAs)
+        end
+    end
+    return root
+end
+
+--- The row's read: the selected item's field, nil reading as the row's `nilAs`.
+local function stampGet(row, sel, field)
+    return function()
+        local item = sel.selected()
+        if not item then return nil end
+        local v = SchemaLib.Read(item, field)
+        if v == nil then return row.nilAs end
+        if v == "" and row.emptyAs ~= nil then return row.emptyAs end
+        return v
+    end
+end
+
+--- The row's write: the value to the registry's writer for the selected item.
+local function stampSet(row, sel, field)
+    return function(v)
+        local _, id = sel.selected()
+        if id == nil then return end
+        if row.nilAs ~= nil and v == row.nilAs then v = nil end
+        if row.emptyAs ~= nil and v == row.emptyAs then v = "" end
+        sel.write(id, field, v)
+    end
+end
+
+--- The row's check: refused while nothing is selected, then the row's own validate.
+local function stampValidate(row, sel)
+    local own = row.validate
+    return function(v, rid)
+        if not sel.selected() then return false, sel.none() end
+        if own then return own(v, rid) end
+        return true
+    end
+end
+
+--- Make `rows` selection-relative: each row's get, set and validate as above, its default from the
+--- registry's template (the row's own only where the template holds nil), and a declared no-op reaction where it has none (the
+--- writer asks for the apply itself). Answers `rows`, for NS.RegisterSchemaRows.
+function NS.StampSelectionRows(rows)
+    for _, row in ipairs(rows) do
+        local prefix, field = tostring(row.path):match("^(%a+)%.(.+)$")
+        local sel = SELECTION[prefix]
+        if sel then
+            -- The template is the one place a default is written (savedvariables-§2): it wins over a
+            -- composer's built-in default, and only a field it leaves nil takes the row's own.
+            local v = SchemaLib.Read(sel.template(), field)
+            if v == nil then v = row.default end
+            if v == nil then v = row.nilAs end
+            row.default = copyValue(v)
+            row.get, row.set = stampGet(row, sel, field), stampSet(row, sel, field)
+            row.validate = stampValidate(row, sel)
+            row.onChange = row.onChange or noop
+        end
+    end
+    return rows
+end
+
+-- ---------------------------------------------------------------------
 -- Schema-shape validation
 -- ---------------------------------------------------------------------
 --
@@ -509,9 +684,13 @@ end
 -- does NOT resolve against the defaults that hold it -- a typo'd path would otherwise silently
 -- read and write nothing. It only PRINTS; it never refuses to register.
 --
--- A page is where a row is EDITED, never where it is stored. The Containers and Band sets pages join
--- this set with their rows (the v0.1.0 plan, Task 8).
-local VALID_PAGES = { general = true, profiles = true }
+-- A page is where a row is EDITED, never where it is stored. The Containers page's five rail entries
+-- are a page key each (settings/Containers.lua), and the Band sets page is one.
+local VALID_PAGES = {
+    general = true, profiles = true, bandsets = true,
+    containers = true, containers_display = true, containers_indicator = true,
+    containers_visibility = true, containers_sounds = true,
+}
 
 --- Which defaults tree a row's path resolves against. Almost every row means `defaults.profile`; a
 --- `global.` path means `defaults.global`. Two kinds of row answer no root and so are skipped:
@@ -523,6 +702,11 @@ local VALID_PAGES = { general = true, profiles = true }
 --- against (anti-pattern #81). A sessionOnly row is skipped by the library itself: its value is
 --- deliberately not in the profile.
 local function defaultsRoot(parts, row)
+    -- A selection-relative row owns its get and set (they reach the registry's writer), but its path
+    -- still names a template field, and that is what must resolve: a typo there reads and writes
+    -- nothing on every container.
+    if parts[1] == CONTAINER then return validationRoot(CONTAINER), 2 end
+    if parts[1] == BANDSET then return validationRoot(BANDSET), 2 end
     if row.page == "profiles" or type(row.get) == "function" then return nil end
     local d = NS.defaults
     if parts[1] == "global" then return d and d.global, 2 end

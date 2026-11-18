@@ -56,6 +56,7 @@ local function StandDown()
     -- The two preview modes are session state that draws; a stood-down addon draws nothing.
     if NS.EndModes then NS.EndModes("stood down") end
     if NS.HideSkinPicker then NS.HideSkinPicker() end
+    if NS.HidePresetPicker then NS.HidePresetPicker() end
     local addon = NS.addon
     if addon and addon.UnregisterLifecycleEvents then addon:UnregisterLifecycleEvents() end
     runSteps(DOWN_STEPS)

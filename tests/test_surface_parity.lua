@@ -119,20 +119,17 @@ test("parity: the Options stub carries every helper the degraded build can reach
     -- The AceGUI handle the live panel stashes. There is no AceGUI on the degraded path — that is
     -- the condition, not a divergence.
     "AceGUI",
-    -- New at Options minor 8 (libs/LibKa0s/Options.lua's O.RefreshPanel): the library's way for a
-    -- host to say "this one page's contents changed" without touching the private dirty flag. This
-    -- addon has no call site for it —
-    --   grep -rn "RefreshPanel" core modules settings   returns nothing —
-    -- and the Slash case below states the rule this follows: a stub member with no caller is a copy
-    -- waiting to go stale. It joins the stub on the commit that gives it a caller.
-    "RefreshPanel",
+    -- NOT on this list since plan Task 8: RefreshPanel (Options minor 8) and PageBanner, which the
+    -- Containers and Band sets pages now call, so the stub answers both, inert. The rule is the Slash
+    -- case's below: a stub member with no caller is a copy waiting to go stale, and it joins the stub
+    -- on the commit that gives it a caller.
     -- New at LibKa0s v1.73.0 (libs/LibKa0s/OptionsDrawer.lua, minor 1): O.Drawer, the drawer row,
     -- exempt under the same rule. Its single roster consumer is QuickComms; this addon has none --
     --   grep -rn Drawer core modules settings   returns nothing --
     -- and the degraded build never reaches it.
     "Drawer",
-    -- New at LibKa0s v1.24.0 (OptionsWidgets 13 / OptionsCompose 1), and exempt under the rule the
-    -- RefreshPanel entry above states. The five COMPOSERS this addon does call are in the stub,
+    -- New at LibKa0s v1.24.0 (OptionsWidgets 13 / OptionsCompose 1), and exempt under the
+    -- no-caller rule the Slash case states. The five COMPOSERS this addon does call are in the stub,
     -- hollow, because they must be for the page files to finish loading; these are the members it
     -- does not call, or calls only from a panel build.
     --
@@ -141,9 +138,9 @@ test("parity: the Options stub carries every helper the degraded build can reach
     --     emit, so nothing outside the library ever reads the tables themselves. A stub copy would
     --     be the same class of thing as a stub copy of lib.LAYOUT's numbers, one layer up.
     "CLASS_COLOR_NOTE", "FONT_FLAGS", "FONT_FLAGS_SORT", "VISIBILITY_SORT", "VISIBILITY_VALUES",
-    --   * The banner and the secondary strip: no page of this addon draws either yet (the
-    --     Containers page's banner picker arrives with plan Task 8).
-    "PageBanner", "SubTabStrip",
+    --   * The secondary strip: no page of this addon draws one (options-ui-§13 forbids it under the
+    --     Containers page's nav rail).
+    "SubTabStrip",
     --   * MASTER_GROUP, the Master controls tab's literal. Its one reader is settings/General.lua's
     --     build(), which a library-less load never reaches (there is no panel to build), and the
     --     stub's composers are hollow (options-ui-§1, anti-pattern #73), so no degraded
@@ -151,7 +148,7 @@ test("parity: the Options stub carries every helper the degraded build can reach
     "MASTER_GROUP",
     -- NOT on this list: the six members new at LibKa0s v1.35.0 (Options 18.16.5.3) -- ChoiceGrid,
     -- IdInput, IdList, ResolveId, UnnamedCandidates and ID_NAME_HINT. This addon has no caller for
-    -- any of them, so the RefreshPanel rule above would exempt them, but the owner asked for them
+    -- any of them, so the no-caller rule above would exempt them, but the owner asked for them
     -- inert on every consumer's stub (2026-09-14) and settings/OptionsSetup.lua carries them.
     -- WHAT IS NO LONGER ON THIS LIST, and why the file got shorter rather than laxer. Twelve
     -- `__`-prefixed live members used to be exempted here one at a time -- the six chrome

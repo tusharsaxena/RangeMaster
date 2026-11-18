@@ -41,11 +41,11 @@ runner's load list to the TOC.
 | `defaults/Profile.lua` | `NS.defaults`: the Master controls, the skin choice, the global schema stamp and `minimap`; `NS.CONTAINER_TEMPLATE`, `NS.BANDSET_TEMPLATE`, `NS.BAND_TEMPLATE` |
 | `defaults/SpellSeeds.lua` | `NS.SpellSeeds[client][classFile] = { chips, ladder }`: the per-client, per-class spell seeds; data only |
 | `defaults/BandSetPresets.lua` | `NS.BandSetPresets`: the four preset band sets (the Hunter set per client), `ORDER`, `DefaultFor(classFile)`; data only |
-| `modules/BandSets.lua` | `NS.BandSets`: the band-set registry's writer (`Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`, `RestoreSnapshot`), `Snapshot`, `List`, `Get`, `DefaultId`, `Resolve`, `ForUnit`, and the load pass's `Seed` and `NormalizeSet`; sender of `BANDSETS_CHANGED` |
+| `modules/BandSets.lua` | `NS.BandSets`: the band-set registry's writer (`Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`, `SetField`, `SetBand`, `AddBand`, `RemoveBand`, `SetBandSound`, `RestoreSnapshot`), `Snapshot`, `List`, `Get`, `DefaultId`, `Resolve`, `ForUnit`, and the load pass's `Seed` and `NormalizeSet`; sender of `BANDSETS_CHANGED` |
 | `modules/Range.lua` | `NS.Range`: `Get` (the guarded LibRangeCheck bracket, the per-tick memo by unit token, Forever's ladder fallback), `InSpellRange`, `BeginTick`, `SetPerfParent`, `Rebuild`, the preview's fake source (`SetSource`, `HasSource`). LOAD-BEARING: before Ticker |
 | `modules/Ticker.lua` | `NS.Ticker`: the watch list, the one adaptive `C_Timer` ticker, `RANGE_UPDATED` on change, `Changed` for a new unit behind a token (sent even unmoved), `OnSteady` listeners for an unmoved read, `Removed` for a plate going away; `StandDown` / `StandUp` |
-| `modules/ContainerManager.lua` | `NS.CM`: the container registry's writer (`Create`, `Delete`, `Duplicate`, `Rename`, `UniqueName`, `CopySettings`, `Clear`, `Snapshot`, `RestoreSnapshot`), `List`, `Get`, `SetPosition` / `ResetPosition` (a drag's result, Reset position), the coalesced, combat-deferred `RequestApply` / `FlushPending`; sender of `CONTAINERS_CHANGED` |
-| `modules/Presets.lua` | `NS.Presets`: `Apply` (Simple, Intermediate, Advanced, through `NS.CM`), the one-level `Undo` / `CanUndo`, `Describe` for the preset cards, `OOR_SOUND` |
+| `modules/ContainerManager.lua` | `NS.CM`: the container registry's writer (`Create`, `Delete`, `Duplicate`, `Rename`, `UniqueName`, `CopySettings`, `Clear`, `Snapshot`, `RestoreSnapshot`, `SetField`), `List`, `Get`, `SetPosition` / `ResetPosition` (a drag's result, Reset position), the coalesced, combat-deferred `RequestApply` / `FlushPending`; sender of `CONTAINERS_CHANGED` |
+| `modules/Presets.lua` | `NS.Presets`: `Apply` (Simple, Intermediate, Advanced, through `NS.CM`), the one-level `Undo` / `CanUndo`, `Describe` for the preset cards, `OOR_SOUND`, and `PickerDue` / `MarkPickerSeen` (the writer of `profile.seeded`) |
 | `modules/Style.lua` | `NS.Style`: a setting's color (band, fixed, class), the HUD face through the skin's `S.HudFont`, measured text width, edge strips, the media border, frame levels over a root. LOAD-BEARING: before the element files |
 | `modules/Elements_Number.lua` | `NS.Elements.Number`: `Format` (the six formats, `40+`, the unknown label) and the number element |
 | `modules/Elements_Text.lua` | `NS.Elements.Text`: the band label element |
@@ -64,11 +64,18 @@ runner's load list to the TOC.
 | `modules/Sim.lua` | `NS.Sim`: Sim mode's 0 to 50 to 0 yd sweep on LibKa0s-Sim-1.0 (an empty seam, the session, its step panel), `Source`, `IsRunning`, `RunVerb` (`/rm sim <verb>`), `SetSimMode` through the one writer |
 | `modules/Preview.lua` | `NS.Preview`: what Test mode draws (the `20–25` placeholder), `Kind` (Sim wins), `Refresh`, the one caller of `NS.Range.SetSource` and `NS.Container.SetPreview`; `SetTestMode` through the one writer |
 | `modules/Diagnostics.lua` | The `/rm diagnostics` report's sections |
-| `settings/Schema.lua` | `LibKa0s-Schema-1.0` instance and its runtime-completing stub: `NS.SetByPath`, `NS.FindSchemaRow`, `NS.ApplyDefault`, `NS.SchemaForPage`, `NS.ValidateSchema`. LOAD-BEARING |
+| `settings/Schema.lua` | `LibKa0s-Schema-1.0` instance and its runtime-completing stub: `NS.SetByPath`, `NS.FindSchemaRow`, `NS.ApplyDefault`, `NS.SchemaForPage`, `NS.ValidateSchema`; the selection-relative paths (`NS.SelectedContainer`, `NS.SelectedBandSet`, `NS.SelectContainer`, `NS.SelectBandSet`, `NS.NeighborAfterDelete`, `NS.StampSelectionRows`). LOAD-BEARING |
 | `settings/Slash.lua` | `NS.COMMANDS` and the `LibKa0s-Slash-1.0` descriptor. LOAD-BEARING |
 | `settings/OptionsSetup.lua` | `LibKa0s-Options-1.0`: `NS.Helpers`, eager category registration, the reset vetoes. LOAD-BEARING |
 | `settings/About.lua` | The landing page's spec, drawn by `BuildLandingPage` |
-| `settings/General.lua` | The General page: Master controls (composed; the `locked` row shows the screen drag strips) and the Skin tab |
+| `settings/General.lua` | The General page: Master controls (composed; the `locked` row shows the screen drag strips), the Presets tab and the Skin tab |
+| `settings/Containers.lua` | The Containers page: the banner (picker, New container), the nav rail (`NS.RegisterContainerSection`), the General entry's rows (identity, band sets, Position) and acts (Duplicate, Delete, Copy settings from, Pick on screen, the band preview); `NS.ContainerValues`, `NS.RequestPanelRefresh`, `NS.ShowContainer`, `NS.NewContainer`, `NS.DeleteContainer`, `NS.PickFrameForSelected`, `NS.BandRibbon`. LOAD-BEARING: before the entry files |
+| `settings/Containers_Display.lua` | The Display entry: Layout, Frame (the composed border block, the background pair), Number and Text (each the composed Font block) |
+| `settings/Containers_Indicator.lua` | The Indicator entry: the indicator (its color pair composed) and the spell chips |
+| `settings/Containers_Visibility.lua` | The Visibility entry: the combat, reaction and no-unit rules and the out-of-combat opacity |
+| `settings/Containers_Sounds.lua` | The Sounds entry: whether band sounds play, and the channel; not on the rail for a `nameplates` container |
+| `settings/BandSets.lua` | The Band sets page: the banner (picker, New band set), General (`bandSet.*` rows and the acts) and the Bands host editor; `NS.ShowBandSet`, `NS.DeleteBandSet` |
+| `settings/Presets.lua` | The General page's Presets tab (`NS.PRESETS_TAB`), `NS.ConfirmPreset`, `NS.ApplyPresetNow`, `NS.UndoPreset`, the first-run picker (`NS.MaybeShowPresetPicker`, `NS.HidePresetPicker`) and `NS.OpenGeneralTab` |
 | `settings/Profiles.lua` | The Profiles sub-page (AceDBOptions) |
 
 ## LibKa0s modules: wired and vendored
@@ -92,6 +99,7 @@ draw time; `tests/test_container_render.lua` checks the headers).
 
 `tests/run.lua` (the load list, the lifecycle kick and the suite list), `tests/wow_mock.lua` (a thin
 extender over the kit's base mock), `tests/degraded_env.lua` (a second environment with LibKa0s
-absent), `tests/mock_menu.lua` (the context-menu stand-in), `tests/anchors_env.lua` (the four anchor suites' shared harness), `tests/perf.lua` (offline scenarios,
+absent), `tests/mock_menu.lua` (the context-menu stand-in), `tests/anchors_env.lua` (the four anchor suites' shared harness), `tests/settings_env.lua` (the
+settings suites' shared harness), `tests/perf.lua` (offline scenarios,
 outside the gate), `tests/client_globals_allow.lua` (the kit gate's allowlist) and one
 `tests/test_*.lua` per seam. `tests/_kit/` is vendored and never edited.

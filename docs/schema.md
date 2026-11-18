@@ -43,7 +43,7 @@ addresses them, and an AceDB default with no row is a setting nobody can reach (
 | `containers` | `{}` | `modules/ContainerManager.lua` (`NS.CM`) | `[id] = NS.CONTAINER_TEMPLATE` shape (design spec 5.2) |
 | `containerOrder` | `{}` | likewise | rebuilt on load to hold exactly the stored ids |
 | `nextContainerId` | `1` | likewise | |
-| `seeded` | `false` | the first-run preset picker (plan Task 8) | whether the container preset picker has run on this profile |
+| `seeded` | `false` | `NS.Presets.MarkPickerSeen` | whether the first-run preset picker has shown on this profile (set as it shows, and by any preset applied) |
 
 The preset band sets (`defaults/BandSetPresets.lua`), each `matchBy = "max"`:
 
@@ -67,6 +67,27 @@ one before it ends, zero-width bands dropped, the last band open-ended, at least
 `matchBy` read as `"max"`). A container whose `bandSet` names no set gets the default; a dangling
 `bandSetFriendly` is cleared.
 
+## The selection-relative rows (`container.<field>`, `bandSet.<field>`)
+
+The Containers and Band sets pages' rows address a field of the SELECTED container or band set
+(`settings/Schema.lua`): `container.anchor.mode` is `containers[<selected>].anchor.mode`. Each row
+reads and writes through its own `get` / `set`, which reach `NS.CM.SetField` (the name `NS.CM.Rename`)
+or `NS.BandSets.SetField` (the name `NS.BandSets.Rename`); none is a stored path the seam writes on its
+own. Each default is the template's (`NS.CONTAINER_TEMPLATE`, `NS.BANDSET_TEMPLATE`), except where
+the template holds nil:
+
+| Path | Reads / writes | Why |
+|---|---|---|
+| `container.bandSet` | `0` = the default band set | the template's `nil` is filled with `DefaultId()` on create and on load |
+| `container.bandSetFriendly` | `0` = none (`nil` stored) | nil uses `bandSet` for every reaction |
+| `container.elements.number.font`, `container.elements.text.font` | `Skin` = `""` stored | `""` is the skin's face (`modules/Style.lua`) |
+| `container.frame.border.texture` | `Solid` = `""` stored | `""` draws the solid edge strips |
+
+The selection itself (`NS.State.selectedContainer`, `selectedBandSet`) is session state; an unset or
+stale one reads the first container, or the default band set. `NS.ValidateSchema` resolves every such
+path against its template. The template gained `elements.number.shadow` and `elements.text.shadow`
+(`false`) for the composed Font block's Font shadow; the load pass backfills them.
+
 ## The global store (`db.global`)
 
 | Key | Default | Notes |
@@ -77,8 +98,9 @@ one before it ends, zero-width bands dropped, the last band open-ended, at least
 
 ## Session-only, never persisted
 
-`NS.State.debug`, `NS.State.testMode`, `NS.State.simMode` and `NS.State.rejectedEvents`
-(`core/State.lua`), and the composed session rows `state.debugConsole`, `state.testMode` and
+`NS.State.debug`, `NS.State.testMode`, `NS.State.simMode`, `NS.State.rejectedEvents`
+(`core/State.lua`) and the two selections, `NS.State.selectedContainer` and `selectedBandSet`
+(`settings/Schema.lua`), and the composed session rows `state.debugConsole`, `state.testMode` and
 `state.sim`, whose rows carry their own get/set.
 
 ## Migrations

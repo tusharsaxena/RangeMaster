@@ -13,6 +13,8 @@ local _, NS = ...
 --   NS.CM.RequestApply()                     coalesced to the next frame, deferred in combat
 --   NS.CM.SetPosition(id, point, relPoint, x, y) -> boolean   a drag's result (modules/Anchors_Screen)
 --   NS.CM.ResetPosition(id) -> boolean       back to the new-container point (Reset position)
+--   NS.CM.SetField(id, field, value) -> boolean   one setting of one container, by its dotted field
+--                                            (the settings pages' and `/rm set container.<field>`'s writer)
 --
 -- APPLYING IS COALESCED AND DEFERRED. Every write above asks for an apply; the request arms one
 -- zero-delay C_Timer, so a whole preset or a slider drag announces CONTAINERS_CHANGED once, on the
@@ -222,6 +224,56 @@ function CM.SetPosition(id, point, relPoint, x, y)
     local a = c.anchor
     a.point, a.relPoint, a.x, a.y = point, relPoint or point, x, y
     NS.Debug("Containers", "moved %s to %s %s %d %d", id, point, a.relPoint, x, y)
+    CM.RequestApply()
+    return true
+end
+
+--- The fields whose template value is nil, and what each may hold: a band-set id (nil = the default
+--- set for `bandSet`, "use bandSet for every reaction" for `bandSetFriendly`).
+local NILABLE = { bandSet = true, bandSetFriendly = true }
+--- Fields with a writer of their own, never written here: the name is Rename's (unique, trimmed).
+local OWN_WRITER = { name = true }
+
+--- The template's value at dotted `field`, or nil.
+local function templateValue(field)
+    local node = NS.CONTAINER_TEMPLATE
+    for seg in field:gmatch("[^%.]+") do
+        if type(node) ~= "table" then return nil end
+        node = node[seg]
+    end
+    return node
+end
+
+--- Whether `value` may be stored at `field`: a band-set reference names a stored set (or is nil), the
+--- unit is one RangeMaster watches, and anything else has the template leaf's type.
+local function acceptable(field, value)
+    if NILABLE[field] then return value == nil or NS.BandSets.Get(value) ~= nil end
+    if field == "unit" then return UNIT_NAME[value] ~= nil end
+    local leaf = templateValue(field)
+    return leaf ~= nil and type(leaf) == type(value)
+end
+
+--- Write `value` (a copy) at dotted `field` of `c`, making the tables on the way.
+local function writeField(c, field, value)
+    local node, parts = c, {}
+    for seg in field:gmatch("[^%.]+") do parts[#parts + 1] = seg end
+    for i = 1, #parts - 1 do
+        if type(node[parts[i]]) ~= "table" then node[parts[i]] = {} end
+        node = node[parts[i]]
+    end
+    node[parts[#parts]] = copy(value)
+end
+
+--- Store one setting of container `id`: `field` is a dotted path inside the container
+--- ("anchor.mode", "elements.number.size"). A nil `bandSet` stores the default set. Refuses an
+--- unknown id, a field the template does not have, a value of the wrong type, and the name (Rename).
+function CM.SetField(id, field, value)
+    local c = CM.Get(id)
+    if not c or type(field) ~= "string" or OWN_WRITER[field] then return false end
+    if field == "bandSet" and value == nil then value = NS.BandSets.DefaultId() end
+    if not acceptable(field, value) then return false end
+    -- No line of its own: the schema seam's [Set] line already names the write.
+    writeField(c, field, value)
     CM.RequestApply()
     return true
 end

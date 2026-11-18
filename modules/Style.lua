@@ -12,7 +12,7 @@ local _, NS = ...
 --                    unit's; through NS.ResolveColor, so an NPC or a class the client has not answered
 --                    for falls through to the swatch). The renderer repaints on a unit change
 --                    (modules/Container.lua, UnitChanged), so the color follows a retarget.
---   NS.Style.Font(fs, cfg) -> size      the element's face through the skin's S.HudFont
+--   NS.Style.Font(fs, cfg) -> size      the element's face through the skin's S.HudFont, and its shadow
 --   NS.Style.TextWidth(fs, text, size)  the drawn width, or an estimate where the client gives none
 --   NS.Style.NewEdges(frame, layer) -> strips, LayEdges(frame, strips, size), PaintEdges(strips, ...)
 --   NS.Style.Stack(child, root, offset) the child's level as an offset over the root's (frame-layering-§5)
@@ -62,12 +62,19 @@ local function fontPath(key)
     return path or C.FALLBACK_FONT
 end
 
---- Give `fs` the element's face, size and outline. Answers the size it draws at.
+--- Give `fs` the element's face, size, outline and shadow (the Font block's six rows, options-ui-§16).
+--- Answers the size it draws at.
 function Style.Font(fs, cfg)
     local S = NS.Skin
     local own = type(cfg.font) == "string" and cfg.font ~= ""
     local size = S.HudFontSize(cfg.size, not own)
     S.HudFont(fs, { face = own and fontPath(cfg.font) or nil, size = size, flags = cfg.outline })
+    -- The client's own shadow color (black) is kept: only the offset turns it on or off.
+    if cfg.shadow then
+        fs:SetShadowOffset(1, -1)
+    else
+        fs:SetShadowOffset(0, 0)
+    end
     return size
 end
 

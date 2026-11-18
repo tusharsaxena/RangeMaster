@@ -154,5 +154,19 @@ settings\OptionsSetup.lua
 settings\About.lua
 # LOAD-BEARING: the first registered page after the landing page, so General leads the sidebar.
 settings\General.lua
+# LOAD-BEARING: publishes NS.RegisterContainerSection, NS.ContainerValues and NS.RequestPanelRefresh, which
+# every settings\Containers_*.lua file below calls or reads at load; the Containers page, second in the sidebar.
+settings\Containers.lua
+# Conventional: the Containers page's other rail entries, in rail order (each registers at load).
+settings\Containers_Display.lua
+settings\Containers_Indicator.lua
+settings\Containers_Visibility.lua
+settings\Containers_Sounds.lua
+# Conventional: the Band sets page, third in the sidebar; reads NS.RequestPanelRefresh and NS.BandRibbon
+# (settings\Containers.lua) at call time.
+settings\BandSets.lua
+# Conventional: the General page's Presets tab and the first-run picker; settings\General.lua reads
+# NS.PRESETS_TAB at render time.
+settings\Presets.lua
 # Conventional: last only by habit; nothing reads what it registers until the panel opens.
 settings\Profiles.lua

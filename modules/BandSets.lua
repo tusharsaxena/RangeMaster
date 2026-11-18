@@ -8,6 +8,9 @@ local _, NS = ...
 --   NS.BandSets.Duplicate(id) -> id, Rename(id, name) -> boolean
 --   NS.BandSets.List() -> { id, ... }, Get(id) -> set, DefaultId() -> id, Normalize(id) -> boolean
 --   NS.BandSets.SetBandSound(id, bandIndex, sound?) -> boolean   one band's LSM sound key (nil clears)
+--   NS.BandSets.SetField(id, field, value) -> boolean    matchBy, unknown.label, unknown.color
+--   NS.BandSets.SetBand(id, bandIndex, field, value) -> boolean   to, label, frameColor, textColor, indicatorColor
+--   NS.BandSets.AddBand(id) -> index, RemoveBand(id, bandIndex) -> boolean
 --   NS.BandSets.Resolve(setId, state, minYd, maxYd) -> bandIndex | "unknown" | nil (state "none")
 --   NS.BandSets.ForUnit(container, unit) -> setId
 --   NS.BandSets.Snapshot() -> snap, RestoreSnapshot(snap) -> boolean   the registry whole, for an Undo
@@ -21,7 +24,8 @@ local _, NS = ...
 -- n-1's `to`), the last one open-ended, none of zero width, at least one. That is what makes Resolve
 -- total over [0, infinity) whatever the editor or a hand-edited SavedVariables file handed in. Create,
 -- Duplicate, Normalize and RestoreSnapshot normalize on write; core/Database.lua's load pass normalizes
--- every stored set. SetBandSound touches no edge, so it has nothing to normalize.
+-- every stored set. SetBandSound touches no edge, so it has nothing to normalize; SetBand, AddBand
+-- and RemoveBand, which can, normalize after the write.
 --
 -- Two of the registry's helpers are the load pass's too (architecture-§5): the seed routine (Seed)
 -- and the per-set repair (NormalizeSet), both called from core/Database.lua's PrepareProfile.
@@ -269,6 +273,93 @@ function BandSets.SetBandSound(id, bandIndex, sound)
     local band = set and set.bands[bandIndex]
     if not band or (sound ~= nil and type(sound) ~= "string") then return false end
     band.sound = sound
+    announce()
+    return true
+end
+
+--- The set fields SetField writes, and the check each value passes. The name is Rename's.
+local SET_FIELDS = {
+    matchBy = function(v) return v == "max" or v == "min" end,
+    ["unknown.label"] = function(v) return type(v) == "string" end,
+    ["unknown.color"] = function(v) return type(v) == "table" end,
+}
+
+--- Store one field of set `id` (the settings pages' and `/rm set bandSet.<field>`'s writer).
+--- Refuses an unknown set, a field not in SET_FIELDS and a value its check rejects.
+function BandSets.SetField(id, field, value)
+    local set = BandSets.Get(id)
+    local check = SET_FIELDS[field]
+    if not (set and check and check(value)) then return false end
+    if field == "matchBy" then
+        set.matchBy = value
+    else
+        set.unknown[field:match("^unknown%.(.+)$")] = copy(value)
+    end
+    announce()
+    return true
+end
+
+--- The band fields SetBand writes besides `to`, and the type each holds.
+local BAND_FIELDS = { label = "string", frameColor = "table", textColor = "table", indicatorColor = "table" }
+
+--- Whether `to` is a usable far edge for band `i` of `bands`: past the band's own start and short of
+--- the next band's far edge, so no band is left without width. The last band is always open-ended.
+local function edgeFits(bands, i, to)
+    local b, nextBand = bands[i], bands[i + 1]
+    if not (nextBand and yard(to)) or to <= b.from then return false end
+    return nextBand.to == nil or to < nextBand.to
+end
+
+--- Store one field of band `bandIndex` of set `id`: its far edge `to` (the next band starts there),
+--- its label, or one of its three colors. Refuses an unknown set or band, an unknown field, a value of
+--- the wrong type and an edge that would leave a band without width.
+function BandSets.SetBand(id, bandIndex, field, value)
+    local set = BandSets.Get(id)
+    local band = set and set.bands[bandIndex]
+    if not band then return false end
+    if field == "to" then
+        if not edgeFits(set.bands, bandIndex, value) then return false end
+        band.to = value
+        BandSets.NormalizeSet(set)
+    elseif BAND_FIELDS[field] and type(value) == BAND_FIELDS[field] then
+        band[field] = copy(value)
+    else
+        return false
+    end
+    announce()
+    return true
+end
+
+--- How wide a band AddBand splits off the open-ended last one, in yards.
+local NEW_BAND_WIDTH = 5
+
+--- Add a band to set `id`, split off the front of its open-ended last band, colored by its place on
+--- the ramp. Answers the new band's index, or nil.
+function BandSets.AddBand(id)
+    local set = BandSets.Get(id)
+    if not set then return nil end
+    local bands = set.bands
+    local last = bands[#bands]
+    local band = copy(NS.BAND_TEMPLATE)
+    local ramp = NS.Constants.BAND_RAMP
+    local hex = ramp[math.min(#bands, #ramp)]
+    band.from, band.to = last.from, last.from + NEW_BAND_WIDTH
+    band.frameColor = NS.Constants.HexColor(hex)
+    band.textColor, band.indicatorColor = copy(band.frameColor), copy(band.frameColor)
+    last.from = band.to
+    table.insert(bands, #bands, band)
+    BandSets.NormalizeSet(set)
+    announce()
+    return #set.bands - 1
+end
+
+--- Remove band `bandIndex` of set `id`; the band after it starts where the removed one did. Refuses
+--- the last band left.
+function BandSets.RemoveBand(id, bandIndex)
+    local set = BandSets.Get(id)
+    if not (set and set.bands[bandIndex]) or #set.bands <= 1 then return false end
+    table.remove(set.bands, bandIndex)
+    BandSets.NormalizeSet(set)
     announce()
     return true
 end
