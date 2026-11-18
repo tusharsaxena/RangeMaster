@@ -178,6 +178,8 @@ function addon:OnCombatChanged(event)
     local ended = entering and NS.EndModes("combat started") or 0
     -- A frame pick never runs in combat (modules/FramePicker.lua).
     if entering then NS.FramePicker.Cancel("combat") end
+    -- A preset preview is the player's set swapped out; it goes back when a fight starts.
+    if entering and NS.PresetPickerCombat then NS.PresetPickerCombat() end
     -- The range ticker's rate follows the edge: 20 Hz in combat, 10 Hz out of it.
     NS.Ticker.SetCombat(entering)
     -- The visibility rules read the edge (modules/Visibility.lua): every container's combat rule and
@@ -318,7 +320,16 @@ function NS.OnProfileChanged()
     adoptProfile("Profile", "changed -> %s", currentProfile())
 end
 
+--- AceDB's OnProfileShutdown (a switch, while the old profile is still the active one) and
+--- OnDatabaseShutdown (a logout or a /reload, before SavedVariables are written): the preset picker
+--- goes down, its preview restored into the profile it was taken on (settings/Presets.lua).
+function NS.OnProfileShutdown()
+    if NS.HidePresetPicker then NS.HidePresetPicker() end
+end
+
 function NS.OnProfileReset()
+    -- The profile was replaced whole: a preset preview in it is dropped, not restored over it.
+    if NS.HidePresetPicker then NS.HidePresetPicker(true) end
     local n = NS.ConsumeResetCount and NS.ConsumeResetCount()
     if n then
         adoptProfile("Set", "reset profile '%s' to defaults (%s rows)", currentProfile(), n)
@@ -328,5 +339,6 @@ function NS.OnProfileReset()
 end
 
 function NS.OnProfileCopied(source)
+    if NS.HidePresetPicker then NS.HidePresetPicker(true) end
     adoptProfile("Set", "copied profile '%s' -> '%s'", tostring(source or "?"), currentProfile())
 end

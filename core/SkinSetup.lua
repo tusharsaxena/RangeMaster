@@ -248,6 +248,10 @@ local function pickerDue()
     return NS.GetSetting(PICKER_PATH) == false
 end
 
+--- Whether the first-run skin picker is still owed on this profile: the preset picker says it opens
+--- next (settings/Presets.lua).
+NS.SkinPickerDue = pickerDue
+
 function NS.HideSkinPicker()
     dropPickerDeferral()
     local O = options()

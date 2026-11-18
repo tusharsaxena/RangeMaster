@@ -53,41 +53,20 @@ test("presets: an empty profile applies at once, with nothing to confirm", funct
   end)
 end)
 
-test("presets: test_first_run_picker_once — the picker shows once per profile, marks it seen as it shows, and waits out combat", function()
+local P = NS.PresetPicker
+
+--- Run `body(p, C)` on a fresh profile with the picker's controls `C`; the window is taken down
+--- quietly however the case ends, and test mode and the lock put back.
+local function withPicker(body)
   E.with(function(p)
-    local shown = E.spyPopups()
-    assertEqual(p.seeded, false, "a fresh profile owes the picker")
-    assertTrue(NS.MaybeShowPresetPicker(), "it shows")
-    assertEqual(#shown, 1)
-    assertEqual(shown[1].which, "RANGEMASTER_PRESET_PICKER")
-    assertEqual(p.seeded, true, "marked seen as it shows: a /reload never offers it again")
-    assertFalse(NS.MaybeShowPresetPicker(), "a second ask shows nothing")
-    assertEqual(#shown, 1)
-
-    p.seeded = false
-    M.InCombatLockdown = function() return true end
-    assertTrue(NS.MaybeShowPresetPicker(), "in combat it is held, which keeps the skin picker back too")
-    assertEqual(#shown, 1, "nothing shows in combat")
-    assertTrue(NS.__presetPickerHeld())
-    M.InCombatLockdown = function() return false end
-    M.__fireEvent("PLAYER_REGEN_ENABLED")
-    assertEqual(#shown, 2, "combat ending shows it")
-    assertFalse(NS.__presetPickerHeld())
-    assertEqual(p.seeded, true)
+    local ok, err = pcall(body, p, P.__controls)
+    E.capture(function() NS.HidePresetPicker() end)
+    NS.SetTestMode(false, "suite")
+    if not ok then error(err, 0) end
   end)
-end)
-
---- Stand in for the client's StaticPopup_Hide, which runs the dialog's OnHide as it closes it.
-local function withClientHide(body)
-  local saved = rawget(M, "StaticPopup_Hide")
-  M.StaticPopup_Hide = function(which)
-    local d = M.StaticPopupDialogs[which]
-    if d and d.OnHide then d.OnHide() end
-  end
-  local ok, err = pcall(body)
-  M.StaticPopup_Hide = saved
-  if not ok then error(err, 0) end
 end
+
+local function shownNow() return P.frame ~= nil and P.frame:IsShown() == true end
 
 --- Count NS.MaybeShowSkinPicker calls while `body` runs (the picker itself is not shown).
 local function countSkinAsks(body)
@@ -99,42 +78,131 @@ local function countSkinAsks(body)
   return n
 end
 
-test("presets: taking the picker down offers no skin picker; the player's close does", function()
-  E.with(function()
-    E.spyPopups()
-    withClientHide(function()
-      assertEqual(countSkinAsks(function() NS.HidePresetPicker() end), 0,
-        "the stand-down and a profile event close it quietly")
-      assertEqual(countSkinAsks(function() M.StaticPopupDialogs.RANGEMASTER_PRESET_PICKER.OnHide() end), 1,
-        "Not now, Escape or Choose a preset offers the skin picker next")
-    end)
+test("presets: test_first_run_picker_once — the picker shows once per profile, marks it seen as it shows, and waits out combat", function()
+  withPicker(function(p)
+    assertEqual(p.seeded, false, "a fresh profile owes the picker")
+    assertTrue(NS.MaybeShowPresetPicker(), "it shows")
+    assertTrue(shownNow(), "the window is up")
+    assertEqual(p.seeded, true, "marked seen as it shows: a /reload never offers it again")
+    assertFalse(NS.MaybeShowPresetPicker(), "a second ask shows nothing")
+    E.capture(function() NS.HidePresetPicker() end)
+
+    p.seeded = false
+    M.InCombatLockdown = function() return true end
+    assertTrue(NS.MaybeShowPresetPicker(), "in combat it is held, which keeps the skin picker back too")
+    assertFalse(shownNow(), "nothing shows in combat")
+    assertTrue(NS.__presetPickerHeld())
+    assertTrue(NS.PresetPickerHolding())
+    M.InCombatLockdown = function() return false end
+    M.__fireEvent("PLAYER_REGEN_ENABLED")
+    assertTrue(shownNow(), "combat ending shows it")
+    assertFalse(NS.__presetPickerHeld())
+    assertEqual(p.seeded, true)
   end)
 end)
 
-test("presets: a profile change while the picker is up shows only the new profile's preset picker", function()
-  E.with(function(p)
+test("presets: the picker opens unlocked in test mode, a pick previews, and Not now restores", function()
+  withPicker(function(_, C)
+    CM.Create("pet")
+    NS.SetByPath("locked", true)
+    NS.MaybeShowPresetPicker()
+    assertFalse(NS.GetSetting("locked"), "opening unlocks the containers")
+    assertTrue(NS.IsTestMode(), "and turns test mode on")
+    assertEqual(units(), "pet", "nothing is previewed until a pick")
+    C.pick("advanced")
+    assertEqual(#CM.List(), 6, "a pick puts the preset on the screen")
+    assertEqual(Presets.Previewed(), "advanced")
+    C.pick("simple")
+    assertEqual(units(), "target,focus,pet,mouseover", "a second pick swaps the preview")
+    local asks = countSkinAsks(function() E.capture(function() C.dismiss() end) end)
+    assertFalse(shownNow(), "Not now closes it")
+    assertEqual(units(), "pet", "and puts the player's own containers back")
+    assertFalse(NS.IsTestMode(), "test mode goes off")
+    assertTrue(NS.GetSetting("locked"), "the lock the window found goes back")
+    assertEqual(asks, 1, "the skin picker is offered next")
+    assertFalse(Presets.CanUndo(), "a preview never kept leaves nothing to undo")
+  end)
+end)
+
+test("presets: the picker's Apply asks over the player's containers, keeps the pick and locks", function()
+  withPicker(function(_, C)
     local shown = E.spyPopups()
-    assertTrue(NS.MaybeShowPresetPicker())
-    local other = {}
-    NS.Database.PrepareProfile(other)
-    NS.db.profile = other
-    withClientHide(function()
-      local asks = countSkinAsks(function() NS.OnProfileChanged() end)
-      assertEqual(asks, 0, "the skin picker waits behind the new profile's preset picker")
-    end)
-    assertEqual(#shown, 2, "the new profile's preset picker showed")
-    assertEqual(shown[2].which, "RANGEMASTER_PRESET_PICKER")
-    NS.db.profile = p
+    CM.Create("pet")
+    NS.MaybeShowPresetPicker()
+    C.pick("simple")
+    C.apply()
+    assertEqual(#shown, 1, "the player has a container to lose: asked first")
+    assertEqual(shown[1].which, "RANGEMASTER_APPLY_PRESET")
+    assertEqual(shown[1].a, "Simple")
+    assertEqual(shown[1].b, 1, "the count is the player's own, not the preview's")
+    assertTrue(shownNow(), "the window stays up under the confirm")
+    local out = E.capture(function() countSkinAsks(function() E.accept(shown[1]) end) end)
+    assertTrue(E.said(out, "Simple preset applied"), "the answer keeps the pick")
+    assertFalse(shownNow(), "and closes the window")
+    assertEqual(units(), "target,focus,pet,mouseover")
+    assertTrue(NS.GetSetting("locked"), "Apply locks")
+    assertFalse(NS.IsTestMode(), "and turns test mode off")
+    E.capture(function() assertTrue(NS.UndoPreset()) end)
+    assertEqual(units(), "pet", "Undo puts back what was there before the picker")
   end)
 end)
 
-test("presets: the picker's Choose a preset opens the General page on its Presets tab", function()
-  E.with(function()
+test("presets: Apply over an empty profile keeps the pick at once; with no pick it keeps what is there", function()
+  withPicker(function(_, C)
+    local shown = E.spyPopups()
+    NS.MaybeShowPresetPicker()
+    C.pick("intermediate")
+    E.capture(function() C.apply() end)
+    assertEqual(#shown, 0, "nothing of the player's is replaced: no confirm")
+    assertEqual(#CM.List(), 4)
+    assertFalse(shownNow())
+
+    NS.ShowPresetPicker()
+    assertTrue(shownNow(), "/rm preset opens it on demand")
+    E.capture(function() C.apply() end)
+    assertEqual(#CM.List(), 4, "Apply with nothing picked keeps the profile as it is")
+    assertFalse(shownNow())
+  end)
+end)
+
+test("presets: taking the picker down offers no skin picker and restores; a replaced profile is not restored", function()
+  withPicker(function(_, C)
+    CM.Create("pet")
+    NS.MaybeShowPresetPicker()
+    C.pick("advanced")
+    assertEqual(countSkinAsks(function() E.capture(function() NS.HidePresetPicker() end) end), 0,
+      "the stand-down and a profile event close it quietly")
+    assertEqual(units(), "pet", "its preview restored")
+
+    NS.ShowPresetPicker()
+    C.pick("simple")
+    E.capture(function() NS.HidePresetPicker(true) end)
+    assertFalse(Presets.IsPreviewing(), "a reset or a copy drops the preview")
+    assertEqual(#CM.List(), 4, "without writing the old set over the replacement")
+  end)
+end)
+
+test("presets: Escape is the player's close; the settings mark closes it and opens General > Presets", function()
+  withPicker(function(_, C)
+    NS.MaybeShowPresetPicker()
+    local asks = countSkinAsks(function()
+      E.capture(function()
+        P.frame:Hide()
+        P.frame:GetScript("OnHide")(P.frame)
+      end)
+    end)
+    assertEqual(asks, 1, "Escape (UISpecialFrames) offers the skin picker next")
+
     local opened
     local saved = NS.OpenOptionsPanel
     NS.OpenOptionsPanel = function(key) opened = key; return true end
     local ok, err = pcall(function()
-      M.StaticPopupDialogs.RANGEMASTER_PRESET_PICKER.OnAccept()
+      NS.ShowPresetPicker()
+      C.pick("simple")
+      assertEqual(countSkinAsks(function() E.capture(function() C.settings() end) end), 0,
+        "no skin picker over the panel")
+      assertFalse(shownNow())
+      assertEqual(#CM.List(), 0, "the preview is restored")
       assertEqual(opened, "general", "the General page")
       local ctx = E.page("general", "General")
       assertEqual(ctx.activeTab, "Presets", "on its Presets tab")
@@ -142,6 +210,36 @@ test("presets: the picker's Choose a preset opens the General page on its Preset
     NS.OpenOptionsPanel = saved
     NS.__generalTab = nil
     if not ok then error(err, 0) end
+  end)
+end)
+
+test("presets: combat starting restores a preview, and a pick in combat is refused", function()
+  withPicker(function(_, C)
+    CM.Create("pet")
+    NS.MaybeShowPresetPicker()
+    C.pick("advanced")
+    NS.PresetPickerCombat()
+    assertEqual(units(), "pet", "the player's set is back for the fight")
+    assertTrue(shownNow(), "the window stays up")
+    M.InCombatLockdown = function() return true end
+    local out = E.capture(function() C.pick("simple") end)
+    assertTrue(E.said(out, "cannot preview a preset during combat"))
+    assertEqual(units(), "pet")
+    M.InCombatLockdown = function() return false end
+  end)
+end)
+
+test("presets: a profile change while the picker is up shows only the new profile's preset picker", function()
+  withPicker(function(p)
+    NS.MaybeShowPresetPicker()
+    local other = {}
+    NS.Database.PrepareProfile(other)
+    NS.db.profile = other
+    local asks = countSkinAsks(function() E.capture(function() NS.OnProfileChanged() end) end)
+    assertEqual(asks, 0, "the skin picker waits behind the new profile's preset picker")
+    assertTrue(shownNow(), "the new profile's preset picker showed")
+    assertEqual(other.seeded, true)
+    NS.db.profile = p
   end)
 end)
 

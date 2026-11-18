@@ -20,10 +20,16 @@ local _, NS = ...
 --   inst:SetAnchorHidden(hidden)         the anchor's say: hidden while its frame or plate is missing
 --   inst:DockStrips()                    dock the preview strips again, beyond a drag handle built
 --                                        after them (modules/Anchors_Screen.lua, on the first unlock)
+--   inst:RefreshStrips()                 the root came onto or off a nameplate: the strips follow
+--                                        (modules/Anchors_Nameplate.lua)
 --   NS.Container.SetPreview(kind|nil)    Test mode ("test") or Sim mode ("sim") draws, or neither
 --                                        (modules/Preview.lua is its one caller)
 --   NS.Container.RefreshVisibility()     ask every instance's visibility again (the combat edge,
 --                                        the General visibility and Master opacity rows)
+--   NS.Container.RefreshLock()           the `locked` setting moved: unlocked shows every container
+--   NS.Container.ShowsAll() -> boolean   a preview runs, or the displays are unlocked out of combat
+--   NS.Container.Unlocked() -> boolean   the displays are unlocked out of combat (every one shows,
+--                                        every one wears its drag strip, modules/Anchors*.lua)
 --
 -- WHO DRIVES IT. CONTAINERS_CHANGED (modules/ContainerManager.lua, coalesced to the next frame and
 -- held through combat) runs Sync: an instance for every enabled container, back to the pool for a
@@ -84,6 +90,26 @@ local _, NS = ...
 -- Sim mode), docked on its top edge (`dock = "hud"`), built on first use and kept with the frame. A
 -- preview never runs in combat (refused in it, ended by it), so the stand-ins are built out of combat.
 --
+-- A ROOT ON A NAMEPLATE CANNOT BE MEASURED. The client refuses GetTop and its kin on a region
+-- anchored to a nameplate ("Can't measure restricted regions"), and the HUD dock measures its target
+-- (to flip under the display near the screen's top) on every show and resize, through hooks no
+-- pcall here covers. So the dock's target is not the root but `inst.stripHost`, a child laid over
+-- it and parked on UIParent's center while the root sits on a plate (`inst.anchorPlate`, which the
+-- nameplate anchors keep true to the root's points). On a plate the instance wears a second strip of
+-- each kind instead, undocked, anchored on the root's top edge and never measured (it does not flip).
+-- `inst.strips` is the set worn where the root sits now.
+--
+-- WHILE ITS DRAG STRIP SHOWS TAGGED, a display wears no TestStrip: the drag strip's TEST or SIM tag
+-- is its preview marker (preview-mode, *Where the strip sits*, v2.114.0; NS.Anchors.Screen.Tagged).
+-- The TestStrip shows again the moment the drag strip hides while the preview still draws.
+--
+-- UNLOCKED SHOWS EVERY CONTAINER TOO, out of combat, so each can be found and placed: the same rule
+-- as a preview (no visibility rule asked, a missing frame or plate at its screen point, a
+-- `nameplates` container through its stand-in), but on the live range. A container whose unit is not
+-- there draws the preview's placeholder triple (NS.Preview.PLACEHOLDER) so it is not an empty box; it
+-- keeps "none" as its state, so the combat edge, which ends this (as it ends a preview), hides it on
+-- its own rules, and a placeholder plays no band sound. No preview strip is worn.
+--
 -- BAND SOUNDS (modules/Sounds.lua) hear every shown render's band and every steady read of a shown
 -- instance's unit; a unit change forgets the instance's sound state (UnitChanged), as does a preview
 -- starting or ending.
@@ -107,6 +133,11 @@ local platePool = Pool.NewKeyed()   -- the per-plate instances, keyed "<id>|<tok
 local byUnit = {}   -- [unit] = { [inst] = true }: the RANGE_UPDATED fan-out
 local NO_SPELLS = {}
 local preview      -- nil, "test" or "sim": the preview drawing (SetPreview)
+local unlockShow = false   -- unlocked and out of combat: every container shows (RefreshLock)
+
+--- Whether every container shows whatever its rules say: a preview runs, or the displays are
+--- unlocked out of combat.
+local function showsAll() return preview ~= nil or unlockShow end
 local STRIP_KINDS = { "test", "sim" }
 
 local Instance = {}
@@ -140,8 +171,12 @@ local function newInstance()
     local bg = fill:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints(fill)
     local borderFrame = layer(root, LAYERS.LEVEL.BORDER)
+    -- The preview strips' dock target: over the root, parked while the root sits on a plate (header).
+    local host = CreateFrame("Frame", nil, root)
+    host:SetAllPoints(root)
     return setmetatable({
         frame = root, fill = fill, background = bg, overlay = layer(root, LAYERS.LEVEL.OVERLAY),
+        stripHost = host, hostParked = false,
         border = { frame = borderFrame, strips = Style.NewEdges(borderFrame, "BORDER") },
         elements = {}, layout = {}, ctx = {}, spells = {}, spellCount = 0, seen = {},
     }, InstanceMT)
@@ -274,7 +309,7 @@ function Instance:SetAnchorHidden(hidden)
     hidden = hidden and true or false
     if (self.anchorHidden or false) == hidden then return end
     self.anchorHidden = hidden
-    if hidden and preview and self.container then
+    if hidden and showsAll() and self.container then
         -- A preview shows it anyway, at its screen point (the frame or plate it belongs on is missing).
         return NS.Anchors.Screen.Place(self, self.container)
     end
@@ -369,54 +404,97 @@ local function resolveBand(inst, state, lo, hi)
     return true
 end
 
---- The dock of this instance's strips: on the display's top edge, stacked beyond its drag handle
---- while that shows (preview-mode, *Where the strip sits*).
+--- The dock of this instance's docked strips: on the display's top edge (through the strip host,
+--- see the header), stacked beyond its drag handle while that shows (preview-mode, *Where the strip
+--- sits*).
 local function dockSpec(inst)
-    return { dock = "hud", target = inst.frame, clear = inst.dragHandle or nil }
+    return { dock = "hud", target = inst.stripHost, clear = inst.dragHandle or nil }
 end
 
---- The preview's strip of `kind` on this instance, built on first use; false without the library.
-local function stripFor(inst, kind)
-    inst.strips = inst.strips or {}
-    local s = inst.strips[kind]
-    if s ~= nil then return s end
-    s = false
-    if KW and KW.TestStrip then
-        local ok, built = pcall(KW.TestStrip, inst.frame, {
-            text = kind == "sim" and L["SIM"] or L["TEST"], icon = NS.Icon("info"), kind = kind,
-            owner = NS.name, dock = "hud", target = inst.frame, clear = inst.dragHandle or nil,
-        })
-        if ok and built then s = built end
+local PLATE_STRIP_LEVEL = 5   -- the HUD dock's chrome band: this many levels over the display
+
+--- A new preview strip of `kind`: docked, or (`onPlate`) anchored on the root's top edge by hand,
+--- taking no mouse, a chrome band over the display. False without the library.
+local function newStrip(inst, kind, onPlate)
+    if not (KW and KW.TestStrip) then return false end
+    local root = inst.frame
+    local opts = { text = kind == "sim" and L["SIM"] or L["TEST"], icon = NS.Icon("info"), kind = kind,
+                   owner = NS.name }
+    if not onPlate then opts.dock, opts.target, opts.clear = "hud", inst.stripHost, inst.dragHandle or nil end
+    local ok, s = pcall(KW.TestStrip, root, opts)
+    if not (ok and s) then return false end
+    if onPlate then
+        s:EnableMouse(false)
+        s:ClearAllPoints()
+        s:SetPoint("BOTTOMLEFT", root, "TOPLEFT", 0, 0)
+        s:SetPoint("BOTTOMRIGHT", root, "TOPRIGHT", 0, 0)
+        s:SetFrameStrata(LAYERS.STRATA.HUD)
+        local okLevel, level = pcall(root.GetFrameLevel, root)
+        if okLevel and type(level) == "number" then s:SetFrameLevel(level + PLATE_STRIP_LEVEL) end
     end
-    inst.strips[kind] = s
     return s
 end
 
+--- The strip host over the root, or parked on UIParent's center while the root sits on a plate.
+local function syncHost(inst)
+    local parked = inst.anchorPlate ~= nil
+    if inst.hostParked == parked then return end
+    inst.hostParked = parked
+    local host = inst.stripHost
+    host:ClearAllPoints()
+    if parked then
+        host:SetSize(1, 1)
+        host:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+    else
+        host:SetAllPoints(inst.frame)
+    end
+end
+
 --- The drag handle was built after the strips were (modules/Anchors_Screen.lua builds it on the
---- first unlock): dock every strip again, so each stacks beyond the handle rather than over it.
+--- first unlock): dock every docked strip again, so each stacks beyond the handle rather than over it.
 function Instance:DockStrips()
-    if not (self.strips and self.dragHandle and KW and KW.DockTestStrip) then return end
-    for _, s in pairs(self.strips) do
+    local docked = self.stripSets and self.stripSets.docked
+    if not (docked and self.dragHandle and KW and KW.DockTestStrip) then return end
+    for _, s in pairs(docked) do
         if s then pcall(KW.DockTestStrip, s, dockSpec(self)) end
     end
 end
 
---- Show the running preview's strip and hide the other (every strip with no preview).
+--- Show the running preview's strip of the set worn where the root sits (built on first use) and
+--- hide every other strip (every strip with no preview, and every one while the drag strip shows
+--- tagged: the header).
 local function showStrips(inst)
-    if not preview and not inst.strips then return end
+    syncHost(inst)
+    if not preview and not inst.stripSets then return end
+    local marker = preview ~= nil and not NS.Anchors.Screen.Tagged(inst)
+    inst.stripSets = inst.stripSets or { docked = {}, plate = {} }
+    local onPlate = inst.anchorPlate ~= nil
+    local set = onPlate and inst.stripSets.plate or inst.stripSets.docked
+    local other = onPlate and inst.stripSets.docked or inst.stripSets.plate
+    inst.strips = set
+    for _, s in pairs(other) do
+        if s then s:Hide() end
+    end
     for _, kind in ipairs(STRIP_KINDS) do
-        local s = preview == kind and stripFor(inst, kind) or (inst.strips and inst.strips[kind])
+        local s = set[kind]
+        if s == nil and preview == kind then
+            s = newStrip(inst, kind, onPlate)
+            set[kind] = s
+        end
         if s then
-            s:SetShown(preview == kind)
-            if preview == kind and s.Place then pcall(s.Place, s) end
+            local on = marker and preview == kind
+            s:SetShown(on)
+            if on and not onPlate and s.Place then pcall(s.Place, s) end
         end
     end
 end
 
+function Instance:RefreshStrips() showStrips(self) end
+
 --- Show or hide for the anchor's say and the visibility rules (or the preview); answers whether to
 --- draw on.
 local function present(inst, state)
-    if preview then
+    if showsAll() then
         if inst.anchorHidden then NS.Anchors.Screen.Place(inst, inst.container) end
         setShown(inst, true)
         setAlpha(inst, 1)
@@ -434,11 +512,17 @@ function Instance:Render(state, lo, hi, spellResults)
     if not c then return end
     self.state, self.lo, self.hi = state, lo, hi
     if not present(self, state) then return end
+    -- Unlocked with no unit: the placeholder, so the display has something to show (see the header).
+    local stand = unlockShow and not preview and (state == nil or state == "none")
+    if stand then
+        local PH = NS.Preview.PLACEHOLDER
+        state, lo, hi = PH[1], PH[2], PH[3]
+    end
     local ctx = self.ctx
     ctx.state, ctx.lo, ctx.hi, ctx.spells = state, lo, hi, spellResults or NO_SPELLS
     ctx.unit = self.unit
     local moved = resolveBand(self, state, lo, hi) and self:Paint(ctx) or false
-    if c.sounds and c.sounds.enabled then NS.Sounds.OnBand(self, self.bandIndex, GetTime()) end
+    if c.sounds and c.sounds.enabled and not stand then NS.Sounds.OnBand(self, self.bandIndex, GetTime()) end
     for name, mod in pairs(ELEMENT) do
         local el = self.elements[name]
         if el and el.on and mod.Update(el, c.elements[name], ctx) then moved = true end
@@ -494,8 +578,8 @@ local function park(inst)
     inst.key, inst.id, inst.container, inst.pool, inst.plateToken = nil, nil, nil, nil, nil
     inst.state, inst.lo, inst.hi, inst.shown, inst.anchorHidden = nil, nil, nil, nil, nil
     inst.bandIndex, inst.setId, inst.sound, inst.alpha = nil, nil, nil, nil
-    if inst.strips then
-        for _, s in pairs(inst.strips) do
+    for _, set in pairs(inst.stripSets or {}) do
+        for _, s in pairs(set) do
             if s then s:Hide() end
         end
     end
@@ -520,10 +604,11 @@ function Instance:Release()
 end
 
 --- The live instance of container `id`, applied from its settings now. Nil for an unknown id and for
---- a `nameplates` container (its instances are per plate: AcquirePlate).
+--- a `nameplates` container (its instances are per plate: AcquirePlate) unless every container
+--- shows (a preview, or unlocked), when it gets its one stand-in.
 function Container.Acquire(id)
     local c = NS.CM.Get(id)
-    if not c or (c.unit == "nameplates" and not preview) then return nil end
+    if not c or (c.unit == "nameplates" and not showsAll()) then return nil end
     local inst = Pool.AcquireKeyed(pool, id, newInstance)
     inst.key, inst.pool = id, pool
     inst:Apply(id, c)
@@ -573,7 +658,7 @@ function Container.ForEach(fn)
 end
 
 local function wanted(c)
-    return c ~= nil and c.enabled and (c.unit ~= "nameplates" or preview ~= nil)
+    return c ~= nil and c.enabled and (c.unit ~= "nameplates" or showsAll())
 end
 
 local function wantsPlates(c)
@@ -599,8 +684,14 @@ end
 
 --- Every enabled container drawn, every other one parked; then the plate anchors give each enabled
 --- `nameplates` container its per-plate instances (NS.Plates.SyncAll).
+--- Whether the displays are unlocked out of combat, read now.
+local function unlockedNow()
+    return NS.GetSetting("locked") == false and not NS.Visibility.InCombat()
+end
+
 function Container.Sync()
     if NS.IsStoodDown() then return end
+    unlockShow = unlockedNow()
     releaseStale(pool, wanted)
     releaseStale(platePool, wantsPlates)
     for _, id in ipairs(NS.CM.List()) do
@@ -638,9 +729,25 @@ local function revisit(inst)
     if present(inst, inst.state) and not was then repaint(inst) end
 end
 
+local restage   -- below: every instance drawn again under the show-all rule as it is now
+
 function Container.RefreshVisibility()
+    -- The combat edge ends (and the leave edge brings back) the unlocked show-all.
+    if unlockedNow() ~= unlockShow then return Container.RefreshLock() end
     for _, inst in pairs(pool.active) do revisit(inst) end
     for _, inst in pairs(platePool.active) do revisit(inst) end
+end
+
+--- The `locked` setting moved (settings/General.lua), or the combat edge crossed it: every container
+--- shows while unlocked out of combat, and goes back to its own rules otherwise.
+function Container.RefreshLock()
+    local on = unlockedNow()
+    if on == unlockShow then return end
+    unlockShow = on
+    NS.Debug("Containers", on and "unlocked: every container shows" or "show-all ended: own rules")
+    -- A cursor or own-plate container waits at its screen point while unlocked (modules/Anchors.lua).
+    for _, inst in pairs(pool.active) do NS.Anchors.Refresh(inst) end
+    restage()
 end
 
 --- Draw one instance again from the current source: everything forgotten, its unit read now.
@@ -654,11 +761,12 @@ end
 --- Test mode ("test"), Sim mode ("sim") or neither (nil) draws now. The caller (modules/Preview.lua)
 --- has set NS.Range's source first, so each redraw reads the preview's range. Starting one gives each
 --- enabled `nameplates` container its stand-in; ending one parks them.
-function Container.SetPreview(kind)
-    preview = kind
+--- Every instance drawn again under the show-all rule as it is now: a `nameplates` stand-in made
+--- while every container shows, parked once none does.
+restage = function()
     if not NS.IsStoodDown() then
         releaseStale(pool, wanted)
-        if kind then
+        if showsAll() then
             for _, id in ipairs(NS.CM.List()) do
                 local c = NS.CM.Get(id)
                 if wantsPlates(c) and not pool.active[id] then Container.Acquire(id) end
@@ -667,9 +775,18 @@ function Container.SetPreview(kind)
     end
     for _, inst in pairs(pool.active) do redraw(inst) end
     for _, inst in pairs(platePool.active) do redraw(inst) end
+    -- The drag strips: shown for every container while unlocked, and the TEST tag in their labels.
+    NS.Anchors.RefreshLock()
+end
+
+function Container.SetPreview(kind)
+    preview = kind
+    restage()
 end
 
 function Container.PreviewKind() return preview end
+function Container.ShowsAll() return showsAll() end
+function Container.Unlocked() return unlockShow end
 
 --- The stand-down (core/LifecycleSetup.lua): every instance parked and hidden, every watch dropped.
 function Container.StandDown()
@@ -729,6 +846,6 @@ function Container.__reset()
     Pool.ReleaseAllKeyed(pool, park)
     Pool.ReleaseAllKeyed(platePool, park)
     pool, platePool = Pool.NewKeyed(), Pool.NewKeyed()
-    preview = nil
+    preview, unlockShow = nil, false
     for unit in pairs(byUnit) do byUnit[unit] = nil end
 end

@@ -80,11 +80,111 @@ test("anchors: a drag is refused in combat, and nothing is saved", function()
   end)
 end)
 
-test("anchors: a non-screen container shows no drag strip, unlocked or not", function()
+test("anchors: test_unlock_parks_cursor — unlocked, a cursor container waits at its screen point with a strip", function()
+  -- red under: an unlock that leaves a cursor container following the cursor, with no strip.
   H.with(function()
-    local _, inst = H.container("mouseover", { anchor = { mode = "cursor" } })
+    local id, inst = H.container("mouseover", { anchor = { mode = "cursor", x = 40, y = -60 } })
+    assertEqual(inst.anchorMode, "cursor", "locked: it follows the cursor")
+    assertFalse(inst.dragHandle ~= nil and inst.dragHandle:IsShown(), "with no strip")
+    local calls = H.points(inst.frame, function() unlock(true) end)
+    assertEqual(inst.anchorMode, "screen", "unlocked: on the screen anchor")
+    local last = calls[#calls]
+    assertTrue(last and last[2] == M.UIParent and last[4] == 40 and last[5] == -60, "at its stored screen point")
+    assertFalse(NS.Anchors.Cursor.__has(inst), "out of the cursor follow")
+    assertTrue(inst.dragHandle ~= nil and inst.dragHandle:IsShown(), "wearing the strip")
+    -- A drag moves where it waits, and leaves it a cursor container.
+    rawset(inst.frame, "GetPoint", function() return "CENTER", M.UIParent, "CENTER", 10, 20 end)
+    inst.dragHandle:__fire("OnDragStart")
+    inst.dragHandle:__fire("OnDragStop")
+    rawset(inst.frame, "GetPoint", nil)
+    NS.CM.FlushPending()
+    local a = NS.CM.Get(id).anchor
+    assertEqual(a.mode .. " " .. a.x .. " " .. a.y, "cursor 10 20", "the wait point moved, the mode kept")
+    assertEqual(inst.anchorMode, "screen", "still waiting while unlocked")
+    -- Combat ends the unlocked show-all: it follows the cursor again.
+    NS.addon:OnCombatChanged("PLAYER_REGEN_DISABLED")
+    assertEqual(inst.anchorMode, "cursor", "combat: back on the cursor")
+    assertFalse(inst.dragHandle:IsShown(), "and the strip is down")
+    NS.addon:OnCombatChanged("PLAYER_REGEN_ENABLED")
+    assertEqual(inst.anchorMode, "screen", "combat over: waiting again")
+    unlock(false)
+    assertEqual(inst.anchorMode, "cursor", "locked: on the cursor")
+    assertFalse(inst.dragHandle:IsShown(), "with no strip")
+  end)
+end)
+
+test("anchors: test_unlock_strip_on_every_container — a frame container wears a muted strip it cannot drag by", function()
+  -- red under: drag strips only on screen containers.
+  H.with(function()
+    local tf = H.frame("TargetFrame")
+    local had = rawget(_G, "TargetFrame")
+    rawset(_G, "TargetFrame", tf)
+    local ok, err = pcall(function()
+      local id, inst = H.container("target", { anchor = { mode = "frame", frame = { provider = "blizzard", name = "" } } })
+      assertEqual(inst.anchorMode, "frame")
+      unlock(true)
+      assertEqual(inst.anchorMode, "frame", "it stays on its frame")
+      local h = inst.dragHandle
+      assertTrue(h ~= nil and h:IsShown(), "and wears the strip")
+      assertTrue(h.__label:find("|cff", 1, true) ~= nil, "its name muted")
+      rawset(inst.frame, "GetPoint", function() return "CENTER", M.UIParent, "CENTER", 99, 99 end)
+      h:__fire("OnDragStart")
+      h:__fire("OnDragStop")
+      rawset(inst.frame, "GetPoint", nil)
+      local a = NS.CM.Get(id).anchor
+      assertFalse(a.x == 99, "a drag saves nothing")
+      -- Test mode tags the label.
+      assertTrue(NS.SetTestMode(true, "test"))
+      assertTrue(h.__label:find(NS.L["TEST"], 1, true) ~= nil, "Test mode tags it")
+      NS.SetTestMode(false, "test")
+      assertTrue(h.__label:find(NS.L["TEST"], 1, true) == nil, "and the tag goes with it")
+      unlock(false)
+      assertFalse(h:IsShown(), "locked: no strip")
+    end)
+    rawset(_G, "TargetFrame", had)
+    if not ok then error(err, 0) end
+  end)
+end)
+
+test("anchors: test_tagged_handle_is_the_marker — while the tagged drag strip shows, the TestStrip hides", function()
+  -- red under: a TestStrip stacked over every unlocked display's TEST-tagged drag strip
+  -- (preview-mode, *Where the strip sits*, the tagged drag handle, v2.114.0).
+  H.with(function()
+    local _, inst = H.container("target")
+    assertTrue(NS.SetTestMode(true, "test"))
+    local strip = inst.strips and inst.strips.test
+    assertTrue(strip and strip:IsShown(), "locked: the TestStrip marks the display")
     unlock(true)
-    assertFalse(inst.dragHandle ~= nil and inst.dragHandle:IsShown(), "a cursor container is not dragged")
+    local h = inst.dragHandle
+    assertTrue(h:IsShown() and h.__label:find(NS.L["TEST"], 1, true) ~= nil, "unlocked: the drag strip, tagged")
+    assertFalse(strip:IsShown(), "and no TestStrip beside it")
+    unlock(false)
+    assertTrue(strip:IsShown(), "locked again: the TestStrip is back")
+    unlock(true)
+    NS.SetTestMode(false, "test")
+    assertTrue(h:IsShown() and h.__label:find(NS.L["TEST"], 1, true) == nil, "Test mode off: untagged")
+    assertFalse(strip:IsShown(), "and no TestStrip")
+    unlock(false)
+  end)
+  NS.EndModes("test reset")
+end)
+
+test("anchors: test_strip_marks — the strip's settings mark opens the display, its close mark disables it", function()
+  H.with(function()
+    local id, inst = H.container("target")
+    unlock(true)
+    local opened
+    local realOpen = NS.OpenOptionsPanel
+    NS.OpenOptionsPanel = function(page) opened = page end
+    local ok, err = pcall(function()
+      NS.Anchors.Screen.__marks(inst).settings()
+      assertEqual(opened, "containers", "the Containers page")
+      assertEqual(select(2, NS.SelectedContainer()), id, "on this display")
+      NS.Anchors.Screen.__marks(inst).close()
+      assertFalse(NS.CM.Get(id).enabled, "the close mark disables it")
+    end)
+    NS.OpenOptionsPanel = realOpen
+    if not ok then error(err, 0) end
     unlock(false)
   end)
 end)
@@ -106,12 +206,12 @@ test("anchors: switching a container's mode detaches the old anchor", function()
     local id, inst = H.container("target")
     unlock(true)
     assertTrue(inst.dragHandle:IsShown())
+    unlock(false)
     NS.CM.Get(id).anchor.mode = "cursor"
     NS.CM.RequestApply()
     NS.CM.FlushPending()
     assertEqual(inst.anchorMode, "cursor")
     assertFalse(inst.dragHandle:IsShown(), "the strip went with the screen anchor")
-    unlock(false)
   end)
 end)
 

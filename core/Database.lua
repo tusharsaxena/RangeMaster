@@ -167,6 +167,9 @@ function NS:InitDB()
             NS.db.RegisterCallback(NS, "OnProfileChanged", function() NS.OnProfileChanged() end)
             NS.db.RegisterCallback(NS, "OnProfileCopied", function(_, _, source) NS.OnProfileCopied(source) end)
             NS.db.RegisterCallback(NS, "OnProfileReset", function() NS.OnProfileReset() end)
+            -- Before a switch and before SavedVariables are written: a preset preview goes back.
+            NS.db.RegisterCallback(NS, "OnProfileShutdown", function() NS.OnProfileShutdown() end)
+            NS.db.RegisterCallback(NS, "OnDatabaseShutdown", function() NS.OnProfileShutdown() end)
         end
     end
     -- Soft fallback when AceDB is absent: a db-shaped table over the raw SavedVariables global, so the

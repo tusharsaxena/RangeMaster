@@ -80,8 +80,9 @@ local masterOnChange = {
     ["visibility"] = function() NS.Container.RefreshVisibility() end,
     ["scale"]      = function() NS.CM.RequestApply() end,
     ["alpha"]      = function() NS.Container.RefreshVisibility() end,
-    -- The screen containers' drag strips show while unlocked (modules/Anchors_Screen.lua).
-    ["locked"]     = function() NS.Anchors.RefreshLock() end,
+    -- The screen containers' drag strips show while unlocked (modules/Anchors_Screen.lua), and every
+    -- container shows while unlocked out of combat (modules/Container.lua).
+    ["locked"]     = function() NS.Anchors.RefreshLock(); NS.Container.RefreshLock() end,
     -- The console's visibility is the ConsoleCheckbox's own `set`, stamped below.
     [DEBUG_CONSOLE_PATH] = function() end,
     -- The minimap button moves in the row's own `set` (NS.SetMinimapShown, core/Data.lua).

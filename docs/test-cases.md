@@ -187,14 +187,17 @@ Total.
 - render: a stored container draws at login, whatever the skin settings are
 - render: a container with no stored chip list draws the logged-in character's class chips
 
-### test_anchors_screen.lua (9)
+### test_anchors_screen.lua (12)
 
 - anchors: a screen container sits at its stored point on UIParent
 - anchors: a stored point the client does not know falls back to CENTER
 - anchors: a locked screen container shows no drag strip; unlocking shows it, locking hides it
 - anchors: test_screen_drag_saves_point — a drag on the strip saves point and offsets through NS.CM
 - anchors: a drag is refused in combat, and nothing is saved
-- anchors: a non-screen container shows no drag strip, unlocked or not
+- anchors: test_unlock_parks_cursor — unlocked, a cursor container waits at its screen point with a strip
+- anchors: test_unlock_strip_on_every_container — a frame container wears a muted strip it cannot drag by
+- anchors: test_tagged_handle_is_the_marker — while the tagged drag strip shows, the TestStrip hides
+- anchors: test_strip_marks — the strip's settings mark opens the display, its close mark disables it
 - anchors: Reset position puts every screen container back at its default point
 - anchors: switching a container's mode detaches the old anchor
 - anchors: a container leaving the screen anchor is no longer clamped to the screen
@@ -484,7 +487,7 @@ Total.
 
 - launcher descriptor passes openSkinPicker, which runs the skin verb
 
-### test_modes.lua (18)
+### test_modes.lua (20)
 
 - modes: each writer sets its mode, announces once on a change, and a repeat is silent
 - modes: test_refuse_in_combat — a start is refused in combat with one gray line, and nothing changes
@@ -494,8 +497,10 @@ Total.
 - modes: the Master controls carry Test mode, then Sim mode, as session rows on the one writer
 - modes: test_launcher_and_slash_same_handler — the launcher menu is Enabled, Locked, Test mode, Sim mode, each the verb's handler
 - modes: test_test_mode_placeholders_all_containers — every enabled container shows a placeholder
+- modes: test_unlock_shows_all — unlocked shows every container out of combat, the absent ones on the placeholder
 - modes: test_test_strip_on_late_instances — a container or plate that appears during Test mode wears the strip
 - modes: test_strip_clears_drag_handle — a strip built while locked docks beyond the handle an unlock builds
+- modes: test_strip_on_a_plate — a display on a nameplate wears a strip nothing measures
 - modes: test_sim_strip_and_pinned_panel — Sim mode wears the cyan strip, and its step panel cannot be closed
 - modes: Test mode keeps the ticker reading the placeholder while it is on
 - modes: test_sim_sweeps_bands — Sim mode walks 0 to 50 to 0 yd through every band, with sounds
@@ -562,14 +567,18 @@ Total.
 - bandsets: deleting the selected band set selects its neighbor and moves its containers to the default
 - bandsets: the Band sets page draws General and Bands, and the editor's controls reach the writers
 
-### test_settings_presets.lua (7)
+### test_settings_presets.lua (11)
 
 - presets: test_preset_apply_confirms — Apply asks first when there is something to replace, and Undo puts it back
 - presets: an empty profile applies at once, with nothing to confirm
 - presets: test_first_run_picker_once — the picker shows once per profile, marks it seen as it shows, and waits out combat
-- presets: taking the picker down offers no skin picker; the player's close does
+- presets: the picker opens unlocked in test mode, a pick previews, and Not now restores
+- presets: the picker's Apply asks over the player's containers, keeps the pick and locks
+- presets: Apply over an empty profile keeps the pick at once; with no pick it keeps what is there
+- presets: taking the picker down offers no skin picker and restores; a replaced profile is not restored
+- presets: Escape is the player's close; the settings mark closes it and opens General > Presets
+- presets: combat starting restores a preview, and a pick in combat is refused
 - presets: a profile change while the picker is up shows only the new profile's preset picker
-- presets: the picker's Choose a preset opens the General page on its Presets tab
 - presets: the Presets tab draws the three cards with Apply and the Undo button
 
 ### test_skinsetup.lua (12)
@@ -802,7 +811,7 @@ Total.
 | test_presets.lua | 11 |
 | test_number_format.lua | 5 |
 | test_container_render.lua | 34 |
-| test_anchors_screen.lua | 9 |
+| test_anchors_screen.lua | 12 |
 | test_anchors_frame.lua | 17 |
 | test_anchors_nameplate.lua | 14 |
 | test_anchors_cursor.lua | 7 |
@@ -822,12 +831,12 @@ Total.
 | test_layers.lua | 5 |
 | test_launcher.lua | 30 |
 | test_launcher_skin_entry.lua | 1 |
-| test_modes.lua | 18 |
+| test_modes.lua | 20 |
 | test_optionssetup.lua | 16 |
 | test_realpages.lua | 7 |
 | test_settings_containers.lua | 16 |
 | test_settings_bandsets.lua | 6 |
-| test_settings_presets.lua | 7 |
+| test_settings_presets.lua | 11 |
 | test_skinsetup.lua | 12 |
 | test_skin_picker.lua | 16 |
 | test_skin_picker_preview.lua | 9 |
@@ -849,4 +858,4 @@ Total.
 | test_skin_switch.lua | 6 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **619** |
+| **Total** | **628** |

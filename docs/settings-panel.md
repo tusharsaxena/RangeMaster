@@ -31,7 +31,7 @@ Composed by `H.MasterControls` from one declaration; the words and the order are
 | General visibility | `visibility` | always, in combat, out of combat or never; asked by every container on each render and at once on a write (`modules/Visibility.lua`) |
 | Master scale | `scale` | scales every display |
 | Master opacity | `alpha` | fades every display |
-| Lock frame | `locked` | locked displays cannot be dragged; unlocked, every screen container shows its drag strip (`NS.Anchors.RefreshLock`) |
+| Lock frame | `locked` | locked displays cannot be dragged; unlocked, every screen container shows its drag strip (`NS.Anchors.RefreshLock`) and, out of combat, every container shows, an absent unit on the placeholder range, each wears the drag strip (name, settings mark, close mark), and a cursor or own-plate container waits at its screen point (`NS.Container.RefreshLock`) |
 | Debug console | `state.debugConsole` | session-only; shows or hides the console window |
 | Minimap button | `global.minimap.shown` | stored in the global store under LibDBIcon's `hide`, inverted; survives every reset (launcher-§3) |
 | Test mode | `state.testMode` | session-only; placeholders on every display; refused in combat and ended by it (`NS.SetTestMode`) |
@@ -47,8 +47,26 @@ A host tab (options-ui-§13) between Master controls and Skin: one card per pres
 Intermediate, Advanced), each its `NS.Presets.Describe` lines and an **Apply <name>…** button, then
 **Undo last preset**. Apply goes through `NS.ConfirmPreset`: a profile with containers is asked first
 (the popup names the preset and the count it replaces); an empty one applies at once. `/rm preset`
-takes the same route. The first-run picker (a popup shown once per profile while `seeded` is false,
-marked seen as it shows, held through combat) offers **Choose a preset**, which opens this tab.
+takes the same route.
+
+### The preset picker
+
+A standalone window (`settings/Presets.lua`, shaped as AuraMaster's `settings/PresetPicker.lua`),
+shown once per profile while `seeded` is false (marked seen as it shows, held through combat) and on
+demand from a bare `/rm preset`. Title **Choose a preset** with the settings and close marks, the
+owner line, a LibKa0s dropdown of the three presets (`Simple - 4 containers`, ...), a one-line
+blurb, *The skin picker opens next.* while that one is due, two toggles (**Containers:
+locked/unlocked**, **Test mode: on/off**), **Apply** and **Not now**, and the footer *Change it later
+on General > Presets.* Opening records the lock, unlocks and turns test mode on. A pick previews the
+preset on the real screen (`NS.Presets.BeginPreview`: the player's set snapshotted once, at the first
+pick). **Apply** keeps it, behind the confirm when the player has containers of their own (the Undo
+slot is then the set from before the picker), locks and turns test mode off; with nothing picked it
+keeps what is there. **Not now**, the close mark and Escape restore the player's set and the lock
+the window found; each offers the skin picker next. The settings mark closes it the same way and
+opens this tab instead, the skin picker left due. Combat starting restores a preview; a pick in
+combat is refused. AceDB's `OnProfileShutdown` and `OnDatabaseShutdown` take it down with its
+preview restored into the profile it was taken on, before a switch or a SavedVariables write; a
+reset or a copy drops the preview instead.
 
 ### Skin
 

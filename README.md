@@ -3,7 +3,7 @@
 ![WoW](https://img.shields.io/badge/WoW-Midnight_12.1.5_and_Forever_1.60.1-purple)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
-![Tests](https://img.shields.io/badge/Tests-619%2F619_passing-green)
+![Tests](https://img.shields.io/badge/Tests-628%2F628_passing-green)
 
 Supports Retail and WoW Forever. Range Master lets you build your own range displays for your
 target, your focus, your pet, whatever is under your mouse, and every enemy nameplate on screen.
@@ -25,10 +25,11 @@ Screenshots arrive with the first release.
 
 ## Usage
 
-The first time you log in, Range Master offers a preset. **Simple** puts four displays free on
-screen. **Intermediate** hangs them on your unit frames and the cursor. **Advanced** adds nameplates,
-spell chips and a warning sound. You can also say **Not now** and build your own. Presets live on
-General → Presets later too, or type `/rm preset simple`. If you already have displays, applying a
+The first time you log in, Range Master opens its preset picker. Pick **Simple** (four displays free
+on screen), **Intermediate** (on your unit frames and the cursor) or **Advanced** (adds nameplates,
+spell chips and a warning sound) from its dropdown and it shows on your screen in test mode right
+away; **Apply** keeps it, **Not now** puts your own displays back. Open the picker again any time
+with `/rm preset`, or use General → Presets, or type `/rm preset simple`. If you already have displays, applying a
 preset asks first, and **Undo last preset** (or `/rm preset undo`) puts them back.
 
 To build one yourself, open the **Containers** page with `/rm` and press New container. Pick its
@@ -37,8 +38,11 @@ bands every display colors by: where each band ends, its name, its colors and an
 chat, `/rm new focus` makes a display, `/rm containers` lists them, and `/rm select 2` picks the one
 that `container.` settings change, for example `/rm set container.anchor.mode cursor`.
 
-Displays start locked. Type `/rm unlock` and each one that sits free on screen gets a handle you can
-drag; `/rm lock` locks them again, and `/rm resetposition` brings them all back near the middle. Under
+Displays start locked. Type `/rm unlock` and every display shows, even one whose unit isn't there
+(it shows a placeholder range until combat starts) with a handle on top: its name, a gear that opens
+its settings and an X that turns it off. Drag a free-on-screen display by its handle. A display that
+follows the cursor or sits on a nameplate waits at a fixed spot while unlocked, and dragging it
+picks that spot. A display on a unit frame stays on its frame; `/rm lock` locks them again, and `/rm resetposition` brings them all back near the middle. Under
 Visibility on the Containers page, a display can show only in combat or only out of it, only for enemies or only for
 friends, and hide when it has no unit. To place and style displays without a target, turn on Test
 mode, which fills each one with a sample range. Sim mode walks a pretend target in and out of your
@@ -82,7 +86,7 @@ Everything else is under Settings → AddOns → Ka0s Range Master, and `/rm hel
 | Nothing shows at all | On General → Master controls, check that **Enable Range Master** is ticked (`/rm enable` ticks it) and that **General visibility** isn't set to *Never*, or to a combat state you're not in. |
 | One display never shows | Check its Visibility tab: it may be set to combat only, to one reaction, or to hide when it has no unit. |
 | A display meant for a unit frame is missing | The frame it waits for isn't there: EllesmereUI is turned off, that EllesmereUI frame is disabled, or a custom frame name is misspelled. Fix the name on Containers → General → Position, or use **Pick on screen**. |
-| I can't drag a display | Type `/rm unlock`. Only displays set to sit free on screen can be dragged, and not during combat. |
+| I can't drag a display | Type `/rm unlock`. A display on a unit frame follows its frame and can't be dragged (its handle's name is grayed); nothing drags during combat. |
 | A display shows a gray "?" | The game isn't giving a range for that unit right now, usually because it is out of sight. It is not the same as out of range. |
 | I only see sample ranges | Test mode is on. Type `/rm test off`, or untick **Test mode** under General → Master controls. |
 | Test mode or Sim mode will not start | Neither can start during combat. Wait until combat ends and try again. Test mode also waits while Sim mode runs: type `/rm sim off` first. |

@@ -83,7 +83,8 @@ end
 --              L + HANDLE   the unlocked drag strip (LibKa0s-Widgets-1.0 DragHandle `level`)
 --   Launcher MEDIUM, level 8: the LibDBIcon minimap button (LibDBIcon's choice).
 --   Settings HIGH, toplevel: Blizzard's Settings panel; inside it the library's bands.
---   MODAL    DIALOG, toplevel: the LibKa0s debug console, perf panel and skin picker; Blizzard's
+--   MODAL    DIALOG, toplevel: the preset picker (settings/Presets.lua); the LibKa0s debug console,
+--            perf panel and skin picker; Blizzard's
 --            StaticPopups (the Reset-all confirmation) share it.
 --   CHILD    FULLSCREEN: the LibKa0s copy window.
 --   POPUP    FULLSCREEN_DIALOG: the color picker and menus.
@@ -93,6 +94,7 @@ end
 C.LAYERS = {
     STRATA = {
         HUD = "MEDIUM",
+        MODAL = "DIALOG",
         PICKER = "TOOLTIP",
     },
     LEVEL = {

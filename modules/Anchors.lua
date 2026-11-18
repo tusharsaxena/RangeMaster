@@ -6,7 +6,10 @@ local _, NS = ...
 --   NS.Anchors.ShownChanged(inst)       the instance was shown or hidden (the cursor follow arms on it)
 --   NS.Anchors.UnitChanged(unit)        a different unit sits behind `unit` (core/RangeMaster.lua)
 --   NS.Anchors.FlushDeferred()          the leave edge: re-apply every anchor write combat held
---   NS.Anchors.RefreshLock()            the `locked` setting moved: the screen drag strips follow
+--   NS.Anchors.RefreshLock()            the `locked` setting, the unlocked show-all or Test mode
+--                                       moved: the drag strips follow
+--   NS.Anchors.Refresh(inst)            place `inst` again when the mode it takes now differs (the
+--                                       unlocked show-all's edges, modules/Container.lua)
 --   NS.Anchors.Register(mode, impl)     a mode file's registration, at file load
 --
 -- THE MODES, one file each, each registering here at load:
@@ -22,6 +25,12 @@ local _, NS = ...
 -- EllesmereUI draws one) follows the cursor instead (design spec 5.4). An unknown stored mode is
 -- `screen`. Moving from one mode to another detaches the old one first (its drag strip, its follow
 -- membership, its wait for a missing frame).
+--
+-- UNLOCKED, A DISPLAY THAT MOVES WAITS STILL. While every container shows unlocked out of combat
+-- (NS.Container.Unlocked), a cursor container (a frame-mode mouseover one included) and an own-plate
+-- container are placed on the screen anchor instead, at their stored screen point, so each can be
+-- found and its drag strip held; locking or combat puts each back on its own mode. Every container
+-- instance but a per-plate one wears the drag strip while unlocked (modules/Anchors_Screen.lua).
 
 NS.Anchors = NS.Anchors or {}
 local Anchors = NS.Anchors
@@ -36,7 +45,8 @@ end
 local function modeFor(inst, c)
     if inst.plateToken then return "plates" end
     local m = c.anchor and c.anchor.mode
-    if m == "frame" and modes.frame and modes.frame.UsesCursor(c) then return "cursor" end
+    if m == "frame" and modes.frame and modes.frame.UsesCursor(c) then m = "cursor" end
+    if (m == "cursor" or m == "nameplate") and NS.Container.Unlocked() then return "screen" end
     if modes[m] then return m end
     return "screen"
 end
@@ -48,12 +58,19 @@ function Anchors.Apply(inst, c)
     if prev and prev ~= impl and prev.Detach then prev.Detach(inst) end
     inst.anchorImpl, inst.anchorMode = impl, mode
     impl.Apply(inst, c)
+    if modes.screen then modes.screen.Track(inst) end
 end
 
 function Anchors.Detach(inst)
     local impl = inst.anchorImpl
     if impl and impl.Detach then impl.Detach(inst) end
+    if modes.screen then modes.screen.Untrack(inst) end
     inst.anchorImpl, inst.anchorMode = nil, nil
+end
+
+function Anchors.Refresh(inst)
+    local c = inst.container
+    if c and modeFor(inst, c) ~= inst.anchorMode then Anchors.Apply(inst, c) end
 end
 
 function Anchors.ShownChanged(inst)

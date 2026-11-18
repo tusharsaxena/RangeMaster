@@ -191,9 +191,11 @@ Intermediate with spell chips on focus and sounds on target (its set's out-of-ra
 every hostile nameplate (dot + the `max` number), both in combat only. `Describe(key)` feeds the
 preset cards on General › Presets. `PickerDue` / `MarkPickerSeen` are the one runtime reader and
 writer of `profile.seeded`, the first-run preset picker's sentinel (`settings/Presets.lua` shows the
-picker and marks it seen as it shows). Its own take-down (`NS.HidePresetPicker`: the stand-down and
-every profile event) closes it quietly, so the client's `OnHide` offers no skin picker then; the
-player's close does, and a profile event asks for both prompts afresh, the skin picker still behind.
+picker and marks it seen as it shows). The picker's picks preview through `BeginPreview` /
+`EndPreview(keep)`: one snapshot of the player's set at the first pick, restored on Not now, combat,
+the take-down and AceDB's shutdowns, or made the Undo slot when Apply keeps it. Its own take-down
+(`NS.HidePresetPicker`: the stand-down, every profile event, the shutdowns) closes it quietly and
+offers no skin picker; the player's close does, and a profile event asks for both prompts afresh, the skin picker still behind.
 
 ### Rendering
 
@@ -312,7 +314,12 @@ keyboard only (frame-layering-§4 retired the full-screen click catcher). It is 
   "hud"`, amber `TEST`, cyan `SIM`), including an instance acquired while the preview runs (a
   container created or enabled, a plate added, a pooled frame coming back). The strip stacks beyond
   the screen anchor's drag handle: one built before the first unlock is docked again when the handle
-  is built (`inst:DockStrips`). The ticker, the memo, `RANGE_UPDATED` and the render are the live
+  is built (`inst:DockStrips`). Its dock target is the instance's strip host, never the root; a
+  container on a nameplate wears an undocked strip on its top edge instead, since the client will not
+  measure a region anchored on a plate (ARCHITECTURE.md, *Taint Notes*). While a display's drag
+  strip shows, its label ends in the TEST or SIM tag and the TestStrip is hidden: the tagged drag
+  strip is that display's marker (preview-mode, *Where the strip sits*, v2.114.0;
+  `NS.Anchors.Screen.Tagged`), and the TestStrip returns when the drag strip hides. The ticker, the memo, `RANGE_UPDATED` and the render are the live
   ones.
 - **Sim mode** (`modules/Sim.lua`): a LibKa0s-Sim-1.0 session on an empty seam (it simulates no
   client read), one scenario `sweep`: 0, 5, … 50, … 0 yd, one step a second, then the step that ends
@@ -330,4 +337,12 @@ keyboard only (frame-layering-§4 retired the full-screen click catcher). It is 
   stood down, and end on `PLAYER_REGEN_DISABLED` and at the stand-down (the sweep stops with reason
   `combat` or `standDown`). Nothing either draws is stored.
 - **Lock**: the Master controls' Lock frame row, `/rm lock` / `/rm unlock` and the launcher's Locked
-  entry show LibKa0s-Widgets' drag strip on every screen container while unlocked (Anchors, above).
+  entry show LibKa0s-Widgets' drag strip on every screen container while unlocked (Anchors, above),
+  and, out of combat, every container shows as in a preview (`NS.Container.RefreshLock`): no
+  visibility rule asked, a missing frame or plate at its screen point, a `nameplates` stand-in, and a
+  container whose unit is absent drawing `NS.Preview.PLACEHOLDER` with its state kept "none" and no
+  band sound. Every container instance but a per-plate one wears the drag strip then
+  (`NS.Anchors.Screen.Track`), and a cursor or own-plate container is placed on the screen anchor at
+  its stored point (`NS.Anchors.Refresh`, modules/Anchors.lua's mode choice), so it holds still and
+  drags; a unit-frame one stays on its frame and does not drag. The combat edge ends it and the leave
+  edge brings it back.

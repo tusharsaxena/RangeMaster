@@ -41,8 +41,9 @@ starts with a cyan `[RM]`. Most checks need a container: apply a preset (General
 
 - **INSTALL-1. Loads on both clients.** Log in on Retail, then on WoW Forever, with only Range Master
   enabled → it appears in the AddOns list with its crosshair icon; no Lua error. Result:
-- **INSTALL-2. First-run prompts, one at a time.** On a new profile, log in → the preset welcome
-  popup shows first (**Choose a preset** / **Not now**); the skin picker does not show beside it.
+- **INSTALL-2. First-run prompts, one at a time.** On a new profile, log in → the preset picker
+  window shows first (**Choose a preset**: dropdown, Apply / Not now); the skin picker does not show
+  beside it.
   Press **Not now** → the skin picker shows with its eye lit, and Test mode is on while it is up;
   closing it turns Test mode back off. Neither shows again on the next `/reload`. Result:
 - **INSTALL-3. Reload is quiet.** `/reload` → no chat line from the addon, no error. Result:
@@ -67,7 +68,8 @@ starts with a cyan `[RM]`. Most checks need a container: apply a preset (General
 - **SLASH-7. Band-set verbs.** `/rm bands` → the band sets, the selected one marked, then the
   selected set's ribbon; `/rm bands 2` selects the second; `/rm set bandSet.unknown.label ??` changes
   its unknown label; `/rm bands nosuchset` → `No band set 'nosuchset'`. Result:
-- **SLASH-8. Preset, pick and position verbs.** `/rm preset simple` on a profile with containers →
+- **SLASH-8. Preset, pick and position verbs.** `/rm preset` opens the preset picker.
+  `/rm preset simple` on a profile with containers →
   the same confirm as the Presets tab; `/rm preset undo` puts them back; `/rm preset nope` → the usage
   line. `/rm pick` starts the frame picker for the selected container (ANCHOR-8). `/rm resetposition`
   → every free-on-screen container moves back near the center and the line says how many. Result:
@@ -259,9 +261,15 @@ RANGE-1 to RANGE-4 are run through a target container. RANGE-5 needs only the ch
 
 ## Presets
 
-- **PRESET-1. First-run picker.** On a new profile, **Choose a preset** on the welcome popup → the
-  settings open on General → Presets; the popup does not return after a `/reload`. Entering combat
-  before it shows holds it until combat ends. Result:
+- **PRESET-1. First-run picker.** On a new profile the **Choose a preset** window opens above the
+  center, the containers unlocked and test mode on (its two toggles say so). Pick **Advanced** in the
+  dropdown → six displays appear on screen with placeholder ranges and the status line shows; pick
+  **Simple** → four. **Not now** → your own displays are back, test mode off, the lock as it was,
+  then the skin picker opens. On another new profile pick **Intermediate** and **Apply** → kept with
+  no confirm on an empty profile, displays locked, test mode off. The window does not return after a
+  `/reload`; `/rm preset` opens it again. Entering combat while a pick is previewed puts your own
+  displays back; entering combat before it shows holds it until combat ends. The gear opens General
+  → Presets. Result:
 - **PRESET-2. Apply on an empty profile.** With no container, **Apply Simple…** → applied at once, no
   confirm: four containers (Target, Focus, Pet, Mouseover) free on screen, and a chat line naming
   `/rm preset undo`. Result:
@@ -279,9 +287,20 @@ Set a container's placement on Containers → General → Position (**Attach to*
 it), or from chat with `/rm set container.anchor.mode frame` (`screen`, `frame`, `nameplate`,
 `cursor`). Each check is a row of the matrix: run it on both clients and fill both cells.
 
-- **ANCHOR-1. Free on screen.** `/rm unlock` → a strip shows above each free-on-screen container; drag
-  one, then `/reload` → it is where it was dropped. `/rm lock` hides the strips; in combat a drag does
-  not start. `/rm resetposition` puts them back near the center.
+- **ANCHOR-1. Free on screen.** With no focus and no mouseover, `/rm unlock` → every container shows
+  (focus and mouseover on the placeholder range, a `nameplates` one through its stand-in, no amber
+  strip); entering combat puts each back on its own visibility rules, leaving combat shows them again,
+  `/rm lock` hides the ones with no unit. A drag strip (name, gear, X, ?) shows above every
+  container: the gear opens it on the Containers page, the X disables it with one chat line. Drag a
+  free-on-screen one, then `/reload` → it is where it was dropped. With the Advanced preset, the
+  mouseover (cursor) and target-plate containers sit still at their screen points while unlocked,
+  not on the cursor or a plate, and drag; a container on a unit frame stays on it with its name
+  grayed and does not drag; the `nameplates` stand-in wears one strip, a real plate's instance none.
+  With Test mode on, each drag strip ends in TEST and no amber strip shows beside it; `/rm lock`
+  brings the amber strip back on each display (Sim mode: SIM, the cyan strip). Entering combat
+  puts the cursor container back on the cursor and drops the strips of the non-screen ones.
+  `/rm lock` hides the strips; in combat a drag does not start. `/rm resetposition` puts them back
+  near the center.
 - **ANCHOR-2. Blizzard unit frames.** Target, focus and pet containers on Unit frames from Blizzard sit
   just above TargetFrame, FocusFrame and PetFrame; a mouseover container on a unit frame follows the
   cursor (mouseover has no frame). On WoW Forever, a client with no focus frame leaves the focus

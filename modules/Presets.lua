@@ -10,6 +10,11 @@ local _, NS = ...
 --   NS.Presets.Describe(key) -> { name, count, items }   what the preset card shows
 --   NS.Presets.PickerDue() -> boolean        the first-run picker has not been shown on this profile
 --   NS.Presets.MarkPickerSeen()              it has (profile.seeded, written by NS.CM.MarkSeeded)
+--   NS.Presets.BeginPreview(key) -> boolean  the first-run picker's pick: the preset put on screen
+--   NS.Presets.EndPreview(keep) -> boolean   kept (Undo then restores what was there) or restored
+--   NS.Presets.DropPreview()                 forget a preview the profile no longer holds
+--   NS.Presets.IsPreviewing(), Previewed()   whether one is up, and its key
+--   NS.Presets.OwnContainerCount()           the player's own container count, under a preview too
 --
 -- APPLYING REPLACES THE PROFILE'S CONTAINERS, and only through the registry's writer (NS.CM): every
 -- container goes, the preset's are created, and the coalesced apply announces once on the next frame.
@@ -48,6 +53,7 @@ Presets.ORDER = { "simple", "intermediate", "advanced" }
 Presets.OOR_SOUND = "Ka0s Range Master: Out of range"
 
 local lastSnapshot   -- the one Undo level
+local preview        -- the picker's preview while one is up: { key, origin = the player's snapshot }
 
 -- ---------------------------------------------------------------------------
 -- The presets, as (unit, opts) lists for NS.CM.Create
@@ -127,21 +133,85 @@ local function addOorSound(id)
     NS.BandSets.SetBandSound(c.bandSet, #set.bands, Presets.OOR_SOUND)
 end
 
---- Apply preset `key`: snapshot, clear, create. Answers the snapshot taken before, or nil for an
---- unknown key (nothing changed, the Undo slot kept).
-function Presets.Apply(key)
-    local build = BUILD[key]
-    if not build or not NS.CM.Get then return nil end
-    local before = NS.CM.Snapshot()
-    if not before then return nil end
+--- Replace the profile's containers with preset `key`'s (a known key).
+local function build(key)
     NS.CM.Clear()
-    for _, entry in ipairs(build()) do
+    for _, entry in ipairs(BUILD[key]()) do
         local id = NS.CM.Create(entry.unit, entry.opts)
         if entry.opts.sounds and entry.opts.sounds.enabled then addOorSound(id) end
     end
+end
+
+--- Apply preset `key`: snapshot, clear, create. Answers the snapshot taken before, or nil for an
+--- unknown key (nothing changed, the Undo slot kept). A preview up is ended with a restore first,
+--- so the snapshot is the player's own set.
+function Presets.Apply(key)
+    if not BUILD[key] or not NS.CM.Get then return nil end
+    if preview then Presets.EndPreview(false) end
+    local before = NS.CM.Snapshot()
+    if not before then return nil end
+    build(key)
     lastSnapshot = before
     NS.Debug("Presets", "applied %s: %d container(s)", key, #NS.CM.List())
     return before
+end
+
+-- ---------------------------------------------------------------------------
+-- Previewing (the first-run picker, settings/Presets.lua)
+-- ---------------------------------------------------------------------------
+--
+-- A PICK IN THE PICKER PUTS THE PRESET ON THE REAL SCREEN through the same writer an Apply uses; the
+-- player's own set is snapshotted ONCE, at the first pick, so a second pick swaps one preview for
+-- another and the snapshot is still theirs. Keeping it makes that snapshot the Undo slot (Undo puts
+-- back what was there before the picker); ending it without keeping restores it. The preview lives in
+-- the profile while it is up, so the picker ends it before anything else can read or save that
+-- profile: AceDB's OnProfileShutdown (a switch) and OnDatabaseShutdown (a logout or a /reload, before
+-- SavedVariables are written) restore it into the profile it was taken on, and a reset or a copy,
+-- which replace the profile whole, drop it (DropPreview). Combat start restores it too.
+
+--- Preview preset `key`: the player's set snapshotted at the first pick, then the preset built.
+--- Answers false for an unknown key or no profile (nothing changed).
+function Presets.BeginPreview(key)
+    if not BUILD[key] or not NS.CM.Get then return false end
+    local origin = preview and preview.origin or NS.CM.Snapshot()
+    if not origin then return false end
+    build(key)
+    preview = { key = key, origin = origin }
+    NS.Debug("Presets", "previewing %s: %d container(s)", key, #NS.CM.List())
+    return true
+end
+
+--- End the preview: `keep` true leaves the preset in place (the player's set becomes the Undo slot),
+--- false puts the player's set back. Answers false when none was up.
+function Presets.EndPreview(keep)
+    if not preview then return false end
+    local p = preview
+    preview = nil
+    if keep then
+        lastSnapshot = p.origin
+        NS.Debug("Presets", "kept the %s preview", p.key)
+    else
+        NS.CM.RestoreSnapshot(p.origin)
+        NS.Debug("Presets", "preview of %s ended: restored", p.key)
+    end
+    return true
+end
+
+--- Forget the preview without restoring: the profile it was taken on was replaced whole.
+function Presets.DropPreview()
+    if preview then NS.Debug("Presets", "preview dropped: the profile was replaced") end
+    preview = nil
+end
+
+function Presets.IsPreviewing() return preview ~= nil end
+
+--- The key of the preset previewed now, or nil.
+function Presets.Previewed() return preview and preview.key or nil end
+
+--- How many containers are the player's own: the snapshot's under a preview, the registry's else.
+function Presets.OwnContainerCount()
+    if preview then return #(preview.origin.containerOrder or {}) end
+    return #NS.CM.List()
 end
 
 --- Whether an Undo is available.
@@ -184,7 +254,7 @@ function Presets.MarkPickerSeen()
 end
 
 -- Suite seam (tests/test_presets.lua).
-function Presets.__reset() lastSnapshot = nil end
+function Presets.__reset() lastSnapshot, preview = nil, nil end
 
 -- ---------------------------------------------------------------------------
 -- Describing (the preset cards)

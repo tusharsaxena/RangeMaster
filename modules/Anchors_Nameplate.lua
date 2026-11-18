@@ -49,6 +49,16 @@ local plateInsts = {} -- [inst] = true: the per-plate instances
 -- Placing
 -- ---------------------------------------------------------------------------
 
+--- Off its plate: the root's points cleared while they still name one, so `inst.anchorPlate` stays
+--- true to them (a root on a plate cannot be measured, modules/Container.lua's header), and its
+--- preview strips moved to the set worn off a plate.
+local function unpin(inst)
+    if inst.anchorPlate == nil then return end
+    inst.frame:ClearAllPoints()
+    inst.anchorPlate = nil
+    inst:RefreshStrips()
+end
+
 --- Anchor `inst` on `plate` at container `c`'s nameplate point, unless it already sits there.
 --- Answers whether it sits on the plate.
 local function attach(inst, c, plate)
@@ -60,16 +70,18 @@ local function attach(inst, c, plate)
     if not ok then
         root:ClearAllPoints()
         inst.anchorPlate = nil
+        inst:RefreshStrips()
         return false
     end
     inst.anchorPlate = plate
+    inst:RefreshStrips()
     return true
 end
 
 --- On `plate`, shown; with no plate (or one refusing the anchor), hidden.
 local function placeOn(inst, c, plate)
     if plate and attach(inst, c, plate) then return inst:SetAnchorHidden(false) end
-    inst.anchorPlate = nil
+    unpin(inst)
     inst:SetAnchorHidden(true)
 end
 
@@ -89,13 +101,13 @@ local Own = {}
 
 function Own.Apply(inst, c)
     own[inst] = true
-    inst.anchorPlate = nil      -- a re-apply re-places: the offsets may have changed
+    unpin(inst)                 -- a re-apply re-places: the offsets may have changed
     placeOn(inst, c, Plates.Get(c.unit))
 end
 
 function Own.Detach(inst)
     own[inst] = nil
-    inst.anchorPlate = nil
+    unpin(inst)
 end
 
 function Own.UnitChanged(unit)
@@ -106,13 +118,13 @@ local Each = {}
 
 function Each.Apply(inst, c)
     plateInsts[inst] = true
-    inst.anchorPlate = nil
+    unpin(inst)
     placeOn(inst, c, tokens[inst.plateToken])
 end
 
 function Each.Detach(inst)
     plateInsts[inst] = nil
-    inst.anchorPlate = nil
+    unpin(inst)
 end
 
 -- ---------------------------------------------------------------------------
@@ -216,7 +228,7 @@ local function plateGone(plate)
     local any = false
     for inst in pairs(own) do
         if plate ~= nil and inst.anchorPlate == plate then
-            inst.anchorPlate = nil
+            unpin(inst)
             inst:SetAnchorHidden(true)
             any = true
         end

@@ -246,6 +246,56 @@ test("modes: test_test_mode_placeholders_all_containers — every enabled contai
   off()
 end)
 
+test("modes: test_unlock_shows_all — unlocked shows every container out of combat, the absent ones on the placeholder", function()
+  off()
+  withEnv(function()
+    M.__unitExists.target = true
+    M.__unitExists.focus, M.__unitExists.mouseover, M.__unitExists.pet = false, false, false
+    local ids = {
+      target = NS.CM.Create("target"),
+      focus  = NS.CM.Create("focus"),
+      cursor = NS.CM.Create("mouseover", { anchor = { mode = "cursor" } }),
+      frame  = NS.CM.Create("pet", { anchor = { mode = "frame", frame = { provider = "custom", name = "NoSuchFrame" } } }),
+      plates = NS.CM.Create("nameplates", { anchor = { mode = "nameplate" } }),
+    }
+    NS.CM.FlushPending()
+    for _, name in ipairs({ "focus", "cursor", "frame" }) do
+      local inst = drawn(ids[name])
+      assertFalse(inst ~= nil and inst.frame:IsShown(), name .. " is hidden while locked: no unit")
+    end
+    local function shownAll(why)
+      for name, id in pairs(ids) do
+        local inst = drawn(id)
+        assertTrue(inst ~= nil and inst.frame:IsShown(), name .. " shows " .. why)
+      end
+    end
+    NS.SetByPath("locked", false)
+    -- red under: unlock moving only the drag strips (focus, mouseover and the plates stay hidden).
+    shownAll("while unlocked")
+    local focus = drawn(ids.focus)
+    assertEqual(focus.state, "none", "an absent unit keeps its own state")
+    assertEqual(focus.elements.number.fs:GetText(), "20" .. EN .. "25", "and draws the placeholder")
+    assertFalse(focus.strips and focus.strips.test and focus.strips.test:IsShown(), "no preview strip")
+    assertFalse(NS.IsTestMode(), "unlock is not Test mode")
+
+    NS.addon:OnCombatChanged("PLAYER_REGEN_DISABLED")
+    assertFalse(drawn(ids.focus).frame:IsShown(), "combat puts each container back on its own rules")
+    assertTrue(drawn(ids.target).frame:IsShown(), "a unit that is there still shows")
+    assertEqual(drawn(ids.plates), nil, "and parks the nameplates stand-in")
+    NS.addon:OnCombatChanged("PLAYER_REGEN_ENABLED")
+    shownAll("again once combat ends")
+
+    NS.SetByPath("locked", true)
+    for _, name in ipairs({ "focus", "cursor", "frame" }) do
+      assertFalse(drawn(ids[name]).frame:IsShown(), name .. " hides again once locked")
+    end
+    assertEqual(drawn(ids.plates), nil, "the stand-in goes with the unlock")
+  end)
+  M.__unitExists.target = false
+  NS.SetByPath("locked", true)
+  off()
+end)
+
 test("modes: test_test_strip_on_late_instances — a container or plate that appears during Test mode wears the strip", function()
   -- red under: an Acquire or AcquirePlate that never shows the running preview's strip.
   off()
@@ -287,8 +337,8 @@ test("modes: test_strip_clears_drag_handle — a strip built while locked docks 
     NS.SetByPath("locked", false)
     local h = inst.dragHandle
     assertTrue(h and h:IsShown(), "the unlock built and showed the handle")
-    -- Geometry: the display's top at 500, the handle reaching 20 above it.
-    for f, top in pairs({ [inst.frame] = 500, [h] = 520 }) do
+    -- Geometry: the display's top at 500 (the strip host lies over it), the handle 20 above it.
+    for f, top in pairs({ [inst.stripHost] = 500, [h] = 520 }) do
       rawset(f, "GetTop", function() return top end)
       rawset(f, "GetBottom", function() return top - 18 end)
       rawset(f, "GetEffectiveScale", function() return 1 end)
@@ -297,10 +347,92 @@ test("modes: test_strip_clears_drag_handle — a strip built while locked docks 
     local calls = H.points(strip, function() strip:Place() end)
     local point, rel, relPoint, _, y = unpack(calls[1])
     assertEqual(point, "BOTTOMLEFT")
-    assertTrue(rel == inst.frame and relPoint == "TOPLEFT", "on the display's top edge")
+    assertTrue(rel == inst.stripHost and relPoint == "TOPLEFT", "on the display's top edge (its host)")
     assertEqual(y, 20, "stacked beyond the handle, never over it")
     NS.SetByPath("locked", true)
   end)
+  off()
+end)
+
+--- Run `fn` with every frame made in it recording what it is anchored on (`__anchoredOn`).
+local function recordingAnchors(fn)
+  local real = M.CreateFrame
+  M.CreateFrame = function(...)
+    local f = real(...)
+    rawset(f, "__anchoredOn", {})
+    rawset(f, "SetPoint", function(self, _, rel)
+      if type(rel) == "table" then table.insert(rawget(self, "__anchoredOn"), rel) end
+    end)
+    rawset(f, "ClearAllPoints", function(self) rawset(self, "__anchoredOn", {}) end)
+    rawset(f, "SetAllPoints", function(self, rel) rawset(self, "__anchoredOn", { rel or self:GetParent() }) end)
+    return f
+  end
+  local ok, err = pcall(fn)
+  M.CreateFrame = real
+  if not ok then error(err, 0) end
+end
+
+--- Whether `f`'s anchors reach `target`, through every frame it is anchored on.
+local function reaches(f, target, seen)
+  if f == target then return true end
+  seen = seen or {}
+  if type(f) ~= "table" or seen[f] then return false end
+  seen[f] = true
+  for _, rel in ipairs(rawget(f, "__anchoredOn") or {}) do
+    if reaches(rel, target, seen) then return true end
+  end
+  return false
+end
+
+test("modes: test_strip_on_a_plate — a display on a nameplate wears a strip nothing measures", function()
+  -- red under: the HUD dock's target being the root, which the client cannot measure on a plate
+  -- ("Can't measure restricted regions" from the dock's OnShow / OnSizeChanged hooks).
+  off()
+  withEnv(function() recordingAnchors(function()
+    local plate = H.plate("nameplate1", true)
+    M.__plates.target = plate
+    M.__unitExists.target = true
+    local _, inst = H.container("target", { anchor = { mode = "nameplate" } })
+    assertTrue(NS.SetTestMode(true, "test"))
+    assertTrue(inst.anchorPlate == plate, "the display sits on the target's plate")
+    -- The client's rule: a region anchored on a plate cannot be measured.
+    local function restrict(f)
+      for _, m in ipairs({ "GetTop", "GetBottom", "GetLeft", "GetRight" }) do
+        rawset(f, m, function(self)
+          if reaches(self, plate) then error("Can't measure restricted regions") end
+          return 100
+        end)
+      end
+      rawset(f, "GetEffectiveScale", function() return 1 end)
+    end
+    restrict(inst.frame)
+    restrict(inst.stripHost)
+    local strip = inst.strips and inst.strips.test
+    assertTrue(strip and strip:IsShown(), "it wears the test strip")
+    assertTrue(strip.__dock == nil, "an undocked one")
+    assertTrue(reaches(strip, inst.frame), "on the display's top edge")
+    assertFalse(reaches(inst.stripHost, plate), "the dock's target is parked off the plate")
+    for _, f in ipairs({ inst.frame, inst.stripHost, strip }) do
+      for _, script in ipairs({ "OnShow", "OnSizeChanged" }) do
+        local ok, err = pcall(f.__fire, f, script)
+        assertTrue(ok, script .. " measured a region on the plate: " .. tostring(err))
+      end
+    end
+    for _, s in pairs(inst.stripSets.docked) do
+      if s then assertFalse(s:IsShown(), "the docked strip is down while on the plate") end
+    end
+    -- Off the plate (the target's plate gone, the preview places it on screen): the docked strip.
+    M.__plates.target = nil
+    H.removed("nameplate1")
+    assertTrue(inst.anchorPlate == nil, "off the plate")
+    assertTrue(reaches(inst.stripHost, inst.frame), "the host lies over the display again")
+    local docked = inst.strips.test
+    assertTrue(docked and docked ~= strip and docked.__dock ~= nil, "it wears the docked strip")
+    assertTrue(docked:IsShown() and not strip:IsShown(), "and only that one")
+    NS.SetTestMode(false, "test")
+    assertFalse(docked:IsShown() or strip:IsShown(), "the strips go with the mode")
+  end) end)
+  M.__unitExists.target = false
   off()
 end)
 

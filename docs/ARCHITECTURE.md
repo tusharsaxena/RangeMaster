@@ -216,6 +216,15 @@ refused in and ended by combat. The combat edge's visibility pass only shows, hi
 addon's own frames (never a `SetPoint`); the preview modes' stand-ins and screen-point fallbacks are
 placed out of combat, because both modes are refused in it and ended at its start.
 
+A region anchored to a nameplate cannot be measured: the client raises *Can't measure restricted
+regions* on `GetTop` and its kin. Nothing in this addon measures a container root, but
+LibKa0s-Widgets' HUD-docked TestStrip does, from `OnShow` / `OnSizeChanged` hooks on its target
+that no `pcall` here covers. So the dock's target is `inst.stripHost`, a child laid over the root
+and parked on `UIParent`'s center while the root sits on a plate, and a container on a plate wears
+an undocked strip anchored on its top edge instead (`modules/Container.lua`). The nameplate anchors
+clear a root's points when it leaves its plate, so `inst.anchorPlate` always says whether the root's
+points name one.
+
 ## Known Limitations
 
 - Two container fields have no settings row: the spell
@@ -228,8 +237,9 @@ placed out of combat, because both modes are refused in it and ended at its star
   Band sets page's Bands editor only: a band is one of a list the player grows, which no schema path
   can name, so `/rm get|set` reaches a band set's name, match rule and unknown label and color, not
   its bands (design spec 5.6 records this).
-- The first-run preset picker is a popup that opens the General page's Presets tab, not a window of
-  its own with the cards in it; a disabled addon that is enabled later is not offered it.
+- The preset picker (a window shaped as AuraMaster's: a dropdown, each pick previewed on the real
+  screen in test mode, Apply / Not now) has no style switch and no Empty preset, which this addon's
+  presets do not have; a disabled addon that is enabled later is not offered it on first run.
 - Sim mode's sweep moves every container through one simulated distance; it does not simulate a
   unit's reaction, class or existence.
 - A container on a nameplate is anchored to the plate but stays a child of `UIParent`: it does not
