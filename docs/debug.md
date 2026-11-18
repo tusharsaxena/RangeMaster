@@ -13,10 +13,26 @@ opened after. When logging turns on, the library writes the `[Init]` line: name,
 stamp and profile, plus the refused events, the stand-down holds and any missing library when there
 are some.
 
-What the addon logs, one gated line each: every settings write at the seam (`[Set] path = value`),
-each preview-mode change and refusal (`[Mode]`), the combat edge (`[Combat]`), the world entry
-(`[World]`), each profile event (`[Profile]` / `[Set]`), each refused event once (`[Events]`) and
-each migration step (`[Migrate]`). The library writes its own lines through the same sink: the
+What the addon logs, one gated line each:
+
+| Tag | Written by | When |
+|---|---|---|
+| `[Set]` | `settings/Schema.lua` (the write seam), `core/RangeMaster.lua` | every settings write (`path = value`), and a profile copy or reset |
+| `[Profile]` | `core/RangeMaster.lua` | a profile switch |
+| `[Mode]` | `core/RangeMaster.lua` | each Test mode or Sim mode change, and each refusal |
+| `[Sim]` | `modules/Sim.lua` | the LibKa0s-Sim session's own lines (start, step, stop and its reason) |
+| `[Combat]` | `core/RangeMaster.lua` | the combat edge |
+| `[World]` | `core/RangeMaster.lua` | the world entry |
+| `[Containers]` | `modules/ContainerManager.lua` | a container created, moved, deleted, duplicated or copied onto, a snapshot restored, and an apply held for combat |
+| `[Presets]` | `modules/Presets.lua`, `settings/Presets.lua` | a preset applied, an undo (or the slot dropped by a profile change), the first-run picker shown and marked seen |
+| `[Position]` | `core/RangeMaster.lua` | Reset position, with how many displays moved |
+| `[Anchor]` | `modules/Anchors_Frame.lua`, `modules/FramePicker.lua` | a unit-frame anchor held for combat, a frame missing (the container hidden until it appears) or found, and each frame pick started, refused, picked or canceled |
+| `[Bus]` | `core/Bus.lua` | a subscription the stand-up could not restore |
+| `[Events]` | `core/RangeMaster.lua` | each event the client refused, once a session |
+| `[Migrate]` | `core/Database.lua` | each migration step |
+
+The range engine, the ticker and the renderer log nothing per tick: a line per read at 20 Hz would
+bury everything else, and the perf harness (`docs/performance.md`) is how their cost is seen. The library writes its own lines through the same sink: the
 dispatcher's refusals (`[Cmd]`), the options combat lock (`[Cfg]`), the launcher's registration
 (`[Launcher]`, held until logging is on) and every stand-down and stand-up edge (`[Lifecycle]`).
 

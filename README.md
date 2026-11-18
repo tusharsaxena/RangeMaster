@@ -17,8 +17,7 @@ one change to your caster bands updates every display that uses them.
 A display can sit anywhere on screen, hang off a unit frame (Blizzard's or EllesmereUI's, or any
 frame you point at), ride on a nameplate, or follow your cursor.
 
-Range Master is in development. Version 0.1.0 is not out yet, and this page describes what it is
-being built to do.
+Version 0.1.0 has not been released yet.
 
 ## Screenshots
 
@@ -26,31 +25,33 @@ Screenshots arrive with the first release.
 
 ## Usage
 
-Type `/rm` to open the settings, or click the minimap button. Right-click the minimap button for a
-quick menu: turn the addon on or off, lock the displays, and switch Test mode or Sim mode.
+The first time you log in, Range Master offers a preset. **Simple** puts four displays free on
+screen. **Intermediate** hangs them on your unit frames and the cursor. **Advanced** adds nameplates,
+spell chips and a warning sound. You can also say **Not now** and build your own. Presets live on
+General → Presets later too, or type `/rm preset simple`. If you already have displays, applying a
+preset asks first, and **Undo last preset** (or `/rm preset undo`) puts them back.
 
-Test mode fills every display with a sample range, so you can place and style it without a target.
-Sim mode walks a pretend target in and out of your range bands, so you can watch every color and
-sound change in turn. Both stop as soon as you enter combat, and neither can be started in one.
+To build one yourself, open the **Containers** page with `/rm` and press New container. Pick its
+unit, its band set and where it sits, then what it shows. The **Band sets** page holds the distance
+bands every display colors by: where each band ends, its name, its colors and an optional sound. From
+chat, `/rm new focus` makes a display, `/rm containers` lists them, and `/rm select 2` picks the one
+that `container.` settings change, for example `/rm set container.anchor.mode cursor`.
 
-`/rm skin` opens the skin picker, where you choose how Range Master's windows, settings pages and
-displays look. `/rm help` lists every command, and `/rm diagnostics` writes a report you can paste
-into a bug report.
+Displays start locked. Type `/rm unlock` and each one that sits free on screen gets a handle you can
+drag; `/rm lock` locks them again, and `/rm resetposition` brings them all back near the middle. Under
+Visibility on the Containers page, a display can show only in combat or only out of it, only for enemies or only for
+friends, and hide when it has no unit. To place and style displays without a target, turn on Test
+mode, which fills each one with a sample range. Sim mode walks a pretend target in and out of your
+bands so you can see every color and hear every sound. Both stop when combat starts and can't be
+turned on during it. The minimap button opens the settings, and right-clicking it gives a quick menu
+for turning the addon on or off, locking, and the two modes.
 
-On first run Range Master offers a preset: **Simple** (four displays free on screen),
-**Intermediate** (displays on your unit frames and the cursor) or **Advanced** (adds nameplates, spell
-chips and a sound). Applying one asks first if you already have displays, and **Undo last preset**
-(or `/rm preset undo`) puts them back. The presets are also on General → Presets, and
-`/rm preset simple` applies one from chat.
+`/rm skin` opens the skin picker, which sets how Range Master's windows, settings pages and displays
+look. While it is open your displays show sample ranges, and the eye button turns that off and on.
+**Apply** keeps your choice; closing the picker without it puts the old look back.
 
-Build your own on the **Containers** page: New container, then pick its unit, its band set, where it
-sits (free on screen, on its unit frame, on its nameplate, or at the cursor) and what it shows. From
-chat, `/rm new focus` makes one, `/rm containers` lists them and `/rm select 2` picks the one that
-`container.` settings mean, for example `/rm set container.anchor.mode cursor`. The **Band sets**
-page edits the distance bands every display colors by; `/rm bands` lists them.
-
-Everything else is under Settings → AddOns → Ka0s Range Master, and every setting can also be read
-and changed from chat: `/rm list` shows them all.
+Everything else is under Settings → AddOns → Ka0s Range Master, and `/rm help` (or
+`/rangemaster help`) lists every command.
 
 ## How it works
 
@@ -60,28 +61,29 @@ and changed from chat: `/rm list` shows them all.
   25 yards".
 - One shared timer does the asking, ten times a second out of combat and twenty times in it, and
   only for units a display is watching. It stops when nothing needs it.
-- Each display looks the bracket up in its band set and colors itself by the band it lands in.
+- Each display looks the bracket up in its band set and colors itself by the band it lands in. It
+  only redraws when the band or the text changes.
 - When the game will not answer, for example because the unit is out of sight or the value is
   hidden from addons, the display shows a gray "?" rather than guessing.
 
 ## FAQ
 
-**Does it show the exact distance?**
-No addon can. The game only answers "in range of this spell or not", so Range Master shows the
-narrowest bracket the answers allow.
-
-**Does it work on WoW Forever?**
-Yes. Range Master uses each client's own spells and items to measure distance.
-
-**Will it slow my game down?**
-It does one small pass ten or twenty times a second, only while a display is watching a unit, and
-none at all when the addon is turned off.
+| Question | Answer |
+|----------|--------|
+| Does it show the exact distance? | No addon can. The game only answers "in range of this spell or not", so Range Master shows the narrowest bracket the answers allow. |
+| Does it work on WoW Forever? | Yes, from the same download. Range Master uses each client's own spells and items to measure distance. |
+| Can I have a different band set for friends? | Yes. Each display has a Friendly band set, used whenever its unit is friendly. The Intermediate preset sets it to Healer. |
+| Will it slow my game down? | It does one small pass ten or twenty times a second, only while a display is watching a unit, and none at all when the addon is turned off. |
 
 ## Troubleshooting
 
 | Symptom | Fix |
 |---------|-----|
 | Nothing shows at all | On General → Master controls, check that **Enable Range Master** is ticked (`/rm enable` ticks it) and that **General visibility** isn't set to *Never*, or to a combat state you're not in. |
+| One display never shows | Check its Visibility tab: it may be set to combat only, to one reaction, or to hide when it has no unit. |
+| A display meant for a unit frame is missing | The frame it waits for isn't there: EllesmereUI is turned off, that EllesmereUI frame is disabled, or a custom frame name is misspelled. Fix the name on Containers → General → Position, or use **Pick on screen**. |
+| I can't drag a display | Type `/rm unlock`. Only displays set to sit free on screen can be dragged, and not during combat. |
+| A display shows a gray "?" | The game isn't giving a range for that unit right now, usually because it is out of sight. It is not the same as out of range. |
 | I only see sample ranges | Test mode is on. Type `/rm test off`, or untick **Test mode** under General → Master controls. |
 | Test mode or Sim mode will not start | Neither can start during combat. Wait until combat ends and try again. Test mode also waits while Sim mode runs: type `/rm sim off` first. |
 | Something looks wrong and I want to report it | Follow [Reporting a bug](#reporting-a-bug) below. |
@@ -104,7 +106,7 @@ Please file reports there rather than in comments, so nothing gets lost.
 
 | Version | Date | Highlights |
 |---------|------|------------|
-| 0.1.0 | Unreleased | - In development: range displays for target, focus, pet, mouseover and nameplates |
+| 0.1.0 | Unreleased | - Range displays for your target, focus, pet, mouseover and every enemy nameplate, each showing a range bracket as a number, a band name, a colored shape and your own spells<br>- Shared band sets with their own colors and sounds, and a separate set for friendly units<br>- Displays free on screen, on Blizzard or EllesmereUI unit frames or any frame you click, on nameplates, or at the cursor<br>- Simple, Intermediate and Advanced presets, offered on first run, with Undo<br>- Visibility by combat, reaction and missing unit<br>- Test mode and Sim mode for placing and checking your displays<br>- Works on Retail and WoW Forever |
 
 ## Credits
 

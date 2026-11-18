@@ -54,9 +54,15 @@ declared, or declared but missing. Every kit suite is declared by its directory.
 
 It proves what can be proved without a client: the setup files' descriptors and their degradation
 stubs (loaded for real with LibKa0s absent, `tests/degraded_env.lua`), the schema and its write seam,
-the latch and the disabled state, the preview modes, the slash surface, the launcher, the skin seam,
-the settings pages' shape, and the documentation gates. It cannot see a real range, a secret value
-the client returns, taint or drawn frames: that is the smoke suite, `docs/smoke-tests.md`.
+the latch and the disabled state, the range engine over a scripted LibRangeCheck and Compat ladder
+(secrets, raises, a unit vanishing mid-tick), the ticker's rate and stop, the band-set normalizer and
+resolver, the container registry and the presets, the renderer's elements, the four anchor modes
+(screen drag, unit frames missing and then loaded, combat-held writes, nameplate recycling, the
+cursor), the visibility and sound rules, Test mode and Sim mode, the slash surface, the launcher, the
+skin seam, the settings pages and their selection-relative rows, and the documentation gates. The
+anchor suites share `tests/anchors_env.lua` and the settings suites `tests/settings_env.lua`. It
+cannot see a real range, a secret value the client returns, taint or drawn frames: that is the smoke
+suite, `docs/smoke-tests.md`.
 
 Suites named by the rules that mandate them: `tests/test_surface_parity.lua` (testing-§8: every
 degradation stub carries the live surface), `tests/test_vendor_sync.lua` (testing-§11: delegates to the

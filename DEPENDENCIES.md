@@ -27,8 +27,9 @@ marked as such rather than listed as a requirement.
   `## OptionalDeps:` only so it loads first when the player has it: `core/SkinSetup.lua` registers
   the skin owner at file load, and the vendored `LibKa0s-Skin-1.0` provider offers it to EllesmereUI
   and paints through it only while General → Skin's source is EllesmereUI. Without it the source is
-  the Ka0s skins alone. EllesmereUI's unit frames become an attach target with the anchors (the
-  v0.1.0 plan, Task 6); the addon never reads `EllesmereUIDB`.
+  the Ka0s skins alone. Its unit frames are also an attach target: the `ellesmere` frame provider
+  (`modules/FrameProviders.lua`) looks its target, focus and pet frames up by global name, and the
+  addon never reads `EllesmereUIDB`.
 
 ### Vendored libraries and where each came from
 

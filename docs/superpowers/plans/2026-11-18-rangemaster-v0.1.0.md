@@ -23,7 +23,7 @@
 | 6 | Anchors (screen, frame, nameplate, cursor) | done | ffccb82 + `Task 6: review fixes` | yes |
 | 7 | Visibility, sounds, lock, Test mode, Sim mode | done | 9ad54b6 + `Task 7: review fixes` | yes |
 | 8 | Settings pages + slash verbs | done | `Settings: Containers, Band sets, Presets pages and slash verbs` + `Task 8: review fixes` | no |
-| 9 | Docs set, roster row, automated-test + audit bundles, GitHub issues | todo | | |
+| 9 | Docs set, roster row, automated-test + audit bundles, GitHub issues | in progress: Step 1 done | `docs: full doc set for v0.1.0` | no |
 | 10 | Whole-branch review + fixes, push, await merge go-ahead | todo | | |
 
 Resume rule: an agent picking this up reads this ledger, runs `git log --oneline` on
@@ -162,7 +162,7 @@ row (status, short SHA) in the same commit that finishes it. Push after tasks 1,
 
 ### Task 9: Docs, roster, bundles, issues
 
-- [ ] **Step 1:** Fill every doc NEW_ADDON.md requires with real content (`docs/ARCHITECTURE.md`, `testing.md`, `smoke-tests.md` covering each anchor mode × client, `scope.md`, `module-map.md`, `schema.md`, `settings-panel.md`, `data-flow.md`, `common-tasks.md`, `debug.md`, `midnight-quirks.md`, `compat-layer.md`, `test-cases.md`, `performance.md`); README Version History `0.1.0`.
+- [x] **Step 1:** Fill every doc NEW_ADDON.md requires with real content (`docs/ARCHITECTURE.md`, `testing.md`, `smoke-tests.md` covering each anchor mode × client, `scope.md`, `module-map.md`, `schema.md`, `settings-panel.md`, `data-flow.md`, `common-tasks.md`, `debug.md`, `midnight-quirks.md`, `compat-layer.md`, `test-cases.md`, `performance.md`); README Version History `0.1.0`.
 - [ ] **Step 2:** Run `tests/_kit/run-automated-tests.sh --release 0.1.0` (expect all four suites pass, zero functions > CCN 15); write the automated-tests bundle; run `/dev-copilot:wow-standards-audit` for the first `docs/audits/<date>/` bundle and fix every deviation it reports that is in scope.
 - [ ] **Step 3:** Roster: in `WowAddonStandards`, on branch `feat/rangemaster-roster`, add the row from spec §5.8; commit; push; do not merge.
 - [ ] **Step 4:** GitHub issues (Ka0s style, `gh issue create` with `state:*`, `severity:*`, `bug|enhancement`): one enhancement per Task 2–8 feature (closed `state:done` when merged), plus deferred, `state:triaged`: import/export strings; ElvUI / SUF / Cell providers; party/raid/arena/boss units; Edit Mode integration; finer distance estimator.

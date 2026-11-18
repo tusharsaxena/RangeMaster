@@ -15,8 +15,9 @@ placing and styling, and Sim mode walks a simulated target through the bands. It
 WoW Forever from one codebase. The full feature list is the design spec,
 `docs/superpowers/specs/2026-11-18-rangemaster-design.md`, section 3.
 
-The v0.1.0 tree today is the scaffold (plan Task 1): the shell every Ka0s addon shares, and the two
-preview modes as session switches. The features above land in plan Tasks 2 to 8.
+Everything above is built in the v0.1.0 tree (plan Tasks 1 to 8) and configured from the settings
+pages or `/rm`. None of it has been run in a client yet; `docs/smoke-tests.md` holds the checks that
+are still owed.
 
 ## What it deliberately does not do
 
@@ -31,3 +32,10 @@ preview modes as session switches. The features above land in plan Tasks 2 to 8.
 - **No reading of another addon's saved variables.** EllesmereUI's frames are found by name only;
   `EllesmereUIDB` is never read.
 - **No per-display timers.** One ticker serves the whole addon, and it stops when nothing is watched.
+- **No band reordering by hand.** A band set is always sorted by its edges; a band moves by changing
+  where it ends, so there is no drag-to-reorder for bands.
+- **No exact-distance tricks.** No map-coordinate or `UnitPosition` math and no group-only API
+  (`UnitInRange`, `UnitDistanceSquared`): they answer only for party and raid members, outdoors, or
+  as a secret, so the range checks are the one source.
+- **No class-colored bands.** A band's own colors are fixed swatches; class color is chosen per
+  container (its Color from), because it describes the tracked unit, not the band.

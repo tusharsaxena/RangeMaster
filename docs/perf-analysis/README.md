@@ -38,8 +38,9 @@ label, a `context` block (character, class, spec, level, zone, group), a `bucket
 `calls`, `totalMs`, `maxMs`, the declared `within` and, where a call site passed one, the observed
 parent — and an `fps` block with the active arm, the suspended arm and their per-frame delta.
 
-This addon's buckets today are `combatEdge` (`core/PerfSetup.lua`); the range engine adds
-`tickerTick` and `rangeGet` (within `tickerTick`). Never sum a parent and its children; a bucket that
+This addon's buckets (`core/PerfSetup.lua`, in report order) are `combatEdge`, `ticker.tick`,
+`range.get` (within `ticker.tick`), `container.render` (within `ticker.tick`) and `cursor.follow`;
+`docs/performance.md` says what each brackets. Never sum a parent and its children; a bucket that
 never fired is absent, not zero.
 
 ## Taking a capture
@@ -61,8 +62,8 @@ capture with `/dev-copilot:wow-perf-analysis`, which writes the bundle and this 
 
 ## Capture index
 
-No capture has been taken yet. The addon is a v0.1.0 scaffold that nobody has played, and a capture
-assembled from the offline scenarios or the source would be a fabrication; the first real capture is
+No capture has been taken yet. Nobody has played v0.1.0 in a client, and a capture assembled from
+the offline scenarios or the source would be a fabrication; the first real capture is
 a later, separate run of `/dev-copilot:wow-perf-analysis` on a client paste.
 
 | Stamp | Addon version | Label | What it measured | Bundle |
