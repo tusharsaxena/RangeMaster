@@ -23,7 +23,7 @@
 | 6 | Anchors (screen, frame, nameplate, cursor) | done | ffccb82 + `Task 6: review fixes` | yes |
 | 7 | Visibility, sounds, lock, Test mode, Sim mode | done | 9ad54b6 + `Task 7: review fixes` | yes |
 | 8 | Settings pages + slash verbs | done | `Settings: Containers, Band sets, Presets pages and slash verbs` + `Task 8: review fixes` | no |
-| 9 | Docs set, roster row, automated-test + audit bundles, GitHub issues | in progress: Step 1 done | `docs: full doc set for v0.1.0` | no |
+| 9 | Docs set, roster row, automated-test + audit bundles, GitHub issues | in progress: Step 1 done; Step 2 release run done (bundle 20261118-083858, green, Max CCN 15, 0 > 15) | `docs: full doc set for v0.1.0`, `docs: v0.1.0 automated-test bundle` | no |
 | 10 | Whole-branch review + fixes, push, await merge go-ahead | todo | | |
 
 Resume rule: an agent picking this up reads this ledger, runs `git log --oneline` on
