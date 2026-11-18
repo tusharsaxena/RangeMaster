@@ -32,17 +32,18 @@ archaeology, for the same reason a skip is never a pass (`automated-tests-§4`).
 
 | Run | Commit | Tree | Version | Lint w/e | Files | Tests | Perf | NLOC | Funcs | Avg NLOC | Avg CCN | Max CCN | CCN warn | Verdict |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| [`20261118-100423`](20261118-100423/) | `856a672` | clean | 0.1.0 → 0.1.0 | 0/0 | 111 | 619/1/620 | pass | 16813 | 2601 | 5.9 | 2.1 | 15 | 0 | **green** |
 | [`20261118-091529`](20261118-091529/) | `87a5620` | clean | 0.1.0 → 0.1.0 | 0/0 | 111 | 610/1/611 | pass | 16612 | 2568 | 5.9 | 2.1 | 15 | 0 | **green** |
 | [`20261118-083858`](20261118-083858/) | `a756304` | clean | 0.1.0 → 0.1.0 | 0/0 | 111 | 602/1/603 | pass | 16345 | 2538 | 5.8 | 2.1 | 15 | 0 | **green** |
 | [`20261118-034419`](20261118-034419/) | `6ed49cb` | clean | 0.1.0 → 0.1.0 | 0/0 | 61 | 354/1/355 | pass | 6632 | 1081 | 5.6 | 1.9 | 14 | 0 | **green** |
 
 ## Test suite
 
-**611 cases** — 610 passed, 0 failed, 1 skipped. The generated inventory
-[`20261118-091529/test-cases.md`](20261118-091529/test-cases.md) is the authority on which cases existed at this run;
+**620 cases** — 619 passed, 0 failed, 1 skipped. The generated inventory
+[`20261118-100423/test-cases.md`](20261118-100423/test-cases.md) is the authority on which cases existed at this run;
 `docs/test-cases.md` is that same list at HEAD.
 
-Moved **603 → 611** since the previous run.
+Moved **611 → 620** since the previous run.
 
 **1 case(s) reported a `skip`.** A skip is counted in the total and never in `passed`, and at
 the release gate it is NOT EVALUATED rather than passed (`automated-tests-§3`).
@@ -59,30 +60,30 @@ to whoever thinks to open `.luacheckrc`.
 ## Perf
 
 **13 scenarios** from `tests/perf.lua`; the measurements are in
-[`20261118-091529/perf.json`](20261118-091529/perf.json).
+[`20261118-100423/perf.json`](20261118-100423/perf.json).
 
 | `scenario` | `iters` | `ms/iter` | `total-ms` | `bytes/iter` |
 |---|---|---|---|---|
-| `combatEdge` | 1000 | 0.00113 | 1.133 | 0.0 |
-| `settingsRead` | 10000 | 0.00047 | 4.704 | 0.0 |
-| `range.get` | 10000 | 0.00076 | 7.561 | 0.0 |
-| `range.get.hit` | 10000 | 0.00007 | 0.686 | 0.0 |
-| `ticker.tick` | 1000 | 0.02139 | 21.394 | 16.9 |
-| `ticker.tick.moving` | 1000 | 0.02680 | 26.798 | 16.4 |
-| `render.quiet` | 1000 | 0.00630 | 6.302 | 36.8 |
-| `container.render` | 1000 | 0.08224 | 82.244 | 3357.4 |
-| `render.plates.quiet` | 1000 | 0.02442 | 24.420 | 7.4 |
-| `render.plates` | 1000 | 0.16389 | 163.886 | 6714.0 |
-| `cursor.follow` | 10000 | 0.00166 | 16.614 | 0.0 |
-| `probeOverheadOff` | 1000 | 0.00080 | 0.801 | 0.0 |
-| `probeOverheadOn` | 1000 | 0.00101 | 1.012 | 0.3 |
+| `combatEdge` | 1000 | 0.00161 | 1.611 | 0.0 |
+| `settingsRead` | 10000 | 0.00078 | 7.817 | 0.0 |
+| `range.get` | 10000 | 0.00118 | 11.808 | 0.0 |
+| `range.get.hit` | 10000 | 0.00011 | 1.124 | 0.0 |
+| `ticker.tick` | 1000 | 0.04175 | 41.748 | 16.9 |
+| `ticker.tick.moving` | 1000 | 0.06497 | 64.968 | 16.4 |
+| `render.quiet` | 1000 | 0.01368 | 13.676 | 36.8 |
+| `container.render` | 1000 | 0.16533 | 165.334 | 3357.4 |
+| `render.plates.quiet` | 1000 | 0.05149 | 51.493 | 7.4 |
+| `render.plates` | 1000 | 0.31955 | 319.551 | 6714.0 |
+| `cursor.follow` | 10000 | 0.00325 | 32.476 | 0.0 |
+| `probeOverheadOff` | 1000 | 0.00140 | 1.395 | 0.0 |
+| `probeOverheadOn` | 1000 | 0.00164 | 1.640 | 0.0 |
 
 `perf` never fails a run and never blocks a commit — it is recorded, read and compared, not
 thresholded (`performance-§9`). It does gate the **tag** (`automated-tests-§3`).
 
 ## Complexity watch list
 
-Current as of [`20261118-091529`](20261118-091529/) — **this run's measurement, not its diff.** Max CCN **15** across 2568
+Current as of [`20261118-100423`](20261118-100423/) — **this run's measurement, not its diff.** Max CCN **15** across 2601
 functions, **0** of them warned on; 0 file(s) in the 1000–1500 band and 0 over the 1500 cap
 (`layout-§1`).
 
