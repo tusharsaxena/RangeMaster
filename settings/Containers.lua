@@ -324,11 +324,18 @@ StaticPopupDialogs["RANGEMASTER_DELETE_CONTAINER"] = {
     end,
 }
 
-local function doDelete()
-    local c, id = NS.SelectedContainer()
-    if not id then return end
+--- Ask before deleting container `id`: the panel's Delete and `/rm delete` (settings/Slash.lua) share
+--- this one confirmation, whose OnAccept deletes and prints the line.
+function NS.ConfirmDeleteContainer(id)
+    local c = id and NS.CM.Get(id)
+    if not c then return end
     local popup = StaticPopup_Show("RANGEMASTER_DELETE_CONTAINER", tostring(c.name))
     if popup then popup.data = id end
+end
+
+local function doDelete()
+    local _, id = NS.SelectedContainer()
+    NS.ConfirmDeleteContainer(id)
 end
 
 -- The copy control's choice. Page state, not a setting: it means nothing outside an open panel.
@@ -396,7 +403,7 @@ local function afterGeneral(ctx)
     renderPreview(ctx, c)
 end
 
---- Pick on screen, under the frame rows: the click-to-pick overlay (modules/FramePicker.lua), whose
+--- Pick on screen, under the frame rows: the pick-on-screen overlay (modules/FramePicker.lua), whose
 --- pick puts the container on that frame by name, through the registry's writer.
 function NS.PickFrameForSelected()
     local _, id = NS.SelectedContainer()
@@ -415,7 +422,7 @@ local function afterFrameRows(ctx)
     if not (c and c.anchor.mode == "frame") then return end
     H.InlineButtonPair(ctx, {
         text = L["Pick on screen"],
-        tooltip = L["Point at a frame and click it to attach this container to it. Right-click or Escape cancels. Same as /rm pick."],
+        tooltip = L["Point at a frame and press Enter to attach this container to it. Escape cancels. Same as /rm pick."],
         onClick = NS.PickFrameForSelected,
     }, nil)
 end

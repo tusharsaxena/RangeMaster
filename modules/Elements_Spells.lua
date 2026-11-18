@@ -51,9 +51,10 @@ local function dress(chip, parent, id, size, x, edged)
     chip.result = UNSET
 end
 
-function Spells.Style(el, cfg)
+function Spells.Style(el, cfg, c)
     local size = tonumber(cfg.size) or 20
-    local list = type(cfg.list) == "table" and cfg.list or {}
+    -- The stored list once chosen, else the logged-in class's seeds (modules/ContainerManager.lua).
+    local list = NS.CM.SpellChips(c)
     local edged = cfg.style ~= "icon"
     Pool.ReleaseAll(el.pool)
     local parent = el.frame

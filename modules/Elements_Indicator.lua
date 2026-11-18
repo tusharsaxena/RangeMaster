@@ -30,10 +30,9 @@ local SHAPES = { dot = true, ring = true, square = true, diamond = true, triangl
 local FLAT = "Interface\\Buttons\\WHITE8X8"
 local NO_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
 
---- The icon `cfg` draws: its own spell's, else the container's first chip's.
+--- The icon `cfg` draws: its own spell's, else the container's first chip's (NS.CM.SpellChips).
 local function iconOf(cfg, container)
-    local list = container.elements.spells.list
-    local id = cfg.spellID or (type(list) == "table" and list[1])
+    local id = cfg.spellID or NS.CM.SpellChips(container)[1]
     local icon = id and select(2, NS.Compat.GetSpellInfo(id))
     return icon or NO_ICON
 end

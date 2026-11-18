@@ -86,7 +86,7 @@ test("cm: test_create_defaults_unit_target — a bare Create is a target contain
   end)
 end)
 
-test("cm: Create seeds the spell list from the client's class seeds and takes a unit and opts", function()
+test("cm: Create stores no spell list (the chips resolve to the class seeds) and takes a unit and opts", function()
   withFreshProfile(function()
     local id = CM.Create("focus", { name = "My focus", anchor = { mode = "cursor" },
       elements = { number = { format = "max" } } })
@@ -98,9 +98,9 @@ test("cm: Create seeds the spell list from the client's class seeds and takes a 
     assertEqual(c.elements.number.format, "max")
     assertTrue(c.elements.number.enabled, "a merged section keeps its other keys")
     local seeds = NS.SpellSeeds[NS.Compat.ClientKey()][NS.Compat.PlayerClass()]
-    assertEqual(#c.elements.spells.list, #seeds.chips, "the class's chips")
-    assertEqual(c.elements.spells.list[1], seeds.chips[1])
-    assertTrue(c.elements.spells.list ~= seeds.chips, "a copy, never the seed table")
+    assertEqual(#c.elements.spells.list, 0, "no list is stored until the player chooses one")
+    assertEqual(#CM.SpellChips(c), #seeds.chips, "the chips resolve to the class's seeds")
+    assertEqual(CM.SpellChips(c)[1], seeds.chips[1])
     assertNil(CM.Create("raid1"), "a unit RangeMaster does not watch is refused")
   end, "MAGE")
 end)
@@ -347,3 +347,19 @@ test("cm: MarkSeeded is the first-run sentinel's one runtime writer", function()
   end
 end)
 
+
+test("cm: spell chips follow the character until a list is stored (a shared profile, two classes)", function()
+  -- red under: CM.Create seeding elements.spells.list from the creating character's class (an alt of
+  -- another class on the shared Default profile would see the first character's spells, gray).
+  withFreshProfile(function()
+    local id = CM.Create("focus")
+    local c = CM.Get(id)
+    local byClient = NS.SpellSeeds[NS.Compat.ClientKey()]
+    M.__context.classToken = "PRIEST"
+    assertEqual(CM.SpellChips(c)[1], byClient.PRIEST.chips[1], "a priest logging in reads the priest's chips")
+    M.__context.classToken = "MAGE"
+    assertEqual(CM.SpellChips(c)[1], byClient.MAGE.chips[1], "the mage reads the mage's")
+    c.elements.spells.list = { 12345 }
+    assertEqual(table.concat(CM.SpellChips(c), ","), "12345", "a stored list is the player's choice and wins")
+  end, "MAGE")
+end)

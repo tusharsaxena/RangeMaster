@@ -109,6 +109,8 @@ function Screen.Detach(inst)
     members[inst] = nil
     if inst.dragHandle ~= nil then showHandle(inst, false) end
     inst.frame:SetMovable(false)
+    -- The clamp is the screen anchor's: a container on a plate, a frame or the cursor is not pinned.
+    inst.frame:SetClampedToScreen(false)
 end
 
 function Screen.RefreshLock()

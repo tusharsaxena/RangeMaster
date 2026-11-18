@@ -428,8 +428,8 @@ test("range: Rebuild is debounced to one rebuild after the last call", function(
     handles[#handles + 1] = h
     return h
   end
-  local realLadder, built = NS.Compat.RangeLadder, 0
-  NS.Compat.RangeLadder = function(...) built = built + 1; return realLadder(...) end
+  local base = NS.Range.__rebuildCount()
+  local function built() return NS.Range.__rebuildCount() - base end
   local ok, err = pcall(function()
     NS.Range.Rebuild()
     NS.Range.Rebuild()
@@ -438,12 +438,11 @@ test("range: Rebuild is debounced to one rebuild after the last call", function(
     assertEqual(handles[3].delay, 0.5, "half a second after the last call")
     assertTrue(stopped(handles[1]) and stopped(handles[2]), "the earlier timers are canceled")
     assertFalse(stopped(handles[3]), "the last one is armed")
-    assertEqual(built, 0, "nothing rebuilt before the timer fires")
+    assertEqual(built(), 0, "nothing rebuilt before the timer fires")
     handles[3].fn()
-    assertEqual(built, 1, "one rebuild")
+    assertEqual(built(), 1, "one rebuild")
   end)
   M.C_Timer.NewTimer = realNew
-  NS.Compat.RangeLadder = realLadder
   if not ok then error(err, 0) end
 end)
 
@@ -458,22 +457,21 @@ test("range: a Rebuild asked while stood down arms nothing and runs at the stand
     if delay == 0.5 then handles[#handles + 1] = h end
     return h
   end
-  local realLadder, built = NS.Compat.RangeLadder, 0
-  NS.Compat.RangeLadder = function(...) built = built + 1; return realLadder(...) end
+  local base = NS.Range.__rebuildCount()
+  local function built() return NS.Range.__rebuildCount() - base end
   local ok, err = pcall(function()
     NS.SetByPath("enabled", false)
     NS.Range.Rebuild()
     assertEqual(#handles, 0, "a stood-down addon arms no rebuild timer")
-    assertEqual(built, 0, "and rebuilds nothing")
+    assertEqual(built(), 0, "and rebuilds nothing")
     NS.SetByPath("enabled", true)
-    assertEqual(built, 1, "the stand-up runs the owed rebuild, once")
+    assertEqual(built(), 1, "the stand-up runs the owed rebuild, once")
     assertEqual(#handles, 0, "synchronously, with no timer")
     NS.SetByPath("enabled", false)
     NS.SetByPath("enabled", true)
-    assertEqual(built, 1, "nothing owed, nothing rebuilt")
+    assertEqual(built(), 1, "nothing owed, nothing rebuilt")
   end)
   M.C_Timer.NewTimer = realNew
-  NS.Compat.RangeLadder = realLadder
   NS.SetByPath("enabled", true)
   if not ok then error(err, 0) end
 end)
@@ -495,4 +493,15 @@ test("range: every class seed table is well-formed on both clients", function()
     assertTrue(n >= 9, client .. " seeds every class it has")
   end
   assertNil(NS.SpellSeeds.forever.EVOKER, "Forever is a vanilla world: no Evoker")
+end)
+
+test("range: a rebuild builds no ladder; only a Forever walk does, on first need", function()
+  -- red under: rebuildNow calling NS.Compat.RangeLadder() eagerly (Retail builds a ladder it never
+  -- walks: it has no ladder fallback).
+  local real, n = NS.Compat.RangeLadder, 0
+  NS.Compat.RangeLadder = function(...) n = n + 1; return real(...) end
+  local ok, err = pcall(function() NS.Range.__rebuildNow() end)
+  NS.Compat.RangeLadder = real
+  if not ok then error(err, 0) end
+  assertEqual(n, 0, "the rebuild drops the ladder and leaves the build to the first walk")
 end)

@@ -464,7 +464,8 @@ end
 -- The one line a reload request earns on the path that has no popup of its own (a profile event
 -- or a `/rm set` leaving an EllesmereUI that painted this session). The Skin tab raises the
 -- library's popup for its own picks.
-local RELOAD_LINE = "Reload your interface (/reload) to finish changing the skin."
+-- Through the NS.L seam (localization-§1); locales/enUS.lua loads first, so a file-scope read is safe.
+local RELOAD_LINE = NS.L["Reload your interface (/reload) to finish changing the skin."]
 
 function NS.ApplySkinIgnore(panel, fonts)
     if type(Skin.SetIgnore) ~= "function" then return false, false end

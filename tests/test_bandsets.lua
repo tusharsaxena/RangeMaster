@@ -279,6 +279,30 @@ test("bandsets: Delete honors reassignTo, refuses the last set and an unknown id
   end)
 end)
 
+test("bandsets: Delete moves the containers through the container registry's writer (NS.CM.SetField)", function()
+  -- red under: a reassign that writes c.bandSet directly (architecture-§5, one runtime writer per
+  -- registry): the writer's apply request is the witness.
+  withFreshProfile(function(p)
+    local a, b = B.Create("A", "healer"), B.Create("B", "caster40")
+    p.containers[1] = NS.Database.DeepCopy(NS.CONTAINER_TEMPLATE)
+    p.containers[1].bandSet, p.containers[1].bandSetFriendly = a, a
+    p.containerOrder = { 1 }
+    NS.CM.__reset()
+    local calls, real = {}, NS.CM.SetField
+    NS.CM.SetField = function(id, field, value)
+      calls[#calls + 1] = field
+      return real(id, field, value)
+    end
+    local ok, err = pcall(B.Delete, a, b)
+    NS.CM.SetField = real
+    if not ok then error(err, 0) end
+    assertEqual(table.concat(calls, ","), "bandSet,bandSetFriendly", "both references went through the writer")
+    assertEqual(p.containers[1].bandSet, b)
+    assertTrue(NS.CM.__pending(), "and the writer asked for an apply")
+    NS.CM.__reset()
+  end)
+end)
+
 test("bandsets: deleting the default set makes the next one the default", function()
   withFreshProfile(function()
     local first, second = B.List()[1], B.List()[2]

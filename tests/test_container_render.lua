@@ -645,3 +645,50 @@ test("render: every indicator shape ships as a white 64x64 uncompressed 32-bit T
     assertEqual(h:byte(18) % 16, 8, path .. ": 8 alpha bits")
   end
 end)
+
+-- ---------------------------------------------------------------------------
+-- The first draw
+-- ---------------------------------------------------------------------------
+
+test("render: a stored container draws at login, whatever the skin settings are", function()
+  -- red under: OnEnable's NS.CM.RequestApply() removed (the first draw rides on the skin's callback,
+  -- which a default skin with "Ignore settings panel" unticked never fires).
+  withRenderer(function(p)
+    p.skin = p.skin or {}
+    p.skin.ignorePanel = false
+    local id = newContainer()
+    Container.__reset()
+    CM.__reset()
+    assertNil(Container.Get(id), "the pool starts empty, as after a /reload")
+    local savedPreset, savedSkin = NS.MaybeShowPresetPicker, NS.MaybeShowSkinPicker
+    NS.MaybeShowPresetPicker, NS.MaybeShowSkinPicker = function() end, function() end
+    local ok, err = pcall(function()
+      NS.addon:OnEnable()
+      M.__fireTimers()
+    end)
+    NS.MaybeShowPresetPicker, NS.MaybeShowSkinPicker = savedPreset, savedSkin
+    if not ok then error(err, 0) end
+    assertTrue(Container.Get(id) ~= nil, "the stored container drew on the login's own apply")
+  end)
+end)
+
+test("render: a container with no stored chip list draws the logged-in character's class chips", function()
+  -- red under: a renderer that reads elements.spells.list alone (an empty stored list draws nothing).
+  withRenderer(function()
+    newContainer({ elements = { spells = { enabled = true } } })   -- made by a mage
+    M.__context.classToken = "PRIEST"                                -- a priest logs in on the profile
+    Container.__reset()
+    CM.RequestApply()
+    CM.FlushPending()
+    local inst = Container.Get(CM.List()[1])
+    local seeds = NS.SpellSeeds[NS.Compat.ClientKey()].PRIEST.chips
+    assertEqual(#inst.elements.spells.chips, #seeds, "the priest's chips are drawn")
+    local asked = {}
+    local real = NS.Range.InSpellRange
+    NS.Range.InSpellRange = function(id) asked[#asked + 1] = id; return true end
+    local ok, err = pcall(function() inst:Update("known", 20, 25) end)
+    NS.Range.InSpellRange = real
+    if not ok then error(err, 0) end
+    assertEqual(asked[1], seeds[1], "and the priest's spells are the ones asked")
+  end, "MAGE")
+end)

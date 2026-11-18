@@ -11,6 +11,7 @@ local _, NS = ...
 --   NS.CM.CopySettings(fromId, toId, sections?) -> boolean   never identity or placement
 --   NS.CM.Snapshot() -> snap, RestoreSnapshot(snap) -> boolean   the registry whole, ids included
 --   NS.CM.List() -> { id, ... }, Get(id) -> container
+--   NS.CM.SpellChips(c) -> { spellID, ... }  the stored chip list, else the logged-in class's seeds
 --   NS.CM.RequestApply()                     coalesced to the next frame, deferred in combat
 --   NS.CM.SetPosition(id, point, relPoint, x, y) -> boolean   a drag's result (modules/Anchors_Screen)
 --   NS.CM.ResetPosition(id) -> boolean       back to the new-container point (Reset position)
@@ -174,11 +175,22 @@ local function merge(dst, src)
     end
 end
 
---- The client's spell-chip seeds for the player's class, as a new array.
-local function seedSpells()
+local NO_CHIPS = {}
+
+--- The spell chips container `c` shows: its stored `elements.spells.list` once the player has chosen
+--- one (a non-empty list), else the LOGGED-IN character's class seeds for this client. Resolved at
+--- render time, never stored on create: the Default profile is shared by every character, so a list
+--- seeded for the creating character's class would show an alt of another class spells it does not
+--- have (savedvariables-§5: a stored choice survives; nothing is re-seeded over it). The answer is
+--- read-only (the seed table itself), and the renderer resolves it once per apply, not per tick.
+--- @return table  an array of spell IDs
+function CM.SpellChips(c)
+    local sp = type(c) == "table" and type(c.elements) == "table" and c.elements.spells
+    local list = type(sp) == "table" and sp.list
+    if type(list) == "table" and #list > 0 then return list end
     local byClient = NS.SpellSeeds and NS.SpellSeeds[NS.Compat.ClientKey()]
-    local seeds = byClient and byClient[NS.Compat.PlayerClass()]
-    return copy(seeds and seeds.chips or {})
+    local seeds = byClient and byClient[NS.Compat.PlayerClass() or ""]
+    return seeds and seeds.chips or NO_CHIPS
 end
 
 --- Mint the next id and store `c` under it, after `afterId` in the order when given, else last.
@@ -199,8 +211,8 @@ local function staggerY(id)
     return 0 - (((tonumber(id) or 1) - 1) % 8) * 30
 end
 
---- A new container on `unit` from the template: the default band set, the class's spell seeds,
---- then `opts` merged over it, and a unique name (opts.name, else the unit's). opts.unit is ignored:
+--- A new container on `unit` from the template: the default band set (no spell list: the chips
+--- resolve to the logged-in class's seeds, CM.SpellChips), then `opts` merged over it, and a unique name (opts.name, else the unit's). opts.unit is ignored:
 --- the positional `unit` is the one checked against the watched units, so it is the one stored. A new
 --- screen container is staggered down from the center by its id, so two new ones never stack exactly.
 --- Answers its id, or nil for a unit RangeMaster does not watch or before the db exists.
@@ -210,7 +222,6 @@ function CM.Create(unit, opts)
     if not (p and p.containers and UNIT_NAME[unit]) then return nil end
     local c = copy(NS.CONTAINER_TEMPLATE)
     c.unit, c.bandSet = unit, NS.BandSets.DefaultId()
-    c.elements.spells.list = seedSpells()
     c.anchor.y = staggerY(p.nextContainerId or 1)
     if type(opts) == "table" then merge(c, opts) end
     c.unit = unit

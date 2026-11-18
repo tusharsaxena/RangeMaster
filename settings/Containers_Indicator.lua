@@ -9,7 +9,8 @@ local _, NS = ...
 --
 -- The indicator's swatch and its color mode are composed (H.ColorPair; options-ui-§17), the companion
 -- turned into the three-value color mode (NS.ContainerValues.ColorModeCompanion). Which spells the
--- chips show is seeded per client and class when a container is made (modules/ContainerManager.lua).
+-- chips show is the logged-in character's class seeds for this client until a list is stored
+-- (NS.CM.SpellChips, modules/ContainerManager.lua).
 
 local L = NS.L
 local H = NS.Helpers

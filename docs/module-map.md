@@ -20,7 +20,7 @@ runner's load list to the TOC.
 | `core/Compat.lua` | The client seam (`IsForever`, `IsRetail`, `ClientKey`, `ForClient`), the secret guards and `GetSpellInfo`, routed from `LibKa0s-Compat-1.0` with library-absent stand-ins; the range reads (`IsEventValid`, `IsSpellKnown`, `IsSpellUsable`, `SpellInRange`, `ItemInRange`, `InteractInRange`, `CanAttack`), the band sets' unit reads (`IsFriend`, `PlayerClass`), the anchors' frame reads (`NamePlateForUnit`, `PlateToken`, `NamePlates`, `GetMouseFocus`) and the per-client `RangeLadder` (`docs/compat-layer.md`) |
 | `core/EnvSetup.lua` | `LibKa0s-Env-1.0`: `NS.Meta(field)` and `NS.Version()` |
 | `core/MediaSetup.lua` | `LibKa0s-Media-1.0`: `NS.Icon`, `NS.MediaFont`, the one `RegisterLSM`. LOAD-BEARING: before Constants |
-| `core/Constants.lua` | Fallback media, `FONT_MONO`, the logo paths, `BRAND`, `MINIMAP_PATH`, `INDICATOR_PATH`, the band color ramp and `HexColor`, `LAYERS` (the HUD and the picker strata) |
+| `core/Constants.lua` | Fallback media, `FONT_MONO`, the logo paths, `BRAND`, `MINIMAP_PATH`, `INDICATOR_PATH`, the band color ramp and `HexColor`, `LAYERS` (the HUD and the picker strata, the level ladder and the per-instance `BASE` / `STRIDE` / `SLOTS`) |
 | `core/State.lua` | Session-only state: `debug`, `testMode`, `simMode`, `rejectedEvents` |
 | `core/CoreSetup.lua` | `LibKa0s-Core-1.0`: `NS.Print` / `NS.Printf`, `SafeToString`, `ResolveColor`, `SafeRegister*`, `SKIN`, the one `NS.MakeCloseButton` wrapper. LOAD-BEARING |
 | `core/SkinSetup.lua` | `LibKa0s-Skin-1.0`: the owner registered at load, the skin choice seam, the first-run picker (preview in Test mode) and `/rm skin`. LOAD-BEARING |
@@ -58,7 +58,7 @@ runner's load list to the TOC.
 | `modules/Anchors_Frame.lua` | The `frame` mode (`NS.Anchors.Frame`): a unit frame from the providers, a missing one hidden and retried, a write held through combat, mouseover to the cursor |
 | `modules/Anchors_Nameplate.lua` | `NS.Plates`, the plate registry (`Get`, `ForEachHostile`, `Added`, `Removed`, `SyncAll`, the one-frame re-check), and the `nameplate` (own plate) and `plates` (per-plate instance) modes |
 | `modules/Anchors_Cursor.lua` | The `cursor` mode (`NS.Anchors.Cursor`): one shared OnUpdate for every cursor container, armed only while one is shown |
-| `modules/FramePicker.lua` | `NS.FramePicker`: the click-to-pick overlay (`Start`, `Stop`, `Cancel`, `IsActive`, `NamedAncestor`), refused in and ended by combat |
+| `modules/FramePicker.lua` | `NS.FramePicker`: the pick-on-screen overlay, Enter picks and Escape cancels (`Start`, `Stop`, `Cancel`, `IsActive`, `NamedAncestor`), refused in and ended by combat |
 | `modules/Visibility.lua` | `NS.Visibility`: `Evaluate(container, unit, state?) -> shown, alpha` (General visibility, the combat, no-unit and reaction rules, Master opacity times `oocAlpha`), the combat edge's flag (`SetCombat`, `InCombat`) |
 | `modules/Sounds.lua` | `NS.Sounds`: `OnBand(inst, band, now)` (the 0.2 s settle, the 1 s gap, the silent first band, per-instance state), `Reset`, `Wants` (never a `nameplates` container), `BUILTIN` (the out-of-range chime, registered with LibSharedMedia at load) |
 | `modules/Sim.lua` | `NS.Sim`: Sim mode's 0 to 50 to 0 yd sweep on LibKa0s-Sim-1.0 (an empty seam, the session, its step panel), `Source`, `IsRunning`, `RunVerb` (`/rm sim <verb>`), `SetSimMode` through the one writer |

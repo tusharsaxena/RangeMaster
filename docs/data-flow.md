@@ -35,7 +35,7 @@ the ticker (one C_Timer.NewTicker, 10 Hz idle / 20 Hz in combat, stopped while n
         text changed        → SetText (else nothing); a cell's width moved → re-layout
         sounds on           → NS.Sounds.OnBand(inst, band, GetTime()) (also on each steady read)
 the combat edge, a General visibility or Master opacity write ─► NS.Container.RefreshVisibility
-SPELLS_CHANGED ─► NS.Range.Rebuild()  0.5 s after the last one: the ladder and the known-spell cache
+SPELLS_CHANGED ─► NS.Range.Rebuild()  0.5 s after the last one: the known-spell cache again, the ladder dropped (rebuilt on the next Forever walk)
 ```
 
 Every container instance watches its unit through `NS.Ticker.Watch` when it is acquired and
@@ -99,6 +99,8 @@ A stood-down addon arms no timer; the stand-up asks for one apply.
 login ─► OnInitialize: InitDB → RunMigrations → ApplySkinChoice → slash → launcher
       ─► OnEnable: SyncEnabledHold (the latch, from the stored `enabled`)
                    ─► if up: RegisterLifecycleEvents
+                   ─► NS.CM.RequestApply (the first draw of the stored containers, next frame;
+                      stood down, it is owed to the stand-up), whatever the skin did
                    ─► CreateOptionsPanel (eager category) ─► MaybeShowSkinPicker
 ```
 
@@ -228,7 +230,10 @@ chip colored by its own answer and repainted only when that answer moves. Placem
 `NS.Anchors.Apply` (below). A `nameplates` container has no single instance: it owns one per eligible
 plate, from a second keyed pool (`AcquirePlate`, `ReleasePlate`, `GetPlate`, `ForEachPlate`), each
 watching its plate token; which plates get one is the plate registry's call. Frames stack by
-`NS.Constants.LAYERS` (the HUD strata; fill, border and overlay offset over the root).
+`NS.Constants.LAYERS` (the HUD strata; fill, border and overlay offset over the root). Each instance
+takes its own root level when built (`BASE + slot * STRIDE` over UIParent, the slot cycling 1..`SLOTS`),
+so overlapping displays stack whole rather than band by band (frame-layering-§3). The root's strata is
+the container's Frame strata only when the row offers it (`NS.ContainerValues.STRATA`), else HUD.
 
 ### Anchors
 
@@ -268,9 +273,10 @@ is missing (`inst:SetAnchorHidden`), and the renderer tells the anchors each sho
   scale plus the container's own `anchor.cursor` offset (below and right of the cursor by default,
   never the screen point) (bucket `cursor.follow`).
 
-`NS.FramePicker.Start(onPick)` (`modules/FramePicker.lua`) is the custom provider's click-to-pick: an
-overlay outlines the nearest named ancestor of the frame under the cursor; left click picks it, right
-click or Escape cancels. It is refused in combat and the combat edge cancels one in progress.
+`NS.FramePicker.Start(onPick)` (`modules/FramePicker.lua`) is the custom provider's pick on screen: an
+overlay outlines the nearest named ancestor of the frame under the cursor; Enter picks it and Escape
+cancels. The overlay takes no mouse, so a click would reach the frame under it; the pick reads the
+keyboard only (frame-layering-§4 retired the full-screen click catcher). It is refused in combat and the combat edge cancels one in progress.
 `/rm pick` and the Containers page's **Pick on screen** button call it through
 `NS.PickFrameForSelected` (`settings/Containers.lua`): a pick sets the selected container to the
 `frame` mode, the `custom` provider and the picked frame's name, through `NS.CM.SetField`.

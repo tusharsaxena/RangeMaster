@@ -1,6 +1,6 @@
 local _, NS = ...
--- modules/FramePicker.lua — point at a frame on screen and click it, to put a container on it by
--- name (design spec 5.4, the custom provider's click-to-pick).
+-- modules/FramePicker.lua — point at a frame on screen and press Enter, to put a container on it by
+-- name (design spec 5.4, the custom provider's pick on screen).
 --
 --   NS.FramePicker.Start(onPick(frameName), onCancel?) -> started   refused in combat
 --   NS.FramePicker.Stop()          end a pick with no callback (the stand-down)
@@ -11,9 +11,11 @@ local _, NS = ...
 -- While picking, an overlay tracks the topmost frame under the cursor (NS.Compat.GetMouseFocus),
 -- walks up to its nearest NAMED ancestor (a container stores a frame's global name, so an unnamed
 -- frame could not be found again after a /reload), outlines it and writes its name beside the cursor.
--- Left click takes it, right click or Escape cancels. The overlay never takes the mouse (it would
--- be the frame under the cursor), clicks are read with IsMouseButtonDown, and the pick arms only once
--- both buttons are up, so the click that started it cannot pick the frame behind its button.
+-- Enter takes it, Escape cancels, and the mouse is left alone. The overlay never takes the mouse (it
+-- would be the frame under the cursor), so a click would also reach the frame under it: picking
+-- PlayerFrame would target the player, an action button would cast. A full-screen click catcher is
+-- the shape frame-layering-§4 retired, so the pick is confirmed from the keyboard instead. Enter and
+-- Escape are swallowed (out of combat only); every other key propagates.
 --
 -- SAFE IN COMBAT BY NOT RUNNING IN IT. A pick is refused under combat lockdown (one gray line), and
 -- combat starting ends one: core/RangeMaster.lua's combat edge cancels it, and the OnUpdate cancels
@@ -31,7 +33,7 @@ local Style = NS.Style
 
 local overlay, outline, edges, label
 local onPick, onCancel
-local armed = false
+local hovered       -- the named frame under the cursor, as of the last OnUpdate
 
 -- Never an anchor: the screen itself, and this addon's own frames.
 local REJECT = { UIParent = true, WorldFrame = true }
@@ -68,7 +70,7 @@ function FP.NamedAncestor(f)
 end
 
 local function stop()
-    armed = false
+    hovered = nil
     if overlay then
         overlay:SetScript("OnUpdate", nil)
         overlay:Hide()
@@ -99,8 +101,8 @@ local function track()
     local target, name = FP.NamedAncestor(NS.Compat.GetMouseFocus())
     outline:ClearAllPoints()
     if target and pcall(outline.SetAllPoints, outline, target) then outline:Show() else outline:Hide() end
-    label:SetText(name and (name .. "\n" .. L["Left-click to pick, right-click to cancel"])
-        or L["Point at a named frame. Right-click to cancel."])
+    label:SetText(name and (name .. "\n" .. L["Press Enter to pick, Escape to cancel"])
+        or L["Point at a named frame. Escape cancels."])
     local x, y = GetCursorPosition()
     local s = tonumber(UIParent:GetEffectiveScale()) or 1
     if s <= 0 then s = 1 end
@@ -111,20 +113,17 @@ end
 
 local function onUpdate()
     if InCombatLockdown() then return FP.Cancel("combat") end
-    local left, right = IsMouseButtonDown("LeftButton"), IsMouseButtonDown("RightButton")
-    if not armed then
-        if not (left or right) then armed = true end
-        return
-    end
-    local name = track()
-    if right then return FP.Cancel("right click") end
-    if left and name then picked(name) end
+    hovered = track()
 end
 
+--- Enter on a named frame picks it, Escape cancels; the key is swallowed for that one press, and
+--- propagation is restored on the next frame. Any other key (or Enter over no named frame) propagates.
 local function onKeyDown(self, key)
-    if key ~= "ESCAPE" or InCombatLockdown() then return end
+    if InCombatLockdown() then return end
+    local name = key == "ENTER" and hovered or nil
+    if key ~= "ESCAPE" and not name then return end
     if self.SetPropagateKeyboardInput then self:SetPropagateKeyboardInput(false) end
-    FP.Cancel("escape")
+    if name then picked(name) else FP.Cancel("escape") end
     C_Timer.After(0, function()
         if self.SetPropagateKeyboardInput and not InCombatLockdown() then self:SetPropagateKeyboardInput(true) end
     end)
@@ -165,7 +164,7 @@ function FP.Start(pick, cancel)
     end
     if not overlay then build() end
     onPick, onCancel = pick, cancel
-    armed = false
+    hovered = nil
     overlay:Show()
     overlay:SetScript("OnUpdate", onUpdate)
     NS.Debug("Anchor", "frame pick started")

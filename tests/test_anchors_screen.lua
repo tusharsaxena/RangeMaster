@@ -114,3 +114,20 @@ test("anchors: switching a container's mode detaches the old anchor", function()
     unlock(false)
   end)
 end)
+
+test("anchors: a container leaving the screen anchor is no longer clamped to the screen", function()
+  -- red under: Screen.Detach without SetClampedToScreen(false) (a container moved to a nameplate, a
+  -- frame or the cursor stays pinned at the screen's edge).
+  local restore = dofile("tests/_kit/mock_layers.lua")(M)
+  local ok, err = pcall(H.with, function()
+    local id, inst = H.container("target")
+    assertTrue(M.__layers(inst.frame).clamped, "on screen: clamped")
+    NS.CM.Get(id).anchor.mode = "cursor"
+    NS.CM.RequestApply()
+    NS.CM.FlushPending()
+    assertEqual(inst.anchorMode, "cursor")
+    assertFalse(M.__layers(inst.frame).clamped, "at the cursor: the clamp went with the screen anchor")
+  end)
+  restore()
+  if not ok then error(err, 0) end
+end)

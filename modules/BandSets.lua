@@ -384,11 +384,15 @@ end
 
 --- Point every container reference to `id` at `target`. The friendly override follows only a set the
 --- caller named; otherwise it falls away, and the container uses its own set for every reaction.
-local function reassign(p, id, target, named)
-    for _, c in pairs(p.containers or {}) do
+--- Through the container registry's one writer, NS.CM.SetField (architecture-§5), whose type check
+--- passes: `id` is already gone and `target` is a survivor. Its apply request coalesces.
+local function reassign(id, target, named)
+    local CM = NS.CM
+    for _, cid in ipairs(CM.List()) do
+        local c = CM.Get(cid)
         if type(c) == "table" then
-            if c.bandSet == id then c.bandSet = target end
-            if c.bandSetFriendly == id then c.bandSetFriendly = named and target or nil end
+            if c.bandSet == id then CM.SetField(cid, "bandSet", target) end
+            if c.bandSetFriendly == id then CM.SetField(cid, "bandSetFriendly", named and target or nil) end
         end
     end
 end
@@ -403,7 +407,7 @@ function BandSets.Delete(id, reassignTo)
         if p.bandSetOrder[i] == id then table.remove(p.bandSetOrder, i) end
     end
     local named = reassignTo ~= nil and reassignTo ~= id and p.bandSets[reassignTo] ~= nil
-    reassign(p, id, named and reassignTo or defaultIdOf(p), named)
+    reassign(id, named and reassignTo or defaultIdOf(p), named)
     announce()
     return true
 end

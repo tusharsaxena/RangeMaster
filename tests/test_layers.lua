@@ -72,3 +72,59 @@ test("a range container's root sits in the HUD strata, its fill, border and over
   restore()
   if not ok then error(err, 0) end
 end)
+
+test("overlapping range containers stack whole: each root has its own base, a stride apart", function()
+  -- red under: every root left at UIParent's level + 1 (one display's overlay above the next one's
+  -- fill: crowded nameplates and the cursor display interleave). frame-layering-§3, Peers stack whole.
+  local M = T.mocks
+  local restore = dofile("tests/_kit/mock_layers.lua")(M)
+  local savedDb = NS.db
+  NS.db = { profile = {}, global = savedDb.global }
+  NS.CM.__reset()
+  NS.Container.__reset()
+  local ok, err = pcall(function()
+    NS.Database.PrepareProfile(NS.db.profile)
+    local a, b = NS.CM.Create("target"), NS.CM.Create("focus")
+    NS.CM.FlushPending()
+    local la = M.__layers(NS.Container.Get(a).frame).level
+    local lb = M.__layers(NS.Container.Get(b).frame).level
+    local L = LAYERS.LEVEL
+    assertTrue(type(L.STRIDE) == "number" and L.STRIDE > L.HANDLE,
+      "the stride covers a whole display's band, the drag handle included")
+    assertTrue(math.abs(la - lb) >= L.STRIDE, ("two roots a stride apart (got %d and %d)"):format(la, lb))
+    assertTrue(math.max(la, lb) + L.HANDLE < 10000, "under the client's frame-level ceiling")
+  end)
+  NS.Container.__reset()
+  NS.CM.__reset()
+  NS.db = savedDb
+  restore()
+  if not ok then error(err, 0) end
+end)
+
+test("a hand-edited dialog strata draws in the HUD band: the renderer takes only the row's values", function()
+  -- red under: a renderer whitelist wider than settings/Containers.lua's V.STRATA (DIALOG and up
+  -- are no HUD tier, frame-layering-§1).
+  local M = T.mocks
+  local restore = dofile("tests/_kit/mock_layers.lua")(M)
+  local savedDb = NS.db
+  NS.db = { profile = {}, global = savedDb.global }
+  NS.CM.__reset()
+  NS.Container.__reset()
+  local ok, err = pcall(function()
+    NS.Database.PrepareProfile(NS.db.profile)
+    local id = NS.CM.Create("target")
+    local c = NS.CM.Get(id)
+    c.anchor.strata = "DIALOG"
+    NS.CM.FlushPending()
+    assertEqual(M.__layers(NS.Container.Get(id).frame).strata, LAYERS.STRATA.HUD, "DIALOG falls back")
+    c.anchor.strata = "HIGH"
+    NS.CM.RequestApply()
+    NS.CM.FlushPending()
+    assertEqual(M.__layers(NS.Container.Get(id).frame).strata, "HIGH", "an offered value is kept")
+  end)
+  NS.Container.__reset()
+  NS.CM.__reset()
+  NS.db = savedDb
+  restore()
+  if not ok then error(err, 0) end
+end)

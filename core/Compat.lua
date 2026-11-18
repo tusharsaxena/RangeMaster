@@ -329,7 +329,8 @@ end
 
 --- The range ladder for this client and the player's class and race, sorted by yd ascending:
 --- `{ { kind = "item"|"interact"|"spell", id = number, yd = number }, ... }`. A fresh table on each
---- call; modules/Range.lua builds it once and again on SPELLS_CHANGED, never per tick.
+--- call; modules/Range.lua builds it on the first Forever walk and again after a SPELLS_CHANGED
+--- rebuild dropped it, never per tick (Retail, which has no ladder fallback, never builds one).
 --- @return table
 function Compat.RangeLadder()
     local out = {}

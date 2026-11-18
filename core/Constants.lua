@@ -65,11 +65,18 @@ end
 -- `base:GetFrameLevel() + LAYERS.LEVEL.<NAME>`. No call site hands SetFrameStrata a string literal or
 -- SetFrameLevel a bare number; tests/test_layers.lua pins both.
 --
--- THE ADDON'S STACK, lowest first. The v0.1.0 scaffold draws no frame of its own yet; the first row
--- is reserved for the range containers, and the rest are the library's and Blizzard's, listed so a
--- new frame is placed around known neighbors.
+-- THE ADDON'S STACK, lowest first. The addon's own frames are the range containers (one pooled
+-- instance per container, plus one per nameplate a `nameplates` container draws on), their drag
+-- handle and the frame picker's overlay; the rest are the library's and Blizzard's, listed so a new
+-- frame is placed around known neighbors.
 --
---   HUD      MEDIUM: a range container's root. Inside one container, from its own level L:
+--   HUD      MEDIUM (or the container's own Frame strata, BACKGROUND to HIGH): a range container's
+--            root. Each instance takes its own base when it is built, UIParent's level + BASE +
+--            slot * STRIDE, the slot cycling 1..SLOTS, so overlapping displays stack whole instead of
+--            interleaving band by band (frame-layering-§3, Peers stack whole). STRIDE is above
+--            HANDLE, so one display's whole band fits under the next one's root, and
+--            BASE + SLOTS * STRIDE + HANDLE stays under the client's 10000 ceiling.
+--            Inside one container, from its own level L:
 --              L + FILL     the background fill
 --              L + BORDER   the border frame, above the fill
 --              L + OVERLAY  the number, text, indicator and spell chips
@@ -93,5 +100,9 @@ C.LAYERS = {
         BORDER  = 2,
         OVERLAY = 4,
         HANDLE  = 50,
+        -- The per-instance base (modules/Container.lua newInstance): BASE + slot * STRIDE.
+        BASE    = 10,
+        STRIDE  = 60,
+        SLOTS   = 100,
     },
 }

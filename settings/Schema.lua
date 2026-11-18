@@ -312,7 +312,7 @@ local function HostSchemaStub()
         function S.ConsumeResetCount() return nil end
         function S.Validate()
             if type(d.print) == "function" then
-                d.print("LibKa0s-Schema-1.0 is missing, so the schema was not checked")
+                d.print(NS.L["LibKa0s-Schema-1.0 is missing, so the schema was not checked."])
             end
             return 0, 0, 0
         end

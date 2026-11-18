@@ -59,7 +59,7 @@ starts with a cyan `[RM]`. Most checks need a container: apply a preset (General
 - **SLASH-5. Container verbs.** `/rm new focus` → a Focus container is made and selected;
   `/rm containers` lists `1. Focus (focus, screen)` with a `*` on the selected one; `/rm new boss1` →
   the usage line, nothing made; `/rm select 1` and `/rm select focus` both select it; `/rm delete 1`
-  deletes it and selects its neighbor. Result:
+  asks first (the same popup as the panel's Delete) and, on Yes, deletes it and selects its neighbor. Result:
 - **SLASH-6. `container.` paths.** With a container selected, `/rm set container.unit pet` → the
   Containers page (if open) shows Pet, and the container tracks the pet; `/rm get container.unit`
   reads `pet`. Delete every container, then `/rm set container.unit focus` → refused with a line
@@ -305,9 +305,10 @@ it), or from chat with `/rm set container.anchor.mode frame` (`screen`, `frame`,
   hides when hovering nothing; with the UI scale changed, it stays on the cursor; its X and Y offset
   rows move it relative to the cursor.
 - **ANCHOR-8. Frame picker.** `/rm pick` (or **Pick on screen**) → an outline follows the named frame
-  under the cursor; left click attaches the selected container to it (`Attached to <name>.`), with
-  Unit frames from set to Custom frame (by name); right click or Escape cancels; entering combat ends
-  it with no error; starting it in combat prints one gray line.
+  under the cursor; Enter attaches the selected container to it (`Attached to <name>.`), with
+  Unit frames from set to Custom frame (by name); Escape cancels; a mouse click during a pick reaches
+  only the game (it neither picks nor cancels); entering combat ends it with no error; starting it in
+  combat prints one gray line.
 
 | Check | Mode | Retail result | WoW Forever result |
 |---|---|---|---|

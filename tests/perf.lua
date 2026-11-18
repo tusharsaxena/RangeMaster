@@ -159,6 +159,36 @@ measure("container.render", BURST, function(i)
   farther = i % 2 == 0
   tickFn()
 end)
+
+-- The dormant-bracket scenario (performance-§2, §9): with capture off, the hot paths are compared
+-- against NO instrumentation at all, by call count. A moving tick over the ten containers runs the
+-- ticker.tick, range.get and container.render brackets, and the combat edge runs combatEdge; with
+-- Perf.on false not one of them may read the clock or reach Perf.Note. The armed pass is the control:
+-- the same work with Perf.on true must count calls, or the counters measure nothing.
+-- red under: a bracket that reads debugprofilestop before testing Perf.on.
+local function countBracketCalls(on, iterations)
+  local realClock, realNote, n = mocks.debugprofilestop, NS.Perf.Note, 0
+  mocks.debugprofilestop = function(...) n = n + 1; return realClock(...) end
+  NS.Perf.Note = function(...) n = n + 1; if on then return realNote(...) end end
+  NS.Perf.on = on
+  local ok, err = pcall(function()
+    for i = 1, iterations do
+      farther = i % 2 == 0
+      tickFn()
+      NS.addon:OnCombatChanged("PLAYER_REGEN_ENABLED")
+    end
+  end)
+  NS.Perf.on = false
+  mocks.debugprofilestop, NS.Perf.Note = realClock, realNote
+  if not ok then error(err, 0) end
+  return n
+end
+local dormantCalls = countBracketCalls(false, BURST)
+assert_(dormantCalls == 0,
+  ("with capture off the hot paths made %d clock reads or Perf.Note calls; a dormant bracket must make none")
+    :format(dormantCalls))
+assert_(countBracketCalls(true, 10) > 0,
+  "the armed control counted no bracket calls; the dormant count above proves nothing")
 for _, id in ipairs(ids) do NS.CM.Delete(id) end
 NS.CM.FlushPending()
 assert_(not NS.Ticker.IsRunning(), "the ticker did not stop when the last container went")

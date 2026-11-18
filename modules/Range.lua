@@ -60,7 +60,8 @@ local REBUILD_DELAY = 0.5
 
 local tickId = 0
 local memo = {}            -- [unit] = { tick, state, minYd, maxYd }
-local ladder               -- NS.Compat.RangeLadder(), built on first use and on Rebuild
+local ladder               -- NS.Compat.RangeLadder(), built on the first Forever walk; Rebuild drops it
+local rebuilds = 0         -- how many rebuilds ran (a suite seam's count)
 local known = {}           -- [spellID] = boolean, wiped on Rebuild
 local rebuildTimer
 local rebuildOwed = false  -- a rebuild asked for or canceled while stood down: the stand-up runs it
@@ -211,16 +212,21 @@ function Range.PerfParent()
     return perfParent
 end
 
---- The rebuild itself: the ladder and the known-spell cache are taken again from the client.
+--- The rebuild itself: the known-spell cache is taken again from the client, and the ladder is
+--- dropped, to be built again on the first Forever walk (currentLadder). Retail never walks one, so
+--- it never builds one.
 local function rebuildNow()
     rebuildTimer = nil
     rebuildOwed = false
-    ladder = Compat.RangeLadder()
+    ladder = nil
     for id in pairs(known) do known[id] = nil end
     Range.BeginTick()
+    rebuilds = rebuilds + 1
 end
--- Suite seam: tests/test_range.lua rebuilds synchronously around a swapped spell API.
+-- Suite seams: tests/test_range.lua rebuilds synchronously around a swapped spell API, and counts
+-- the rebuilds that ran (the ladder build is lazy, so it is no witness of one).
 Range.__rebuildNow = rebuildNow
+function Range.__rebuildCount() return rebuilds end
 
 --- Rebuild the ladder and the known-spell cache, REBUILD_DELAY after the last call. A stood-down
 --- addon arms nothing (slash-commands-§7): the rebuild is owed, and the stand-up runs it.

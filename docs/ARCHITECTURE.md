@@ -108,8 +108,9 @@ set when its `bandSet` names none, and sets `seeded` to `false` when absent.
 - **Band sets**: `bandSets`, `bandSetOrder`, `nextBandSetId`. Runtime writer `modules/BandSets.lua`
   (`Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`, `SetBandSound`, `RestoreSnapshot`); its
   seed routine `BandSets.Seed` and its
-  per-set repair `BandSets.NormalizeSet` are shared with the load pass. `Delete` also rewrites the
-  `bandSet` / `bandSetFriendly` references of the containers that used the deleted set. The Band
+  per-set repair `BandSets.NormalizeSet` are shared with the load pass. `Delete` also moves the
+  `bandSet` / `bandSetFriendly` references of the containers that used the deleted set, through the
+  container registry's writer `NS.CM.SetField` (architecture-§5). The Band
   sets page writes through `SetField` (match rule, unknown label and color), `SetBand` (an edge, a
   label, a color; an edge that would leave a band without width is refused), `AddBand` and
   `RemoveBand`, each normalizing after the write.
@@ -174,7 +175,7 @@ Each verb, its arguments and its refusals: `docs/slash-dispatch.md`.
 | `NAME_PLATE_UNIT_ADDED` | `addon:OnNamePlateChanged` | `NS.Plates.Added(token)` (the plate tracked, its instances built, a re-check a frame later), then the same unit change on the plate's token |
 | `UNIT_FACTION` | `addon:OnUnitFaction` | the same on the unit named, a reaction change (the band set follows `bandSetFriendly`, and `NS.Anchors.UnitChanged` moves a plate into or out of a hostile-only `nameplates` container); `ifValid` |
 | `NAME_PLATE_UNIT_REMOVED` | `addon:OnNamePlateChanged` | `NS.Plates.Removed(token)` (its instances parked, an own-plate container on that plate frame hidden), then `NS.Ticker.Removed(token)`: `"none"` is sent outright, because the client still resolves the token while this event dispatches and a re-read would see the plate as live |
-| `SPELLS_CHANGED` | `addon:OnSpellsChanged` | `NS.Range.Rebuild()`: the ladder and the known-spell cache, debounced 0.5 s |
+| `SPELLS_CHANGED` | `addon:OnSpellsChanged` | `NS.Range.Rebuild()`, debounced 0.5 s: the known-spell cache is taken again and the ladder dropped, rebuilt on the next Forever walk (Retail builds none) |
 | `ADDON_LOADED` | `addon:OnAddonLoaded` | `NS.Anchors.Frame.Retry`: a unit frame a container waits for may exist now |
 
 The ticker itself is a `C_Timer.NewTicker`, not an event; the stand-down cancels it with the pending
@@ -218,7 +219,9 @@ placed out of combat, because both modes are refused in it and ended at its star
 ## Known Limitations
 
 - Two container fields have no settings row: the spell
-  chips' list (`elements.spells.list`, seeded per client and class on create) and the icon
+  chips' list (`elements.spells.list`, stored empty on create; while it is empty the chips show the
+  logged-in character's class seeds for this client, resolved at render time by `NS.CM.SpellChips`,
+  so an alt of another class on the shared Default profile sees its own spells) and the icon
   indicator's spell (`elements.indicator.spellID`, nil = the first chip). They keep their stored
   values and are copied by Duplicate and Copy settings from.
 - A band's own fields (its edge, label, three colors and sound) and Add band / Remove band are the

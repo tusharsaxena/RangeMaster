@@ -83,7 +83,7 @@ Total.
 - database: the load pass normalizes a stored band set and repairs its counter and order
 - database: the active profile was prepared at load
 
-### test_bandsets.lua (21)
+### test_bandsets.lua (22)
 
 - bandsets: test_resolve_by_max — (20, 25) in Melee / Ranged lands in MID 20-30
 - bandsets: test_resolve_by_min — matchBy min reads the near bound
@@ -99,6 +99,7 @@ Total.
 - bandsets: names stay unique: Create, Duplicate and Rename suffix a taken name, in any case
 - bandsets: test_bandset_delete_reassigns — containers on a deleted set move to the default
 - bandsets: Delete honors reassignTo, refuses the last set and an unknown id
+- bandsets: Delete moves the containers through the container registry's writer (NS.CM.SetField)
 - bandsets: deleting the default set makes the next one the default
 - bandsets: test_for_unit_friendly_override — a friendly unit reads bandSetFriendly when set
 - bandsets: test_hunter_preset_per_client — Forever has the 5-8 dead zone, Retail does not
@@ -107,10 +108,10 @@ Total.
 - bandsets: SetBandSound writes one band's sound, announces, and refuses a bad set or band
 - bandsets: a restore never rewinds the id counter, so a later Create mints an id never used
 
-### test_container_manager.lua (16)
+### test_container_manager.lua (17)
 
 - cm: test_create_defaults_unit_target — a bare Create is a target container on the default set
-- cm: Create seeds the spell list from the client's class seeds and takes a unit and opts
+- cm: Create stores no spell list (the chips resolve to the class seeds) and takes a unit and opts
 - cm: test_unique_name_suffix — a taken name gets the next free number
 - cm: Rename trims, keeps names unique and refuses a blank name or an unknown id
 - cm: SetField stores elements.order only as an arrangement of the four elements, each once
@@ -125,6 +126,7 @@ Total.
 - cm: Create keeps its positional unit; opts.unit cannot smuggle in an unwatched one
 - cm: a profile switch announces CONTAINERS_CHANGED once, on the next frame
 - cm: MarkSeeded is the first-run sentinel's one runtime writer
+- cm: spell chips follow the character until a list is stored (a shared profile, two classes)
 
 ### test_presets.lua (11)
 
@@ -148,7 +150,7 @@ Total.
 - number: no unit reads nothing, and an unknown format reads as range
 - number: a known state with no far bound and no near bound reads unknown, not 0
 
-### test_container_render.lua (32)
+### test_container_render.lua (34)
 
 - render: an enabled container gets one pooled instance, watching its unit, drawn at once
 - render: Release returns the frame to the pool cleanly, and the next Acquire reuses it
@@ -182,8 +184,10 @@ Total.
 - render: an element's shadow turns the font string's shadow offset on and off
 - render: a LibSharedMedia border draws on a backdrop of its own, band-colored, its tiling tracked
 - render: every indicator shape ships as a white 64x64 uncompressed 32-bit TGA
+- render: a stored container draws at login, whatever the skin settings are
+- render: a container with no stored chip list draws the logged-in character's class chips
 
-### test_anchors_screen.lua (8)
+### test_anchors_screen.lua (9)
 
 - anchors: a screen container sits at its stored point on UIParent
 - anchors: a stored point the client does not know falls back to CENTER
@@ -193,8 +197,9 @@ Total.
 - anchors: a non-screen container shows no drag strip, unlocked or not
 - anchors: Reset position puts every screen container back at its default point
 - anchors: switching a container's mode detaches the old anchor
+- anchors: a container leaving the screen anchor is no longer clamped to the screen
 
-### test_anchors_frame.lua (16)
+### test_anchors_frame.lua (17)
 
 - frames: the providers name Blizzard's and EllesmereUI's frames per unit, and nothing for mouseover
 - frames: Resolve answers the live global frame, and nil for a missing, forbidden or non-frame one
@@ -209,9 +214,10 @@ Total.
 - frames: a mouseover container on a named custom frame stays on that frame
 - frames: a frame that will not take the anchor hides the container instead of raising
 - picker: NamedAncestor walks to the nearest named ancestor, skipping UIParent and forbidden frames
-- picker: a left click on a named frame calls back with its name and ends the pick
+- picker: Enter on a named frame calls back with its name and ends the pick
+- picker: a mouse press neither picks nor cancels (the click belongs to the game)
 - picker: refused in combat with one gray line, and combat during a pick cancels it
-- picker: a right click cancels
+- picker: Escape cancels
 
 ### test_anchors_nameplate.lua (14)
 
@@ -278,7 +284,7 @@ Total.
 - compat: the degraded load answers Retail and keeps the guards' one-rung bodies
 - compat: no file outside the library reads a WOW_PROJECT global or an interface number
 
-### test_range.lua (23)
+### test_range.lua (24)
 
 - range: test_known_bracket — a 20 to 25 yd answer reads known 20, 25
 - range: the library is asked with no cache of its own (maxCacheAge 0)
@@ -303,6 +309,7 @@ Total.
 - range: Rebuild is debounced to one rebuild after the last call
 - range: a Rebuild asked while stood down arms nothing and runs at the stand-up
 - range: every class seed table is well-formed on both clients
+- range: a rebuild builds no ladder; only a Forever walk does, on first need
 
 ### test_ticker.lua (13)
 
@@ -385,7 +392,7 @@ Total.
 - slash verbs: the stub's split agrees with the live dispatcher's over a corpus
 - slash: test_new_unit_arg — /rm new takes a unit, defaults to target, and refuses one it does not watch
 - slash: test_select_by_name — /rm select takes a number or a name in any case
-- slash: /rm delete takes a number or a name and selects the neighbor
+- slash: /rm delete takes a number or a name, asks first, and selects the neighbor
 - slash: test_preset_verb — /rm preset confirms, applies, undoes and refuses an unknown key
 - slash: /rm bands lists the band sets with the selection marked, and selects one
 - slash: a name two band sets or containers share is ambiguous, and selects neither
@@ -432,11 +439,13 @@ Total.
 - the catalog is exactly the four declared messages, each one prefixed for this addon
 - with LibKa0s absent, receivers still get a private working target
 
-### test_layers.lua (3)
+### test_layers.lua (5)
 
 - LAYERS names the HUD strata and an ordered level ladder
 - no strata literal and no absolute level at any call site
 - a range container's root sits in the HUD strata, its fill, border and overlay offset over it
+- overlapping range containers stack whole: each root has its own base, a stride apart
+- a hand-edited dialog strata draws in the HUD band: the renderer takes only the row's values
 
 ### test_launcher.lua (30)
 
@@ -788,19 +797,19 @@ Total.
 | test_loadorder.lua | 16 |
 | test_schema.lua | 36 |
 | test_database.lua | 14 |
-| test_bandsets.lua | 21 |
-| test_container_manager.lua | 16 |
+| test_bandsets.lua | 22 |
+| test_container_manager.lua | 17 |
 | test_presets.lua | 11 |
 | test_number_format.lua | 5 |
-| test_container_render.lua | 32 |
-| test_anchors_screen.lua | 8 |
-| test_anchors_frame.lua | 16 |
+| test_container_render.lua | 34 |
+| test_anchors_screen.lua | 9 |
+| test_anchors_frame.lua | 17 |
 | test_anchors_nameplate.lua | 14 |
 | test_anchors_cursor.lua | 7 |
 | test_visibility.lua | 11 |
 | test_sounds.lua | 12 |
 | test_compat.lua | 6 |
-| test_range.lua | 23 |
+| test_range.lua | 24 |
 | test_ticker.lua | 13 |
 | test_envsetup.lua | 6 |
 | test_coresetup.lua | 8 |
@@ -810,7 +819,7 @@ Total.
 | test_slashgate.lua | 7 |
 | test_perf.lua | 17 |
 | test_bus.lua | 8 |
-| test_layers.lua | 3 |
+| test_layers.lua | 5 |
 | test_launcher.lua | 30 |
 | test_launcher_skin_entry.lua | 1 |
 | test_modes.lua | 18 |
@@ -840,4 +849,4 @@ Total.
 | test_skin_switch.lua | 6 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **610** |
+| **Total** | **619** |

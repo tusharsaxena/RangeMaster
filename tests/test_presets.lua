@@ -145,8 +145,8 @@ test("presets: test_advanced_shape — six containers with plates, spell chips, 
     local focus = find("focus", "frame")
     assertTrue(focus.elements.spells.enabled, "focus shows spell chips")
     local seeds = NS.SpellSeeds[NS.Compat.ClientKey()][NS.Compat.PlayerClass()]
-    assertEqual(#focus.elements.spells.list, #seeds.chips, "seeded with the class's chips")
-    assertEqual(focus.elements.spells.list[1], seeds.chips[1])
+    assertEqual(#NS.CM.SpellChips(focus), #seeds.chips, "showing the class's chips")
+    assertEqual(NS.CM.SpellChips(focus)[1], seeds.chips[1])
     -- the target's own nameplate: diamond + number
     local plate = find("target", "nameplate")
     assertEqual(enabledElements(plate), "indicator,number")

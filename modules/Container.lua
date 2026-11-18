@@ -98,8 +98,6 @@ local Pool = NS.Pool
 local E = NS.Elements
 
 local ELEMENT = { number = E.Number, text = E.Text, indicator = E.Indicator, spells = E.Spells }
-local STRATA = { BACKGROUND = true, LOW = true, MEDIUM = true, HIGH = true, DIALOG = true,
-                 FULLSCREEN = true, FULLSCREEN_DIALOG = true, TOOLTIP = true }
 
 local KW = LibStub and LibStub("LibKa0s-Widgets-1.0", true)
 local L = NS.L
@@ -128,10 +126,16 @@ local function layer(root, offset)
     return f
 end
 
---- One pooled instance: the root, then the fill, the border and the overlay as levels over it.
+local nextSlot = 0   -- the last per-instance level slot handed out (1..LAYERS.LEVEL.SLOTS, cycling)
+
+--- One pooled instance: the root at its own base level (a pooled instance keeps it), then the fill,
+--- the border and the overlay as levels over it (core/Constants.lua LAYERS).
 local function newInstance()
     local root = CreateFrame("Frame", nil, UIParent)
     root:SetFrameStrata(LAYERS.STRATA.HUD)
+    local LV = LAYERS.LEVEL
+    nextSlot = nextSlot % LV.SLOTS + 1
+    Style.Stack(root, UIParent, LV.BASE + nextSlot * LV.STRIDE)
     local fill = layer(root, LAYERS.LEVEL.FILL)
     local bg = fill:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints(fill)
@@ -203,7 +207,11 @@ end
 
 local function applyFrame(inst, c)
     local root, lay = inst.frame, c.layout
-    root:SetFrameStrata(STRATA[c.anchor.strata] and c.anchor.strata or LAYERS.STRATA.HUD)
+    -- Only the values the Frame strata row offers (settings/Containers.lua, read at call time): a
+    -- hand-edited DIALOG or higher is no HUD tier and falls back (frame-layering-§1).
+    local V = NS.ContainerValues
+    local strata = c.anchor.strata
+    root:SetFrameStrata(V and V.STRATA and V.STRATA[strata] and strata or LAYERS.STRATA.HUD)
     -- The container's own scale inside the Master controls' Master scale.
     inst.appliedScale = (tonumber(lay.scale) or 1) * (tonumber(NS.GetSetting("scale")) or 1)
     root:SetScale(inst.appliedScale)
@@ -216,6 +224,9 @@ end
 
 --- Build the enabled elements this frame does not have yet, style them, and hide the rest.
 local function applyElements(inst, c)
+    -- The chips this character shows, resolved once per apply (NS.CM.SpellChips): the stored list,
+    -- else the logged-in class's seeds. The per-tick reads use this, never the resolver.
+    inst.chipList = NS.CM.SpellChips(c)
     for name, mod in pairs(ELEMENT) do
         local cfg, el = c.elements[name], inst.elements[name]
         if type(cfg) == "table" and cfg.enabled then
@@ -439,7 +450,7 @@ end
 local function spellList(inst, state)
     local c = inst.container
     local sp = c and c.elements.spells
-    if sp and sp.enabled and state ~= nil and state ~= "none" and type(sp.list) == "table" then return sp.list end
+    if sp and sp.enabled and state ~= nil and state ~= "none" then return inst.chipList end
     return nil
 end
 

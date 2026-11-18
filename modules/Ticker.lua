@@ -159,6 +159,12 @@ end
 
 --- `unit` is gone as of now (a nameplate being removed): its consumers hear "none" at once, and
 --- the ticker stops if nothing live is left. An unwatched unit is ignored.
+--- WHY IT STAYS, though today's addon rarely gets past the guard: core/RangeMaster.lua calls it after
+--- NS.Plates.Removed, which has already parked every per-plate instance on the token, and those are
+--- the token's only watchers, so `watched[unit]` is nil by then. It is the guarantee for any OTHER
+--- watcher of a plate token (tests/test_ticker.lua watches one directly): the client still resolves
+--- the token while NAME_PLATE_UNIT_REMOVED dispatches, so such a watcher must hear "none" here
+--- rather than a re-read that sees the plate as live. Removing it would leave that rule unenforced.
 function Ticker.Removed(unit)
     if not watched[unit] or NS.IsStoodDown() then return end
     publish(unit, "none")

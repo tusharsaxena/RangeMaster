@@ -50,6 +50,9 @@ function addon:OnEnable()
     -- The panel and the dispatcher are SETUP and come up in either state; the events are a FEATURE
     -- and come up only if the addon is actually running (slash-commands-§7).
     if not NS.IsStoodDown() then self:RegisterLifecycleEvents() end
+    -- The stored containers draw now, whatever the skin did: the skin's OnLooksChanged is no trigger
+    -- for the first apply. Stood down, this only marks the apply owed; the stand-up's CM.StandUp runs it.
+    NS.CM.RequestApply()
     if NS.CreateOptionsPanel then NS.CreateOptionsPanel() end
     showFirstRunPickers()
 end
@@ -136,7 +139,9 @@ end
 --- A plate came or went. The plate registry hears it first (modules/Anchors_Nameplate.lua: a plate
 --- instance built or parked, the own-plate containers placed), then the range: an added plate's token
 --- is re-read, a removed one is sent as "none" outright, because the client still resolves the token
---- while NAME_PLATE_UNIT_REMOVED dispatches and a re-read would see the plate as live.
+--- while NAME_PLATE_UNIT_REMOVED dispatches and a re-read would see the plate as live. The plate
+--- registry's park has normally dropped the token's last watch already, so Ticker.Removed is the
+--- guard for any other watcher of it (modules/Ticker.lua says why it stays).
 function addon:OnNamePlateChanged(event, token)
     if type(token) ~= "string" or not NS.Compat.IsSafeKey(token) then return end
     if event == "NAME_PLATE_UNIT_REMOVED" then

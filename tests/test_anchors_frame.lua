@@ -252,23 +252,39 @@ test("picker: NamedAncestor walks to the nearest named ancestor, skipping UIPare
   assertNil(FP.NamedAncestor(nil))
 end)
 
-test("picker: a left click on a named frame calls back with its name and ends the pick", function()
+test("picker: Enter on a named frame calls back with its name and ends the pick", function()
   local picked
   local target = H.frame("SomeAddonFrame")
   M.__mouseFoci[1] = target
-  M.__mouseDown.LeftButton = true
   assertTrue(FP.Start(function(name) picked = name end))
   local overlay = FP.__overlay()
-  overlay:__fire("OnUpdate")             -- the click that started it is still held: not armed yet
-  assertNil(picked, "the starting click picks nothing")
-  M.__mouseDown.LeftButton = false
-  overlay:__fire("OnUpdate")             -- armed
-  M.__mouseDown.LeftButton = true
-  overlay:__fire("OnUpdate")
-  M.__mouseDown.LeftButton, M.__mouseFoci[1] = false, nil
+  overlay:__fire("OnUpdate")             -- the hovered frame is tracked
+  overlay:__fire("OnKeyDown", "A")       -- any other key passes through
+  assertNil(picked, "only Enter picks")
+  overlay:__fire("OnKeyDown", "ENTER")
+  M.__mouseFoci[1] = nil
   assertEqual(picked, "SomeAddonFrame")
   assertFalse(FP.IsActive())
   assertNil(overlay:GetScript("OnUpdate"), "its OnUpdate went with it")
+end)
+
+test("picker: a mouse press neither picks nor cancels (the click belongs to the game)", function()
+  -- red under: an onUpdate that reads IsMouseButtonDown (the click would also reach the frame under
+  -- the non-mouse overlay: PlayerFrame targets, an action button casts).
+  local canceled, picked = false, nil
+  M.__mouseFoci[1] = H.frame("SomeAddonFrame")
+  FP.Start(function(n) picked = n end, function() canceled = true end)
+  local overlay = FP.__overlay()
+  overlay:__fire("OnUpdate")
+  M.__mouseDown.LeftButton = true
+  overlay:__fire("OnUpdate")
+  M.__mouseDown.LeftButton, M.__mouseDown.RightButton = false, true
+  overlay:__fire("OnUpdate")
+  M.__mouseDown.RightButton, M.__mouseFoci[1] = false, nil
+  assertNil(picked, "a left press picks nothing")
+  assertFalse(canceled, "a right press cancels nothing")
+  assertTrue(FP.IsActive(), "the pick is still running")
+  FP.Stop()
 end)
 
 test("picker: refused in combat with one gray line, and combat during a pick cancels it", function()
@@ -290,14 +306,12 @@ test("picker: refused in combat with one gray line, and combat during a pick can
   assertNil(FP.__overlay():GetScript("OnUpdate"))
 end)
 
-test("picker: a right click cancels", function()
+test("picker: Escape cancels", function()
   local canceled, picked = false, nil
   FP.Start(function(n) picked = n end, function() canceled = true end)
   local overlay = FP.__overlay()
   overlay:__fire("OnUpdate")
-  M.__mouseDown.RightButton = true
-  overlay:__fire("OnUpdate")
-  M.__mouseDown.RightButton = false
+  overlay:__fire("OnKeyDown", "ESCAPE")
   assertTrue(canceled)
   assertNil(picked)
   assertFalse(FP.IsActive())

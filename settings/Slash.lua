@@ -270,12 +270,13 @@ function runDelete(rest)
     if arg == "" then return print(L["Usage: /rm delete <number or name> \226\128\148 /rm containers lists them"]) end
     local id = containerArg(arg)
     if not id then return end
-    printf(L["Deleted container '%s'."], NS.DeleteContainer(id))
+    -- The panel's confirmation (settings/Containers.lua): its Yes deletes and prints the line.
+    NS.ConfirmDeleteContainer(id)
 end
 
 function runPick()
     if NS.PickFrameForSelected() then
-        print(L["Click a frame to attach the selected range display to it; right-click or Escape cancels."])
+        print(L["Point at a frame and press Enter to attach the selected range display to it; Escape cancels."])
     end
 end
 
