@@ -77,6 +77,57 @@ test("presets: test_first_run_picker_once — the picker shows once per profile,
   end)
 end)
 
+--- Stand in for the client's StaticPopup_Hide, which runs the dialog's OnHide as it closes it.
+local function withClientHide(body)
+  local saved = rawget(M, "StaticPopup_Hide")
+  M.StaticPopup_Hide = function(which)
+    local d = M.StaticPopupDialogs[which]
+    if d and d.OnHide then d.OnHide() end
+  end
+  local ok, err = pcall(body)
+  M.StaticPopup_Hide = saved
+  if not ok then error(err, 0) end
+end
+
+--- Count NS.MaybeShowSkinPicker calls while `body` runs (the picker itself is not shown).
+local function countSkinAsks(body)
+  local saved, n = NS.MaybeShowSkinPicker, 0
+  NS.MaybeShowSkinPicker = function() n = n + 1 end
+  local ok, err = pcall(body)
+  NS.MaybeShowSkinPicker = saved
+  if not ok then error(err, 0) end
+  return n
+end
+
+test("presets: taking the picker down offers no skin picker; the player's close does", function()
+  E.with(function()
+    E.spyPopups()
+    withClientHide(function()
+      assertEqual(countSkinAsks(function() NS.HidePresetPicker() end), 0,
+        "the stand-down and a profile event close it quietly")
+      assertEqual(countSkinAsks(function() M.StaticPopupDialogs.RANGEMASTER_PRESET_PICKER.OnHide() end), 1,
+        "Not now, Escape or Choose a preset offers the skin picker next")
+    end)
+  end)
+end)
+
+test("presets: a profile change while the picker is up shows only the new profile's preset picker", function()
+  E.with(function(p)
+    local shown = E.spyPopups()
+    assertTrue(NS.MaybeShowPresetPicker())
+    local other = {}
+    NS.Database.PrepareProfile(other)
+    NS.db.profile = other
+    withClientHide(function()
+      local asks = countSkinAsks(function() NS.OnProfileChanged() end)
+      assertEqual(asks, 0, "the skin picker waits behind the new profile's preset picker")
+    end)
+    assertEqual(#shown, 2, "the new profile's preset picker showed")
+    assertEqual(shown[2].which, "RANGEMASTER_PRESET_PICKER")
+    NS.db.profile = p
+  end)
+end)
+
 test("presets: the picker's Choose a preset opens the General page on its Presets tab", function()
   E.with(function()
     local opened

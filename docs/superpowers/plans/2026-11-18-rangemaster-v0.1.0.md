@@ -22,7 +22,7 @@
 | 5 | Container rendering + elements | done | 6a50bdf + `Task 5: review fixes` | yes |
 | 6 | Anchors (screen, frame, nameplate, cursor) | done | ffccb82 + `Task 6: review fixes` | yes |
 | 7 | Visibility, sounds, lock, Test mode, Sim mode | done | 9ad54b6 + `Task 7: review fixes` | yes |
-| 8 | Settings pages + slash verbs | done | `Settings: Containers, Band sets, Presets pages and slash verbs` | no |
+| 8 | Settings pages + slash verbs | done | `Settings: Containers, Band sets, Presets pages and slash verbs` + `Task 8: review fixes` | no |
 | 9 | Docs set, roster row, automated-test + audit bundles, GitHub issues | todo | | |
 | 10 | Whole-branch review + fixes, push, await merge go-ahead | todo | | |
 
@@ -155,6 +155,7 @@ row (status, short SHA) in the same commit that finishes it. Push after tasks 1,
 **Interfaces:**
 - Consumes: everything above. Pages per spec §5.6 and the mockup (boards 2, 3, 5): Containers banner picker + `New container`, rail General · Display · Indicator · Visibility · Sounds (Sounds hidden for `nameplates`), live band preview; Band sets picker + New/Duplicate, distance ribbon, drag-to-reorder band rows (from, to, label, frame/text/indicator colour each with class-colour companion, sound), match-by, unknown label; General › Presets tab with three cards and Apply (confirm) + Undo; first-run preset picker when `seeded == false`.
 - Produces: schema paths `container.<key>` and `bandSet.<key>` resolved against the selected item; slash verbs `containers`, `select <n|name>`, `new [unit]`, `delete <n>`, `pick`, `bands`, `preset <key>`, `test`, `sim` plus the reserved set.
+- **As built (deviations from the Interfaces above, decided at the Task 8 review; spec 5.6 records them):** band rows are not drag-reordered (a set is sorted by its edges, so a band moves by its `Up to`; options-ui-§18 binds a list whose order is the setting), and the band colors take no class-color companion (options-ui-§17's palette-swatch exemption). A band's own fields are the Bands host editor's only (options-ui-§13), so `/rm set` does not reach them. Added at review: the element order as a ReorderList on Containers › Display › Layout plus `container.elements.order` (comma-separated names) on the CLI; unique band-set names (`NS.BandSets.UniqueName`) and an ambiguous name refused by `/rm bands` / `/rm select`; the first-run preset picker's own take-down no longer offers the skin picker.
 
 - [ ] **Step 1: Write failing tests:** surface parity for every new row; `test_container_paths_get_set` (`/rm set container.unit focus` changes the selected container); `test_bandset_paths_get_set`; `test_sounds_section_hidden_for_nameplates`; `test_preset_apply_confirms`; `test_first_run_picker_once`; `test_open_in_combat_refused`; slash `test_new_unit_arg`, `test_select_by_name`, `test_preset_verb`.
 - [ ] **Step 2–4:** Fail, implement, gate. Commit `Settings: Containers, Band sets, Presets pages and slash verbs`, ledger row 8. Push.

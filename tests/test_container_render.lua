@@ -584,6 +584,23 @@ test("render: an element font naming a LibSharedMedia key draws that face at the
   end)
 end)
 
+test("render: an element's shadow turns the font string's shadow offset on and off", function()
+  withRenderer(function()
+    local id, _, inst = newContainer({ elements = { number = { shadow = true }, text = { enabled = true } } })
+    local offset = M.__paint(inst.elements.number.fs).shadowOffset
+    assertEqual(offset[1], 1, "shadow on: offset one right")
+    assertEqual(offset[2], -1, "and one down")
+    offset = M.__paint(inst.elements.text.fs).shadowOffset
+    assertEqual(offset[1], 0, "the text element's shadow is its own, off")
+    assertEqual(offset[2], 0)
+    CM.SetField(id, "elements.number.shadow", false)
+    CM.FlushPending()
+    offset = M.__paint(inst.elements.number.fs).shadowOffset
+    assertEqual(offset[1], 0, "shadow off: no offset")
+    assertEqual(offset[2], 0)
+  end)
+end)
+
 test("render: a LibSharedMedia border draws on a backdrop of its own, band-colored, its tiling tracked", function()
   withRenderer(function()
     local resized = 0

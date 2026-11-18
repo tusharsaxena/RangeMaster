@@ -208,14 +208,31 @@ end
 local function trimmed(rest) return ((rest or ""):match("^%s*(.-)%s*$")) end
 
 --- The id in `ids` that `arg` names: a position in the list ("2"), else a name (any case). Nil when
---- it names none.
+--- it names none; nil and "ambiguous" when two share the name. Every writer keeps names unique
+--- (NS.CM.UniqueName, NS.BandSets.UniqueName), so only a hand-edited SavedVariables file meets that,
+--- and then the number still selects either one.
 local function resolveIn(ids, arg, nameOf)
     local n = tonumber(arg)
     if n and ids[n] then return ids[n] end
-    local want = arg:lower()
+    local want, found = arg:lower(), nil
     for _, id in ipairs(ids) do
-        if tostring(nameOf(id)):lower() == want then return id end
+        if tostring(nameOf(id)):lower() == want then
+            if found then return nil, "ambiguous" end
+            found = id
+        end
     end
+    return found
+end
+
+--- The id `arg` names among the containers, or nil after saying why not.
+local function containerArg(arg)
+    local id, why = resolveIn(NS.CM.List(), arg, function(cid) return NS.CM.Get(cid).name end)
+    if why then
+        printf(L["More than one range display is named '%s' \226\128\148 use its number from /rm containers"], arg)
+    elseif not id then
+        printf(L["No range display '%s' \226\128\148 /rm containers lists them"], arg)
+    end
+    return id
 end
 
 local function containerName(id) return NS.CM.Get(id).name end
@@ -234,8 +251,8 @@ end
 function runSelect(rest)
     local arg = trimmed(rest)
     if arg == "" then return print(L["Usage: /rm select <number or name> \226\128\148 /rm containers lists them"]) end
-    local id = resolveIn(NS.CM.List(), arg, containerName)
-    if not id then return printf(L["No range display '%s' \226\128\148 /rm containers lists them"], arg) end
+    local id = containerArg(arg)
+    if not id then return end
     NS.ShowContainer(id)
     printf(L["Selected '%s': container.* settings now mean this display."], containerName(id))
 end
@@ -251,8 +268,8 @@ end
 function runDelete(rest)
     local arg = trimmed(rest)
     if arg == "" then return print(L["Usage: /rm delete <number or name> \226\128\148 /rm containers lists them"]) end
-    local id = resolveIn(NS.CM.List(), arg, containerName)
-    if not id then return printf(L["No range display '%s' \226\128\148 /rm containers lists them"], arg) end
+    local id = containerArg(arg)
+    if not id then return end
     printf(L["Deleted container '%s'."], NS.DeleteContainer(id))
 end
 
@@ -266,7 +283,10 @@ function runBands(rest)
     local arg = trimmed(rest)
     local ids = NS.BandSets.List()
     if arg ~= "" then
-        local id = resolveIn(ids, arg, bandSetName)
+        local id, why = resolveIn(ids, arg, bandSetName)
+        if why then
+            return printf(L["More than one band set is named '%s' \226\128\148 use its number from /rm bands"], arg)
+        end
         if not id then return printf(L["No band set '%s' \226\128\148 /rm bands lists them"], arg) end
         NS.ShowBandSet(id)
         return printf(L["Selected band set '%s': bandSet.* settings now mean this set."], bandSetName(id))

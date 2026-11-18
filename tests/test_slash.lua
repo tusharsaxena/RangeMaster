@@ -293,6 +293,29 @@ test("slash: /rm bands lists the band sets with the selection marked, and select
   end)
 end)
 
+test("slash: a name two band sets or containers share is ambiguous, and selects neither", function()
+  E.with(function(p)
+    local ids = NS.BandSets.List()
+    -- A hand-edited SavedVariables file is the one way two names can still meet: every writer suffixes.
+    p.bandSets[ids[2]].name, p.bandSets[ids[3]].name = "Twin", "twin"
+    NS.SelectBandSet(ids[1])
+    local out = rm("bands Twin")
+    local _, selected = NS.SelectedBandSet()
+    assertEqual(selected, ids[1], "the selection did not move")
+    assertTrue(E.said(out, "More than one band set is named 'Twin'"), "and the ambiguity is said: " .. table.concat(out, " | "))
+    rm("bands 3")
+    _, selected = NS.SelectedBandSet()
+    assertEqual(selected, ids[3], "its number still selects it")
+    local a, b = NS.CM.Create("target"), NS.CM.Create("focus")
+    p.containers[b].name = "target"
+    NS.SelectContainer(b)
+    out = rm("select Target")
+    local _, sel = NS.SelectedContainer()
+    assertEqual(sel, b, "an ambiguous container name moves nothing")
+    assertTrue(a ~= b and E.said(out, "More than one range display is named 'Target'"), table.concat(out, " | "))
+  end)
+end)
+
 test("slash: /rm pick starts the frame picker for the selected container, whose pick attaches it", function()
   E.with(function()
     local id = NS.CM.Create("target")

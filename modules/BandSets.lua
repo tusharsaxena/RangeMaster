@@ -6,6 +6,7 @@ local _, NS = ...
 --   NS.BandSets.Create(name, bandsOrPresetKey?) -> id     a preset key, a bands array, or nil (Melee / Ranged)
 --   NS.BandSets.Delete(id, reassignTo?) -> boolean        never the last set
 --   NS.BandSets.Duplicate(id) -> id, Rename(id, name) -> boolean
+--   NS.BandSets.UniqueName(base, exceptId?) -> name   every writer's name: unique, case-blind
 --   NS.BandSets.List() -> { id, ... }, Get(id) -> set, DefaultId() -> id, Normalize(id) -> boolean
 --   NS.BandSets.SetBandSound(id, bandIndex, sound?) -> boolean   one band's LSM sound key (nil clears)
 --   NS.BandSets.SetField(id, field, value) -> boolean    matchBy, unknown.label, unknown.color
@@ -209,6 +210,21 @@ local function cleanName(name)
     return name
 end
 
+--- A name no other set uses: `base`, else `base 2`, `base 3`, ... Names that differ only in case are
+--- taken, because `/rm bands <name>` matches without case (as NS.CM.UniqueName for containers).
+--- `exceptId`'s own name is free (a rename to itself).
+function BandSets.UniqueName(base, exceptId)
+    base = cleanName(base) or L["New band set"]
+    local taken, p = {}, profile()
+    for id, set in pairs(p and p.bandSets or {}) do
+        if id ~= exceptId and type(set.name) == "string" then taken[set.name:lower()] = true end
+    end
+    if not taken[base:lower()] then return base end
+    local n = 2
+    while taken[("%s %d"):format(base, n):lower()] do n = n + 1 end
+    return ("%s %d"):format(base, n)
+end
+
 --- A new set from a preset key, a bands array, or nothing (Melee / Ranged). Nil for an unknown key.
 local function build(name, arg)
     local set = copy(NS.BANDSET_TEMPLATE)
@@ -230,29 +246,31 @@ function BandSets.Create(name, bandsOrPresetKey)
     if not (p and p.bandSets) then return nil end
     local set = build(name, bandsOrPresetKey)
     if not set then return nil end
+    set.name = BandSets.UniqueName(set.name)
     local id = insert(p, set)
     announce()
     return id
 end
 
---- Duplicate set `id` (deep-copied) right after it. Answers the new id, or nil.
+--- Duplicate set `id` (deep-copied) right after it, named "<name> copy" (made unique). Answers the
+--- new id, or nil.
 function BandSets.Duplicate(id)
     local p = profile()
     local src = p and p.bandSets and p.bandSets[id]
     if not src then return nil end
     local set = BandSets.NormalizeSet(copy(src))
-    set.name = L["%s copy"]:format(src.name)
+    set.name = BandSets.UniqueName(L["%s copy"]:format(src.name))
     local newId = insert(p, set, id)
     announce()
     return newId
 end
 
---- Rename set `id`. Refuses a blank name or an unknown id.
+--- Rename set `id` (trimmed, made unique against the others). Refuses a blank name or an unknown id.
 function BandSets.Rename(id, name)
     local set = BandSets.Get(id)
     name = cleanName(name)
     if not (set and name) then return false end
-    set.name = name
+    set.name = BandSets.UniqueName(name, id)
     announce()
     return true
 end

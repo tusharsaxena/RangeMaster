@@ -123,6 +123,11 @@ NS.PRESETS_TAB = {
 -- ---------------------------------------------------------------------------
 
 local holdTarget   -- the one-shot PLAYER_REGEN_ENABLED target while a showing waits out combat
+-- True while NS.HidePresetPicker takes the picker down: the client runs OnHide on that close too,
+-- and a close that is ours (the stand-down, a profile event) offers no skin picker. A profile event
+-- asks for both prompts afresh once the new profile is in (core/RangeMaster.lua), the skin picker
+-- still behind this one, so the two never show at once. core/SkinSetup.lua does the same.
+local quietClose = false
 
 local function dropHold()
     if not holdTarget then return end
@@ -139,7 +144,10 @@ StaticPopupDialogs["RANGEMASTER_PRESET_PICKER"] = {
     hideOnEscape = true,
     OnAccept     = function() NS.OpenGeneralTab("Presets") end,
     -- The skin picker waited behind this one; it is offered once this closes, however it closed.
-    OnHide       = function() if NS.MaybeShowSkinPicker then NS.MaybeShowSkinPicker() end end,
+    OnHide       = function()
+        if quietClose then return end
+        if NS.MaybeShowSkinPicker then NS.MaybeShowSkinPicker() end
+    end,
 }
 
 --- Show the first-run picker when it is owed on this profile and the addon stands up; in combat, hold
@@ -168,7 +176,11 @@ end
 --- Take the picker down unanswered and drop a held showing: the stand-down and every profile event.
 function NS.HidePresetPicker()
     dropHold()
-    if StaticPopup_Hide then StaticPopup_Hide("RANGEMASTER_PRESET_PICKER") end
+    if not StaticPopup_Hide then return end
+    quietClose = true
+    local ok, err = pcall(StaticPopup_Hide, "RANGEMASTER_PRESET_PICKER")
+    quietClose = false
+    if not ok then error(err, 0) end
 end
 
 --- Open the General page on tab `tabKey`. Refused in combat by the open itself (options-ui-§2).

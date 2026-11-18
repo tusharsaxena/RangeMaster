@@ -202,6 +202,25 @@ rows with from / to / label / 3 colours / sound; match-by; unknown label); **Pro
 combat is refused with a gray line. Rows use `container.*` / `bandSet.*` paths resolved against
 the selected item, so `/rm get|set` works on them.
 
+**As built (plan Task 8 and its review), three points differ from the text above and the mockup's
+Bands board, by decision:**
+
+- **Band rows are not drag-reordered.** Every set is kept sorted by its edges, contiguous from 0
+  (5.2), so a band's place in the list *is* its `Up to`: the editor moves a band by moving its edge.
+  options-ui-§18 binds a list whose order is the setting, and this one's order is derived. The
+  mockup's drag handles on the Bands board are superseded.
+- **Band colors take no class-color companion.** Each band color identifies a band, not a player:
+  options-ui-§17's palette-swatch exemption. Class color is the container's own Color from.
+- **A band's own fields are panel-only.** The Bands tab is an options-ui-§13 host editor: a band is
+  one of a list the player grows, which no schema path can name, so its edge, label, three colors and
+  sound, and Add band / Remove band, are path-less controls reaching `NS.BandSets.SetBand`,
+  `SetBandSound`, `AddBand` and `RemoveBand`. `/rm get|set bandSet.*` reaches the set's name, match
+  rule and unknown label and color. Recorded in `docs/ARCHITECTURE.md` Known Limitations.
+
+The element order is reorderable as 5.2 and section 2 say: a ReorderList on Containers › Display ›
+Layout, and `container.elements.order` on the CLI as comma-separated names. Band-set names are kept
+unique (case-blind) as container names are, so `/rm bands <name>` names one set.
+
 ### 5.7 Slash
 
 `/rm` and `/rangemaster`. Reserved verbs per the standard plus: `containers`, `select <n>`,

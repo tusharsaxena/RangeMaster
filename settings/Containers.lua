@@ -529,6 +529,9 @@ end
 --- order: PageBanner, NavRail, TabStrip; options-ui-§13, §14).
 function render(ctx)
     ctx.sectionTabs = ctx.sectionTabs or {}
+    -- Before the clear, never after (options-ui-§18): the Display entry's drag list holds frames on
+    -- AceGUI widgets the clear hands back to the pool.
+    if NS.CancelElementOrder then NS.CancelElementOrder(ctx) end
     H.ClearScroll(ctx)
     local scroll = H.EnsureScroll(ctx)
     local c, id = NS.SelectedContainer()

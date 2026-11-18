@@ -183,7 +183,8 @@ the namespace, so `.CM.Create("target")` makes a single container the same way).
   color as the band does. Result:
 - **DRAW-2. Unknown is gray.** Target a unit the client will not range (far out of sight, or a
   friendly player in combat with no friendly spell) → `?` in gray, never the out-of-range red. Result:
-- **DRAW-3. Elements and order.** Turn on text, a dot and spell chips, reorder them, switch the
+- **DRAW-3. Elements and order.** Turn on text, a dot and spell chips, drag them into a new order
+  (Containers > Display > Layout > Element order; or `/rm set container.elements.order spells,text`), switch the
   direction to column → every element draws, in that order, the frame closes around them. Every
   shape (dot, ring, square, diamond, triangle, bar, icon) draws without a missing-texture green.
   Result:

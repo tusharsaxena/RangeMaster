@@ -67,7 +67,7 @@ selection moves to one.
 | Entry (page key) | Tabs | Rows |
 |---|---|---|
 | General (`containers`) | General, Position | Name, Enable this container; What it tracks: Unit, Band set, Friendly band set; then Duplicate container, Delete container… (confirmed), Copy settings from and the band Preview. Position: Attach to, and the rows of the chosen placement only (`shownWhen`, options-ui-§22): on the unit frame (Unit frames from, Frame name for a custom frame, points, offsets, **Pick on screen**), on screen (points, offsets, Frame strata), at the cursor, on the nameplate (and Friendly nameplates too for All nameplates) |
-| Display (`containers_display`) | Layout, Frame, Number, Text | Direction, Spacing, Padding, Container scale, Container opacity; the composed border block and the background pair; Show number and Format with the composed Font block; Show text label and Uppercase with the composed Font block |
+| Display (`containers_display`) | Layout, Frame, Number, Text | Direction, Spacing, Padding, Container scale, Container opacity, then **Element order**: a LibKa0s-Widgets `ReorderList` with one row per element (one turned off reads dimmed and keeps its place), whose drop writes `container.elements.order` (options-ui-§18; on the CLI the row takes names, `number,text` putting those first); the composed border block and the background pair; Show number and Format with the composed Font block; Show text label and Uppercase with the composed Font block |
 | Indicator (`containers_indicator`) | Indicator, Spell chips | Show indicator, Shape, Size and the composed color pair; Show spell chips, Style, Size |
 | Visibility (`containers_visibility`) | Visibility | Show (always, in combat, out of combat), Reaction, Hide with no unit, Out of combat opacity |
 | Sounds (`containers_sounds`) | Sounds | Play band sounds, Sound channel |
@@ -84,7 +84,12 @@ band set…** (confirmed; its containers move to the default set; the last set i
 **Bands** (a host editor): the distance ribbon, then per band Up to (yards), Label, Frame / Text /
 Indicator color and Sound on enter, Remove band, and **Add band** at the foot. The bands are ordered
 by their edges (`modules/BandSets.lua` normalizes every write), so a band moves by moving its edge and
-there is no reorder control. The header **Defaults** restores the match rule and the unknown label and
+there is no reorder control (options-ui-§18 binds a list whose order is the setting; this one's is
+derived). The band colors are palette swatches (options-ui-§17's one exemption): each identifies a
+band, so none takes a class-color companion; class color is the container's own Color from. A band's
+controls are path-less (options-ui-§13 host editor), so `/rm get|set` does not reach them; every
+band-set name is unique (`NS.BandSets.UniqueName`), and a name two sets still share (a hand-edited
+SavedVariables file) is refused by `/rm bands` as ambiguous. The header **Defaults** restores the match rule and the unknown label and
 color; the name and the bands are kept.
 
 ## The launcher

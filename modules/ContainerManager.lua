@@ -15,6 +15,8 @@ local _, NS = ...
 --   NS.CM.ResetPosition(id) -> boolean       back to the new-container point (Reset position)
 --   NS.CM.SetField(id, field, value) -> boolean   one setting of one container, by its dotted field
 --                                            (the settings pages' and `/rm set container.<field>`'s writer)
+--   NS.CM.IsElementOrder(v) -> boolean       an array naming each of the four elements once: the only
+--                                            `elements.order` SetField stores (the drag list's, the CLI's)
 --
 -- APPLYING IS COALESCED AND DEFERRED. Every write above asks for an apply; the request arms one
 -- zero-delay C_Timer, so a whole preset or a slider drag announces CONTAINERS_CHANGED once, on the
@@ -244,11 +246,28 @@ local function templateValue(field)
     return node
 end
 
+--- Whether `v` is an arrangement of the template's elements: an array naming each exactly once.
+function CM.IsElementOrder(v)
+    local names = NS.CONTAINER_TEMPLATE.elements.order
+    if type(v) ~= "table" or #v ~= #names then return false end
+    local want, seen, n = {}, {}, 0
+    for _, name in ipairs(names) do want[name] = true end
+    for _ in pairs(v) do n = n + 1 end
+    if n ~= #v then return false end
+    for _, name in ipairs(v) do
+        if not want[name] or seen[name] then return false end
+        seen[name] = true
+    end
+    return true
+end
+
 --- Whether `value` may be stored at `field`: a band-set reference names a stored set (or is nil), the
---- unit is one RangeMaster watches, and anything else has the template leaf's type.
+--- unit is one RangeMaster watches, the element order is an arrangement of the four elements, and
+--- anything else has the template leaf's type.
 local function acceptable(field, value)
     if NILABLE[field] then return value == nil or NS.BandSets.Get(value) ~= nil end
     if field == "unit" then return UNIT_NAME[value] ~= nil end
+    if field == "elements.order" then return CM.IsElementOrder(value) end
     local leaf = templateValue(field)
     return leaf ~= nil and type(leaf) == type(value)
 end

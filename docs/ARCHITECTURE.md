@@ -72,7 +72,9 @@ the container's `bandSetFriendly` when it is set, exists and `NS.Compat.IsFriend
 friendly, else its `bandSet`, else the default. The default set is the first in `bandSetOrder`; the
 first-run seed puts the class default there (`NS.BandSetPresets.DefaultFor`). Deleting a set moves
 every container on it to the named replacement or the default (a friendly override on it falls away
-unless a replacement was named), and the last set cannot be deleted. The Hunter preset is two lists,
+unless a replacement was named), and the last set cannot be deleted. Names stay unique, case-blind:
+`Create`, `Duplicate` (`"<name> copy"`) and `Rename` all go through `UniqueName` (`Caster 40 copy`,
+`Caster 40 copy 2`), as containers do, so `/rm bands <name>` names one set. The Hunter preset is two lists,
 one per client, picked once at load (clients-§5): WoW Forever's has the 5-8 yd Auto Shot dead zone.
 
 ### Containers and presets
@@ -82,7 +84,8 @@ opts?)` (a deep copy of the template on the default band set, the class's spell-
 `defaults/SpellSeeds.lua`, `opts` merged over it but never over the checked positional unit, a
 screen container staggered by id), `Delete`,
 `Duplicate` (after its source, `"<name> copy"`, a screen copy offset), `Rename`, `UniqueName`
-(`Target`, `Target 2`, case-insensitive), `CopySettings` (never name, enabled, unit or anchor),
+(`Target`, `Target 2`, case-insensitive), `SetField` (one dotted field; `elements.order` only as an
+arrangement of the four elements, `IsElementOrder`), `CopySettings` (never name, enabled, unit or anchor),
 `Clear`, and `Snapshot` / `RestoreSnapshot`, which carry both registries, ids included, the band-set
 half through `NS.BandSets.Snapshot` / `RestoreSnapshot`. A restore never rewinds either id counter
 (each keeps the higher of its own and the snapshot's), so an id is never reused. Every write calls `RequestApply`, which
@@ -103,7 +106,9 @@ Intermediate with spell chips on focus and sounds on target (its set's out-of-ra
 every hostile nameplate (dot + the `max` number), both in combat only. `Describe(key)` feeds the
 preset cards on General › Presets. `PickerDue` / `MarkPickerSeen` are the one runtime reader and
 writer of `profile.seeded`, the first-run preset picker's sentinel (`settings/Presets.lua` shows the
-picker and marks it seen as it shows).
+picker and marks it seen as it shows). Its own take-down (`NS.HidePresetPicker`: the stand-down and
+every profile event) closes it quietly, so the client's `OnHide` offers no skin picker then; the
+player's close does, and a profile event asks for both prompts afresh, the skin picker still behind.
 
 ### Rendering
 
@@ -401,10 +406,14 @@ placed out of combat, because both modes are refused in it and ended at its star
 
 ## Known Limitations
 
-- Three container fields have no settings row: the element order (`elements.order`), the spell
+- Two container fields have no settings row: the spell
   chips' list (`elements.spells.list`, seeded per client and class on create) and the icon
   indicator's spell (`elements.indicator.spellID`, nil = the first chip). They keep their stored
   values and are copied by Duplicate and Copy settings from.
+- A band's own fields (its edge, label, three colors and sound) and Add band / Remove band are the
+  Band sets page's Bands editor only: a band is one of a list the player grows, which no schema path
+  can name, so `/rm get|set` reaches a band set's name, match rule and unknown label and color, not
+  its bands (design spec 5.6 records this).
 - The first-run preset picker is a popup that opens the General page's Presets tab, not a window of
   its own with the cards in it; a disabled addon that is enabled later is not offered it.
 - Sim mode's sweep moves every container through one simulated distance; it does not simulate a

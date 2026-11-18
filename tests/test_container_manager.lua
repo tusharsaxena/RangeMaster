@@ -131,6 +131,22 @@ test("cm: Rename trims, keeps names unique and refuses a blank name or an unknow
   end)
 end)
 
+test("cm: SetField stores elements.order only as an arrangement of the four elements, each once", function()
+  withFreshProfile(function()
+    local id = CM.Create("target")
+    local function order() return table.concat(CM.Get(id).elements.order, ",") end
+    assertTrue(CM.SetField(id, "elements.order", { "number", "text", "spells", "indicator" }))
+    assertEqual(order(), "number,text,spells,indicator", "a full arrangement is stored as given")
+    assertFalse(CM.SetField(id, "elements.order", { "number", "number", "text", "spells" }),
+      "a name twice is refused")
+    assertFalse(CM.SetField(id, "elements.order", { "number", "text", "spells" }), "a missing element is refused")
+    assertFalse(CM.SetField(id, "elements.order", { "number", "text", "spells", "bogus" }),
+      "a name that is no element is refused")
+    assertFalse(CM.SetField(id, "elements.order", { number = true }), "a map is refused")
+    assertEqual(order(), "number,text,spells,indicator", "a refusal stores nothing")
+  end)
+end)
+
 test("cm: test_delete_removes_from_order — the member and its order slot both go", function()
   withFreshProfile(function(p)
     local a, b, c = CM.Create("target"), CM.Create("focus"), CM.Create("pet")

@@ -23,6 +23,9 @@ local _, NS = ...
 --
 -- THE BAND COLORS ARE A PALETTE (options-ui-§17): each identifies a band, not a player, so none takes
 -- a class-color companion. Class color is the container's own Color from (the Containers page).
+--
+-- Both choices, and the Bands tab's rows being out of `/rm set`'s reach, are recorded as decided in the
+-- design spec (5.6, "As built") and docs/ARCHITECTURE.md's Known Limitations.
 
 local L = NS.L
 local H = NS.Helpers

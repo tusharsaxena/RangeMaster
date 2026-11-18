@@ -302,3 +302,79 @@ test("settings: every rail entry is one page key, and every Containers row names
   assertEqual(errors, 0)
   assertEqual(missing, 0, "every container. and bandSet. path resolves against its template")
 end)
+
+test("settings: test_element_order_paths_get_set — /rm get|set container.elements.order reads and moves the selected container's elements", function()
+  E.with(function()
+    local a, b = CM.Create("target"), CM.Create("pet")
+    NS.SelectContainer(a)
+    local function order(id) return table.concat(CM.Get(id).elements.order, ",") end
+    assertTrue(E.said(slash("get container.elements.order"), "indicator,number,text,spells"),
+      "the order reads as the element names, comma-separated")
+    slash("set container.elements.order spells,text,number,indicator")
+    assertEqual(order(a), "spells,text,number,indicator", "a full list is the new order")
+    assertEqual(order(b), "indicator,number,text,spells", "on the selected container only")
+    slash("set container.elements.order number")
+    assertEqual(order(a), "number,spells,text,indicator", "a shorter list moves those to the front, the rest kept in order")
+    local out = slash("set container.elements.order number,bogus")
+    assertEqual(order(a), "number,spells,text,indicator", "a name that is no element is refused")
+    assertTrue(#out > 0, "and the refusal is said")
+    slash("set container.elements.order text,text")
+    assertEqual(order(a), "number,spells,text,indicator", "an element named twice is refused")
+  end)
+end)
+
+--- The Display entry's Layout tab, drawn for the selected container: its ctx.
+local function layoutTab()
+  local ctx = E.page("containers", "Containers")
+  ctx.activeSection, ctx.sectionTabs = "containers_display", { containers_display = "Layout" }
+  NS.__renderContainersPage(ctx)
+  return ctx
+end
+
+test("settings: the Display entry's Layout tab draws the element order as a drag list, and a drop writes through the writer", function()
+  E.with(function()
+    local id = CM.Create("target")
+    NS.SelectContainer(id)
+    local ctx = layoutTab()
+    local list = ctx.rmOrderList
+    assertTrue(list ~= nil, "a LibKa0s-Widgets ReorderList is live for the tab")
+    assertEqual(#list.rows, 4, "one row per element, every element (an element turned off is still placed)")
+    local labels = E.labels(ctx)
+    assertTrue(labels["Element order"], "the list is headed")
+    local writes = 0
+    local saved = CM.SetField
+    CM.SetField = function(cid, field, v)
+      if field == "elements.order" then writes = writes + 1 end
+      return saved(cid, field, v)
+    end
+    local ok, err = pcall(function() list.onMove(1, 3) end)
+    CM.SetField = saved
+    if not ok then error(err, 0) end
+    assertEqual(writes, 1, "the drop is one write, through NS.CM.SetField")
+    assertEqual(table.concat(CM.Get(id).elements.order, ","), "number,text,indicator,spells",
+      "the dragged element lands where it was dropped")
+  end)
+end)
+
+test("settings: the element order list is canceled before the next render draws anything (options-ui-§18)", function()
+  E.with(function()
+    NS.SelectContainer(CM.Create("target"))
+    local ctx = layoutTab()
+    local first = ctx.rmOrderList
+    local cleared = false
+    local savedClear = NS.Helpers.ClearScroll
+    NS.Helpers.ClearScroll = function(...)
+      cleared = true
+      assertTrue(first.dead, "the old controller is canceled before the scroll is cleared")
+      return savedClear(...)
+    end
+    local ok, err = pcall(NS.__renderContainersPage, ctx)
+    NS.Helpers.ClearScroll = savedClear
+    if not ok then error(err, 0) end
+    assertTrue(cleared, "the render cleared the scroll")
+    assertTrue(ctx.rmOrderList ~= first, "and built a new controller")
+    ctx.activeSection, ctx.sectionTabs = "containers", {}
+    NS.__renderContainersPage(ctx)
+    assertTrue(ctx.rmOrderList == nil, "another tab leaves no live controller")
+  end)
+end)

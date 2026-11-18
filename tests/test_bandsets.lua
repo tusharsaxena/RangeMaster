@@ -220,6 +220,26 @@ test("bandsets: Create, Rename, Duplicate and List keep the order and announce e
   end)
 end)
 
+test("bandsets: names stay unique: Create, Duplicate and Rename suffix a taken name, in any case", function()
+  withFreshProfile(function()
+    local caster
+    for _, id in ipairs(B.List()) do
+      if B.Get(id).name == "Caster 40" then caster = id end
+    end
+    assertTrue(caster ~= nil, "the seed holds Caster 40")
+    local d1, d2 = B.Duplicate(caster), B.Duplicate(caster)
+    assertEqual(B.Get(d1).name, "Caster 40 copy")
+    assertEqual(B.Get(d2).name, "Caster 40 copy 2", "a second copy is numbered, never a second 'Caster 40 copy'")
+    local n1, n2 = B.Create("New band set", "melee_ranged"), B.Create("new BAND set", "melee_ranged")
+    assertEqual(B.Get(n1).name, "New band set")
+    assertEqual(B.Get(n2).name, "new BAND set 2", "a name that differs only in case is taken")
+    assertTrue(B.Rename(d1, "caster 40"))
+    assertEqual(B.Get(d1).name, "caster 40 2", "a rename onto a taken name gets a suffix")
+    assertTrue(B.Rename(caster, "Caster 40"), "renaming to its own name is not a clash")
+    assertEqual(B.Get(caster).name, "Caster 40")
+  end)
+end)
+
 test("bandsets: test_bandset_delete_reassigns — containers on a deleted set move to the default", function()
   withFreshProfile(function(p)
     local b = B.Create("B", "healer")

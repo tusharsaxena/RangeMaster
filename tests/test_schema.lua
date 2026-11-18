@@ -135,6 +135,9 @@ test("every row's default matches the value in defaults.profile", function()
     if not template then return NS.ResolvePath(defaults, row.path) end
     local v = NS.ResolvePath(template, field)
     if v == nil then return row.nilAs end
+    -- A stored array the row reads and takes as comma-separated names (`listAsText`, the element
+    -- order in settings/Containers_Display.lua) agrees as that text.
+    if row.listAsText and type(v) == "table" then return table.concat(v, ",") end
     return v
   end
   for _, row in ipairs(NS.Schema) do

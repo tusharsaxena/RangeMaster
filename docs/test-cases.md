@@ -83,7 +83,7 @@ Total.
 - database: the load pass normalizes a stored band set and repairs its counter and order
 - database: the active profile was prepared at load
 
-### test_bandsets.lua (20)
+### test_bandsets.lua (21)
 
 - bandsets: test_resolve_by_max — (20, 25) in Melee / Ranged lands in MID 20-30
 - bandsets: test_resolve_by_min — matchBy min reads the near bound
@@ -96,6 +96,7 @@ Total.
 - bandsets: normalize turns an empty set into one band over everything
 - bandsets: normalize fills a band's colors and repairs matchBy and the unknown band
 - bandsets: Create, Rename, Duplicate and List keep the order and announce each change
+- bandsets: names stay unique: Create, Duplicate and Rename suffix a taken name, in any case
 - bandsets: test_bandset_delete_reassigns — containers on a deleted set move to the default
 - bandsets: Delete honors reassignTo, refuses the last set and an unknown id
 - bandsets: deleting the default set makes the next one the default
@@ -106,12 +107,13 @@ Total.
 - bandsets: SetBandSound writes one band's sound, announces, and refuses a bad set or band
 - bandsets: a restore never rewinds the id counter, so a later Create mints an id never used
 
-### test_container_manager.lua (14)
+### test_container_manager.lua (15)
 
 - cm: test_create_defaults_unit_target — a bare Create is a target container on the default set
 - cm: Create seeds the spell list from the client's class seeds and takes a unit and opts
 - cm: test_unique_name_suffix — a taken name gets the next free number
 - cm: Rename trims, keeps names unique and refuses a blank name or an unknown id
+- cm: SetField stores elements.order only as an arrangement of the four elements, each once
 - cm: test_delete_removes_from_order — the member and its order slot both go
 - cm: test_duplicate_deep_copy — a duplicate is its own tables, after its source
 - cm: CopySettings copies the named sections deep, and never identity or placement
@@ -145,7 +147,7 @@ Total.
 - number: no unit reads nothing, and an unknown format reads as range
 - number: a known state with no far bound and no near bound reads unknown, not 0
 
-### test_container_render.lua (31)
+### test_container_render.lua (32)
 
 - render: an enabled container gets one pooled instance, watching its unit, drawn at once
 - render: Release returns the frame to the pool cleanly, and the next Acquire reuses it
@@ -176,6 +178,7 @@ Total.
 - render: colorMode class reads the TRACKED unit's class, and follows a target swap
 - render: a skin change in combat re-applies nothing until combat ends
 - render: an element font naming a LibSharedMedia key draws that face at the stored size
+- render: an element's shadow turns the font string's shadow offset on and off
 - render: a LibSharedMedia border draws on a backdrop of its own, band-colored, its tiling tracked
 - render: every indicator shape ships as a white 64x64 uncompressed 32-bit TGA
 
@@ -365,7 +368,7 @@ Total.
 - /rm debug on writes an [Init] summary naming our version, schema and profile
 - the console checkbox label the library renders is prose, not its own STRINGS key
 
-### test_slash.lua (17)
+### test_slash.lua (18)
 
 - NS.Print survives AceConsole's embed and stays the [RM]-prefixed printer
 - bare /rm opens the settings panel through the config verb, not the help index
@@ -383,6 +386,7 @@ Total.
 - slash: /rm delete takes a number or a name and selects the neighbor
 - slash: test_preset_verb — /rm preset confirms, applies, undoes and refuses an unknown key
 - slash: /rm bands lists the band sets with the selection marked, and selects one
+- slash: a name two band sets or containers share is ambiguous, and selects neither
 - slash: /rm pick starts the frame picker for the selected container, whose pick attaches it
 
 ### test_slashgate.lua (7)
@@ -519,7 +523,7 @@ Total.
 - the General page draws Master controls first, then Presets, and the Skin tab last
 - the General page is covered in combat on the sidebar path, and the window stays open (options-ui-§2)
 
-### test_settings_containers.lua (13)
+### test_settings_containers.lua (16)
 
 - settings: surface parity — every Containers and Band sets row answers /rm get and /rm set, through its registry's writer
 - settings: surface parity — every Containers row is drawn on its rail entry's tab
@@ -534,6 +538,9 @@ Total.
 - settings: the Containers Defaults button restores the entry on screen, for the selected container only
 - settings: test_open_in_combat_refused — opening a page in combat is refused with the gray line, and a shown page is covered
 - settings: every rail entry is one page key, and every Containers row names a template field
+- settings: test_element_order_paths_get_set — /rm get|set container.elements.order reads and moves the selected container's elements
+- settings: the Display entry's Layout tab draws the element order as a drag list, and a drop writes through the writer
+- settings: the element order list is canceled before the next render draws anything (options-ui-§18)
 
 ### test_settings_bandsets.lua (6)
 
@@ -544,11 +551,13 @@ Total.
 - bandsets: deleting the selected band set selects its neighbor and moves its containers to the default
 - bandsets: the Band sets page draws General and Bands, and the editor's controls reach the writers
 
-### test_settings_presets.lua (5)
+### test_settings_presets.lua (7)
 
 - presets: test_preset_apply_confirms — Apply asks first when there is something to replace, and Undo puts it back
 - presets: an empty profile applies at once, with nothing to confirm
 - presets: test_first_run_picker_once — the picker shows once per profile, marks it seen as it shows, and waits out combat
+- presets: taking the picker down offers no skin picker; the player's close does
+- presets: a profile change while the picker is up shows only the new profile's preset picker
 - presets: the picker's Choose a preset opens the General page on its Presets tab
 - presets: the Presets tab draws the three cards with Apply and the Undo button
 
@@ -771,11 +780,11 @@ Total.
 | test_loadorder.lua | 16 |
 | test_schema.lua | 36 |
 | test_database.lua | 14 |
-| test_bandsets.lua | 20 |
-| test_container_manager.lua | 14 |
+| test_bandsets.lua | 21 |
+| test_container_manager.lua | 15 |
 | test_presets.lua | 11 |
 | test_number_format.lua | 5 |
-| test_container_render.lua | 31 |
+| test_container_render.lua | 32 |
 | test_anchors_screen.lua | 8 |
 | test_anchors_frame.lua | 16 |
 | test_anchors_nameplate.lua | 14 |
@@ -789,7 +798,7 @@ Total.
 | test_coresetup.lua | 8 |
 | test_mediasetup.lua | 10 |
 | test_debuglog.lua | 14 |
-| test_slash.lua | 17 |
+| test_slash.lua | 18 |
 | test_slashgate.lua | 7 |
 | test_perf.lua | 17 |
 | test_bus.lua | 8 |
@@ -799,9 +808,9 @@ Total.
 | test_modes.lua | 18 |
 | test_optionssetup.lua | 16 |
 | test_realpages.lua | 7 |
-| test_settings_containers.lua | 13 |
+| test_settings_containers.lua | 16 |
 | test_settings_bandsets.lua | 6 |
-| test_settings_presets.lua | 5 |
+| test_settings_presets.lua | 7 |
 | test_skinsetup.lua | 12 |
 | test_skin_picker.lua | 16 |
 | test_skin_picker_preview.lua | 9 |
@@ -823,4 +832,4 @@ Total.
 | test_skin_switch.lua | 6 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **593** |
+| **Total** | **602** |
