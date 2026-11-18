@@ -81,7 +81,8 @@ Kit.skinValues = {}
 -- The kit's skin-switch test (skinning-§1): the surfaces this addon draws through the skin: the
 -- library windows it opens, and a range container's number, whose HUD face is the skin's
 -- (modules/Style.lua's S.HudFont) and follows a switch through the renderer's OnLooksChanged
--- re-apply. Its colors are the band set's, never the skin's, so the face is what moves, and an owner
+-- re-apply, which ContainerManager runs on the next frame. Its colors are the band set's, never
+-- the skin's, so the face is what moves, and an owner
 -- ignoring fonts keeps it stock (scope "fonts").
 local skinContainer
 Kit.skinSwitch = {
@@ -100,6 +101,10 @@ Kit.skinSwitch = {
       skinContainer = NS.CM.Create("target")
       NS.CM.FlushPending()
       return NS.Container.Get(skinContainer).elements.number.fs
+    end, paint = function()
+      -- The skin's OnLooksChanged asks ContainerManager for an apply on the next frame (held
+      -- through combat); the mock has no frame to wait for, so the flush runs it now.
+      NS.CM.FlushPending()
     end, reset = function()
       NS.CM.Delete(skinContainer)
       NS.CM.FlushPending()

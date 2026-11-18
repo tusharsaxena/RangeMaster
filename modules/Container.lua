@@ -10,14 +10,29 @@ local _, NS = ...
 --   inst:Release()                       back to the pool: hidden, its watch dropped, nothing remembered
 --   inst.bandIndex                       the band drawn: an index, "unknown", or "none" (no unit)
 --   NS.Container.ForEach(fn)             fn(inst) for every live instance
+--   NS.Container.UnitChanged(unit)       a different unit sits behind `unit`: its instances forget
+--                                        what they drew, so the next render paints everything
 --   NS.Container.Get(id), Sync(), Repaint(), StandDown()
 --
 -- WHO DRIVES IT. CONTAINERS_CHANGED (modules/ContainerManager.lua, coalesced to the next frame and
 -- held through combat) runs Sync: an instance for every enabled container, back to the pool for a
 -- deleted or disabled one. BANDSETS_CHANGED runs Repaint. RANGE_UPDATED (modules/Ticker.lua, only on
 -- change) reaches the instances watching that unit and no other: the cost scales with units read,
--- never with a per-container query. A skin change (the owner's OnLooksChanged) re-applies every
--- instance, so the HUD face follows the skin.
+-- never with a per-container query. A skin change (the owner's OnLooksChanged) asks ContainerManager
+-- for an apply (NS.CM.RequestApply), so the HUD face follows the skin on the next frame, and a change
+-- that lands in combat (EllesmereUI repainting, a media registration) waits for the leave edge like
+-- every other apply: nothing here is placed in combat.
+--
+-- A NEW UNIT BEHIND THE TOKEN. A retarget, a new focus, a mouseover, the player's pet, a plate token
+-- handed to a new plate and a reaction change (core/RangeMaster.lua's unitChanged) run UnitChanged
+-- here, then NS.Ticker.Changed, which sends the token's triple even when the bracket is the same. So
+-- the band set is resolved again for the new unit's reaction (bandSetFriendly), the class color is
+-- the new unit's, and every spell chip is asked again, whatever the bracket did.
+--
+-- SPELL CHIPS ARE ASKED EVERY READ. A spell's range edge can fall inside one LibRangeCheck bracket
+-- (a 30 yd spell inside 28 to 35), where the triple never moves and RANGE_UPDATED never goes out.
+-- The ticker's OnSteady hook reaches the instances on the unit read, and one with chips asks each
+-- chip again and renders only when an answer moved. An instance without chips does nothing there.
 --
 -- PAINT ONLY WHAT CHANGED. A render recolors the border, the fill and every element only when the
 -- band index or the band set differs from the last one drawn, and an element sets its text only when
@@ -32,7 +47,8 @@ local _, NS = ...
 --
 -- PLACEMENT is NS.Anchors.Apply (plan Task 6) once that module exists; until then every container sits
 -- at its stored point on UIParent. Every frame here is this addon's own and none is protected, and an
--- apply never runs in combat (ContainerManager holds it to PLAYER_REGEN_ENABLED).
+-- apply never runs in combat: Sync is reached only through CONTAINERS_CHANGED, which ContainerManager
+-- holds to PLAYER_REGEN_ENABLED (the skin's re-apply included).
 
 NS.Container = NS.Container or {}
 local Container = NS.Container
@@ -275,6 +291,7 @@ function Instance:Render(state, lo, hi, spellResults)
     if not present(self, state) then return end
     local ctx = self.ctx
     ctx.state, ctx.lo, ctx.hi, ctx.spells = state, lo, hi, spellResults or NO_SPELLS
+    ctx.unit = self.unit
     local moved = resolveBand(self, state, lo, hi) and self:Paint(ctx) or false
     for name, mod in pairs(ELEMENT) do
         local el = self.elements[name]
@@ -283,12 +300,19 @@ function Instance:Render(state, lo, hi, spellResults)
     if moved or self.layoutDirty then self:Layout() end
 end
 
+--- The spell list this instance asks for `state`, or nil when it asks none.
+local function spellList(inst, state)
+    local c = inst.container
+    local sp = c and c.elements.spells
+    if sp and sp.enabled and state ~= nil and state ~= "none" and type(sp.list) == "table" then return sp.list end
+    return nil
+end
+
 --- Ask each spell chip's answer for this unit, then render.
 function Instance:Update(state, lo, hi)
-    local c, res, n = self.container, self.spells, 0
-    local sp = c and c.elements.spells
-    if sp and sp.enabled and state ~= "none" and type(sp.list) == "table" then
-        for i, id in ipairs(sp.list) do
+    local res, n, list = self.spells, 0, spellList(self, state)
+    if list then
+        for i, id in ipairs(list) do
             res[i] = NS.Range.InSpellRange(id, self.unit)
             n = i
         end
@@ -296,6 +320,21 @@ function Instance:Update(state, lo, hi)
     for i = n + 1, self.spellCount do res[i] = nil end
     self.spellCount = n
     return self:Render(state, lo, hi, res)
+end
+
+--- The unit was read again and its triple did not move: ask the chips again, and render only when
+--- an answer moved. Answers whether it rendered.
+function Instance:PollSpells()
+    local list = spellList(self, self.state)
+    if not list then return false end
+    local res = self.spells
+    for i, id in ipairs(list) do
+        if NS.Range.InSpellRange(id, self.unit) ~= res[i] then
+            self:Update(self.state, self.lo, self.hi)
+            return true
+        end
+    end
+    return false
 end
 
 -- ---------------------------------------------------------------------------
@@ -377,6 +416,14 @@ function Container.Repaint()
     end
 end
 
+--- A different unit sits behind `unit`: its instances forget what they drew. The caller then has the
+--- ticker send the token's triple (NS.Ticker.Changed), which renders them in full.
+function Container.UnitChanged(unit)
+    local set = byUnit[unit]
+    if not set then return end
+    for inst in pairs(set) do inst:Invalidate() end
+end
+
 --- The stand-down (core/LifecycleSetup.lua): every instance parked and hidden, every watch dropped.
 function Container.StandDown()
     Pool.ReleaseAllKeyed(pool, park)
@@ -395,6 +442,20 @@ local function onRangeUpdated(_, unit, state, lo, hi)
     if t0 then Perf.Note("container.render", debugprofilestop() - t0, NS.Range.PerfParent()) end
 end
 
+--- A steady read (NS.Ticker.OnSteady): the instances on that unit re-ask their spell chips. One that
+--- renders is recorded in container.render like a RANGE_UPDATED render; one with no chips costs a
+--- field read.
+local function onSteady(unit)
+    local set = byUnit[unit]
+    if not set then return end
+    local t0 = Perf.on and debugprofilestop()
+    local rendered = false
+    for inst in pairs(set) do
+        if inst:PollSpells() then rendered = true end
+    end
+    if t0 and rendered then Perf.Note("container.render", debugprofilestop() - t0, NS.Range.PerfParent()) end
+end
+
 local target = NS.NewBusTarget()
 if target then
     target:RegisterMessage(NS.MSG.RANGE_UPDATED, onRangeUpdated)
@@ -402,8 +463,11 @@ if target then
     target:RegisterMessage(NS.MSG.BANDSETS_CHANGED, function() Container.Repaint() end)
 end
 
--- The HUD face follows the skin: a skin change re-applies every live instance.
-NS.Skin.OnLooksChanged(function() Container.Sync() end)
+NS.Ticker.OnSteady(onSteady)
+
+-- The HUD face follows the skin: a skin change asks for an apply of every container, which
+-- ContainerManager coalesces to the next frame and holds through combat.
+NS.Skin.OnLooksChanged(function() NS.CM.RequestApply() end)
 
 -- Suite seams (tests/test_container_render.lua).
 function Container.__counts() return Pool.CountsKeyed(pool) end

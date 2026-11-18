@@ -43,7 +43,7 @@ runner's load list to the TOC.
 | `defaults/BandSetPresets.lua` | `NS.BandSetPresets`: the four preset band sets (the Hunter set per client), `ORDER`, `DefaultFor(classFile)`; data only |
 | `modules/BandSets.lua` | `NS.BandSets`: the band-set registry's writer (`Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`, `RestoreSnapshot`), `Snapshot`, `List`, `Get`, `DefaultId`, `Resolve`, `ForUnit`, and the load pass's `Seed` and `NormalizeSet`; sender of `BANDSETS_CHANGED` |
 | `modules/Range.lua` | `NS.Range`: `Get` (the guarded LibRangeCheck bracket, the per-tick memo by unit token, Forever's ladder fallback), `InSpellRange`, `BeginTick`, `SetPerfParent`, `Rebuild`. LOAD-BEARING: before Ticker |
-| `modules/Ticker.lua` | `NS.Ticker`: the watch list, the one adaptive `C_Timer` ticker, `RANGE_UPDATED` on change, `Removed` for a plate going away; `StandDown` / `StandUp` |
+| `modules/Ticker.lua` | `NS.Ticker`: the watch list, the one adaptive `C_Timer` ticker, `RANGE_UPDATED` on change, `Changed` for a new unit behind a token (sent even unmoved), `OnSteady` listeners for an unmoved read, `Removed` for a plate going away; `StandDown` / `StandUp` |
 | `modules/ContainerManager.lua` | `NS.CM`: the container registry's writer (`Create`, `Delete`, `Duplicate`, `Rename`, `UniqueName`, `CopySettings`, `Clear`, `Snapshot`, `RestoreSnapshot`), `List`, `Get`, the coalesced, combat-deferred `RequestApply` / `FlushPending`; sender of `CONTAINERS_CHANGED` |
 | `modules/Presets.lua` | `NS.Presets`: `Apply` (Simple, Intermediate, Advanced, through `NS.CM`), the one-level `Undo` / `CanUndo`, `Describe` for the preset cards, `OOR_SOUND` |
 | `modules/Style.lua` | `NS.Style`: a setting's color (band, fixed, class), the HUD face through the skin's `S.HudFont`, measured text width, edge strips, the media border, frame levels over a root. LOAD-BEARING: before the element files |
@@ -51,7 +51,7 @@ runner's load list to the TOC.
 | `modules/Elements_Text.lua` | `NS.Elements.Text`: the band label element |
 | `modules/Elements_Indicator.lua` | `NS.Elements.Indicator`: the shapes (this addon's art), the bar (LibKa0s-Widgets' `W.Bar`) and the spell icon |
 | `modules/Elements_Spells.lua` | `NS.Elements.Spells`: the spell chips, pooled per element, colored by each spell's own answer |
-| `modules/Container.lua` | `NS.Container`: the renderer: one pooled instance per enabled container (`Acquire`, `Get`, `ForEach`, `Sync`, `Repaint`, `StandDown`; `inst:Render`, `inst:Update`, `inst:Release`), the `RANGE_UPDATED` fan-out by unit |
+| `modules/Container.lua` | `NS.Container`: the renderer: one pooled instance per enabled container (`Acquire`, `Get`, `ForEach`, `Sync`, `Repaint`, `UnitChanged`, `StandDown`; `inst:Render`, `inst:Update`, `inst:PollSpells`, `inst:Release`), the `RANGE_UPDATED` fan-out by unit and the spell chips' steady re-ask |
 | `modules/Diagnostics.lua` | The `/rm diagnostics` report's sections |
 | `settings/Schema.lua` | `LibKa0s-Schema-1.0` instance and its runtime-completing stub: `NS.SetByPath`, `NS.FindSchemaRow`, `NS.ApplyDefault`, `NS.SchemaForPage`, `NS.ValidateSchema`. LOAD-BEARING |
 | `settings/Slash.lua` | `NS.COMMANDS` and the `LibKa0s-Slash-1.0` descriptor. LOAD-BEARING |

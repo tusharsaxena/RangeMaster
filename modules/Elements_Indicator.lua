@@ -12,6 +12,11 @@ local addonName, NS = ...
 --                                          tinted; a question mark when neither names a spell
 --
 -- Everything moves only with the band, so Update is empty and Paint does the work.
+--
+-- THE BAR'S COLOR IS A NEW TABLE EACH PAINT. W.Bar's SetValues repaints its fill only when the color
+-- it is handed is a different table from the last (libs/LibKa0s/WidgetsBar.lua, SetValues), so one
+-- table refilled in place would be painted once and never again. Two tables alternate: each paint
+-- hands the bar the one it does not hold, and a paint (a band change) allocates nothing.
 
 NS.Elements = NS.Elements or {}
 local Indicator = {}
@@ -37,7 +42,8 @@ function Indicator.Build(inst)
     local frame = CreateFrame("Frame", nil, inst.overlay)
     local tex = frame:CreateTexture(nil, "ARTWORK")
     tex:SetAllPoints(frame)
-    return { frame = frame, tex = tex, w = 0, h = 0, color = { 1, 1, 1, 1 }, values = { value = 0, max = 1 } }
+    return { frame = frame, tex = tex, w = 0, h = 0, colors = { { 1, 1, 1, 1 }, { 1, 1, 1, 1 } }, flip = 1,
+             values = { value = 0, max = 1 } }
 end
 
 --- The data bar, built once per pooled frame on first need. Nil without LibKa0s-Widgets-1.0.
@@ -84,7 +90,8 @@ end
 function Indicator.Paint(el, cfg, ctx)
     local r, g, b, a = Style.Color(cfg.colorMode, cfg.color, ctx, "indicatorColor")
     if el.shape == "bar" and el.bar then
-        local c, v = el.color, el.values
+        el.flip = 3 - el.flip
+        local c, v = el.colors[el.flip], el.values
         c[1], c[2], c[3], c[4] = r, g, b, a
         v.value, v.color = fill(ctx), c
         el.bar:SetValues(v)

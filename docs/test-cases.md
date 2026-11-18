@@ -145,7 +145,7 @@ Total.
 - number: no unit reads nothing, and an unknown format reads as range
 - number: a known state with no far bound and no near bound reads unknown, not 0
 
-### test_container_render.lua (22)
+### test_container_render.lua (31)
 
 - render: an enabled container gets one pooled instance, watching its unit, drawn at once
 - render: Release returns the frame to the pool cleanly, and the next Acquire reuses it
@@ -168,6 +168,15 @@ Total.
 - render: test_friendly_uses_friendly_set — a friendly unit reads the friendly override
 - render: a band set edit repaints every instance on it
 - render: RANGE_UPDATED reaches every instance on that unit, and only those
+- render: the bar indicator repaints its fill in each new band's indicator color
+- render: a target swap at the same bracket re-resolves the band set through the event path
+- render: a reaction change on the same unit (UNIT_FACTION) re-resolves the band set
+- render: a target swap at the same bracket asks every spell chip again
+- render: a spell chip's answer moving inside one bracket is drawn on the next tick
+- render: colorMode class reads the TRACKED unit's class, and follows a target swap
+- render: a skin change in combat re-applies nothing until combat ends
+- render: an element font naming a LibSharedMedia key draws that face at the stored size
+- render: a LibSharedMedia border draws on a backdrop of its own, band-colored, its tiling tracked
 - render: every indicator shape ships as a white 64x64 uncompressed 32-bit TGA
 
 ### test_compat.lua (6)
@@ -204,7 +213,7 @@ Total.
 - range: Rebuild is debounced to one rebuild after the last call
 - range: every class seed table is well-formed on both clients
 
-### test_ticker.lua (12)
+### test_ticker.lua (13)
 
 - ticker: test_rate_idle_10hz — out of combat one ticker runs at 10 Hz and re-arms
 - ticker: test_rate_combat_20hz — combat restarts the one ticker at 20 Hz, and back
@@ -214,6 +223,7 @@ Total.
 - ticker: test_mouseover_revalidated_each_tick — mouseover leaving with no event reads none
 - ticker: N watches of one unit cost one range query per tick
 - ticker: the unit events refresh their unit; UNIT_PET only for the player
+- ticker: Changed sends an unmoved triple again (a new unit behind the token); Refresh does not
 - ticker: NAME_PLATE_UNIT_REMOVED sends none for its token at once
 - ticker: a range read inside a tick is recorded within ticker.tick, a forced one at top level
 - ticker: PLAYER_FOCUS_CHANGED registers only where the client knows it
@@ -629,10 +639,10 @@ Total.
 | test_container_manager.lua | 14 |
 | test_presets.lua | 11 |
 | test_number_format.lua | 5 |
-| test_container_render.lua | 22 |
+| test_container_render.lua | 31 |
 | test_compat.lua | 6 |
 | test_range.lua | 22 |
-| test_ticker.lua | 12 |
+| test_ticker.lua | 13 |
 | test_envsetup.lua | 6 |
 | test_coresetup.lua | 8 |
 | test_mediasetup.lua | 10 |
@@ -668,4 +678,4 @@ Total.
 | test_skin_switch.lua | 6 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **474** |
+| **Total** | **484** |

@@ -49,7 +49,10 @@ asks `C_Spell.IsSpellInRange` only for a spell the player knows.
 combat, 20 Hz in combat (re-armed on the combat edge), stopped while no watched unit exists and
 restarted by the event that brings one back. Each tick reads every watched unit once and sends
 `RANGE_UPDATED` only for a unit whose triple changed; mouseover, which has no "cleared" event, is
-re-read through `UnitExists` every tick. The stand-down cancels the ticker and the debounced spell
+re-read through `UnitExists` every tick. `NS.Ticker.Changed(unit)` is the unit-change read: a
+different unit now sits behind the token, so the triple is sent even when it did not move. A read
+whose triple did not move reaches the `NS.Ticker.OnSteady` listeners instead (the renderer re-asks
+its spell chips there). The stand-down cancels the ticker and the debounced spell
 rebuild; the stand-up re-reads and re-announces every watched unit. Pipeline: `docs/data-flow.md`.
 
 ### Band sets
@@ -103,16 +106,25 @@ LibKa0s-Pool-1.0 keyed pool (`core/PoolSetup.lua`) keyed by container id. `CONTA
 `Sync`: `Acquire(id)` for every enabled container (the pooled frame, its settings applied, its unit
 watched through `NS.Ticker.Watch`) and back to the pool for a deleted or disabled one; a release
 parks the one object, drops its watch and forgets what it drew. `BANDSETS_CHANGED` repaints every
-instance from its last triple, and the skin's `OnLooksChanged` re-applies them all so the HUD face
-follows the skin. `RANGE_UPDATED` reaches the instances watching that unit and no other (bucket
-`container.render`); each asks its spell chips' answers (`NS.Range.InSpellRange`) and renders.
+instance from its last triple, and the skin's `OnLooksChanged` asks for an apply
+(`NS.CM.RequestApply`, the next frame and held through combat) so the HUD face follows the skin.
+`RANGE_UPDATED` reaches the instances watching that unit and no other (bucket `container.render`);
+each asks its spell chips' answers (`NS.Range.InSpellRange`) and renders. A unit change (a retarget,
+a new focus, mouseover or pet, a plate token handed to a new plate, `UNIT_FACTION`) runs
+`NS.Container.UnitChanged`, which makes the instances on that token forget what they drew, then
+`NS.Ticker.Changed`, so the band set is resolved again for the new unit's reaction, the class color
+is the new unit's and every chip is asked again, whatever the bracket did. On a read whose triple did
+not move (`NS.Ticker.OnSteady`) an instance with chips asks each again and renders only when an
+answer moved, because a spell's range edge can fall inside one LibRangeCheck bracket.
 
 A render resolves the band (`NS.BandSets.ForUnit`, then `Resolve`) and recolors the border, the fill
 and every element only when the band index or the set changed; an element sets its text only when
 the string changed, and the layout runs on an apply or when a cell's width moved. An unknown range
 draws the set's unknown label (`?`) in its gray, never a band; no unit hides a container that hides
 with no unit. Colors read `band` (the band's frame, text or indicator color), `fixed` (the swatch) or
-`class` (the player's class color, the swatch's alpha kept; options-ui-§17). The elements follow
+`class` (the TRACKED unit's class color, the swatch's alpha kept, an unresolvable class falling
+through to the swatch; options-ui-§17, because a range container describes its unit; the Task 8
+color rows declare `classColorSource = "unit"`). The elements follow
 `elements.order` along `layout.direction`, from the padding, `spacing` apart, centered across; only
 an enabled element is ever built, and one turned off is hidden. The number writes the bracket in one
 of six formats and `40+` for an open-ended one, never an invented far bound. The indicator draws
@@ -222,11 +234,12 @@ Each verb, its arguments and its refusals: `docs/slash-dispatch.md`.
 | `PLAYER_ENTERING_WORLD` | `addon:OnEnterWorld` | a traced world-entry edge |
 | `PLAYER_REGEN_DISABLED` | `addon:OnCombatChanged` | combat ends Test mode and Sim mode, and the range ticker goes to 20 Hz (bracketed `combatEdge`) |
 | `PLAYER_REGEN_ENABLED` | `addon:OnCombatChanged` | the leave edge; the ticker back to 10 Hz, and a container apply combat held runs (`NS.CM.FlushPending("regen")`) |
-| `PLAYER_TARGET_CHANGED` | `addon:OnUnitChanged` | `NS.Ticker.Refresh("target")` |
-| `PLAYER_FOCUS_CHANGED` | `addon:OnUnitChanged` | `NS.Ticker.Refresh("focus")`; registered only where `NS.Compat.IsEventValid` knows it (`ifValid`) |
-| `UPDATE_MOUSEOVER_UNIT` | `addon:OnUnitChanged` | `NS.Ticker.Refresh("mouseover")` |
-| `UNIT_PET` | `addon:OnPetChanged` | `NS.Ticker.Refresh("pet")`, for the player's own pet only |
-| `NAME_PLATE_UNIT_ADDED` | `addon:OnNamePlateChanged` | `NS.Ticker.Refresh(token)` |
+| `PLAYER_TARGET_CHANGED` | `addon:OnUnitChanged` | a unit change on `"target"`: `NS.Container.UnitChanged`, then `NS.Ticker.Changed` |
+| `PLAYER_FOCUS_CHANGED` | `addon:OnUnitChanged` | the same on `"focus"`; registered only where `NS.Compat.IsEventValid` knows it (`ifValid`) |
+| `UPDATE_MOUSEOVER_UNIT` | `addon:OnUnitChanged` | the same on `"mouseover"` |
+| `UNIT_PET` | `addon:OnPetChanged` | the same on `"pet"`, for the player's own pet only |
+| `NAME_PLATE_UNIT_ADDED` | `addon:OnNamePlateChanged` | the same on the plate's token |
+| `UNIT_FACTION` | `addon:OnUnitFaction` | the same on the unit named, a reaction change (the band set follows `bandSetFriendly`); `ifValid` |
 | `NAME_PLATE_UNIT_REMOVED` | `addon:OnNamePlateChanged` | `NS.Ticker.Removed(token)`: `"none"` is sent outright, because the client still resolves the token while this event dispatches and a re-read would see the plate as live |
 | `SPELLS_CHANGED` | `addon:OnSpellsChanged` | `NS.Range.Rebuild()`: the ladder and the known-spell cache, debounced 0.5 s |
 
@@ -238,11 +251,13 @@ waits out combat (`core/SkinSetup.lua`).
 
 The addon hooks nothing, and every frame it draws is its own, plain and unprotected: the renderer's
 container instances are `CreateFrame("Frame")` children of `UIParent`, built only on an apply, which
-the container registry holds through combat (`NS.CM.FlushPending` runs it on `PLAYER_REGEN_ENABLED`);
-a render inside combat only recolors and re-texts frames that already exist. Edges are strips of
-this addon's own (never a `BackdropTemplate`, whose size arithmetic can meet a secret geometry once a
-container attaches to a unit frame, plan Task 6), and a media border goes on a plain frame with
-`BackdropTemplateMixin` mixed in, so no `OnSizeChanged` script runs. The rules the range work is built to: every
+the container registry holds through combat (`NS.CM.FlushPending` runs it on `PLAYER_REGEN_ENABLED`;
+the skin's re-apply goes through `NS.CM.RequestApply` too); a render inside combat only recolors and
+re-texts frames that already exist. A Solid edge is four strips of this addon's own and reads no
+size. A LibSharedMedia edge goes on a plain host frame with `BackdropTemplateMixin` mixed in and the
+template's `OnSizeChanged` wiring (`OnBackdropSizeChanged`), so the edge is re-tiled each time the
+layout sizes the root; the mixin reads the host's size, which is this addon's own, set from plain
+numbers, never a secret geometry. The rules the range work is built to: every
 range API call is wrapped in `pcall` and every result checked with `NS.Compat.IsSecret` before it is
 compared (`core/Compat.lua`'s range reads, `modules/Range.lua`'s LibRangeCheck call); item and
 interact checks are never made on a unit the player cannot attack while in combat; no

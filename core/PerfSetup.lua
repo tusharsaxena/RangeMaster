@@ -59,7 +59,8 @@ NS.Perf = lib:New({
         -- record shows the mix instead of a reader summing the two totals.
         { key = "range.get", within = "ticker.tick" },
         -- modules/Container.lua's RANGE_UPDATED fan-out: every instance on the unit that moved,
-        -- re-rendered (the spell answers, then only what changed is painted). Sent from inside the
+        -- re-rendered (the spell answers, then only what changed is painted), and an instance whose
+        -- spell chip's answer moved on an unmoved read (NS.Ticker.OnSteady). Sent from inside the
         -- tick's pass, so nested in ticker.tick; a forced refresh runs it at top level, and the
         -- parent it observed (NS.Range.PerfParent) is what it records.
         { key = "container.render", within = "ticker.tick" },

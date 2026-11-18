@@ -7,8 +7,10 @@ pipeline; the two must not contradict each other.
 
 ```
 consumer ─► NS.Ticker.Watch(unit)     a count per unit token; the first live unit starts the ticker
-game events (target, focus, pet, mouseover, nameplate added)
-  ─► NS.Ticker.Refresh(unit)          re-read now, between ticks; restarts a stopped ticker
+game events (target, focus, pet, mouseover, nameplate added, UNIT_FACTION): a unit change
+  ─► NS.Container.UnitChanged(unit)   its instances forget the band, set, colors and chip answers
+  ─► NS.Ticker.Changed(unit)          re-read now, between ticks, and sent even when the triple did
+                                      not move; restarts a stopped ticker
 NAME_PLATE_UNIT_REMOVED
   ─► NS.Ticker.Removed(token)         "none" at once: the token still resolves while the event runs
 the ticker (one C_Timer.NewTicker, 10 Hz idle / 20 Hz in combat, stopped while no watched unit exists)
@@ -22,7 +24,9 @@ the ticker (one C_Timer.NewTicker, 10 Hz idle / 20 Hz in combat, stopped while n
                                          unit in combat; a spell rung only while it is usable)
         still no answer                → "unknown"
         otherwise                      → "known", minYd, maxYd (maxYd nil: open-ended)
-  ─► RANGE_UPDATED (unit, state, minYd, maxYd)   sent only when the triple moved
+  ─► RANGE_UPDATED (unit, state, minYd, maxYd)   sent only when the triple moved (or on Changed)
+  ─► else NS.Ticker.OnSteady(unit)    the renderer: an instance with spell chips asks each again and
+                                      renders only when an answer moved (an edge inside a bracket)
   ─► modules/Container.lua: the instances watching that unit, and no other (bucket container.render)
         NS.Range.InSpellRange per spell chip → inst:Render(state, minYd, maxYd, spellResults)
         NS.BandSets.ForUnit (the friendly override) → NS.BandSets.Resolve → band index
@@ -48,7 +52,8 @@ NS.CM.Create / Delete / Duplicate / Rename / CopySettings / RestoreSnapshot, NS.
                                       frame, its settings applied, its unit watched), back to the
                                       pool for a deleted or disabled one
 BANDSETS_CHANGED ─► NS.Container.Repaint()   every instance repaints from its last triple
-the skin's OnLooksChanged ─► NS.Container.Sync()   the HUD face follows the skin
+the skin's OnLooksChanged ─► NS.CM.RequestApply()   the HUD face follows the skin, next frame,
+                                                    held through combat like every apply
 ```
 
 A stood-down addon arms no timer; the stand-up asks for one apply.

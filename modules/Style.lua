@@ -7,8 +7,11 @@ local _, NS = ...
 --       mode "band"  the current band's `field` (frameColor, textColor or indicatorColor), or the
 --                    set's unknown gray while the range is unknown or there is no unit
 --            "fixed" the stored swatch
---            "class" the PLAYER's class color, the stored swatch's alpha kept (options-ui-§17,
---                    through NS.ResolveColor: an unresolvable class falls through to the swatch)
+--            "class" the TRACKED unit's class color (ctx.unit), the stored swatch's alpha kept
+--                    (options-ui-§17: a range container describes its unit, so the class is the
+--                    unit's; through NS.ResolveColor, so an NPC or a class the client has not answered
+--                    for falls through to the swatch). The renderer repaints on a unit change
+--                    (modules/Container.lua, UnitChanged), so the color follows a retarget.
 --   NS.Style.Font(fs, cfg) -> size      the element's face through the skin's S.HudFont
 --   NS.Style.TextWidth(fs, text, size)  the drawn width, or an estimate where the client gives none
 --   NS.Style.NewEdges(frame, layer) -> strips, LayEdges(frame, strips, size), PaintEdges(strips, ...)
@@ -19,9 +22,13 @@ local _, NS = ...
 -- LibSharedMedia key drawn at the stored size. Every element's face goes through S.HudFont, the one
 -- way a HUD string gets its face, so the renderer's restyle on the skin's OnLooksChanged reaches it.
 --
--- EDGES ARE FOUR STRIPS OF OUR OWN, never a BackdropTemplate's: Blizzard's Backdrop does arithmetic on
--- the frame's size, and a container attached to a unit frame (plan Task 6) can sit under geometry
--- that reads secret. A strip hangs between two corners with a plain thickness, so no size is read.
+-- A SOLID EDGE IS FOUR STRIPS OF OUR OWN, never a backdrop: a strip hangs between two corners with a
+-- plain thickness, so drawing it reads no size. A LibSharedMedia edge is drawn by Blizzard's
+-- BackdropTemplateMixin on a host frame of its own, and that mixin DOES read the host's size
+-- (SetBackdrop and OnBackdropSizeChanged work out the edge pieces' tiling from GetWidth, GetHeight
+-- and the effective scale). So the host carries the template's own OnSizeChanged wiring, and every
+-- later size the renderer's layout gives the root re-tiles the edge. The host is this addon's frame,
+-- sized from the plain numbers Instance:Layout computes, so the size the mixin reads is not secret.
 
 NS.Style = NS.Style or {}
 local Style = NS.Style
@@ -34,10 +41,10 @@ local Compat = NS.Compat
 -- ---------------------------------------------------------------------------
 
 --- r, g, b, a for the setting (`mode`, `stored`) under the render context `ctx` (modules/Container.lua:
---- ctx.row is the current band's table or nil, ctx.set the band set).
+--- ctx.row is the current band's table or nil, ctx.set the band set, ctx.unit the tracked unit).
 function Style.Color(mode, stored, ctx, field)
     if mode == "fixed" then return NS.ResolveColor(stored, false) end
-    if mode == "class" then return NS.ResolveColor(stored, true) end
+    if mode == "class" then return NS.ResolveColor(stored, true, ctx.unit) end
     local row = ctx.row
     local c = row and row[field]
     if not c then c = ctx.set and ctx.set.unknown and ctx.set.unknown.color end
@@ -127,11 +134,15 @@ local function edgeFile(key)
 end
 
 --- The frame a media border draws on, built on first need: a plain frame with BackdropTemplateMixin
---- mixed in, never the template, so no OnSizeChanged script does arithmetic on a size.
+--- mixed in, and the template's OnSizeChanged wiring with it, so a size that moves after the
+--- SetBackdrop (the layout sizes the root after the border is laid) re-tiles the edge pieces.
 local function backdropHost(holder)
     if holder.backdrop then return holder.backdrop end
     local host = CreateFrame("Frame", nil, holder.frame)
-    if BackdropTemplateMixin and Mixin then Mixin(host, BackdropTemplateMixin) end
+    if BackdropTemplateMixin and Mixin then
+        Mixin(host, BackdropTemplateMixin)
+        if host.OnBackdropSizeChanged then host:SetScript("OnSizeChanged", host.OnBackdropSizeChanged) end
+    end
     host:SetAllPoints(holder.frame)
     holder.backdrop = host
     return host

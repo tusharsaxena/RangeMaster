@@ -179,6 +179,24 @@ test("ticker: the unit events refresh their unit; UNIT_PET only for the player",
   end)
 end)
 
+test("ticker: Changed sends an unmoved triple again (a new unit behind the token); Refresh does not", function()
+  -- red under: a retarget routed to Refresh alone, which sends nothing for a bracket that did not
+  -- move, so no consumer hears that a different unit now sits behind the token.
+  fixture({ "target" }, function(_, heard)
+    Ticker.Watch("target")
+    local n = #heard
+    Ticker.Refresh("target")
+    assertEqual(#heard, n, "a refresh of an unmoved triple sends nothing")
+    Ticker.Changed("target")
+    assertEqual(#heard, n + 1, "Changed sends it")
+    assertEqual(heard[#heard], "target=known:20-25")
+    M.__fireEvent("PLAYER_TARGET_CHANGED")
+    assertEqual(#heard, n + 2, "PLAYER_TARGET_CHANGED is a Changed")
+    Ticker.Changed("focus")
+    assertEqual(#heard, n + 2, "an unwatched token is ignored")
+  end)
+end)
+
 test("ticker: NAME_PLATE_UNIT_REMOVED sends none for its token at once", function()
   -- The client still resolves the token while the event dispatches, so a re-read would see the
   -- plate as live: the removal itself is the answer.

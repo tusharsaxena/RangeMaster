@@ -5,6 +5,11 @@ local _, NS = ...
 --   NS.Ticker.Watch(unit)      count one more consumer of `unit` (a container, a nameplate instance)
 --   NS.Ticker.Unwatch(unit)    count one fewer; the last one drops the unit
 --   NS.Ticker.Refresh(unit?)   re-read `unit` now (every watched unit when nil), outside the cadence
+--   NS.Ticker.Changed(unit)    a different unit now sits behind `unit` (a retarget, a reaction change):
+--                              re-read it and send its triple even when it did not move
+--   NS.Ticker.OnSteady(fn)     fn(unit) after every read of a watched unit whose triple did not
+--                              move, so no RANGE_UPDATED went out (the renderer re-asks its spell
+--                              chips there: a spell's edge can fall inside one bracket)
 --   NS.Ticker.Removed(unit)    the unit is gone now: send "none" without asking the client, which
 --                              still resolves a plate's token while NAME_PLATE_UNIT_REMOVED dispatches
 --
@@ -34,6 +39,7 @@ local watched = {}    -- [unit] = consumer count
 local last = {}       -- [unit] = { state, minYd, maxYd } as last sent
 local pass = {}       -- the units of the pass in flight, reused: a RANGE_UPDATED receiver may
                       -- Watch a new unit mid-pass, and a pairs() walk must not see a key added
+local steady = {}     -- the OnSteady listeners, in registration order
 local handle, interval
 local inCombat = false
 
@@ -41,8 +47,8 @@ local inCombat = false
 -- One unit, one pass
 -- ---------------------------------------------------------------------------
 
---- Send RANGE_UPDATED for `unit` if this triple differs from the last one sent. Answers whether
---- the unit exists.
+--- Send RANGE_UPDATED for `unit` if this triple differs from the last one sent; otherwise tell the
+--- OnSteady listeners the unit was read and did not move. Answers whether the unit exists.
 local function publish(unit, state, lo, hi)
     local l = last[unit]
     if not l then
@@ -52,6 +58,8 @@ local function publish(unit, state, lo, hi)
     if l[1] ~= state or l[2] ~= lo or l[3] ~= hi then
         l[1], l[2], l[3] = state, lo, hi
         NS.bus:SendMessage(NS.MSG.RANGE_UPDATED, unit, state, lo, hi)
+    else
+        for i = 1, #steady do steady[i](unit) end
     end
     return state ~= "none"
 end
@@ -133,6 +141,20 @@ function Ticker.Refresh(unit)
     NS.Range.BeginTick()
     if unit ~= nil then evaluate(unit) else evaluateAll() end
     reconcile()
+end
+
+--- A different unit now sits behind the token `unit` (PLAYER_TARGET_CHANGED and its kin, a plate
+--- token handed to a new plate, UNIT_FACTION): forget the last send, so the re-read goes out even
+--- when the bracket did not move and every consumer draws the new unit. An unwatched unit is ignored.
+function Ticker.Changed(unit)
+    if not watched[unit] then return end
+    last[unit] = nil
+    Ticker.Refresh(unit)
+end
+
+--- Call fn(unit) after each read of a watched unit whose triple did not move.
+function Ticker.OnSteady(fn)
+    if type(fn) == "function" then steady[#steady + 1] = fn end
 end
 
 --- `unit` is gone as of now (a nameplate being removed): its consumers hear "none" at once, and

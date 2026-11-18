@@ -64,6 +64,9 @@ local LIFECYCLE_EVENTS = {
     { "UNIT_PET",              "OnPetChanged" },
     { "NAME_PLATE_UNIT_ADDED",   "OnNamePlateChanged" },
     { "NAME_PLATE_UNIT_REMOVED", "OnNamePlateChanged" },
+    -- A unit's reaction moved (a mob turning hostile, a duel): the band set a container reads
+    -- depends on it (design spec 5.3, bandSetFriendly), so it is a unit change like a retarget.
+    { "UNIT_FACTION",          "OnUnitFaction", ifValid = true },
     -- Learned, unlearned or swapped spells: the ladder and the known-spell cache, debounced.
     { "SPELLS_CHANGED",        "OnSpellsChanged" },
 }
@@ -95,14 +98,27 @@ local EVENT_UNIT = {
     UPDATE_MOUSEOVER_UNIT = "mouseover",
 }
 
+--- A different unit sits behind the token now: every container on it forgets what it drew (the band
+--- set, the band, the class color and the spell answers all belong to the old unit), and the ticker
+--- re-reads the token and sends its triple even when the bracket did not move.
+local function unitChanged(unit)
+    NS.Container.UnitChanged(unit)
+    NS.Ticker.Changed(unit)
+end
+
 function addon:OnUnitChanged(event)
     local unit = EVENT_UNIT[event]
-    if unit then NS.Ticker.Refresh(unit) end
+    if unit then unitChanged(unit) end
 end
 
 --- UNIT_PET names the OWNER whose pet changed; only the player's is the `pet` token.
 function addon:OnPetChanged(_, owner)
-    if owner == "player" then NS.Ticker.Refresh("pet") end
+    if owner == "player" then unitChanged("pet") end
+end
+
+--- UNIT_FACTION names the unit whose reaction moved; only a watched one reaches anything.
+function addon:OnUnitFaction(_, unit)
+    if type(unit) == "string" and NS.Compat.IsSafeKey(unit) then unitChanged(unit) end
 end
 
 --- A plate came or went. An added plate's token is re-read. A removed one is sent as "none"
@@ -110,7 +126,7 @@ end
 --- re-read would see the plate as live until the next tick.
 function addon:OnNamePlateChanged(event, token)
     if type(token) ~= "string" or not NS.Compat.IsSafeKey(token) then return end
-    if event == "NAME_PLATE_UNIT_REMOVED" then NS.Ticker.Removed(token) else NS.Ticker.Refresh(token) end
+    if event == "NAME_PLATE_UNIT_REMOVED" then NS.Ticker.Removed(token) else unitChanged(token) end
 end
 
 function addon:OnSpellsChanged()

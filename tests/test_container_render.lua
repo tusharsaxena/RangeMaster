@@ -411,6 +411,206 @@ test("render: RANGE_UPDATED reaches every instance on that unit, and only those"
   end)
 end)
 
+-- ---------------------------------------------------------------------------
+-- The unit behind the token changed (review fixes)
+-- ---------------------------------------------------------------------------
+
+--- Run `fn` with NS.Range.InSpellRange answering from `answers` (keyed by spell id), then restore.
+local function withSpellAnswers(answers, fn)
+  local real = NS.Range.InSpellRange
+  NS.Range.InSpellRange = function(id) return answers[id] end
+  local ok, err = pcall(fn)
+  NS.Range.InSpellRange = real
+  if not ok then error(err, 0) end
+end
+
+test("render: the bar indicator repaints its fill in each new band's indicator color", function()
+  -- red under: one color table reused across paints; W.Bar's SetValues repaints only on a new table.
+  withRenderer(function()
+    local _, setId, inst = newContainer({ elements = { indicator = { enabled = true, shape = "bar" } } })
+    local bar = inst.elements.indicator.bar
+    local function fillColor()
+      local p = M.__paint(bar.fill)
+      return p.color or p.vertex   -- a flat fill (no bar texture) is SetColorTexture's, vertex white
+    end
+    assertColor(fillColor(), band(setId, 3).indicatorColor, "MID's indicator color")
+    inst:Render("known", 0, 5)
+    assertColor(fillColor(), band(setId, 1).indicatorColor, "MELEE's, after the band moved")
+    inst:Render("known", 40, nil)
+    assertColor(fillColor(), band(setId, 5).indicatorColor, "OOR's, after it moved again")
+  end)
+end)
+
+test("render: a target swap at the same bracket re-resolves the band set through the event path", function()
+  -- red under: PLAYER_TARGET_CHANGED reaching only Ticker.Refresh, which sends nothing for a bracket
+  -- that did not move, so the hostile set's band, label and colors stay on a friendly target.
+  withRenderer(function()
+    local healer = B.Create("Healer", "healer")
+    M.UnitIsFriend = function() return false end
+    local _, setId, inst = newContainer({ bandSetFriendly = healer, elements = { text = { enabled = true } } })
+    assertEqual(inst.setId, setId, "a hostile target reads the container's own set")
+    assertEqual(inst.elements.text.fs:GetText(), "MID")
+    M.UnitIsFriend = function() return true end
+    M.__fireEvent("PLAYER_TARGET_CHANGED")
+    assertEqual(inst.setId, healer, "the friendly target, at the same (20, 25), reads the friendly set")
+    assertEqual(inst.bandIndex, 1, "(20, 25) is the healer's 0 to 30 band")
+    assertColor(color3({ inst.elements.number.fs:GetTextColor() }), band(healer, 1).textColor,
+      "and wears its color")
+  end)
+end)
+
+test("render: a reaction change on the same unit (UNIT_FACTION) re-resolves the band set", function()
+  withRenderer(function()
+    local healer = B.Create("Healer", "healer")
+    M.UnitIsFriend = function() return true end
+    local _, setId, inst = newContainer({ bandSetFriendly = healer })
+    assertEqual(inst.setId, healer)
+    M.UnitIsFriend = function() return false end
+    M.__fireEvent("UNIT_FACTION", "target")
+    assertEqual(inst.setId, setId, "the unit turned hostile: the container's own set")
+    M.UnitIsFriend = function() return true end
+    M.__fireEvent("UNIT_FACTION", "party1")
+    assertEqual(inst.setId, setId, "another unit's faction change reaches no container on target")
+  end)
+end)
+
+test("render: a target swap at the same bracket asks every spell chip again", function()
+  withRenderer(function()
+    local answers = { [100] = true }
+    withSpellAnswers(answers, function()
+      local _, _, inst = newContainer({ elements = { spells = { enabled = true, list = { 100 } } } })
+      local chip = inst.elements.spells.chips[1]
+      assertEqual(chip.result, true)
+      answers[100] = false
+      M.__fireEvent("PLAYER_TARGET_CHANGED")
+      assertEqual(chip.result, false, "the new target's answer")
+      assertColor(M.__paint(chip.edge[1]).color, C.HexColor(C.BAND_RAMP[5]), "painted red")
+    end)
+  end)
+end)
+
+test("render: a spell chip's answer moving inside one bracket is drawn on the next tick", function()
+  -- A 30 yd spell's edge falls inside LibRangeCheck's 28 to 35 bracket: the triple never moves, so
+  -- RANGE_UPDATED never goes out, and the chip is asked on the tick's steady read instead.
+  withRenderer(function()
+    local answers = { [100] = true }
+    withSpellAnswers(answers, function()
+      local _, _, inst = newContainer({ elements = { spells = { enabled = true, list = { 100 } } } })
+      local chip = inst.elements.spells.chips[1]
+      local num = inst.elements.number.fs
+      answers[100] = false
+      local sets = count(num, "SetText", function() NS.Ticker.__handle().fn() end)
+      assertEqual(chip.result, false, "the tick asked the chip again")
+      assertEqual(sets, 0, "and the figure, which did not move, was not set")
+      local paints = count(chip.edge[1], "SetColorTexture", function() NS.Ticker.__handle().fn() end)
+      assertEqual(paints, 0, "an unchanged answer on the next tick paints nothing")
+    end)
+  end)
+end)
+
+test("render: colorMode class reads the TRACKED unit's class, and follows a target swap", function()
+  -- options-ui-§17: a range container describes its unit, so class is the unit's, not the player's.
+  withRenderer(function()
+    local classOf = { player = "MAGE", target = "WARRIOR" }
+    local realClass = M.UnitClass
+    M.UnitClass = function(unit) local t = classOf[unit or "player"]; return t, t end
+    local ok, err = pcall(function()
+      local fixed = { r = 0.2, g = 0.4, b = 0.6, a = 1 }
+      local _, _, inst = newContainer({ frame = { border = { colorMode = "class", color = fixed } },
+        elements = { number = { colorMode = "class", color = fixed } } })
+      local fs = inst.elements.number.fs
+      assertColor(color3({ fs:GetTextColor() }), M.RAID_CLASS_COLORS.WARRIOR, "the target's class")
+      assertColor(M.__paint(inst.border.strips[1]).color, M.RAID_CLASS_COLORS.WARRIOR, "border too")
+      classOf.target = "PRIEST"
+      M.__fireEvent("PLAYER_TARGET_CHANGED")
+      assertColor(color3({ fs:GetTextColor() }), M.RAID_CLASS_COLORS.PRIEST, "the new target's class")
+      classOf.target = nil
+      M.__fireEvent("PLAYER_TARGET_CHANGED")
+      assertColor(color3({ fs:GetTextColor() }), fixed, "an unresolvable class falls through to the swatch")
+    end)
+    M.UnitClass = realClass
+    if not ok then error(err, 0) end
+  end, "MAGE")
+end)
+
+test("render: a skin change in combat re-applies nothing until combat ends", function()
+  -- red under: OnLooksChanged calling Container.Sync directly, which places frames mid-combat.
+  withRenderer(function()
+    local _, _, inst = newContainer()
+    local realLock = M.InCombatLockdown
+    M.InCombatLockdown = function() return true end
+    local ok, err = pcall(function()
+      local placed = count(inst.frame, "SetPoint", function()
+        M.LibStub("LibKa0s-Skin-1.0"):__NotifyLooks("RangeMaster")
+        CM.FlushPending()
+      end)
+      assertEqual(placed, 0, "nothing placed while in combat")
+      assertTrue(CM.__pending(), "the re-apply is owed")
+      M.InCombatLockdown = realLock
+      placed = count(inst.frame, "SetPoint", function() CM.FlushPending("regen") end)
+      assertTrue(placed > 0, "the leave edge runs the held re-apply")
+    end)
+    M.InCombatLockdown = realLock
+    if not ok then error(err, 0) end
+  end)
+end)
+
+--- Run `fn` with NS.GetLSM answering a fake LibSharedMedia that knows one font and one border.
+local FAKE_FONT, FAKE_EDGE = "Interface\\AddOns\\Fake\\Fancy.ttf", "Interface\\AddOns\\Fake\\Edge"
+local function withFakeLSM(fn)
+  local real = NS.GetLSM
+  local lsm = { Fetch = function(_, kind, key)
+    if kind == "font" and key == "Fancy" then return FAKE_FONT end
+    if kind == "border" and key == "Edge" then return FAKE_EDGE end
+    if kind == "border" and key == "Solid" then return "Interface\\Buttons\\WHITE8X8" end
+  end }
+  NS.GetLSM = function() return lsm end
+  local ok, err = pcall(fn)
+  NS.GetLSM = real
+  if not ok then error(err, 0) end
+end
+
+test("render: an element font naming a LibSharedMedia key draws that face at the stored size", function()
+  withRenderer(function()
+    withFakeLSM(function()
+      local _, _, inst = newContainer({ elements = { number = { font = "Fancy", size = 17 } } })
+      local font = M.__paint(inst.elements.number.fs).font
+      assertEqual(font[1], FAKE_FONT, "LSM's path for the key")
+      assertEqual(font[2], 17, "at the stored size")
+      local _, _, inst2 = newContainer({ elements = { number = { font = "Unknown" } } })
+      assertEqual(M.__paint(inst2.elements.number.fs).font[1], C.FALLBACK_FONT,
+        "a key LSM does not know draws the fallback face")
+    end)
+  end)
+end)
+
+test("render: a LibSharedMedia border draws on a backdrop of its own, band-colored, its tiling tracked", function()
+  withRenderer(function()
+    local resized = 0
+    local realMixin, realMixinFn = M.BackdropTemplateMixin, M.Mixin
+    M.BackdropTemplateMixin = { OnBackdropSizeChanged = function() resized = resized + 1 end }
+    M.Mixin = function(o, m) for k, v in pairs(m) do o[k] = v end return o end
+    local ok, err = pcall(withFakeLSM, function()
+      local _, setId, inst = newContainer({ frame = { border = { enabled = true, texture = "Edge", size = 8 } } })
+      local host = inst.border.backdrop
+      assertTrue(host ~= nil and host:IsShown(), "the media border's host is shown")
+      assertEqual(host:GetBackdrop().edgeFile, FAKE_EDGE)
+      assertEqual(host:GetBackdrop().edgeSize, 8)
+      assertFalse(inst.border.strips[1]:IsShown(), "the Solid strips are down")
+      assertColor({ host:GetBackdropBorderColor() }, band(setId, 3).frameColor, "the band's frame color")
+      local onSize = host:GetScript("OnSizeChanged")
+      assertTrue(onSize ~= nil, "the host re-tiles its edge when its size moves, as the template does")
+      onSize(host, 10, 10)
+      assertEqual(resized, 1, "through the mixin's own OnBackdropSizeChanged")
+      local _, _, solid = newContainer({ frame = { border = { enabled = true, texture = "Solid", size = 2 } } })
+      assertTrue(solid.border.strips[1]:IsShown(), "Solid draws the strips")
+      assertNil(solid.border.backdrop, "and builds no backdrop")
+    end)
+    M.BackdropTemplateMixin, M.Mixin = realMixin, realMixinFn
+    if not ok then error(err, 0) end
+  end)
+end)
+
 test("render: every indicator shape ships as a white 64x64 uncompressed 32-bit TGA", function()
   -- An RLE or 24-bit TGA draws nothing and raises nothing in the client (anti-pattern #82), so the
   -- header is the check: image type 2 (uncompressed true-color), 64 x 64, 32 bits, 8 alpha bits.
