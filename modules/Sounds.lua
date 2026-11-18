@@ -4,7 +4,8 @@ local _, NS = ...
 --
 --   NS.Sounds.OnBand(inst, bandIndex, now) -> played   the renderer's report of the band an instance
 --                                       draws, on every render and every steady read of its unit
---   NS.Sounds.Reset(inst)               a different unit sits behind the instance: forget the state
+--   NS.Sounds.Reset(inst)               a different unit sits behind the instance: forget its bands
+--                                       (the next one settles silently), keep the gap
 --   NS.Sounds.Wants(inst) -> boolean    a container with sounds on, and never a `nameplates` one
 --   NS.Sounds.SETTLE, GAP, BUILTIN      0.2 s, 1 s, and the sound keys this addon ships
 --
@@ -13,7 +14,8 @@ local _, NS = ...
 -- reported for the first time starts its settle (`band`, `since`). Once the same band is reported
 -- SETTLE or more after `since` it has settled: if it is not the band that settled last (`settled`), its
 -- sound plays, unless it is the first band since the unit changed (`first`, set by Reset and by the
--- unit going away) or the last sound played less than GAP ago (`lastPlay`, per container). A band left
+-- unit going away) or the last sound played less than GAP ago (`lastPlay`, per container: Reset keeps
+-- it, so a retarget, a faction change or a preview starting or ending never opens the gap). A band left
 -- inside its settle never plays, and a flicker out of a band and back is quiet, because coming back
 -- settles the band that had settled already. An unknown range settles nothing and resets nothing.
 --
@@ -48,7 +50,9 @@ function Sounds.Wants(inst)
 end
 
 function Sounds.Reset(inst)
-    if inst then inst.sound = nil end
+    local s = inst and inst.sound
+    if not s then return end
+    s.band, s.since, s.done, s.settled, s.first = nil, nil, nil, nil, true
 end
 
 local function resolve(key)

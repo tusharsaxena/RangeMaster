@@ -18,6 +18,8 @@ local _, NS = ...
 --                                        decides which plates get one), applied now
 --   NS.Container.ReleasePlate(id, token), GetPlate(id, token), ForEachPlate(fn(inst, id, token))
 --   inst:SetAnchorHidden(hidden)         the anchor's say: hidden while its frame or plate is missing
+--   inst:DockStrips()                    dock the preview strips again, beyond a drag handle built
+--                                        after them (modules/Anchors_Screen.lua, on the first unlock)
 --   NS.Container.SetPreview(kind|nil)    Test mode ("test") or Sim mode ("sim") draws, or neither
 --                                        (modules/Preview.lua is its one caller)
 --   NS.Container.RefreshVisibility()     ask every instance's visibility again (the combat edge,
@@ -356,6 +358,12 @@ local function resolveBand(inst, state, lo, hi)
     return true
 end
 
+--- The dock of this instance's strips: on the display's top edge, stacked beyond its drag handle
+--- while that shows (preview-mode, *Where the strip sits*).
+local function dockSpec(inst)
+    return { dock = "hud", target = inst.frame, clear = inst.dragHandle or nil }
+end
+
 --- The preview's strip of `kind` on this instance, built on first use; false without the library.
 local function stripFor(inst, kind)
     inst.strips = inst.strips or {}
@@ -371,6 +379,15 @@ local function stripFor(inst, kind)
     end
     inst.strips[kind] = s
     return s
+end
+
+--- The drag handle was built after the strips were (modules/Anchors_Screen.lua builds it on the
+--- first unlock): dock every strip again, so each stacks beyond the handle rather than over it.
+function Instance:DockStrips()
+    if not (self.strips and self.dragHandle and KW and KW.DockTestStrip) then return end
+    for _, s in pairs(self.strips) do
+        if s then pcall(KW.DockTestStrip, s, dockSpec(self)) end
+    end
 end
 
 --- Show the running preview's strip and hide the other (every strip with no preview).
@@ -499,6 +516,7 @@ function Container.Acquire(id)
     local inst = Pool.AcquireKeyed(pool, id, newInstance)
     inst.key, inst.pool = id, pool
     inst:Apply(id, c)
+    showStrips(inst)
     return inst
 end
 
@@ -519,6 +537,7 @@ function Container.AcquirePlate(id, token)
     local inst = Pool.AcquireKeyed(platePool, key, newInstance)
     inst.key, inst.pool, inst.plateToken = key, platePool, token
     inst:Apply(id, c)
+    showStrips(inst)
     return inst
 end
 

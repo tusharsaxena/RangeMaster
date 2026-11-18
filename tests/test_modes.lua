@@ -211,9 +211,22 @@ test("modes: test_test_mode_placeholders_all_containers — every enabled contai
       assertTrue(inst.frame:IsShown(), name .. " shows its placeholder")
       assertEqual(inst.elements.number.fs:GetText(), "20" .. EN .. "25", name .. " reads the placeholder range")
       assertEqual(inst.state, "known", name .. " drew it through the real render path")
-      if inst.strips then
-        assertTrue(inst.strips.test and inst.strips.test:IsShown(), name .. " carries the test strip")
-      end
+      -- red under: a redraw that never shows the strip.
+      local strip = inst.strips and inst.strips.test
+      assertTrue(strip and strip:IsShown(), name .. " carries the test strip")
+      assertEqual(strip.kind, "test", name .. "'s strip is the amber Test mode flavor")
+    end
+    -- red under: no screen-point fallback (present() placing nothing while the anchor is missing).
+    for _, name in ipairs({ "frame", "ownPlate" }) do
+      local a, inst = NS.CM.Get(ids[name]).anchor, drawn(ids[name])
+      local calls = H.points(inst.frame, function() inst:Rerender() end)
+      assertEqual(#calls, 1, name .. " is placed once a draw")
+      local point, rel, relPoint, x, y = unpack(calls[1])
+      assertEqual(point, NS.Anchors.Point(a.point), name .. " sits at its stored point")
+      assertTrue(rel == M.UIParent, name .. " is placed on UIParent while its own anchor is missing")
+      assertEqual(relPoint, NS.Anchors.Point(a.relPoint), name .. "'s relative point")
+      assertEqual(x, NS.Anchors.Offset(a.x), name .. "'s x")
+      assertEqual(y, NS.Anchors.Offset(a.y), name .. "'s y")
     end
     assertEqual(drawn(disabled), nil, "a disabled container shows nothing")
     assertEqual(NS.Preview.Kind(), "test")
@@ -223,11 +236,96 @@ test("modes: test_test_mode_placeholders_all_containers — every enabled contai
     for name, id in pairs(ids) do
       local inst = drawn(id)
       assertFalse(inst ~= nil and inst.frame:IsShown(), name .. " is hidden again")
-      if inst and inst.strips and inst.strips.test then
+      if inst then
+        assertTrue(inst.strips and inst.strips.test, name .. " kept its strip")
         assertFalse(inst.strips.test:IsShown(), name .. "'s strip is hidden")
       end
     end
     assertFalse(NS.Range.HasSource(), "the live range is back")
+  end)
+  off()
+end)
+
+test("modes: test_test_strip_on_late_instances — a container or plate that appears during Test mode wears the strip", function()
+  -- red under: an Acquire or AcquirePlate that never shows the running preview's strip.
+  off()
+  withEnv(function()
+    H.container("target")
+    assertTrue(NS.SetTestMode(true, "test"))
+    local id, inst = H.container("focus")
+    assertTrue(inst ~= nil and inst.frame:IsShown(), "the new container shows its placeholder")
+    local strip = inst.strips and inst.strips.test
+    assertTrue(strip and strip:IsShown(), "and carries the test strip")
+    -- A pooled frame coming back (park hid its strip) wears it again.
+    NS.CM.Delete(id)
+    NS.CM.FlushPending()
+    local _, again = H.container("pet")
+    assertTrue(again.frame == inst.frame, "the deleted container's frame came back from the pool")
+    assertTrue(again.strips and again.strips.test and again.strips.test:IsShown(), "a reused frame wears it again")
+    -- A plate added while the preview runs.
+    local plates = NS.CM.Create("nameplates", { anchor = { mode = "nameplate" } })
+    NS.CM.FlushPending()
+    H.plate("nameplate1", true)
+    H.added("nameplate1")
+    local plate = NS.Container.GetPlate(plates, "nameplate1")
+    assertTrue(plate ~= nil, "the plate has an instance")
+    assertTrue(plate.strips and plate.strips.test and plate.strips.test:IsShown(), "and it wears the strip")
+    NS.SetTestMode(false, "test")
+    assertFalse(again.strips.test:IsShown() or plate.strips.test:IsShown(), "the strips go with the mode")
+  end)
+  off()
+end)
+
+test("modes: test_strip_clears_drag_handle — a strip built while locked docks beyond the handle an unlock builds", function()
+  -- red under: a strip whose `clear` was captured (as nil) before the drag handle existed.
+  off()
+  withEnv(function()
+    local _, inst = H.container("target")
+    assertTrue(NS.SetTestMode(true, "test"))
+    local strip = inst.strips.test
+    assertTrue(inst.dragHandle == nil, "locked: no handle yet")
+    NS.SetByPath("locked", false)
+    local h = inst.dragHandle
+    assertTrue(h and h:IsShown(), "the unlock built and showed the handle")
+    -- Geometry: the display's top at 500, the handle reaching 20 above it.
+    for f, top in pairs({ [inst.frame] = 500, [h] = 520 }) do
+      rawset(f, "GetTop", function() return top end)
+      rawset(f, "GetBottom", function() return top - 18 end)
+      rawset(f, "GetEffectiveScale", function() return 1 end)
+    end
+    rawset(strip, "GetEffectiveScale", function() return 1 end)
+    local calls = H.points(strip, function() strip:Place() end)
+    local point, rel, relPoint, _, y = unpack(calls[1])
+    assertEqual(point, "BOTTOMLEFT")
+    assertTrue(rel == inst.frame and relPoint == "TOPLEFT", "on the display's top edge")
+    assertEqual(y, 20, "stacked beyond the handle, never over it")
+    NS.SetByPath("locked", true)
+  end)
+  off()
+end)
+
+test("modes: test_sim_strip_and_pinned_panel — Sim mode wears the cyan strip, and its step panel cannot be closed", function()
+  -- red under: a redraw with no strip, or a panel left with its default close mark.
+  off()
+  withEnv(function()
+    local _, inst = H.container("target")
+    assertTrue(NS.SetSimMode(true, "test"))
+    local strip = inst.strips and inst.strips.sim
+    assertTrue(strip and strip:IsShown(), "the container carries the sim strip")
+    assertEqual(strip.kind, "sim", "the cyan Sim mode flavor")
+    assertFalse(inst.strips.test and inst.strips.test:IsShown(), "and not the test strip")
+    local name = "RangeMasterSimPanel"
+    local frame = _G[name]
+    assertTrue(type(frame) == "table" and frame:IsShown(), "the step panel shows")
+    assertTrue(frame.closeButton ~= nil, "the panel has a close mark to hide")
+    assertFalse(frame.closeButton:IsShown(), "with no close mark while the session runs")
+    for _, n in ipairs(M.UISpecialFrames) do assertFalse(n == name, "and Escape does not close it") end
+    NS.SetSimMode(false, "test")
+    assertFalse(strip:IsShown(), "the strip goes with the mode")
+    assertTrue(frame.closeButton:IsShown(), "the close mark is back once the session ends")
+    local listed = false
+    for _, n in ipairs(M.UISpecialFrames) do if n == name then listed = true end end
+    assertTrue(listed, "and the panel is on UISpecialFrames again")
   end)
   off()
 end)

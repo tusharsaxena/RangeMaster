@@ -24,6 +24,14 @@ local addonName, NS = ...
 -- back. A session a typed `/rm sim start sweep` began turns the mode on. The step panel shows for the
 -- whole session (preview-mode: it is the session's mark) and every container carries the cyan strip.
 --
+-- THE PANEL IS PINNED while the session runs: no window strip marks this addon's session, so the
+-- panel may not be closed by a click (preview-mode, *The in-game simulator*: `close = false`). The
+-- vendored LibKa0s-Sim-1.0 takes no `close` on its panel descriptor (descriptor.panel raises on one)
+-- and lists the frame on UISpecialFrames when it builds it, so the pin is composed, as KickCD's is:
+-- the frame, reached by its documented name `<name>SimPanel`, has its close mark hidden and comes
+-- off UISpecialFrames (Escape leaves it); the stop puts both back. Its Stop row, `/rm sim stop`,
+-- combat and Sim mode off still end the session.
+--
 -- LINES. The library's lines go to the debug console (tag `Sim`), so a running sweep does not print
 -- a line a step into chat; a typed `/rm sim <verb>` prints its answer in chat.
 
@@ -92,10 +100,30 @@ local function play(step)
     return step.label
 end
 
+local PANEL_NAME = addonName .. "SimPanel"
+
+--- Pin the step panel (`on`) or unpin it: its close mark hidden or shown, its name off or back on
+--- UISpecialFrames. Idempotent; a frame not built yet is left alone. Answers whether it found one.
+local function pinPanel(on)
+    local frame = _G[PANEL_NAME]
+    if type(frame) ~= "table" then return false end
+    local close = frame.closeButton
+    if type(close) == "table" and close.SetShown then close:SetShown(not on) end
+    local special = UISpecialFrames
+    if type(special) ~= "table" then return true end
+    local at
+    for i = #special, 1, -1 do
+        if special[i] == PANEL_NAME then at = i end
+    end
+    if on and at then table.remove(special, at) end
+    if not on and not at then special[#special + 1] = PANEL_NAME end
+    return true
+end
+
 local function prepare(_, _, _, ready)
     distance = 0
     NS.Preview.Refresh()
-    session:ShowPanel()
+    if session:ShowPanel() then pinPanel(true) end
     ready()
 end
 
@@ -193,6 +221,7 @@ if Lib then
         distance = 0
         NS.Preview.Refresh()
         session:HidePanel()
+        pinPanel(false)
         NS.SetSimMode(false, "sim " .. tostring(reason))
     end)
 end

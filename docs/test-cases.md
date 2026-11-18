@@ -250,13 +250,15 @@ Total.
 - visibility: writing General visibility or Master opacity re-evaluates every container
 - visibility: Master scale multiplies each container's own scale on the next apply
 
-### test_sounds.lua (10)
+### test_sounds.lua (12)
 
 - sounds: test_settle_200ms — a band's sound waits out the settle, then plays once
 - sounds: a band left inside the settle never plays, and coming back to the settled one is quiet
 - sounds: test_gap_1s — a second band settling inside the gap is silent
 - sounds: test_silent_first_band — the first band after a unit change is silent
 - sounds: test_no_sound_for_nameplates — a nameplates container never sounds
+- sounds: test_gap_1s — the gap holds across a unit change (the gap is the container's, not the unit's)
+- sounds: test_no_sound_for_nameplates — the Test mode stand-in of a nameplates container is silent
 - sounds: a container with sounds off, or a band with no sound, plays nothing
 - sounds: a key LibSharedMedia does not know plays nothing, and a raising client is contained
 - sounds: through the render path, a band change plays after the next steady read
@@ -461,7 +463,7 @@ Total.
 
 - launcher descriptor passes openSkinPicker, which runs the skin verb
 
-### test_modes.lua (15)
+### test_modes.lua (18)
 
 - modes: each writer sets its mode, announces once on a change, and a repeat is silent
 - modes: test_refuse_in_combat — a start is refused in combat with one gray line, and nothing changes
@@ -471,6 +473,9 @@ Total.
 - modes: the Master controls carry Test mode, then Sim mode, as session rows on the one writer
 - modes: test_launcher_and_slash_same_handler — the launcher menu is Enabled, Locked, Test mode, Sim mode, each the verb's handler
 - modes: test_test_mode_placeholders_all_containers — every enabled container shows a placeholder
+- modes: test_test_strip_on_late_instances — a container or plate that appears during Test mode wears the strip
+- modes: test_strip_clears_drag_handle — a strip built while locked docks beyond the handle an unlock builds
+- modes: test_sim_strip_and_pinned_panel — Sim mode wears the cyan strip, and its step panel cannot be closed
 - modes: Test mode keeps the ticker reading the placeholder while it is on
 - modes: test_sim_sweeps_bands — Sim mode walks 0 to 50 to 0 yd through every band, with sounds
 - modes: the sweep's run plays on its own timers, and Sim mode off stops it
@@ -737,7 +742,7 @@ Total.
 | test_anchors_nameplate.lua | 14 |
 | test_anchors_cursor.lua | 7 |
 | test_visibility.lua | 11 |
-| test_sounds.lua | 10 |
+| test_sounds.lua | 12 |
 | test_compat.lua | 6 |
 | test_range.lua | 22 |
 | test_ticker.lua | 13 |
@@ -752,7 +757,7 @@ Total.
 | test_layers.lua | 3 |
 | test_launcher.lua | 30 |
 | test_launcher_skin_entry.lua | 1 |
-| test_modes.lua | 15 |
+| test_modes.lua | 18 |
 | test_optionssetup.lua | 16 |
 | test_realpages.lua | 7 |
 | test_skinsetup.lua | 12 |
@@ -776,4 +781,4 @@ Total.
 | test_skin_switch.lua | 6 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **558** |
+| **Total** | **563** |

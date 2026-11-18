@@ -38,6 +38,7 @@ globals = {
   "RangeMasterDB",       -- the SavedVariables write target
   "RangeMasterPerfDB",   -- the diagnostics capture ring (performance-§5)
   "StaticPopupDialogs",  -- the Reset-all confirmation registers here
+  "UISpecialFrames",     -- modules/Sim.lua takes the step panel off Escape's list while a sweep runs
 }
 
 -- The harness global is declared HERE rather than in the top-level `read_globals`: no shipped file

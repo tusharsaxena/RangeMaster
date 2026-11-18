@@ -97,5 +97,16 @@ return function()
     return t
   end
 
+  -- The step panel is reachable by its global name, as in the client. The kit records a frame's
+  -- name on the frame only; modules/Sim.lua reaches the panel by `RangeMasterSimPanel` (the one
+  -- frame this addon reads back by name), so a suite has to be able to as well. Every other named
+  -- frame stays off _G: the frame-anchor suites own which names resolve.
+  local createFrame = M.CreateFrame
+  M.CreateFrame = function(frameType, name, ...)
+    local f = createFrame(frameType, name, ...)
+    if name == "RangeMasterSimPanel" then rawset(_G, name, f) end
+    return f
+  end
+
   return M
 end

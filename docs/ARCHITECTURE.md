@@ -200,8 +200,10 @@ click or Escape cancels. It is refused in combat and the combat edge cancels one
   lives on the render instance (`inst.sound`): a band plays its LibSharedMedia sound once it has held
   0.2 s, not within 1 s of the container's last sound, never for the first band after the unit
   changed (`NS.Container.UnitChanged`, or the unit going away), and a flicker back into the band that
-  had settled is quiet. A `nameplates` container never sounds (its per-plate instances keep no
-  state). The Advanced preset's out-of-range key is built in (`NS.Sounds.BUILTIN`: the raid warning
+  had settled is quiet. `NS.Sounds.Reset` (a unit change, a faction change, a preview starting or
+  ending) forgets the bands but keeps the last sound's time, so the 1 s gap is the container's and
+  survives a retarget. A `nameplates` container never sounds: its per-plate instances keep no state,
+  and its Test or Sim mode stand-in is turned down by `NS.Sounds.Wants`. The Advanced preset's out-of-range key is built in (`NS.Sounds.BUILTIN`: the raid warning
   chime, file id 567397) and registered with LibSharedMedia at load.
 - **Test mode** (`modules/Preview.lua`): `NS.Preview.Refresh` is the one caller of
   `NS.Range.SetSource` (a fake range every read answers, for any token) and
@@ -209,12 +211,18 @@ click or Escape cancels. It is refused in combat and the combat edge cancels one
   While a preview runs every enabled container shows, whatever its visibility says: one whose frame
   or plate is missing at its screen point, and a `nameplates` container through a stand-in instance
   in the main pool that goes with the preview. Each wears LibKa0s-Widgets' TestStrip (`dock =
-  "hud"`, amber `TEST`, cyan `SIM`). The ticker, the memo, `RANGE_UPDATED` and the render are the
-  live ones.
+  "hud"`, amber `TEST`, cyan `SIM`), including an instance acquired while the preview runs (a
+  container created or enabled, a plate added, a pooled frame coming back). The strip stacks beyond
+  the screen anchor's drag handle: one built before the first unlock is docked again when the handle
+  is built (`inst:DockStrips`). The ticker, the memo, `RANGE_UPDATED` and the render are the live
+  ones.
 - **Sim mode** (`modules/Sim.lua`): a LibKa0s-Sim-1.0 session on an empty seam (it simulates no
   client read), one scenario `sweep`: 0, 5, … 50, … 0 yd, one step a second, then the step that ends
   it. The range is the bracket a yard either side (`50+` at the far end); a chip is in range while the
-  distance is inside the spell's own range. The step panel shows for the whole session. Sim mode on
+  distance is inside the spell's own range. The step panel shows for the whole session and is pinned
+  while it runs: no window strip marks this addon's session, so its close mark is hidden and it comes
+  off `UISpecialFrames` (the vendored library takes no `close = false` on its panel descriptor, so
+  the pin is composed on the frame, `RangeMasterSimPanel`); the stop puts both back. Sim mode on
   starts and runs the session; the session ending (its last step, `/rm sim stop`, the panel, combat,
   a stand-down, Sim mode off) turns the mode off and the live range back on; a typed `/rm sim start
   sweep` turns the mode on. A running sweep wins over Test mode, and Test mode is refused while one

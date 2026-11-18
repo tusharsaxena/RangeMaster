@@ -80,7 +80,11 @@ end
 
 --- Show the strip while unlocked, hide it otherwise.
 local function showHandle(inst, on)
-    if on and not inst.dragHandle then inst.dragHandle = buildHandle(inst) or false end
+    if on and not inst.dragHandle then
+        inst.dragHandle = buildHandle(inst) or false
+        -- A preview strip built before the handle stacks beyond it from now on (modules/Container.lua).
+        if inst.dragHandle and inst.DockStrips then inst:DockStrips() end
+    end
     local h = inst.dragHandle
     if not h then return dragFrameItself(inst, on) end
     if on then

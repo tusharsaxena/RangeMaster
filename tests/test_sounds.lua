@@ -136,6 +136,47 @@ test("sounds: test_no_sound_for_nameplates — a nameplates container never soun
   end)
 end)
 
+test("sounds: test_gap_1s — the gap holds across a unit change (the gap is the container's, not the unit's)", function()
+  -- red under: a Reset that drops the whole state, lastPlay with it.
+  withSounds(function(played, inst)
+    settledOn(inst, 1, 0)
+    S.OnBand(inst, 2, 10)
+    S.OnBand(inst, 2, 10.2)
+    assertEqual(#played, 1, "band 2 played at 10.2")
+    NS.Container.UnitChanged("target")   -- a retarget 0.1 s later
+    S.OnBand(inst, 4, 10.3)
+    S.OnBand(inst, 4, 10.5)
+    assertEqual(#played, 1, "the new unit's first band is silent")
+    S.OnBand(inst, 5, 10.6)
+    S.OnBand(inst, 5, 10.8)
+    assertEqual(#played, 1, "its next band settles 0.6 s after the last sound: inside the gap")
+    S.OnBand(inst, 3, 11.3)
+    S.OnBand(inst, 3, 11.5)
+    assertEqual(#played, 2, "one settling after the gap plays")
+  end)
+end)
+
+test("sounds: test_no_sound_for_nameplates — the Test mode stand-in of a nameplates container is silent", function()
+  -- red under: a Wants without its `c.unit ~= "nameplates"` guard (the stand-in has no plateToken).
+  withSounds(function(played, _, setId)
+    local id = NS.CM.Create("nameplates", { anchor = { mode = "nameplate" }, bandSet = setId,
+      sounds = { enabled = true, channel = "SFX" } })
+    NS.CM.FlushPending()
+    assertTrue(NS.SetTestMode(true, "test"))
+    local ok, err = pcall(function()
+      local inst = NS.Container.Get(id)
+      assertTrue(inst ~= nil and inst.plateToken == nil, "the stand-in sits in the main pool")
+      assertFalse(S.Wants(inst), "the stand-in does not want sounds")
+      settledOn(inst, 1, 0)
+      S.OnBand(inst, 2, 5)
+      S.OnBand(inst, 2, 6)
+      assertEqual(#played, 0, "and plays none")
+    end)
+    NS.EndModes("test reset")
+    if not ok then error(err, 0) end
+  end)
+end)
+
 test("sounds: a container with sounds off, or a band with no sound, plays nothing", function()
   withSounds(function(played, inst, setId)
     B.SetBandSound(setId, 2, nil)
