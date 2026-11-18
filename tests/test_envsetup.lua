@@ -1,0 +1,101 @@
+-- tests/test_envsetup.lua — core/EnvSetup.lua, the LibKa0s-Env-1.0 seam.
+--
+-- What is asserted here is THE SEAM, not the library. The library's own suite covers the ladder
+-- inside GetAddOnMetadata; a second copy of those cases here is exactly the consumer-side
+-- duplication testing-§8 forbids. What only this repo can check is that this addon's helpers answer
+-- what its deleted shim answered, that they ask about THIS addon's folder, and that the shim — and
+-- the file it was the whole of — are actually gone.
+
+local T = _G.RM_TEST
+local NS = T.NS
+local mocks = T.mocks
+local test, assertEqual, assertTrue, assertNil =
+  T.test, T.assertEqual, T.assertTrue, T.assertNil
+
+local loadDegraded = dofile("tests/degraded_env.lua")
+
+-- Stand a TOC reader up for the duration of `fn`, recording what it was asked about.
+--
+-- The mock deliberately does NOT stub `C_AddOns` (tests/_kit/mock_base.lua:335 says why: a
+-- base-level stub would shadow the swaps the metadata cases depend on). So out of game this addon
+-- has no manifest to read and every metadata call answers nil. That absence is what makes the
+-- fallback cases below honest, and it is why the two cases that need a readable TOC build one here
+-- rather than asserting a fixture that does not exist.
+local function withTOC(version, fn)
+  local askedName, askedField
+  local saved = mocks.C_AddOns
+  mocks.C_AddOns = { GetAddOnMetadata = function(name, field)
+    askedName, askedField = name, field
+    return field == "Version" and version or nil
+  end }
+  local ok, err = pcall(fn)
+  mocks.C_AddOns = saved
+  if not ok then error(err, 0) end
+  return askedName, askedField
+end
+
+test("EnvSetup: NS.Meta asks about THIS addon's folder, not its title or its frame prefix", function()
+  -- The one thing the library cannot get right on its own: LibKa0s is VENDORED, so the folder name
+  -- has to come from the host. "RangeMaster", "Ka0s Range Master" and the "[RM]" chat prefix are
+  -- all live strings in this repo and only the first is the folder; a wrong one reads another
+  -- addon's manifest, or none, and answers nil without raising a thing.
+  local name, field = withTOC("9.9.9", function()
+    assertEqual(NS.Meta("Version"), "9.9.9")
+  end)
+  assertEqual(name, "RangeMaster")
+  assertEqual(field, "Version")
+end)
+
+test("EnvSetup: NS.Meta degrades to nil when the client exposes no manifest reader", function()
+  -- The behavior the deleted Compat.GetAddOnMetadata was pinned on: nil, never a raise. The About
+  -- page's Notes row reads through here and prints "" for it.
+  assertNil(NS.Meta("Notes"))
+end)
+
+test("EnvSetup: NS.Version prefers the TOC over this addon's own constant", function()
+  -- A packaged addon whose TOC can be read must never report the constant somebody forgot to edit.
+  withTOC("9.9.9", function()
+    assertEqual(NS.Version(), "9.9.9")
+  end)
+end)
+
+test("EnvSetup: NS.Version falls back to this addon's own constant", function()
+  -- The fallback lives at the call site rather than in the library, because which constant this
+  -- addon falls back to is genuinely its own business — so it is the seam's job to prove it works.
+  -- No reader is stubbed here, which is what a client that cannot answer looks like.
+  local v = NS.Version()
+  assertEqual(v, NS.version)
+  assertTrue(v ~= nil and v ~= "", "a version string, never nil — /rm version prints it verbatim")
+end)
+
+test("EnvSetup degraded: an install with no LibKa0s still reads its own TOC", function()
+  -- The case that earns the written-out fallbacks. Without LibKa0s the seam answers nil for
+  -- everything unless it repeats the ladder's live rung, C_AddOns, and nil is not an error a player
+  -- would ever see reported: it is a blank version after `/rm version` and an empty About page.
+  -- tests/degraded_env.lua loads the whole TOC with libs/LibKa0s/*.lua left out, so this runs the
+  -- else-branch of both helpers as a LOAD rather than as a hand-stub.
+  local NS2, mocks2 = loadDegraded()
+  mocks2.C_AddOns = { GetAddOnMetadata = function(_, field)
+    return field == "Version" and "9.9.9" or nil
+  end }
+  assertEqual(NS2.Meta("Version"), "9.9.9")
+  assertEqual(NS2.Version(), "9.9.9")
+  mocks2.C_AddOns = nil
+  assertEqual(NS2.Version(), NS2.version, "and still the constant when nothing can be read")
+end)
+
+test("EnvSetup degraded: a legacy-only surface yields nil, and the dead global is never called", function()
+  -- compat: a fallback rung that calls a global no admitted client provides is dead code, deleted
+  -- rather than kept. Every client this addon's `## Interface` line admits carries the reader only as
+  -- C_AddOns' member, so with the library AND C_AddOns both absent the seam has nothing left to try:
+  -- it answers nil. A bare global standing in their place is a surface no admitted client has, and
+  -- the seam must not reach for it.
+  local NS2, mocks2 = loadDegraded()
+  local called = false
+  mocks2.C_AddOns = nil
+  mocks2.GetAddOnMetadata = function() called = true; return "9.9.9" end
+  local v = NS2.Meta("Version")
+  mocks2.GetAddOnMetadata = nil
+  assertNil(v)
+  assertTrue(not called, "the deleted pre-11.0 rung must not be restored")
+end)

@@ -1,0 +1,374 @@
+-- tests/test_skin_picker.lua — the first-run skin picker on this addon's seam (core/SkinSetup.lua,
+-- LibKa0s OptionsSkinPicker).
+--
+-- What this addon owes the picker, and nothing the library pins itself: the spec it hands the
+-- Options instance's SkinPicker (its owner, its two seams, General's Skin tab, the eye, the close);
+-- WHEN it shows (a profile whose `skin.pickerSeen` is false, at login and after every profile
+-- event, never while the addon stands down, held through combat); and that only the player's close
+-- marks it seen. The trigger cases spy on SkinPicker; the last cases drive the library's real
+-- window: Apply saving through NS.WriteSkinChoice, the close control saving nothing, the gear
+-- opening General on its Skin tab, the eye shown, and the stand-down taking the window down unseen.
+-- What the eye does (spec.preview, Test mode) is test_skin_picker_preview's.
+--
+-- Modeled on LootHistory's tests/test_skin_picker.lua, the reference adopter. After
+-- test_skin_hud; leaves the skin on Ka0s Default, the picker down and marked unseen.
+
+local T = _G.RM_TEST
+local NS, mocks = T.NS, T.mocks
+local test, assertEqual, assertTrue, assertFalse = T.test, T.assertEqual, T.assertTrue, T.assertFalse
+
+local O = NS.Helpers
+local Skin = mocks.LibStub("LibKa0s-Skin-1.0")
+local OWNER = "RangeMaster"
+local PATH = "skin.pickerSeen"
+
+-- Every frame built from here on, by parent, so a case can reach the picker list's rows: the
+-- shared mock's frames do not list their children, and the picker builds its window, rows
+-- included, on its first show, which is in this file.
+local childrenOf = setmetatable({}, { __mode = "k" })
+do
+  local create = mocks.CreateFrame
+  mocks.CreateFrame = function(frameType, name, parent, ...)
+    local f = create(frameType, name, parent, ...)
+    if parent ~= nil then
+      local list = childrenOf[parent] or {}
+      childrenOf[parent] = list
+      list[#list + 1] = f
+    end
+    return f
+  end
+end
+
+local function seen() return NS.GetSetting(PATH) end
+
+--- Run `fn` with chat swallowed.
+local function quietly(fn)
+  local cf = mocks.DEFAULT_CHAT_FRAME
+  local old = rawget(cf, "AddMessage")
+  cf.AddMessage = function() end
+  local ok, err = pcall(fn)
+  cf.AddMessage = old
+  if not ok then error(err, 0) end
+end
+
+--- Run `fn(calls)` with the instance's SkinPicker replaced by a recorder: each call's spec.
+local function spying(fn)
+  local real = O.SkinPicker
+  local calls = {}
+  O.SkinPicker = function(spec)
+    calls[#calls + 1] = spec
+    return { spy = true }
+  end
+  local ok, err = pcall(fn, calls)
+  O.SkinPicker = real
+  if not ok then error(err, 0) end
+end
+
+--- The picker down (quietly), the profile back on Default with its key false and its skin Ka0s
+--- Default, stored and worn, whatever `fn` raised.
+local function clean(fn)
+  return function()
+    NS.HideSkinPicker()
+    quietly(function() NS.SetByPath(PATH, false) end)
+    local ok, err = pcall(fn)
+    NS.HideSkinPicker()
+    quietly(function()
+      if NS.db:GetCurrentProfile() ~= "Default" then NS.db:SetProfile("Default") end
+      NS.SetByPath(PATH, false)
+      NS.WriteSkinChoice("ka0s", "ka0s")
+    end)
+    Skin:SetChoice(OWNER, "ka0s", "ka0s")
+    mocks.__fireTimers()
+    if not ok then error(err, 0) end
+  end
+end
+
+-- ── the spec ─────────────────────────────────────────────────────────────────────────────────
+
+test("Skin picker: the spec names this owner, its seams, General's Skin tab, and the unlock eye", function()
+  -- red under: a set that is not the write seam (Apply would never reach the profile), a page key
+  -- RegisterOptionsPage was not given (the gear would open nothing), or the one-shot eye back
+  -- (the eye is spec.preview in Test mode, pinned in test_skin_picker_preview).
+  local spec = NS.SkinPickerSpec()
+  assertEqual(spec.owner, OWNER)
+  assertTrue(rawequal(spec.get, NS.SkinChoice), "get is the read seam")
+  assertTrue(rawequal(spec.set, NS.WriteSkinChoice), "set is the write seam")
+  assertEqual(spec.page, "general", "the key settings/General.lua gave RegisterOptionsPage")
+  assertEqual(spec.tab, "Appearance", "the Skin tab's key")
+  assertEqual(spec.onPreview, nil, "no one-shot eye")
+  assertEqual(type(spec.preview), "table", "the eye is spec.preview")
+  assertEqual(type(spec.onClose), "function")
+end)
+
+-- ── when it shows ────────────────────────────────────────────────────────────────────────────
+
+test("Skin picker: an unseen profile shows it; a seen one does not", clean(function()
+  spying(function(calls)
+    NS.MaybeShowSkinPicker()
+    assertEqual(#calls, 1, "pickerSeen false: the picker shows")
+    assertEqual(calls[1].owner, OWNER)
+    quietly(function() NS.SetByPath(PATH, true) end)
+    NS.MaybeShowSkinPicker()
+    assertEqual(#calls, 1, "pickerSeen true: it does not show again")
+  end)
+end))
+
+test("Skin picker: it shows at login, from addon:OnEnable", clean(function()
+  -- red under: dropping the call from OnEnable (no profile would ever see it).
+  spying(function(calls)
+    quietly(function() NS.addon:OnEnable() end)
+    assertEqual(#calls, 1, "OnEnable shows the picker on an unseen profile")
+  end)
+end))
+
+test("Skin picker: in combat a start waits for PLAYER_REGEN_ENABLED, once", clean(function()
+  local real = mocks.InCombatLockdown
+  mocks.InCombatLockdown = function() return true end
+  local ok, err = pcall(function()
+    spying(function(calls)
+      assertEqual(NS.MaybeShowSkinPicker(), nil)
+      NS.MaybeShowSkinPicker()
+      assertEqual(#calls, 0, "nothing shows in combat")
+      mocks.InCombatLockdown = function() return false end
+      mocks.__fireEvent("PLAYER_REGEN_ENABLED")
+      assertEqual(#calls, 1, "the combat edge shows it, once for two held starts")
+      mocks.__fireEvent("PLAYER_REGEN_ENABLED")
+      assertEqual(#calls, 1, "the one-shot target is gone")
+    end)
+  end)
+  mocks.InCombatLockdown = real
+  if not ok then error(err, 0) end
+end))
+
+test("Skin picker: a held start is dropped by HideSkinPicker", clean(function()
+  local real = mocks.InCombatLockdown
+  mocks.InCombatLockdown = function() return true end
+  local ok, err = pcall(function()
+    spying(function(calls)
+      NS.MaybeShowSkinPicker()
+      NS.HideSkinPicker()
+      mocks.InCombatLockdown = function() return false end
+      mocks.__fireEvent("PLAYER_REGEN_ENABLED")
+      assertEqual(#calls, 0, "a dropped start must not fire on the combat edge")
+    end)
+  end)
+  mocks.InCombatLockdown = real
+  if not ok then error(err, 0) end
+end))
+
+test("Skin picker: never while the addon is switched off", clean(function()
+  quietly(function()
+    spying(function(calls)
+      NS.SetByPath("enabled", false)
+      local ok, err = pcall(function()
+        assertTrue(NS.IsStoodDown(), "the switch stood the addon down")
+        NS.MaybeShowSkinPicker()
+        assertEqual(#calls, 0, "a disabled addon shows no picker")
+      end)
+      NS.SetByPath("enabled", true)
+      if not ok then error(err, 0) end
+    end)
+  end)
+end))
+
+test("Skin picker: a new profile and a reset profile show it again", clean(function()
+  -- Both start from the defaults, pickerSeen false (O3). red under: no call on adoptProfile's path.
+  -- A new or reset profile also owes the first-run PRESET picker (settings/Presets.lua), which goes
+  -- first; the skin picker is offered when that prompt closes, which its OnHide stands in for here.
+  local db = NS.db
+  local presetClosed = T.mocks.StaticPopupDialogs.RANGEMASTER_PRESET_PICKER.OnHide
+  quietly(function()
+    NS.SetByPath(PATH, true)
+    spying(function(calls)
+      db:SetProfile("PickerProbe")
+      assertEqual(#calls, 0, "the preset picker goes first")
+      presetClosed()
+      assertEqual(#calls, 1, "a new profile shows the picker")
+      NS.SetByPath(PATH, true)
+      db:ResetProfile()
+      presetClosed()
+      assertEqual(#calls, 2, "a reset profile shows it again")
+      NS.SetByPath(PATH, true)
+      db:SetProfile("Default")
+      assertEqual(#calls, 2, "back on a profile that has seen it: no picker")
+    end)
+  end)
+  if db.DeleteProfile then pcall(db.DeleteProfile, db, "PickerProbe", true) end
+end))
+
+-- ── the real window ──────────────────────────────────────────────────────────────────────────
+
+--- Run `fn(f)` on this addon's real picker, shown.
+local function onWindow(fn)
+  return clean(function()
+    quietly(function()
+      local f = NS.MaybeShowSkinPicker()
+      assertTrue(f ~= nil and f:IsShown(), "the library's picker did not show")
+      fn(f)
+    end)
+  end)
+end
+
+
+test("Skin picker: the title is Choose a skin, the name line names this addon, and the eye shows", onWindow(function(f)
+  -- Since LibKa0s v1.81.0 (OptionsSkinPicker minor 2, R-11) the title no longer names the addon,
+  -- which the client cut off; the name has its own line, frame.ownerLabel, above the dropdown, and
+  -- the window widens to the name's unbounded width so it is never cut off. The shared mock's
+  -- CreateFontString answers the frame itself, so the title and the name line are one table here:
+  -- the texts are read off its SetText, in the order a repeat call while the window is up re-reads
+  -- the spec and sets them (the title, then the name line), the name's width off its
+  -- GetUnboundedStringWidth, and the window's off a SetWidth recorder (the base mock defines no
+  -- setter, so the recorder is rawset and rawset nil after).
+  assertTrue(f.ownerLabel ~= nil, "the picker has a name line of its own")
+  local texts, fs = {}, f.ownerLabel
+  local width
+  local ownT, ownW = rawget(f.title, "SetText"), rawget(fs, "GetUnboundedStringWidth")
+  local ownS = rawget(f, "SetWidth")
+  f.title.SetText = function(_, v) texts[#texts + 1] = v end
+  fs.GetUnboundedStringWidth = function() return 600 end
+  rawset(f, "SetWidth", function(_, w) width = w end)
+  assertTrue(rawequal(NS.MaybeShowSkinPicker(), f), "a repeat call answers the same window")
+  rawset(f.title, "SetText", ownT)
+  rawset(fs, "GetUnboundedStringWidth", ownW)
+  rawset(f, "SetWidth", ownS)
+  assertEqual(texts[1], "Choose a skin")
+  assertEqual(texts[2], NS.Constants.BRAND)
+  assertTrue((width or 0) >= 600, "the window widens to the whole name, so it is never cut off")
+  assertTrue(f.preview ~= nil and f.preview:IsShown(), "spec.preview: the eye shows")
+end))
+
+test("Skin picker: the player's close marks it seen; this addon's own hide does not", clean(function()
+  quietly(function()
+    local f = NS.MaybeShowSkinPicker()
+    assertTrue(f ~= nil and f:IsShown(), "the library's picker did not show")
+    NS.HideSkinPicker()
+    assertTrue(not f:IsShown(), "HideSkinPicker takes it down")
+    assertEqual(seen(), false, "this addon's own hide is not the player's close")
+    f = NS.MaybeShowSkinPicker()
+    assertTrue(f ~= nil and f:IsShown(), "it shows again while unseen")
+    O.HideSkinPicker()
+    assertEqual(seen(), true, "the player's close sets pickerSeen")
+    assertEqual(NS.MaybeShowSkinPicker(), nil, "and it does not show again")
+  end)
+end))
+
+test("Skin picker: a profile that has seen it takes a shown picker down, unmarked", onWindow(function(f)
+  T.rawSet(PATH, true)
+  NS.MaybeShowSkinPicker()
+  assertTrue(not f:IsShown(), "the picker stayed up on a profile that has seen it")
+end))
+
+test("Skin picker: the stand-down takes the picker down, unseen", onWindow(function(f)
+  NS.SetByPath("enabled", false)
+  local ok, err = pcall(function()
+    assertTrue(not f:IsShown(), "a disabled addon keeps no picker up")
+    assertEqual(seen(), false, "the stand-down is not the player's close")
+  end)
+  NS.SetByPath("enabled", true)
+  if not ok then error(err, 0) end
+end))
+
+-- ── the reserved `skin` verb (LibKa0s v1.82.0, OptionsSkinPicker minor 3's O.SkinVerb, D-16) ──
+--
+-- A `skin` row after `config` runs NS.RunSkinVerb, which hands O.SkinVerb the first-run spec, so
+-- `/rm skin` shows the picker a new profile shows whatever skin.pickerSeen says. Refused while the
+-- addon is disabled (the dispatcher's gate: `skin` is not a live verb), a gray line on every call
+-- in combat (the library's), and the library-absent line without LibKa0s.
+
+local function strings() return mocks.LibStub("LibKa0s-Options-1.0").SKIN_PICKER_STRINGS end
+
+--- `/rm <line>`, answering what it printed.
+local function said(line)
+  mocks.__resetPrinted()
+  NS.Slash:OnSlash(line)
+  return mocks.__printed()
+end
+
+local function anyLine(lines, fragment)
+  for _, l in ipairs(lines) do if l:find(fragment, 1, true) then return true end end
+  return false
+end
+
+--- Run `fn(calls)` with O.SkinVerb wrapped: each call's spec and the frame it answered.
+local function verbSpy(fn)
+  local real = O.SkinVerb
+  local calls = {}
+  O.SkinVerb = function(spec)
+    local win, why = real(spec)
+    calls[#calls + 1] = { spec = spec, win = win, why = why }
+    return win, why
+  end
+  local ok, err = pcall(fn, calls)
+  O.SkinVerb = real
+  if not ok then error(err, 0) end
+end
+
+test("Skin verb: the row sits right after config, with the library's help words", function()
+  local at
+  for i, c in ipairs(NS.COMMANDS) do
+    if c[1] == "skin" then at = i end
+  end
+  assertTrue(at ~= nil, "a skin row")
+  assertEqual(NS.COMMANDS[at - 1][1], "config", "after config")
+  assertEqual(NS.COMMANDS[at][2], strings().VERB_HELP, "one wording for every host")
+end)
+
+test("Skin verb: /rm skin shows the picker on a profile that has closed it", clean(function()
+  -- red under: no skin row (the dispatcher answers "unknown command"), or a verb that honors
+  -- pickerSeen the way the first-run start does.
+  quietly(function() NS.SetByPath(PATH, true) end)
+  verbSpy(function(calls)
+    local out = said("skin")
+    assertFalse(anyLine(out, "unknown command"), "a known verb")
+    assertEqual(#calls, 1, "one call through O.SkinVerb")
+    local f = calls[1].win
+    assertTrue(f ~= nil and f:IsShown(), "the picker is up on a seen profile")
+    assertEqual(calls[1].spec.owner, OWNER, "this addon's first-run spec")
+    assertTrue(rawequal(calls[1].spec.set, NS.WriteSkinChoice), "its write seam")
+    assertEqual(calls[1].spec.tab, "Appearance")
+  end)
+end))
+
+test("Skin verb: in combat every call prints the library's gray line and shows nothing", clean(function()
+  quietly(function() NS.SetByPath(PATH, true) end)
+  local real = mocks.InCombatLockdown
+  mocks.InCombatLockdown = function() return true end
+  local ok, err = pcall(function()
+    verbSpy(function(calls)
+      local first, second = said("skin"), said("skin")
+      assertTrue(anyLine(first, strings().VERB_COMBAT), "the first call says why")
+      assertTrue(anyLine(second, strings().VERB_COMBAT), "and so does every later one")
+      assertEqual(calls[1].win, nil, "no picker mid-combat")
+      assertEqual(calls[2].why, "combat")
+    end)
+  end)
+  mocks.InCombatLockdown = real
+  if not ok then error(err, 0) end
+end))
+
+test("Skin verb: refused while the addon is disabled, and no picker shows", clean(function()
+  quietly(function() NS.SetByPath(PATH, true) end)
+  quietly(function() NS.SetByPath("enabled", false) end)
+  local ok, err = pcall(function()
+    verbSpy(function(calls)
+      local out = said("skin")
+      assertEqual(#out, 1, "one refusal line")
+      assertTrue(out[1]:find(NS.Slash:DisabledLine(), 1, true) ~= nil, "the disabled line")
+      assertEqual(#calls, 0, "the gate reaches no picker")
+    end)
+  end)
+  quietly(function() NS.SetByPath("enabled", true) end)
+  if not ok then error(err, 0) end
+end))
+
+test("Skin verb: without the library's picker the verb prints the library-absent line", clean(function()
+  -- The Options stub's SkinVerb (settings/OptionsSetup.lua) answers nil, "absent".
+  local real = O.SkinVerb
+  O.SkinVerb = function() return nil, "absent" end
+  local ok, err = pcall(function()
+    local out = said("skin")
+    assertTrue(anyLine(out, "/rm skin is unavailable: the LibKa0s library did not load."), "names the verb")
+  end)
+  O.SkinVerb = real
+  if not ok then error(err, 0) end
+end))

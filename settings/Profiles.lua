@@ -1,0 +1,91 @@
+local _, NS = ...
+-- settings/Profiles.lua — the Profiles sub-page: AceDBOptions' table drawn by AceConfigDialog into an
+-- AceGUI container, the one untabbed page besides the landing page (options-ui-§13). No Defaults
+-- button: profile management has its own destructive controls. Skipped silently when AceDBOptions or
+-- AceConfigDialog is not loaded.
+
+
+local APPNAME = "RangeMaster-Profiles"
+
+local function build(mainCategory)
+    if not (Settings and Settings.RegisterCanvasLayoutSubcategory) then
+        return nil
+    end
+    if not LibStub then return nil end
+
+    local AceDBOptions    = LibStub("AceDBOptions-3.0",    true)
+    local AceConfig       = LibStub("AceConfig-3.0",       true)
+    local AceConfigDialog = LibStub("AceConfigDialog-3.0", true)
+    -- The Options instance's AceGUI handle (its owner proxy) when it was handed over, else the
+    -- raw library: the container is painted below either way.
+    local AceGUI          = NS.AceGUI or LibStub("AceGUI-3.0", true)
+    if not (AceDBOptions and AceConfig and AceConfigDialog and AceGUI) then
+        return nil
+    end
+    if not (NS.db and NS.db.profile) then return nil end
+
+    local H = NS.Helpers
+    if not (H and H.CreatePanel) then return nil end
+
+    -- Register the AceConfig options once. AceDBOptions returns a fully
+    -- formed options table covering create / switch / copy / reset /
+    -- delete plus per-character / per-class / per-realm / per-faction /
+    -- default scope dropdowns.
+    local opts = AceDBOptions:GetOptionsTable(NS.db)
+    AceConfig:RegisterOptionsTable(APPNAME, opts)
+
+    local ctx = H.CreatePanel("RangeMasterProfilesPanel", "Profiles", {
+        pageKey        = "profiles",
+        defaultsButton = false,
+    })
+
+    -- The AceGUI SimpleGroup that hosts the rendered options tree.
+    -- AceConfigDialog:Open accepts any AceGUI container as its target;
+    -- we point it at this group so the AceDBOptions widgets land inside
+    -- our canvas frame instead of opening their own window. The group is
+    -- created on first OnShow, never in the builder — options-ui-§5 wants
+    -- no canvas widget built before the page is first opened.
+    local container
+
+    -- Declared THROUGH SetRenderer rather than a hand-wired OnShow (options-ui-§11), and the
+    -- combat refusal is why: the Blizzard AddOns sidebar opens a canvas directly, so this page
+    -- had no gate at all on the path a player is most likely to take mid-pull. SetRenderer owns
+    -- the script and, in combat, covers the page before anything is drawn (options-ui-§2).
+    --
+    -- Re-Open()ing on every show was the old reason for owning the script here, and it survives
+    -- the move. AceConfigDialog's widget tree is not ours -- it reuses it and re-reads the current
+    -- profile on each Open -- so this page does have to draw again after a profile switch, which
+    -- is what SetRenderer's dirty flag delivers: AceDB fires OnProfileChanged / Copied / Reset,
+    -- NS.OnProfileChanged calls NS.RefreshOptionsPanel, and Helpers.RefreshAllPanels re-renders
+    -- this ctx if it is on screen and marks it dirty for its next show if it is not. So the switch
+    -- now also lands while the page is OPEN, which the plain OnShow could never see.
+    H.SetRenderer(ctx, function()
+        if not container then
+            container = AceGUI:Create("SimpleGroup")
+            container:SetLayout("Fill")
+            container.frame:SetParent(ctx.body)
+            container.frame:ClearAllPoints()
+            container.frame:SetPoint("TOPLEFT",     ctx.body, "TOPLEFT",      8, -8)
+            container.frame:SetPoint("BOTTOMRIGHT", ctx.body, "BOTTOMRIGHT", -8, 8)
+        end
+        -- SHOWN EXPLICITLY, every render. AceGUI:Release hides a frame before pooling it, and
+        -- neither AceGUI:Create nor AceConfigDialog:Open shows it again; created on first show,
+        -- this group is usually a pooled one, and AceConfigDialog would fill a hidden frame: a
+        -- blank page under the header.
+        container.frame:Show()
+        AceConfigDialog:Open(APPNAME, container)
+        -- AceConfigDialog acquires the profile manager's widgets from AceGUI itself, past the
+        -- Options instance's owner proxy, so the tree is painted for this addon's skin right after
+        -- it is drawn (skinning-§3; nothing while Ignore settings panel is on). Each widget goes
+        -- back to the shared pool stock when the next Open releases it, and a skin switch
+        -- re-renders the page, which paints the fresh rows.
+        if NS.SkinPaintAceTree then NS.SkinPaintAceTree(container) end
+    end)
+
+    return Settings.RegisterCanvasLayoutSubcategory(
+        mainCategory, ctx.panel, "Profiles")
+end
+
+if NS.RegisterOptionsPage then
+    NS.RegisterOptionsPage("profiles", "Profiles", build)
+end

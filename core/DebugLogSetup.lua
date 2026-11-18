@@ -1,0 +1,214 @@
+local addonName, NS = ...
+-- core/DebugLogSetup.lua — the LibKa0s-DebugLog-1.0 seam: the on-screen debug console and the
+-- diagnostics dump (debug-logging, debug-logging-§14).
+--
+-- The console window, the copy window, the two formatters, the buffer and the enable seam live in
+-- libs/LibKa0s/DebugLog.lua and are shared across every Ka0s addon. This file supplies only the part
+-- that is ours: the frame-name prefix, the title, the monospace font, where the debug flag actually
+-- lives, what the [Init] session summary says, and the report's brand and sections.
+--
+-- LOAD-BEARING POSITION: after core/Constants.lua (FONT_MONO, resolved from the core/MediaSetup.lua
+-- seam), core/State.lua (the debug flag) and core/CoreSetup.lua (NS.Print / NS.SafeToString), and
+-- before everything that calls NS.Debug.
+
+local lib = LibStub and LibStub("LibKa0s-DebugLog-1.0", true)
+
+if not lib then
+    -- A missing vendored lib must degrade, not error at load. The stub covers EVERY member the
+    -- addon calls — settings/Slash.lua's `/rm debug`, settings/General.lua's console checkbox and
+    -- core/PerfSetup.lua's log sink all reach for one — and the flag itself still works, because
+    -- NS.State.debug is ours and a user who types `/rm debug on` should not be told nothing
+    -- happened. What is lost is the window, and the stub says so once, honestly.
+    local missing = NS.L["%s, so the debug console window is unavailable."]:format(NS.LIBKA0S_MISSING)
+    local announced = false
+    local function sayOnce()
+        if announced then return end
+        announced = true
+        if NS.Print then NS.Print(missing) end
+    end
+
+    -- The diagnostics report (debug-logging-§14, DebugLog 14.1). With no library there is no console
+    -- to write it into, so it says so on the collection's one library-absent line, writes nothing
+    -- and counts nothing. NS.L is read at CALL time: the locale loads before this file today, but a
+    -- stub is exactly the code path nobody re-checks when the TOC moves.
+    local function diagnosticsAbsent()
+        local L = NS.L or {}
+        local fmt = L["%s is unavailable: the LibKa0s library did not load."]
+            or "%s is unavailable: the LibKa0s library did not load."
+        if NS.Print then NS.Print(fmt:format("/rm diagnostics")) end
+        return 0
+    end
+
+    -- No formatters here. Nothing in the addon calls them — they exist only inside the library's
+    -- own Add — and hand-copying the exact strings whose seven-way drift this extraction exists to
+    -- end would be the one duplicate testing-§8 most specifically forbids.
+    NS.DebugLog = {
+        buffer = {},
+        Add             = function() end,
+        Debug           = function() end,
+        -- The change gates and the at-enable queue (DebugLogGates 1): with no console there is
+        -- nothing to write into, so each answers false, as the live ones do with logging off.
+        DebugOnce       = function() return false end,
+        DebugChanged    = function() return false end,
+        DebugForget     = function() end,
+        DebugAtEnable   = function() return false end,
+        Clear           = function() end,
+        Show            = function() sayOnce() end,
+        Hide            = function() end,
+        Toggle          = function() sayOnce() end,
+        IsShown         = function() return false end,
+        IsEnabled       = function() return NS.State and NS.State.debug or false end,
+        SetEnabled      = function(_, on)
+            on = not not on
+            if NS.State then NS.State.debug = on end
+            if NS.Print then
+                NS.Printf(on and "|cff40ff40%s|r" or "|cffff4040%s|r",
+                    on and NS.L["Debug logging on."] or NS.L["Debug logging off."])
+            end
+            if on then sayOnce() end
+        end,
+        RefreshHeader   = function() end,
+        ShowCopy        = function() sayOnce() end,
+        UpdateScrollBar = function() end,
+        UpdateStatus    = function() end,
+        BufferSize      = function() return 0 end,
+        LastLine        = function() return nil end,
+        FindLine        = function() return nil end,
+        MakeCloseButton = function() return nil end,
+        RunDiagnostics   = function() return diagnosticsAbsent() end,
+        -- The live shape with nothing in it, so a test reading the report as data reads an empty one.
+        BuildDiagnostics = function()
+            return { lines = {}, dropped = 0, capped = false, capsHit = false }
+        end,
+        -- Report and Serialize, new at LibKa0s v1.105.0 (DebugLog minor 23), the library's
+        -- suggested stub: with no console the report streams to chat with no pointer, and a
+        -- serialize answers one line. Nothing here calls either yet (adoption is LibKa0s#79).
+        Report = function(_, _, _, fn)
+            local n = 0
+            if type(fn) == "function" then
+                fn(function(line)
+                    n = n + 1
+                    if NS.Print then NS.Print(NS.SafeToString(line)) end
+                end)
+            end
+            return n
+        end,
+        Serialize = function(_, v)
+            return { NS.SafeToString(type(v) == "table" and "<table>" or v) }
+        end,
+        -- The live routing: `diagnostics`, `on` and `off` answer true; anything else is the host's.
+        DebugVerb = function(self, rest)
+            local word = type(rest) == "string" and rest:lower():match("^%s*(%S+)") or nil
+            if word == "diagnostics" then diagnosticsAbsent() return true end
+            if word == "on" or word == "off" then self:SetEnabled(word == "on") return true end
+            return false
+        end,
+        ConsoleCheckbox = function()
+            return {
+                label   = "Debug console",
+                tooltip = missing,
+                get = function() return false end,
+                set = function() sayOnce() end,
+            }
+        end,
+    }
+    NS.Debug = NS.DebugLog.Debug
+    NS.DebugOnce, NS.DebugChanged, NS.DebugAtEnable =
+        NS.DebugLog.DebugOnce, NS.DebugLog.DebugChanged, NS.DebugLog.DebugAtEnable
+    return
+end
+
+-- What the [Init] summary adds only when it has something to say, so a clean session's line stays
+-- as it was: the events the client refused, the stand-down holds (the addon's own enable state at
+-- the moment logging starts, debug-logging-§8's state edge) and the libraries this install is
+-- missing (§8's dependency line, said once, when logging is switched on).
+local function initSuffix()
+    local parts = {}
+    local rejected = NS.State and NS.State.rejectedEvents
+    if type(rejected) == "table" and #rejected > 0 then
+        parts[#parts + 1] = (", rejected events: %d"):format(#rejected)
+    end
+    if NS.lifecycle and NS.lifecycle:IsDown() then
+        parts[#parts + 1] = ", stood down (holds: " .. table.concat(NS.lifecycle:Holds(), ", ") .. ")"
+    end
+    local missing = NS.Diagnostics and NS.Diagnostics.MissingLibraries
+        and NS.Diagnostics.MissingLibraries() or {}
+    if #missing > 0 then
+        parts[#parts + 1] = ", missing libraries: " .. table.concat(missing, ", ")
+    end
+    return table.concat(parts)
+end
+
+NS.DebugLog = lib:New({
+    -- Seeds RangeMasterDebugWindow / RangeMasterDebugCopyWindow / …DebugCopyScroll. Two hosts
+    -- sharing a name would clobber each other's globals and each other's Esc handler.
+    name  = addonName,
+    -- THE FOLDER NAME, which is a different question from the one above even though this addon
+    -- answers both with the same string. `name` seeds frame globals; `addonName` is what the library
+    -- builds a texture path from, so its own close, copy and clear controls draw this collection's
+    -- art on the console AND on its Copy window instead of a multiplication sign and two words. A
+    -- vendored library cannot work that out for itself — there is no one path to it — and a host
+    -- where the two strings diverge would hand it a path into nowhere, which draws nothing and
+    -- raises nothing. Passed explicitly for that reason rather than left to the library to infer
+    -- from `name`.
+    addonName = addonName,
+    title = "Range Master",
+    font  = NS.Constants.FONT_MONO,
+    slash = "/rm",
+
+    -- The flag stays ours. NS.State.debug is session-only and is read by
+    -- and by the settings panel, so a second copy inside the library would be a second truth.
+    isEnabled  = function() return NS.State and NS.State.debug or false end,
+    setEnabled = function(on) if NS.State then NS.State.debug = on end end,
+
+    -- Both resolved at CALL time, not captured. NS.Print is reclaimed from AceConsole's embed in
+    -- core/RangeMaster.lua, which loads after this file — a captured reference would freeze to
+    -- whichever function happened to be there at load.
+    print        = function(line) NS.Print(line) end,
+    safeToString = function(v) return NS.SafeToString(v) end,
+
+    -- The [Init] line the console brackets a session with. The library owns WHEN it is emitted —
+    -- on enable, because the flag is off at login and a load-time summary would always be gated
+    -- off — and only we can know what it says.
+    initSummary = function()
+        local schemaVer = NS.db and NS.db.global and NS.db.global.schemaVersion
+        local profile = NS.db and NS.db.GetCurrentProfile and NS.db:GetCurrentProfile()
+        local line = ("%s v%s, schema v%s, profile '%s'"):format(
+            NS.SafeToString(NS.name), NS.SafeToString(NS.Version and NS.Version() or NS.version),
+            NS.SafeToString(schemaVer or "?"), NS.SafeToString(profile or "?"))
+        return line .. initSuffix()
+    end,
+
+    -- The General page's console checkbox mirrors the window's visibility, so a console opened from
+    -- `/rm debug` has to move the checkbox on an options panel that is already open.
+    onVisibilityChanged = function()
+        if NS.Helpers and NS.Helpers.RefreshAllPanels then NS.Helpers.RefreshAllPanels() end
+    end,
+
+    -- The diagnostics report (debug-logging-§14, DebugLog 14.1). `brandName` is the full brand both
+    -- markers carry, the same plain-text string the LDB label and the disabled line use
+    -- (core/Constants.lua loads before this file). `diagnostics` is asked each time a report runs,
+    -- never at :New, because modules/Diagnostics.lua loads after this file.
+    brandName   = NS.Constants.BRAND,
+    diagnostics = function()
+        return NS.Diagnostics and NS.Diagnostics.Sections and NS.Diagnostics.Sections() or {}
+    end,
+
+    -- The one console string this addon routes through its locale: the report's chat line
+    -- (STD-09, STD-13). A PLAIN table holding that one key, never the locale table itself, whose
+    -- key-returning fallback would answer every other key with its own name. The key is the library's English, set in locales/enUS.lua.
+    L = {
+        DIAG_WRITTEN = NS.L["Diagnostic report written to the debug console: %d lines. Use Copy to share it."],
+    },
+})
+
+-- The gated sink (debug-logging-§4), bound bare rather than wrapped: a plain function, so call sites
+-- stay `NS.Debug("Tag", "%s", value)`.
+NS.Debug = NS.DebugLog.Debug
+
+-- The console's change gates and at-enable queue (DebugLog minor 18), bound bare beside the sink, so
+-- a repeating path logs on change, a one-time line logs once, and a state line written at OnEnable is
+-- held until logging is turned on (debug-logging-§8, §9).
+NS.DebugOnce     = NS.DebugLog.DebugOnce
+NS.DebugChanged  = NS.DebugLog.DebugChanged
+NS.DebugAtEnable = NS.DebugLog.DebugAtEnable

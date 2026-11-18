@@ -1,0 +1,19 @@
+Ka0s Range Master — offline perf  (v0.1.0, label 'offline')
+
+scenario                  iters      ms/iter     total-ms   bytes/iter
+combatEdge                 1000      0.00082        0.823          0.0
+settingsRead              10000      0.00047        4.702          0.0
+range.get                 10000      0.00070        7.025          0.0
+range.get.hit             10000      0.00007        0.655          0.0
+ticker.tick                1000      0.02181       21.815         16.9
+ticker.tick.moving         1000      0.02662       26.618         16.4
+render.quiet               1000      0.00627        6.271         36.8
+container.render           1000      0.07431       74.315       3357.4
+render.plates.quiet        1000      0.02354       23.543          7.4
+render.plates              1000      0.16378      163.780       6714.0
+cursor.follow             10000      0.00167       16.700          0.0
+probeOverheadOff           1000      0.00079        0.794          0.0
+probeOverheadOn            1000      0.00103        1.034          0.3
+
+timings are for orientation only — compare scenarios within a run, never across machines
+wrote docs/automated-tests/20261118-083858/perf.json
