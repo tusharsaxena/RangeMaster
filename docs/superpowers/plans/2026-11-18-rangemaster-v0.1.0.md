@@ -23,7 +23,7 @@
 | 6 | Anchors (screen, frame, nameplate, cursor) | done | ffccb82 + `Task 6: review fixes` | yes |
 | 7 | Visibility, sounds, lock, Test mode, Sim mode | done | 9ad54b6 + `Task 7: review fixes` | yes |
 | 8 | Settings pages + slash verbs | done | `Settings: Containers, Band sets, Presets pages and slash verbs` + `Task 8: review fixes` | no |
-| 9 | Docs set, roster row, automated-test + audit bundles, GitHub issues | in progress: Step 1 done; Step 2 release run done (bundle 20261118-083858, green, Max CCN 15, 0 > 15) | `docs: full doc set for v0.1.0`, `docs: v0.1.0 automated-test bundle` | no |
+| 9 | Docs set, roster row, automated-test + audit bundles, GitHub issues | done: audit 2026-11-18 fixed (RM-06 on WowAddonStandards `feat/rangemaster-roster` a9489a5, pushed, not merged; RM-09, RM-10 note-only); bundle 20261118-091529 green, Max CCN 15, 0 > 15; issues #1-#13 | `docs: full doc set for v0.1.0`, `docs: v0.1.0 automated-test bundle`, `docs: first standards audit bundle`, `Audit fixes`, `docs: refreshed v0.1.0 automated-test bundle after the audit fixes`, `Task 9: ledger row 9 done` | no |
 | 10 | Whole-branch review + fixes, push, await merge go-ahead | todo | | |
 
 Resume rule: an agent picking this up reads this ledger, runs `git log --oneline` on
@@ -163,10 +163,10 @@ row (status, short SHA) in the same commit that finishes it. Push after tasks 1,
 ### Task 9: Docs, roster, bundles, issues
 
 - [x] **Step 1:** Fill every doc NEW_ADDON.md requires with real content (`docs/ARCHITECTURE.md`, `testing.md`, `smoke-tests.md` covering each anchor mode × client, `scope.md`, `module-map.md`, `schema.md`, `settings-panel.md`, `data-flow.md`, `common-tasks.md`, `debug.md`, `midnight-quirks.md`, `compat-layer.md`, `test-cases.md`, `performance.md`); README Version History `0.1.0`.
-- [ ] **Step 2:** Run `tests/_kit/run-automated-tests.sh --release 0.1.0` (expect all four suites pass, zero functions > CCN 15); write the automated-tests bundle; run `/dev-copilot:wow-standards-audit` for the first `docs/audits/<date>/` bundle and fix every deviation it reports that is in scope.
-- [ ] **Step 3:** Roster: in `WowAddonStandards`, on branch `feat/rangemaster-roster`, add the row from spec §5.8; commit; push; do not merge.
-- [ ] **Step 4:** GitHub issues (Ka0s style, `gh issue create` with `state:*`, `severity:*`, `bug|enhancement`): one enhancement per Task 2–8 feature (closed `state:done` when merged), plus deferred, `state:triaged`: import/export strings; ElvUI / SUF / Cell providers; party/raid/arena/boss units; Edit Mode integration; finer distance estimator.
-- [ ] **Step 5:** Gate, commit `docs: full doc set, first automated-test and audit bundles`, ledger row 9.
+- [x] **Step 2:** Run `tests/_kit/run-automated-tests.sh --release 0.1.0` (expect all four suites pass, zero functions > CCN 15); write the automated-tests bundle; run `/dev-copilot:wow-standards-audit` for the first `docs/audits/<date>/` bundle and fix every deviation it reports that is in scope.
+- [x] **Step 3:** Roster: in `WowAddonStandards`, on branch `feat/rangemaster-roster`, add the row from spec §5.8; commit; push; do not merge.
+- [x] **Step 4:** GitHub issues (Ka0s style, `gh issue create` with `state:*`, `severity:*`, `bug|enhancement`): one enhancement per Task 2–8 feature (closed `state:done` when merged), plus deferred, `state:triaged`: import/export strings; ElvUI / SUF / Cell providers; party/raid/arena/boss units; Edit Mode integration; finer distance estimator.
+- [x] **Step 5:** Gate, commit `docs: full doc set, first automated-test and audit bundles`, ledger row 9.
 
 ### Task 10: Review and hand-off
 
