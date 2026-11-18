@@ -187,12 +187,16 @@ end)
 test("perf: the addon holds a real LibKa0s-Perf instance, on this addon's latch", function()
   assertTrue(type(P.Note) == "function" and type(P.BuildRecord) == "function",
     "NS.Perf is the library instance, not the degradation stub")
-  assertEqual(table.concat(P.BUCKET_ORDER, ","), "combatEdge,ticker.tick,range.get",
+  assertEqual(table.concat(P.BUCKET_ORDER, ","), "combatEdge,ticker.tick,range.get,container.render",
     "the descriptor's declared buckets, in report order, and nothing undeclared")
 end)
 
 test("perf: range.get declares its nesting within ticker.tick (performance-§3)", function()
   assertEqual(P.BUCKET_WITHIN["range.get"], "ticker.tick", "declared with `within`, not in prose")
+end)
+
+test("perf: container.render declares its nesting within ticker.tick (performance-§3)", function()
+  assertEqual(P.BUCKET_WITHIN["container.render"], "ticker.tick", "declared with `within`, not in prose")
 end)
 
 test("perf: records identify this addon and land in its own global", function()
@@ -231,15 +235,20 @@ test("perf: every declared bucket is reached by a real bracket", function()
   mocks.__profileMs = 1
   NS.addon:OnCombatChanged("PLAYER_REGEN_DISABLED")
   NS.addon:OnCombatChanged("PLAYER_REGEN_ENABLED")
-  -- The range engine's two: one watched unit, read once on the watch (range.get) and once by a
-  -- tick of the live ticker (ticker.tick, with a second range.get inside it).
+  -- The range engine's two and the renderer's one: one container on target, whose watch reads the
+  -- unit once (range.get) and renders it (container.render), then a tick of the live ticker
+  -- (ticker.tick, with a range.get and, the bracket having moved, a container.render inside it).
   local LRC = mocks.LibStub("LibRangeCheck-3.0", true)
   local realGet, hadTarget = LRC.GetRange, mocks.__unitExists.target
-  LRC.GetRange = function() return 20, 25 end
+  local far = false
+  LRC.GetRange = function() if far then return 30, 35 end return 20, 25 end
   mocks.__unitExists.target = true
-  NS.Ticker.Watch("target")
+  local id = NS.CM.Create("target")
+  NS.CM.FlushPending()
+  far = true
   NS.Ticker.__handle().fn()
-  NS.Ticker.Unwatch("target")
+  NS.CM.Delete(id)
+  NS.CM.FlushPending()
   LRC.GetRange, mocks.__unitExists.target = realGet, hadTarget
   P.on = false
   local recorded = P.__buckets()

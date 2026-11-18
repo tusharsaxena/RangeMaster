@@ -21,8 +21,9 @@ unless a check names one.
 | DEGRADED-1 | Degraded | the library-absent install |
 | LOC-1 | Non-English client | a deDE or frFR client |
 | RANGE-1..5 | Range engine | brackets, unknown, the Forever ladder, the ticker's rate and stop, the seed spells |
+| DRAW-1..5 | Containers | brackets drawn, unknown gray, elements and order, the skin face, disable |
 
-The range-display themes (ANCHOR, BANDS, SOUND, NAMEPLATE) join with plan Tasks 3 to 8.
+The remaining range-display themes (ANCHOR, BANDS, SOUND, NAMEPLATE) join with plan Tasks 6 to 8.
 
 ## Before you start
 
@@ -137,8 +138,8 @@ The addon's own seams that a client language could reach, enumerated from the sc
 
 ## Range engine
 
-The engine has no display of its own until the containers land (plan Task 5); RANGE-1 to RANGE-4 are
-run through the first container. RANGE-5 needs only the chat frame.
+RANGE-1 to RANGE-4 are run through a target container (the Containers section below says how to make
+one). RANGE-5 needs only the chat frame.
 
 - **RANGE-1. Brackets.** Target a training dummy and walk away from it → the bracket widens in steps
   (`0–5`, `5–8`, … `40+`), never a single exact yard; it never flashes out of range while you stand
@@ -157,9 +158,30 @@ run through the first container. RANGE-5 needs only the chat frame.
   `/run for _, id in ipairs({ 133, 116 }) do print(id, C_Spell.GetSpellName(id)) end` → every ID
   prints a spell name, none prints `nil`. Result:
 
+## Containers
+
+The renderer (plan Task 5). Until the settings pages land (plan Task 8), apply a preset from chat:
+`/run LibStub("AceAddon-3.0"):GetAddon("RangeMaster").Presets.Apply("simple")` (the addon object is
+the namespace, so `.CM.Create("target")` makes a single container the same way).
+
+- **DRAW-1. Brackets, never a distance.** Target a dummy and walk away → the number steps through
+  brackets (`0–5`, `5–20`, …) and reads `40+` past the last check; the border and the number change
+  color as the band does. Result:
+- **DRAW-2. Unknown is gray.** Target a unit the client will not range (far out of sight, or a
+  friendly player in combat with no friendly spell) → `?` in gray, never the out-of-range red. Result:
+- **DRAW-3. Elements and order.** Turn on text, a dot and spell chips, reorder them, switch the
+  direction to column → every element draws, in that order, the frame closes around them. Every
+  shape (dot, ring, square, diamond, triangle, bar, icon) draws without a missing-texture green.
+  Result:
+- **DRAW-4. Skin face.** With an element's font left on the skin's, switch the skin (General > Skin)
+  → the number's face follows at once, with no reload. Result:
+- **DRAW-5. Disable.** `/rm disable` → every container disappears; `/rm enable` → they come back.
+  Result:
+
 ## Pending sign-off
 
 | ID | Origin | Why it is owed |
 |---|---|---|
 | every check above | the v0.1.0 scaffold, 2026-11-18 | no client pass recorded yet |
 | RANGE-1..5 | the v0.1.0 range engine (plan Task 2), 2026-11-18 | the Forever interact distances and the seed IDs are unconfirmed in a client |
+| DRAW-1..5 | the v0.1.0 renderer (plan Task 5), 2026-11-18 | no container has been drawn in a client yet |

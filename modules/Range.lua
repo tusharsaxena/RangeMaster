@@ -177,6 +177,13 @@ function Range.SetPerfParent(key)
     perfParent = key or false
 end
 
+--- The bucket the reads now running sit inside, or false: what a reader nested the same way (the
+--- renderer's container.render, modules/Container.lua) records as its observed parent.
+--- @return string|false
+function Range.PerfParent()
+    return perfParent
+end
+
 --- The rebuild itself: the ladder and the known-spell cache are taken again from the client.
 local function rebuildNow()
     rebuildTimer = nil

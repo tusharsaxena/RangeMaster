@@ -7,8 +7,9 @@
 -- ships the zero-overhead scenario: a dormant perf bracket must cost nothing measurable, which is the
 -- evidence that instrumentation is free while capture is off. The bracketed paths are the combat
 -- edge (core/RangeMaster.lua's OnCombatChanged, bucket `combatEdge`), the range read on a memo miss
--- (modules/Range.lua, `range.get`) and the range ticker's tick (modules/Ticker.lua, `ticker.tick`),
--- the last measured at the design spec's load: ten containers over four units plus twenty plates.
+-- (modules/Range.lua, `range.get`), the range ticker's tick (modules/Ticker.lua, `ticker.tick`),
+-- the last measured at the design spec's load: ten containers over four units plus twenty plates,
+-- and the renderer's fan-out over those ten containers (modules/Container.lua, `container.render`).
 --
 -- Its scenarios are not counted in docs/test-cases.md or the README's [tests] badge.
 
@@ -136,6 +137,29 @@ end)
 for unit, n in pairs(WATCHES) do for _ = 1, n do NS.Ticker.Unwatch(unit) end end
 for i = 1, 20 do NS.Ticker.Unwatch("nameplate" .. i) end
 assert_(not NS.Ticker.IsRunning(), "the ticker did not stop when the last watch went")
+
+-- The renderer (modules/Container.lua): the same ten containers, drawn. A quiet tick sends nothing,
+-- so it renders nothing; a moving one re-renders every instance (bucket container.render), each
+-- setting its text once and recoloring only on a band change. (20, 25) and (30, 35) are two bands
+-- of the default set, so every moving tick is the worst case: a new band on every instance.
+local ids = {}
+for unit, n in pairs(WATCHES) do
+  for _ = 1, n do ids[#ids + 1] = NS.CM.Create(unit) end
+end
+NS.CM.FlushPending()
+farther = false
+tickFn = NS.Ticker.__handle().fn
+local renderQuiet = measure("render.quiet", BURST, function() tickFn() end)
+assert_(renderQuiet.bytesPerIter < 64,
+  ("a quiet tick with ten containers allocates %.1f bytes; nothing moved, so nothing may be drawn")
+    :format(renderQuiet.bytesPerIter))
+measure("container.render", BURST, function(i)
+  farther = i % 2 == 0
+  tickFn()
+end)
+for _, id in ipairs(ids) do NS.CM.Delete(id) end
+NS.CM.FlushPending()
+assert_(not NS.Ticker.IsRunning(), "the ticker did not stop when the last container went")
 
 -- The zero-overhead scenario: the same pass with the probe dormant and armed. A dormant bracket is
 -- one upvalue read, one field read and one boolean test (performance-§2), so it must allocate no

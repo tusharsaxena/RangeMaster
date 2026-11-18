@@ -25,6 +25,8 @@ local function StandDown()
     if NS.HideSkinPicker then NS.HideSkinPicker() end
     local addon = NS.addon
     if addon and addon.UnregisterLifecycleEvents then addon:UnregisterLifecycleEvents() end
+    -- The range containers: every instance parked and hidden, its watch dropped, before the ticker.
+    if NS.Container and NS.Container.StandDown then NS.Container.StandDown() end
     -- The range ticker and the pending spell rebuild: no timer survives a stand-down.
     if NS.Ticker and NS.Ticker.StandDown then NS.Ticker.StandDown() end
     -- The container registry's coalescing timer; an owed apply stays owed for the stand-up.

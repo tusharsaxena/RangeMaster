@@ -23,14 +23,18 @@ the ticker (one C_Timer.NewTicker, 10 Hz idle / 20 Hz in combat, stopped while n
         still no answer                → "unknown"
         otherwise                      → "known", minYd, maxYd (maxYd nil: open-ended)
   ─► RANGE_UPDATED (unit, state, minYd, maxYd)   sent only when the triple moved
-  ─► each container watching the unit: NS.BandSets.Resolve → band index → recolor and re-text
-                                      only on change                          (plan Tasks 3 to 5)
+  ─► modules/Container.lua: the instances watching that unit, and no other (bucket container.render)
+        NS.Range.InSpellRange per spell chip → inst:Render(state, minYd, maxYd, spellResults)
+        NS.BandSets.ForUnit (the friendly override) → NS.BandSets.Resolve → band index
+        band or set changed → recolor the border, the fill and every element (else nothing)
+        text changed        → SetText (else nothing); a cell's width moved → re-layout
 SPELLS_CHANGED ─► NS.Range.Rebuild()  0.5 s after the last one: the ladder and the known-spell cache
 ```
 
-Everything down to the band resolve exists (plan Tasks 2 and 3: `NS.BandSets.Resolve` and
-`NS.BandSets.ForUnit`, which picks the friendly override for a friendly unit); nothing watches a unit
-until the containers arrive (plan Task 5).
+Every container instance watches its unit through `NS.Ticker.Watch` when it is acquired and
+`Unwatch`es it when it goes back to the pool, so the ticker runs exactly while a drawn container has
+a live unit. A `nameplates` container watches nothing yet: its per-plate instances arrive with the
+plate anchors (plan Task 6).
 
 ## Container writes (plan Task 4)
 
@@ -39,7 +43,12 @@ NS.CM.Create / Delete / Duplicate / Rename / CopySettings / RestoreSnapshot, NS.
   ─► the registry written at once
   ─► NS.CM.RequestApply()             one zero-delay C_Timer per frame, however many writes
   ─► next frame: FlushPending         in combat: held (one debug line) until PLAYER_REGEN_ENABLED
-  ─► CONTAINERS_CHANGED               once; the renderer (Task 5) and the settings pages (Task 8)
+  ─► CONTAINERS_CHANGED               once; the renderer and the settings pages (Task 8)
+  ─► NS.Container.Sync()              an instance for every enabled container (Acquire: the pooled
+                                      frame, its settings applied, its unit watched), back to the
+                                      pool for a deleted or disabled one
+BANDSETS_CHANGED ─► NS.Container.Repaint()   every instance repaints from its last triple
+the skin's OnLooksChanged ─► NS.Container.Sync()   the HUD face follows the skin
 ```
 
 A stood-down addon arms no timer; the stand-up asks for one apply.

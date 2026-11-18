@@ -45,3 +45,30 @@ test("no strata literal and no absolute level at any call site", function()
     end
   end
 end)
+
+-- ── the range container's stack (frame-layering-§3) ───────────────────────────────────────────
+
+test("a range container's root sits in the HUD strata, its fill, border and overlay offset over it", function()
+  local M = T.mocks
+  local restore = dofile("tests/_kit/mock_layers.lua")(M)
+  local savedDb = NS.db
+  NS.db = { profile = {}, global = savedDb.global }
+  NS.CM.__reset()
+  NS.Container.__reset()
+  local ok, err = pcall(function()
+    NS.Database.PrepareProfile(NS.db.profile)
+    local id = NS.CM.Create("target")
+    NS.CM.FlushPending()
+    local inst = NS.Container.Get(id)
+    local rootLevel = M.__layers(inst.frame).level
+    assertEqual(M.__layers(inst.frame).strata, LAYERS.STRATA.HUD, "the stored MEDIUM is the HUD band")
+    assertEqual(M.__layers(inst.fill).level, rootLevel + LAYERS.LEVEL.FILL, "fill")
+    assertEqual(M.__layers(inst.border.frame).level, rootLevel + LAYERS.LEVEL.BORDER, "border")
+    assertEqual(M.__layers(inst.overlay).level, rootLevel + LAYERS.LEVEL.OVERLAY, "overlay")
+  end)
+  NS.Container.__reset()
+  NS.CM.__reset()
+  NS.db = savedDb
+  restore()
+  if not ok then error(err, 0) end
+end)

@@ -37,6 +37,10 @@ C.BRAND = "Ka0s Range Master"
 -- belongs to the installation and a profile switch must not move it.
 C.MINIMAP_PATH = "global.minimap.shown"
 
+-- The indicator shapes' art (modules/Elements_Indicator.lua): white 64x64 32-bit TGAs, tinted at draw
+-- time, named for the shape. Extensionless, as the client resolves a texture path.
+C.INDICATOR_PATH = "Interface\\AddOns\\RangeMaster\\media\\textures\\indicators\\"
+
 -- The band color ramp, nearest band first, and the unknown band's gray (the design spec, section 5.2).
 -- Read by the band-set presets and the editor's "new band" color; never typed at a call site.
 C.BAND_RAMP = { "4ade80", "a3e635", "facc15", "fb923c", "ef4444" }

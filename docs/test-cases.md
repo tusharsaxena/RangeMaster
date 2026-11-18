@@ -137,6 +137,39 @@ Total.
 - presets: a profile switch, copy or reset drops the Undo slot, so no other profile is overwritten
 - presets: Advanced puts the OOR sound on through the band-set writer, which announces it
 
+### test_number_format.lua (5)
+
+- number: the six formats on the bracket (20, 25)
+- number: an open-ended bracket reads 40+ in every format, never an invented far bound
+- number: an unknown range reads the band set's unknown label in every format
+- number: no unit reads nothing, and an unknown format reads as range
+- number: a known state with no far bound and no near bound reads unknown, not 0
+
+### test_container_render.lua (22)
+
+- render: an enabled container gets one pooled instance, watching its unit, drawn at once
+- render: Release returns the frame to the pool cleanly, and the next Acquire reuses it
+- render: a deleted or disabled container's instance goes back to the pool on the next apply
+- render: a nameplates container gets no single instance (the plate anchors own those)
+- render: the stand-down parks every instance, and the stand-up draws them again
+- render: test_text_set_only_on_change — two identical renders set the text once
+- render: test_recolor_only_on_band_change — a new bracket in the same band paints no color
+- render: test_color_modes — band, fixed and class, for the number, the border and the fill
+- render: an unknown range reads the set's gray ? on every element, never a band
+- render: an open-ended bracket reads 40+ and the out-of-range band
+- render: no unit hides a container that hides with no unit, and shows one that does not
+- render: test_hidden_elements_not_created — only the enabled elements are built
+- render: an element turned off after it was built is hidden and laid out of the row
+- render: test_element_order_row_and_column — elements.order, in a row and in a column
+- render: the layout's scale and alpha reach the root frame
+- render: the indicator shapes draw this addon's textures, recolored by band
+- render: the bar indicator is LibKa0s-Widgets' data bar, fuller the nearer the band
+- render: spell chips are colored by each spell's own answer, and only when it changes
+- render: test_friendly_uses_friendly_set — a friendly unit reads the friendly override
+- render: a band set edit repaints every instance on it
+- render: RANGE_UPDATED reaches every instance on that unit, and only those
+- render: every indicator shape ships as a white 64x64 uncompressed 32-bit TGA
+
 ### test_compat.lua (6)
 
 - compat: the client answer follows the kit profile this run uses
@@ -260,7 +293,7 @@ Total.
 - a refused `update` publishes nothing on the bus
 - /rm profile <name> switches while the addon is disabled
 
-### test_perf.lua (16)
+### test_perf.lua (17)
 
 - debug: the flag still flips and acks with LibKa0s absent
 - debug: /rm debug names the missing library instead of erroring
@@ -271,6 +304,7 @@ Total.
 - Perf: the descriptor hands the library the FOLDER name, not just the frame name
 - perf: the addon holds a real LibKa0s-Perf instance, on this addon's latch
 - perf: range.get declares its nesting within ticker.tick (performance-§3)
+- perf: container.render declares its nesting within ticker.tick (performance-§3)
 - perf: records identify this addon and land in its own global
 - perf: the ring is reachable through its own global and nowhere in AceDB
 - perf: brackets record nothing while capture is off
@@ -290,10 +324,11 @@ Total.
 - the catalog is exactly the four declared messages, each one prefixed for this addon
 - with LibKa0s absent, receivers still get a private working target
 
-### test_layers.lua (2)
+### test_layers.lua (3)
 
 - LAYERS names the HUD strata and an ordered level ladder
 - no strata literal and no absolute level at any call site
+- a range container's root sits in the HUD strata, its fill, border and overlay offset over it
 
 ### test_launcher.lua (30)
 
@@ -454,7 +489,7 @@ Total.
 - prose self-test: the disclosure names what each entry suppressed, and says when it is bounded
 - prose self-test: a malformed waived is a failure, not a silence
 
-### test_surface_parity.lua (14)
+### test_surface_parity.lua (15)
 
 - parity: the Core stub publishes everything core/CoreSetup.lua publishes live
 - parity: the DebugLog stub carries the whole live surface
@@ -467,6 +502,7 @@ Total.
 - parity: the Schema stub's instance carries every member of a live instance
 - parity: the Perf stub carries every Perf member the addon reaches
 - parity: the Lifecycle stub carries the whole live surface
+- parity: the Pool stub carries the library's whole surface
 - parity: the degraded Skin facade answers every name the live facade carries
 - parity: the Skin seam publishes the same NS members on both paths
 - parity: the Compat seam carries the major's surface, less what it does not wire
@@ -567,13 +603,14 @@ Total.
 - skin values: no typed value outside the kit's categories and the host's rows
 - skin values: the check is falsifiable, a planted value of each shape is reported
 
-### test_skin_switch.lua (5)
+### test_skin_switch.lua (6)
 
 - skin switch: the check is falsifiable, a surface that redraws a literal is reported
 - skin switch: the debug console changes
 - skin switch: the debug console changes with the Scope ignored
 - skin switch: the perf panel changes
 - skin switch: the perf panel changes with the Scope ignored
+- skin switch: a range container's number changes
 
 ### test_client_globals.lua (3)
 
@@ -591,6 +628,8 @@ Total.
 | test_bandsets.lua | 20 |
 | test_container_manager.lua | 14 |
 | test_presets.lua | 11 |
+| test_number_format.lua | 5 |
+| test_container_render.lua | 22 |
 | test_compat.lua | 6 |
 | test_range.lua | 22 |
 | test_ticker.lua | 12 |
@@ -600,9 +639,9 @@ Total.
 | test_debuglog.lua | 14 |
 | test_slash.lua | 11 |
 | test_slashgate.lua | 7 |
-| test_perf.lua | 16 |
+| test_perf.lua | 17 |
 | test_bus.lua | 8 |
-| test_layers.lua | 2 |
+| test_layers.lua | 3 |
 | test_launcher.lua | 30 |
 | test_launcher_skin_entry.lua | 1 |
 | test_modes.lua | 7 |
@@ -615,7 +654,7 @@ Total.
 | test_locale.lua | 4 |
 | test_docs.lua | 5 |
 | test_prose.lua | 15 |
-| test_surface_parity.lua | 14 |
+| test_surface_parity.lua | 15 |
 | test_vendor_sync.lua | 3 |
 | test_lintconfig.lua | 4 |
 | test_events.lua | 3 |
@@ -626,7 +665,7 @@ Total.
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
 | test_skin_values.lua | 3 |
-| test_skin_switch.lua | 5 |
+| test_skin_switch.lua | 6 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **443** |
+| **Total** | **474** |

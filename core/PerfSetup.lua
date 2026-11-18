@@ -58,6 +58,11 @@ NS.Perf = lib:New({
         -- top level, so each call passes the parent it OBSERVED (NS.Range.SetPerfParent) and the
         -- record shows the mix instead of a reader summing the two totals.
         { key = "range.get", within = "ticker.tick" },
+        -- modules/Container.lua's RANGE_UPDATED fan-out: every instance on the unit that moved,
+        -- re-rendered (the spell answers, then only what changed is painted). Sent from inside the
+        -- tick's pass, so nested in ticker.tick; a forced refresh runs it at top level, and the
+        -- parent it observed (NS.Range.PerfParent) is what it records.
+        { key = "container.render", within = "ticker.tick" },
     },
 
     -- THE LATCH, AND THE ONLY ROUTE THIS PROBE HAS TO MAKING THE ADDON INERT (Perf 12): the suspended

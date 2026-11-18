@@ -65,6 +65,9 @@ core\Bus.lua
 core\LifecycleSetup.lua
 # LOAD-BEARING: publishes NS.Perf, a file-scope upvalue in core\RangeMaster.lua (performance-§1).
 core\PerfSetup.lua
+# Conventional: the LibKa0s-Pool-1.0 seam (the library's pool, or a local copy of its contract);
+# reached by modules\Container.lua and modules\Elements_Spells.lua at load, both later.
+core\PoolSetup.lua
 # Conventional: the settings read seam and the minimap row's storage, reached at call time.
 core\Data.lua
 # Conventional: reached from OnInitialize, at call time.
@@ -103,6 +106,18 @@ modules\Ticker.lua
 modules\ContainerManager.lua
 # Conventional: the three container presets; NS.CM and NS.BandSets are reached at call time.
 modules\Presets.lua
+# LOAD-BEARING: the renderer's drawing helpers, captured at load by the four element files and
+# modules\Container.lua below.
+modules\Style.lua
+# LOAD-BEARING: the four elements, each publishing NS.Elements.<Name>, which modules\Container.lua
+# captures at load; Elements_Spells captures NS.Pool (core\PoolSetup.lua) at load.
+modules\Elements_Number.lua
+modules\Elements_Text.lua
+modules\Elements_Indicator.lua
+modules\Elements_Spells.lua
+# Conventional: the renderer; subscribes at load (NS.NewBusTarget, core\Bus.lua) and reaches NS.CM,
+# NS.BandSets, NS.Range and NS.Ticker at call time.
+modules\Container.lua
 # Conventional: the diagnostics report's sections (debug-logging-§14); the DebugLog descriptor asks
 # for them when a report runs.
 modules\Diagnostics.lua

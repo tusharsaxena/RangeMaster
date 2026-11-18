@@ -48,6 +48,7 @@ Kit.setSurfaceSource{
   ["LibKa0s-Schema-1.0"]    = mocks.LibStub("LibKa0s-Schema-1.0", true),
   ["LibKa0s-Lifecycle-1.0"] = NS.lifecycle,
   ["LibKa0s-Compat-1.0"]    = mocks.LibStub("LibKa0s-Compat-1.0", true),
+  ["LibKa0s-Pool-1.0"]      = mocks.LibStub("LibKa0s-Pool-1.0", true),
 }
 
 _G.RM_TEST = Kit.expose{
@@ -77,9 +78,12 @@ Kit.diagnostics = {
 -- The kit's typed-value gate (skinning-§1): no allowance of this addon's own.
 Kit.skinValues = {}
 
--- The kit's skin-switch test (skinning-§1): the surfaces this addon draws through the skin. The
--- v0.1.0 scaffold draws no frame of its own yet, so its surfaces are the library windows it opens;
--- the range containers join this list with the renderer (the v0.1.0 plan, Task 5).
+-- The kit's skin-switch test (skinning-§1): the surfaces this addon draws through the skin: the
+-- library windows it opens, and a range container's number, whose HUD face is the skin's
+-- (modules/Style.lua's S.HudFont) and follows a switch through the renderer's OnLooksChanged
+-- re-apply. Its colors are the band set's, never the skin's, so the face is what moves, and an owner
+-- ignoring fonts keeps it stock (scope "fonts").
+local skinContainer
 Kit.skinSwitch = {
   owner = "RangeMaster",
   skin  = function() return mocks.LibStub("LibKa0s-Skin-1.0") end,
@@ -92,6 +96,14 @@ Kit.skinSwitch = {
       NS.Perf.ShowPanel()
       return NS.Perf.__panel()
     end, reset = function() NS.Perf.HidePanel() end },
+    { name = "a range container's number", scope = "fonts", build = function()
+      skinContainer = NS.CM.Create("target")
+      NS.CM.FlushPending()
+      return NS.Container.Get(skinContainer).elements.number.fs
+    end, reset = function()
+      NS.CM.Delete(skinContainer)
+      NS.CM.FlushPending()
+    end },
   },
 }
 
@@ -104,6 +116,8 @@ Kit.run{
     "test_bandsets",
     "test_container_manager",
     "test_presets",
+    "test_number_format",
+    "test_container_render",
     "test_compat",
     "test_range",
     "test_ticker",

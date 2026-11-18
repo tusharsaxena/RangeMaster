@@ -88,6 +88,9 @@ L["Focus with spell-range chips (class spells)"] = "Focus with spell-range chips
 L["Band-change sound (out-of-range warning)"] = "Band-change sound (out-of-range warning)"
 L["Visibility rules: nameplates in combat only, hostile only"] = "Visibility rules: nameplates in combat only, hostile only"
 
+-- modules/Elements_Number.lua
+L["%s yd"] = "%s yd"
+
 -- settings/Slash.lua
 L["List available commands"] = "List available commands"
 L["Open the settings panel"] = "Open the settings panel"

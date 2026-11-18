@@ -1,7 +1,7 @@
 -- tests/test_surface_parity.lua — every degradation stub carries the whole live surface.
 --
--- The addon adopts eleven LibKa0s seams — Core, Compat, DebugLog, Options, Slash, Launcher, Bus,
--- Schema, Perf, Lifecycle and Skin — and each setup file carries a degradation stub for the install
+-- The addon adopts twelve LibKa0s seams — Core, Compat, DebugLog, Options, Slash, Launcher, Bus,
+-- Schema, Perf, Lifecycle, Skin and Pool — and each setup file carries a degradation stub for the install
 -- where libs/LibKa0s is missing. A stub is a
 -- second implementation of somebody else's surface, so it drifts the moment the library grows a
 -- member the host starts calling: the live path stays green, and the degraded path raises in
@@ -288,6 +288,17 @@ test("parity: the Lifecycle stub carries the whole live surface", function()
   local NS2 = loadDegraded()
   assertTrue(type(NS2.lifecycle) == "table", "core/LifecycleSetup.lua publishes NS.lifecycle either way")
   T.assertSurfaceParity(NS2.lifecycle, "LibKa0s-Lifecycle-1.0", {})
+end)
+
+-- ── Pool ───────────────────────────────────────────────────────────────────────────────────────
+
+test("parity: the Pool stub carries the library's whole surface", function()
+  -- core/PoolSetup.lua publishes the library table itself live and a local copy of its contract
+  -- without it, so the by-name form over the major's public members applies, nothing ignored:
+  -- New, Acquire, ReleaseAll, Counts and the keyed four. The renderer's one-object release
+  -- (modules/Container.lua) is its own, not a member of either half.
+  local NS2 = loadDegraded()
+  T.assertSurfaceParity(NS2.Pool, "LibKa0s-Pool-1.0", {})
 end)
 
 -- ── Skin (the owner's facade, and the seam's NS members) ─────────────────────────────────────────

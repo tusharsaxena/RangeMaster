@@ -27,6 +27,7 @@ read_globals = {
   "UnitExists",                              -- modules/Range.lua: "none" is a unit that does not exist
   "UnitIsFriend",                            -- core/Compat.lua's IsFriend (modules/BandSets.lua's friendly override)
   "C_Timer",                                 -- modules/Ticker.lua's ticker, modules/Range.lua's rebuild debounce
+  "BackdropTemplateMixin", "Mixin",           -- modules/Style.lua's media border, on a plain frame
 }
 
 globals = {

@@ -16,10 +16,10 @@
 |---|---|---|---|---|
 | 0 | Repo, labels, branch, spec, research, plan | done | d140c26 + this | yes |
 | 1 | Scaffold (born compliant) + vendor LibKa0s + LibRangeCheck | done | 30b77b8 + 6ed49cb + b6d243f + `Scaffold: review fixes` | yes |
-| 2 | Range engine, Compat, spell seeds, ticker | done | aef104b + `Task 2: review fixes` | no |
-| 3 | Data model, band sets, migrations | done | 5415e55 + `Task 3: review fixes` | no |
-| 4 | ContainerManager + presets | done | 54a9721 + `Task 4: review fixes` | no |
-| 5 | Container rendering + elements | todo | | |
+| 2 | Range engine, Compat, spell seeds, ticker | done | aef104b + `Task 2: review fixes` | yes |
+| 3 | Data model, band sets, migrations | done | 5415e55 + `Task 3: review fixes` | yes |
+| 4 | ContainerManager + presets | done | 54a9721 + `Task 4: review fixes` | yes |
+| 5 | Container rendering + elements | done | `Container rendering: number, text, indicator, spell chips` | no |
 | 6 | Anchors (screen, frame, nameplate, cursor) | todo | | |
 | 7 | Visibility, sounds, lock, Test mode, Sim mode | todo | | |
 | 8 | Settings pages + slash verbs | todo | | |

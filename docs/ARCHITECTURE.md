@@ -11,7 +11,7 @@ indicator and a row of spell chips, colored by a shared **band set**. The design
 record are `docs/superpowers/specs/2026-11-18-rangemaster-design.md` and
 `docs/superpowers/plans/2026-11-18-rangemaster-v0.1.0.md`.
 
-**State of the tree: the scaffold, the range engine, the data model and the container registry (plan Tasks 1 to 4).** What exists is the
+**State of the tree: the scaffold, the range engine, the data model, the container registry and the renderer (plan Tasks 1 to 5).** What exists is the
 born-compliant shell every Ka0s addon shares (the Ace3 addon object, AceDB with its migration runner,
 the LibKa0s setup files, the Master controls and Skin tabs, the slash surface, the launcher, the
 stand-down latch, the diagnostics report, and the two session preview modes with their one writer
@@ -22,9 +22,10 @@ the container and band-set templates (`defaults/Profile.lua`), the four preset b
 (`defaults/BandSetPresets.lua`), the band-set registry and its resolver (`modules/BandSets.lua`) and
 the registries' load pass (`core/Database.lua`'s `PrepareProfile`); plus the container registry's
 writer (`modules/ContainerManager.lua`, `NS.CM`) and the three container presets
-(`modules/Presets.lua`, `NS.Presets`). Nothing draws or watches a unit yet: the renderer, the anchors
-and the settings pages arrive in plan Tasks 5 to 8, and each section below says where a later task
-plugs in.
+(`modules/Presets.lua`, `NS.Presets`); plus the renderer (`modules/Container.lua`, `NS.Container`,
+with `modules/Style.lua` and the four `modules/Elements_*.lua`), which draws every enabled container
+at its stored point on screen. The anchors, the behavior and modes, and the settings pages arrive in
+plan Tasks 6 to 8, and each section below says where a later task plugs in.
 
 **The design is dictated by one client fact.** The game answers "is this unit within reach of
 spell or item X", never "how far". The range engine asks LibRangeCheck-3.0 (vendored,
@@ -95,6 +96,33 @@ Intermediate with spell chips on focus and sounds on target (its set's out-of-ra
 every hostile nameplate (dot + the `max` number), both in combat only. `Describe(key)` feeds the
 preset cards (plan Task 8).
 
+### Rendering
+
+`NS.Container` (`modules/Container.lua`) keeps one instance per enabled container, from a
+LibKa0s-Pool-1.0 keyed pool (`core/PoolSetup.lua`) keyed by container id. `CONTAINERS_CHANGED` runs
+`Sync`: `Acquire(id)` for every enabled container (the pooled frame, its settings applied, its unit
+watched through `NS.Ticker.Watch`) and back to the pool for a deleted or disabled one; a release
+parks the one object, drops its watch and forgets what it drew. `BANDSETS_CHANGED` repaints every
+instance from its last triple, and the skin's `OnLooksChanged` re-applies them all so the HUD face
+follows the skin. `RANGE_UPDATED` reaches the instances watching that unit and no other (bucket
+`container.render`); each asks its spell chips' answers (`NS.Range.InSpellRange`) and renders.
+
+A render resolves the band (`NS.BandSets.ForUnit`, then `Resolve`) and recolors the border, the fill
+and every element only when the band index or the set changed; an element sets its text only when
+the string changed, and the layout runs on an apply or when a cell's width moved. An unknown range
+draws the set's unknown label (`?`) in its gray, never a band; no unit hides a container that hides
+with no unit. Colors read `band` (the band's frame, text or indicator color), `fixed` (the swatch) or
+`class` (the player's class color, the swatch's alpha kept; options-ui-§17). The elements follow
+`elements.order` along `layout.direction`, from the padding, `spacing` apart, centered across; only
+an enabled element is ever built, and one turned off is hidden. The number writes the bracket in one
+of six formats and `40+` for an open-ended one, never an invented far bound. The indicator draws
+this addon's shape art (`media/textures/indicators/`), LibKa0s-Widgets' data bar (fuller the nearer
+the band, empty when unknown) or a spell icon. The spell chips are an array pool per element, each
+chip colored by its own answer and repainted only when that answer moves. Placement is
+`NS.Anchors.Apply` once plan Task 6 adds it; until then each container sits at its stored point on
+`UIParent`. A `nameplates` container gets no instance yet: its per-plate instances come with Task 6.
+Frames stack by `NS.Constants.LAYERS` (the HUD strata; fill, border and overlay offset over the root).
+
 ### Libraries
 
 Everything is vendored under `libs/`: LibStub and CallbackHandler, the Ace3 stack, LibSharedMedia,
@@ -107,7 +135,9 @@ LibDataBroker and LibDBIcon (the launcher), LibKa0s v1.105.0 (whole, its icons a
 Every non-vendored file, its responsibility and the TOC load order: `docs/module-map.md`. In short:
 `locales/enUS.lua` first; `core/` holds the namespace, the compat seam, the LibKa0s setup files,
 the stand-down latch, the database and the AceAddon entry (`core/RangeMaster.lua`); `defaults/`
-the AceDB defaults; `modules/` the diagnostics sections; `settings/` the schema runtime, the slash
+the AceDB defaults, the templates and the data tables; `modules/` the band sets, the range engine
+and its ticker, the container registry and presets, the renderer with its style and element files,
+and the diagnostics sections; `settings/` the schema runtime, the slash
 descriptor, the options descriptor and the pages.
 
 ### Per-client features
@@ -166,8 +196,8 @@ stand-down takes every subscription down and a stand-up replays it.
 
 | Constant | Wire name | Sender | Payload | Consumers |
 |---|---|---|---|---|
-| `RANGE_UPDATED` | `Ka0s_RangeMaster_RangeUpdated` | `modules/Ticker.lua` | `unit, state, minYd, maxYd` | the containers watching that unit (Task 5) |
-| `CONTAINERS_CHANGED` | `Ka0s_RangeMaster_ContainersChanged` | `modules/ContainerManager.lua` (`FlushPending`, coalesced to the next frame, held in combat) | none | the renderer and the settings pages |
+| `RANGE_UPDATED` | `Ka0s_RangeMaster_RangeUpdated` | `modules/Ticker.lua` | `unit, state, minYd, maxYd` | `modules/Container.lua`: the instances watching that unit |
+| `CONTAINERS_CHANGED` | `Ka0s_RangeMaster_ContainersChanged` | `modules/ContainerManager.lua` (`FlushPending`, coalesced to the next frame, held in combat) | none | the renderer (`NS.Container.Sync`) and the settings pages (Task 8) |
 | `BANDSETS_CHANGED` | `Ka0s_RangeMaster_BandSetsChanged` | `modules/BandSets.lua` (`Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`, `SetBandSound`, `RestoreSnapshot`; never the load pass) | none | the renderer and the settings pages |
 | `MODE_CHANGED` | `Ka0s_RangeMaster_ModeChanged` | `core/RangeMaster.lua` (`NS.SetTestMode`, `NS.SetSimMode`) | `mode` (`"test"` or `"sim"`), `on` | the renderer (Task 7) |
 
@@ -206,7 +236,13 @@ waits out combat (`core/SkinSetup.lua`).
 
 ## Taint Notes
 
-The addon draws no secure frame and hooks nothing yet. The rules the range work is built to: every
+The addon hooks nothing, and every frame it draws is its own, plain and unprotected: the renderer's
+container instances are `CreateFrame("Frame")` children of `UIParent`, built only on an apply, which
+the container registry holds through combat (`NS.CM.FlushPending` runs it on `PLAYER_REGEN_ENABLED`);
+a render inside combat only recolors and re-texts frames that already exist. Edges are strips of
+this addon's own (never a `BackdropTemplate`, whose size arithmetic can meet a secret geometry once a
+container attaches to a unit frame, plan Task 6), and a media border goes on a plain frame with
+`BackdropTemplateMixin` mixed in, so no `OnSizeChanged` script runs. The rules the range work is built to: every
 range API call is wrapped in `pcall` and every result checked with `NS.Compat.IsSecret` before it is
 compared (`core/Compat.lua`'s range reads, `modules/Range.lua`'s LibRangeCheck call); item and
 interact checks are never made on a unit the player cannot attack while in combat; no
@@ -217,8 +253,12 @@ secure writes are still allowed.
 
 ## Known Limitations
 
-- The scaffold shows no range display yet: Test mode and Sim mode switch, announce `MODE_CHANGED`
-  and refuse in combat, but draw nothing until the renderer lands (plan Task 7).
+- Test mode and Sim mode switch, announce `MODE_CHANGED` and refuse in combat, but the renderer does
+  not hear them yet: their placeholders and the distance sweep arrive with plan Task 7.
+- Every container is drawn at its stored point on `UIParent` whatever its anchor mode, and a
+  `nameplates` container is not drawn at all, until the anchors land (plan Task 6). Visibility is the
+  "hide with no unit" rule alone until plan Task 7's rules (combat, reaction, out-of-combat alpha).
+- Without LibKa0s-Widgets-1.0 the bar indicator draws as a flat strip in the band color, not a fill.
 - `/rm resetposition` and the Reset position button report 0 displays until the anchors
   place containers (plan Task 6).
 - The Advanced preset's out-of-range sound key (`NS.Presets.OOR_SOUND`) is not yet registered with
