@@ -33,6 +33,8 @@ read_globals = {
   "C_NamePlate", "GetMouseFoci", "GetCursorPosition", "IsMouseButtonDown",
   -- the band sounds' clock and the client's sound call (modules/Sounds.lua, modules/Container.lua)
   "GetTime", "PlaySoundFile",
+  -- settings/Containers_Display.lua: the element list's on/off tick tooltip
+  "GameTooltip", "HIGHLIGHT_FONT_COLOR",
 }
 
 globals = {

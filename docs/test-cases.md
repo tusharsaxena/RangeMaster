@@ -150,7 +150,7 @@ Total.
 - number: no unit reads nothing, and an unknown format reads as range
 - number: a known state with no far bound and no near bound reads unknown, not 0
 
-### test_container_render.lua (34)
+### test_container_render.lua (35)
 
 - render: an enabled container gets one pooled instance, watching its unit, drawn at once
 - render: Release returns the frame to the pool cleanly, and the next Acquire reuses it
@@ -166,6 +166,7 @@ Total.
 - render: test_hidden_elements_not_created — only the enabled elements are built
 - render: an element turned off after it was built is hidden and laid out of the row
 - render: test_element_order_row_and_column — elements.order, in a row and in a column
+- render: test_fixed_size — a fixed-size container keeps its width and height, the elements centered
 - render: the layout's scale and alpha reach the root frame
 - render: the indicator shapes draw this addon's textures, recolored by band
 - render: the bar indicator is LibKa0s-Widgets' data bar, fuller the nearer the band
@@ -539,7 +540,7 @@ Total.
 - the General page draws Master controls first, then Presets, and the Skin tab last
 - the General page is covered in combat on the sidebar path, and the window stays open (options-ui-§2)
 
-### test_settings_containers.lua (16)
+### test_settings_containers.lua (17)
 
 - settings: surface parity — every Containers and Band sets row answers /rm get and /rm set, through its registry's writer
 - settings: surface parity — every Containers row is drawn on its rail entry's tab
@@ -556,6 +557,7 @@ Total.
 - settings: every rail entry is one page key, and every Containers row names a template field
 - settings: test_element_order_paths_get_set — /rm get|set container.elements.order reads and moves the selected container's elements
 - settings: the Display entry's Layout tab draws the element order as a drag list, and a drop writes through the writer
+- settings: test_element_tick — the tick turns an element on at the end of the drawn ones, the cross off at the head of the rest
 - settings: the element order list is canceled before the next render draws anything (options-ui-§18)
 
 ### test_settings_bandsets.lua (6)
@@ -810,7 +812,7 @@ Total.
 | test_container_manager.lua | 17 |
 | test_presets.lua | 11 |
 | test_number_format.lua | 5 |
-| test_container_render.lua | 34 |
+| test_container_render.lua | 35 |
 | test_anchors_screen.lua | 12 |
 | test_anchors_frame.lua | 17 |
 | test_anchors_nameplate.lua | 14 |
@@ -834,7 +836,7 @@ Total.
 | test_modes.lua | 20 |
 | test_optionssetup.lua | 16 |
 | test_realpages.lua | 7 |
-| test_settings_containers.lua | 16 |
+| test_settings_containers.lua | 17 |
 | test_settings_bandsets.lua | 6 |
 | test_settings_presets.lua | 11 |
 | test_skinsetup.lua | 12 |
@@ -858,4 +860,4 @@ Total.
 | test_skin_switch.lua | 6 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **628** |
+| **Total** | **630** |

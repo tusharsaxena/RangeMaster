@@ -109,13 +109,14 @@ test("MediaSetup: every mark this addon's windows draw is one the library ships"
   -- -- so the marks that reach the screen are the ones the library builds on our behalf once the
   -- setup files hand it `addonName`: the console's close, copy and clear, the Copy window's and the
   -- perf panel's close, the library-drawn marks every consumer owes (kit revision 57), and the
-  -- first-run skin picker's eye (`eye`, drawn because core/SkinSetup.lua passes spec.preview).
+  -- first-run skin picker's eye (`eye`, drawn because core/SkinSetup.lua passes spec.preview), and
+  -- the Display entry's element list handle (`segment`, settings/Containers_Display.lua).
   local lib = media()
   local known = {}
   for _, name in ipairs(lib.ICONS) do known[name] = true end
 
   for _, name in ipairs({ "chevron-down", "chevron-up", "clear", "close", "confirm", "copy", "eye",
-    "info", "move", "reset", "settings", "volume-high" }) do
+    "info", "move", "reset", "segment", "settings", "volume-high" }) do
     assertTrue(known[name] == true,
       "this addon's windows draw '" .. name .. "', which LibKa0s-Media does not ship")
     assertTrue(NS.Icon(name) ~= nil, "NS.Icon answered nil for " .. name)
@@ -126,7 +127,7 @@ test("MediaSetup: every mark this addon's windows draw is one the library ships"
   -- red under: a draw site added or dropped without the CLAUDE.md line moving with it.
   local decl = declaration()
   assertEqual(decl.mode, "list", "the declaration must be a list of names, not `none` or `all`")
-  assertEqual(table.concat(decl.names, ", "), "chevron-down, chevron-up, clear, close, confirm, copy, eye, info, move, reset, settings, volume-high",
+  assertEqual(table.concat(decl.names, ", "), "chevron-down, chevron-up, clear, close, confirm, copy, eye, info, move, reset, segment, settings, volume-high",
     "CLAUDE.md's `LibKa0s icons:` line must name exactly the marks this addon's windows draw")
 end)
 

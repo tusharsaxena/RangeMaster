@@ -5,7 +5,9 @@ local _, NS = ...
 --     [ Layout ][ Frame ][ Number ][ Text ]
 --
 --     Layout   [Direction] [Spacing (px)] / [Padding (px)] / [Container scale] [Container opacity]
---              -- Element order --  a drag list, one row per element (an element turned off reads dimmed)
+--              [Size] / [Width (px)] [Height (px)]  (grayed while Size fits the content)
+--              -- Element order --  a drag list, one row per element: handle, on/off tick, name; the
+--              elements turned on first and only they drag
 --     Frame    -- Border --      the composed border block (options-ui-§16), Show border first
 --              -- Background --  [Show background], the background swatch and its color mode,
 --                                [Band tint opacity]
@@ -40,6 +42,15 @@ local UNIT_CLASS = { source = "unit" }
 local DIRECTIONS = { row = L["Row (side by side)"], column = L["Column (stacked)"] }
 local DIRECTIONS_SORT = { "row", "column" }
 
+local SIZINGS = { fit = L["Fit its content"], fixed = L["Fixed size"] }
+local SIZINGS_SORT = { "fit", "fixed" }
+
+--- Whether the selected container's size is its own content's (the width and height then gray).
+local function fitsContent()
+    local c = NS.SelectedContainer()
+    return not (c and c.layout.sizing == "fixed")
+end
+
 local FORMATS = {
     range = L["Range (20\226\128\14725)"], max = L["Farthest (25)"], min = L["Nearest (20)"],
     under = L["Under (<25)"], approx = L["About (~22)"], suffix = L["With yards (25 yd)"],
@@ -64,6 +75,15 @@ local rows = {
     { path = "container.layout.alpha", page = PAGE, group = LAYOUT, order = 50, type = "number",
       min = 0, max = 1, step = 0.05, isPercent = true, label = L["Container opacity"],
       desc = L["How opaque this container is."] .. " " .. MASTER_OPACITY },
+    { path = "container.layout.sizing", page = PAGE, group = LAYOUT, order = 52, type = "string",
+      startsLine = true, values = SIZINGS, sorting = SIZINGS_SORT, label = L["Size"],
+      desc = L["Fit its content: the container grows and shrinks with what it shows, so a longer number or label widens it. Fixed size: it keeps the width and height below, the elements centered in it."] },
+    { path = "container.layout.width", page = PAGE, group = LAYOUT, order = 54, type = "number",
+      startsLine = true, min = 10, max = 600, step = 1, label = L["Width (px)"], disabledIf = function() return fitsContent() end,
+      desc = L["The container's width while Size is Fixed size."] },
+    { path = "container.layout.height", page = PAGE, group = LAYOUT, order = 56, type = "number",
+      min = 10, max = 300, step = 1, label = L["Height (px)"], disabledIf = function() return fitsContent() end,
+      desc = L["The container's height while Size is Fixed size."] },
 }
 
 --- Append `list` to `rows`.
@@ -199,11 +219,23 @@ end
 NS.RegisterSchemaRows(rows)
 
 -- ── the drag list ───────────────────────────────────────────────────────────────────────────
+--
+-- THE ROWS ARE MultiMeters' Columns rows (settings/ColumnBlocks.lua there): the library's handle
+-- in the gutter at the far left (the `segment` mark), a tick or a cross that turns the element on
+-- or off, and the element's name at the right, in the accent while it is on and grayed while off.
+-- THE TWO GROUPS: the elements turned on come first, in the order they are drawn, and only they
+-- drag (the library's `boundary` keeps a drag inside them); the ones turned off sit dimmed below,
+-- with no handle. The tick is what moves an element between the groups: turned on it joins the
+-- end of the drawn ones, turned off it heads the others. Every move and every toggle writes the
+-- whole order as the list shows it, so the stored order always reads the drawn ones first.
 
-local ROW_H = 24
+local ROW_H = 30
 local ROW_STRIDE = ROW_H + 4   -- top of a row to the next one's: the library's drop arithmetic
-local LABEL_GAP = 12           -- between the handle's gutter and the element's name
-local GUTTER_FALLBACK = 30     -- the library's ROW_BOX.HANDLE_W, for a copy that has none
+local GLYPH_X = 42             -- the tick's left edge, past the handle's gutter
+local HANDLE_ICON = "segment"
+-- The client's art, the tick wears while the skin gives the settings panel back (NS.Skin.Mark's stock).
+local ON_TEX, OFF_TEX = "Interface\\RaidFrame\\ReadyCheck-Ready", "Interface\\RaidFrame\\ReadyCheck-NotReady"
+local PANEL_TEXT = { panel = true }
 
 local rowPool, rowAttic = {}, nil
 
@@ -231,6 +263,7 @@ function NS.CancelElementOrder(ctx)
     for i = #(ctx.rmOrderRows or {}), 1, -1 do
         local row = ctx.rmOrderRows[i]
         ctx.rmOrderRows[i] = nil
+        row.rmName = nil
         row:Hide()
         row:ClearAllPoints()
         row:SetParent(attic())
@@ -238,15 +271,91 @@ function NS.CancelElementOrder(ctx)
     end
 end
 
+--- Whether element `name` of the selected container is turned on.
+local function isOn(name)
+    local c = NS.SelectedContainer()
+    local el = c and c.elements[name]
+    return el ~= nil and el.enabled == true
+end
+
+--- The list as it shows: the elements turned on in their order, then the ones turned off in theirs.
+--- Answers the names and how many are on.
+local function shownOrder()
+    local on, off = {}, {}
+    for _, name in ipairs(currentOrder()) do
+        if isOn(name) then on[#on + 1] = name else off[#off + 1] = name end
+    end
+    for _, name in ipairs(off) do on[#on + 1] = name end
+    return on, #on - #off
+end
+
+--- Store `order` (an array of names) through the order row, and redraw the page.
+local function writeOrder(order)
+    NS.SetByPath(ORDER_PATH, table.concat(order, ","))
+    NS.RequestPanelRefresh()
+end
+
+--- Move the shown row at `from` to `to`: one write through the order row.
+local function moveElement(from, to)
+    local order = shownOrder()
+    if not (order[from] and order[to]) then return end
+    table.insert(order, to, table.remove(order, from))
+    writeOrder(order)
+end
+
+--- Turn element `name` on or off (its own row, so the Number and Text tabs agree), and move it to
+--- the end of the drawn ones or the head of the others.
+local function toggleElement(name)
+    local turnOn = not isOn(name)
+    NS.SetByPath("container.elements." .. name .. ".enabled", turnOn)
+    local order, n = shownOrder()
+    for i, other in ipairs(order) do
+        if other == name then table.remove(order, i) break end
+    end
+    -- `shownOrder` already sorted it by its new state; place it at the seam of the two groups.
+    table.insert(order, turnOn and n or n + 1, name)
+    writeOrder(order)
+end
+
+--- The tick's tooltip: what a click will do, placed beside the window as the handle's is.
+local function glyphTip(glyph)
+    local row = glyph.rmRow
+    if not (GameTooltip and row and row.rmName) then return end
+    local Tip = LibStub and LibStub("LibKa0s-Tooltip-1.0", true)
+    if Tip and Tip.Own then Tip.Own(GameTooltip, glyph) else GameTooltip:SetOwner(glyph, "ANCHOR_NONE") end
+    local r, g, b = NS.Skin.Color("gtip.value")
+    if type(r) ~= "number" then r, g, b = HIGHLIGHT_FONT_COLOR:GetRGB() end
+    GameTooltip:AddLine(isOn(row.rmName) and L["Click to turn this element off"] or L["Click to turn this element on"],
+        r, g, b)
+    GameTooltip:Show()
+    if not (Tip and Tip.PlaceBeside and Tip.PlaceBeside(GameTooltip, glyph)) then
+        GameTooltip:ClearAllPoints()
+        GameTooltip:SetPoint("BOTTOM", glyph, "TOP", 0, (Tip and Tip.TIP_GAP) or 2)
+    end
+end
+
 --- A row frame, from the free list or newly built, filling `parent`'s top.
-local function acquireRow(parent, gutter)
+local function acquireRow(parent)
     local row = table.remove(rowPool)
     if not row then
         row = CreateFrame("Frame", nil, parent)
         row:SetHeight(ROW_H)
+        local glyph = CreateFrame("Button", nil, row)
+        glyph:SetSize(18, 18)
+        glyph:SetPoint("LEFT", row, "LEFT", GLYPH_X, 0)
+        glyph:EnableMouse(true)
+        -- The name is read off the row at click time: a pooled row is re-pointed every render.
+        glyph.rmRow = row
+        glyph:SetScript("OnClick", function(self)
+            local name = self.rmRow.rmName
+            if name then toggleElement(name) end
+        end)
+        glyph:SetScript("OnEnter", glyphTip)
+        glyph:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+        row.rmGlyph = glyph
         row.rmLabel = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        row.rmLabel:SetPoint("LEFT", row, "LEFT", gutter + LABEL_GAP, 0)
-        row.rmLabel:SetJustifyH("LEFT")
+        row.rmLabel:SetPoint("RIGHT", row, "RIGHT", -12, 0)
+        row.rmLabel:SetJustifyH("RIGHT")
     end
     row:SetParent(parent)
     row:ClearAllPoints()
@@ -256,39 +365,47 @@ local function acquireRow(parent, gutter)
     return row
 end
 
---- Move the selected container's element at `from` to `to`: one write through the order row.
-local function moveElement(from, to)
-    local order = {}
-    for i, name in ipairs(currentOrder()) do order[i] = name end
-    if not (order[from] and order[to]) then return end
-    table.insert(order, to, table.remove(order, from))
-    NS.SetByPath(ORDER_PATH, table.concat(order, ","))
-    NS.RequestPanelRefresh()
+--- The tick or the cross on `row`: the Ka0s mark in the skin's good or bad color, the client's art
+--- while the skin gives the settings panel back.
+local function paintGlyph(row, on)
+    local glyph = row.rmGlyph
+    local stock = on and ON_TEX or OFF_TEX
+    glyph:SetNormalTexture(stock)
+    local tex = glyph.GetNormalTexture and glyph:GetNormalTexture()
+    if tex and NS.Skin and NS.Skin.Mark then
+        NS.Skin.Mark(tex, { art = NS.Icon(on and "confirm" or "close"), token = on and "sem.good" or "sem.bad",
+            panel = true, stock = function(t) t:SetTexture(stock) end })
+    end
 end
 
-local function newList()
+local function newList(boundary)
     local W = widgets()
     if not W then return nil end
     return W.ReorderList({
-        stride = ROW_STRIDE, onMove = moveElement, owner = NS.name,
-        handleTooltip = L["Drag to reorder"],
+        stride = ROW_STRIDE, boundary = boundary, onMove = moveElement, owner = NS.name,
+        handleIcon = NS.Icon(HANDLE_ICON), handleTooltip = L["Drag to reorder"],
     })
 end
 
 --- One element's row: an AceGUI slot the scroll lays out, holding a raw frame the list drags.
-local function drawRow(ctx, scroll, list, gutter, c, name)
+local function drawRow(ctx, scroll, list, name)
     local slot = NS.AceGUI:Create("SimpleGroup")
     slot:SetLayout(nil)
     slot:SetFullWidth(true)
     slot:SetHeight(ROW_STRIDE)
     scroll:AddChild(slot)
-    local row = acquireRow(slot.frame or slot.content, gutter)
-    local on = c.elements[name] and c.elements[name].enabled
-    local text = on and ELEMENT_NAMES[name] or L["%s (off)"]:format(ELEMENT_NAMES[name])
+    local row = acquireRow(slot.frame or slot.content)
+    local on = isOn(name)
+    row.rmName = name
+    paintGlyph(row, on)
+    local text = ELEMENT_NAMES[name]
     row.rmLabel:SetText(text)
-    if NS.Skin and NS.Skin.Text then NS.Skin.Text(row.rmLabel, on and "accent" or "disabled", { panel = true }) end
+    if NS.Skin and NS.Skin.Text then NS.Skin.Text(row.rmLabel, on and "accent" or "disabled", PANEL_TEXT) end
     ctx.rmOrderRows[#ctx.rmOrderRows + 1] = row
-    if list then list:AddRow(row, { dimmed = not on, ghostText = text, height = ROW_H }) end
+    if list then
+        list:AddRow(row, { draggable = on, dimmed = not on, ghostText = text, height = ROW_H,
+            ghostIcon = NS.Icon(on and "confirm" or "close") })
+    end
 end
 
 --- The Layout tab's foot: the element order as a drag list.
@@ -297,12 +414,12 @@ local function renderOrder(ctx)
     local scroll = H.EnsureScroll(ctx)
     if not (c and scroll and NS.AceGUI) then return end
     H.Section(ctx, ORDER_LABEL)
-    H.TextRow(ctx, L["Drag an element by its handle to change where it is drawn. An element turned off keeps its place for when it is turned on."],
+    H.TextRow(ctx, L["Drag an element by its handle to change where it is drawn. Click the tick or the cross to turn an element on or off."],
         { fontObject = "GameFontDisableSmall" })
-    local W, list = widgets(), newList()
-    local gutter = (W and W.ROW_BOX and W.ROW_BOX.HANDLE_W) or GUTTER_FALLBACK
+    local order, boundary = shownOrder()
+    local list = newList(boundary)
     ctx.rmOrderList, ctx.rmOrderRows = list, {}
-    for _, name in ipairs(c.elements.order) do drawRow(ctx, scroll, list, gutter, c, name) end
+    for _, name in ipairs(order) do drawRow(ctx, scroll, list, name) end
     if list then list:Finish(scroll.content or scroll.frame) end
 end
 

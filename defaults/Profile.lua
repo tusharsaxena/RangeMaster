@@ -72,7 +72,10 @@ NS.CONTAINER_TEMPLATE = {
         cursor = { point = "CENTER", x = 12, y = -40 },
         point = "CENTER", relPoint = "CENTER", x = 0, y = 0, strata = "MEDIUM",
     },
-    layout = { direction = "row", spacing = 4, padding = 4, scale = 1, alpha = 1 },
+    -- sizing: "fit" sizes the container to its elements; "fixed" holds it at width x height (px),
+    -- the elements centered in it (modules/Container.lua, Instance:Layout).
+    layout = { direction = "row", spacing = 4, padding = 4, scale = 1, alpha = 1,
+               sizing = "fit", width = 120, height = 28 },
     frame = {
         border = { enabled = true, texture = "", size = 1, colorMode = "band", color = white() },
         background = { enabled = false, colorMode = "band", color = C.HexColor("000000", 0.5), bandAlpha = 0.15 },

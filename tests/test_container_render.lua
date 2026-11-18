@@ -313,6 +313,37 @@ test("render: test_element_order_row_and_column — elements.order, in a row and
   end)
 end)
 
+test("render: test_fixed_size — a fixed-size container keeps its width and height, the elements centered", function()
+  -- red under: a Layout that sizes every container to its elements.
+  withRenderer(function()
+    local id, _, inst = newContainer({ layout = { direction = "row", spacing = 4, padding = 4 },
+      elements = { text = { enabled = true } } })
+    local fitW, fitH = inst.width, inst.height
+    local L1, L2 = inst.layout[1], inst.layout[2]
+    local blockW = L2.x + L2.w + 4
+    assertEqual(fitW, blockW, "Fit its content: the width closes on the padding")
+    local c = CM.Get(id)
+    c.layout.sizing, c.layout.width, c.layout.height = "fixed", fitW + 100, fitH + 20
+    CM.RequestApply()
+    CM.FlushPending()
+    assertEqual(inst.width, fitW + 100, "Fixed size: the stored width")
+    assertEqual(inst.height, fitH + 20, "and height")
+    -- The block sits 50 px in from each side and 10 from top and bottom.
+    local f = inst.layout[1].el.frame
+    local placed
+    rawset(f, "SetPoint", function(_, ...) placed = { ... } end)
+    inst:Layout()
+    rawset(f, "SetPoint", nil)
+    assertTrue(placed ~= nil, "the first element was placed")
+    assertEqual(placed[4], L1.x + 50, "the block centered across")
+    assertEqual(placed[5], -(L1.y + 10), "and down")
+    c.layout.sizing = "fit"
+    CM.RequestApply()
+    CM.FlushPending()
+    assertEqual(inst.width, fitW, "back to fitting its content")
+  end)
+end)
+
 test("render: the layout's scale and alpha reach the root frame", function()
   withRenderer(function()
     local _, _, inst = newContainer({ layout = { scale = 1.5, alpha = 0.6 } })

@@ -215,6 +215,10 @@ RANGE-1 to RANGE-4 are run through a target container. RANGE-5 needs only the ch
 - **DRAW-3. Elements and order.** Turn on text, a dot and spell chips, drag them into a new order
   (Containers → Display → Layout → Element order; or `/rm set container.elements.order spells,text`),
   switch the direction to column → every element draws, in that order, the frame closes around them.
+  The list: a hamburger handle on each element turned on, a green tick or a red cross that turns it
+  on (it joins the end of the drawn ones) or off (it drops below them, dimmed, no handle). Set Size
+  to Fixed size with Width 200 → the container stays 200 px wide as the number changes, the elements
+  centered; back to Fit its content → it closes around them again.
   Every shape (dot, ring, square, diamond, triangle, bar, icon) draws without a missing-texture
   green. Result:
 - **DRAW-4. Skin face.** With an element's font left on the skin's, switch the skin (General → Skin)

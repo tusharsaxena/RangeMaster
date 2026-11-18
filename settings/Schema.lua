@@ -40,10 +40,10 @@ local _, NS = ...
 --     skipRender  = true,                             -- keep it in the schema; the host draws it
 --   }
 --
--- NO ROW CARRIES `disabledIf`, and no color row ever may (options-ui-§17, anti-pattern #74): a
+-- NO COLOR ROW CARRIES `disabledIf`, and none ever may (options-ui-§17, anti-pattern #74): a
 -- swatch is still read for its ALPHA while its class-color companion is on, so graying it would
--- tell the player something untrue. The field is the library's and still works; this addon simply
--- does not ask for it.
+-- tell the player something untrue. The two rows that do carry it are the Display entry's Width and
+-- Height, grayed while Size fits the content, when nothing reads them.
 
 NS.Schema = NS.Schema or {}
 

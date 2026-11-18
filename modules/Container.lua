@@ -341,7 +341,15 @@ local function collect(inst, c)
     return cells, n
 end
 
---- Place the cells along the main axis from the padding, centered across it, and size the root.
+--- A fixed size's side: the stored number, at least 1 px (the template's while it is not a number).
+local function side(v, fallback)
+    v = tonumber(v) or fallback
+    return v >= 1 and v or 1
+end
+
+--- Place the cells along the main axis from the padding, centered across it, and size the root: to
+--- the cells (`layout.sizing` "fit"), or at `layout.width` x `layout.height` with the cells' block
+--- centered in it ("fixed"; a block larger than the box overflows it evenly on both sides).
 function Instance:Layout()
     self.layoutDirty = false
     local lay = self.container.layout
@@ -358,14 +366,25 @@ function Instance:Layout()
         else
             cell.x, cell.y, pos = pad + (cross - cell.w) / 2, pos, pos + cell.h + gap
         end
+    end
+    local main = n > 0 and (pos - gap + pad) or pad * 2
+    local w, h
+    if row then w, h = main, cross + pad * 2 else w, h = cross + pad * 2, main end
+    local dx, dy = 0, 0
+    if lay.sizing == "fixed" then
+        local T = NS.CONTAINER_TEMPLATE.layout
+        local fw, fh = side(lay.width, T.width), side(lay.height, T.height)
+        dx, dy, w, h = (fw - w) / 2, (fh - h) / 2, fw, fh
+    end
+    for i = 1, n do
+        local cell = cells[i]
         local f = cell.el.frame
         f:SetSize(cell.w, cell.h)
         f:ClearAllPoints()
-        f:SetPoint("TOPLEFT", self.frame, "TOPLEFT", cell.x, -cell.y)
+        f:SetPoint("TOPLEFT", self.frame, "TOPLEFT", cell.x + dx, -(cell.y + dy))
     end
-    local main = n > 0 and (pos - gap + pad) or pad * 2
-    if row then self.width, self.height = main, cross + pad * 2 else self.width, self.height = cross + pad * 2, main end
-    self.frame:SetSize(self.width, self.height)
+    self.width, self.height = w, h
+    self.frame:SetSize(w, h)
 end
 
 -- ---------------------------------------------------------------------------

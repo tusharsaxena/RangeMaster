@@ -335,10 +335,16 @@ test("settings: the Display entry's Layout tab draws the element order as a drag
   E.with(function()
     local id = CM.Create("target")
     NS.SelectContainer(id)
+    CM.SetField(id, "elements.indicator.enabled", true)
     local ctx = layoutTab()
     local list = ctx.rmOrderList
     assertTrue(list ~= nil, "a LibKa0s-Widgets ReorderList is live for the tab")
-    assertEqual(#list.rows, 4, "one row per element, every element (an element turned off is still placed)")
+    assertEqual(#list.rows, 4, "one row per element, every element (an element turned off is still listed)")
+    -- Indicator and number on, text and spells off: the ones on first, and only they drag.
+    local order = {}
+    for i, row in ipairs(ctx.rmOrderRows) do order[i] = row.rmName end
+    assertEqual(table.concat(order, ","), "indicator,number,text,spells", "the elements turned on first")
+    assertEqual(list.boundary, 2, "a drag stays among the two turned on")
     local labels = E.labels(ctx)
     assertTrue(labels["Element order"], "the list is headed")
     local writes = 0
@@ -347,12 +353,38 @@ test("settings: the Display entry's Layout tab draws the element order as a drag
       if field == "elements.order" then writes = writes + 1 end
       return saved(cid, field, v)
     end
-    local ok, err = pcall(function() list.onMove(1, 3) end)
+    local ok, err = pcall(function() list.onMove(1, 2) end)
     CM.SetField = saved
     if not ok then error(err, 0) end
     assertEqual(writes, 1, "the drop is one write, through NS.CM.SetField")
-    assertEqual(table.concat(CM.Get(id).elements.order, ","), "number,text,indicator,spells",
+    assertEqual(table.concat(CM.Get(id).elements.order, ","), "number,indicator,text,spells",
       "the dragged element lands where it was dropped")
+  end)
+end)
+
+test("settings: test_element_tick — the tick turns an element on at the end of the drawn ones, the cross off at the head of the rest", function()
+  -- red under: an element list with no on/off control, or a toggle that leaves an element turned
+  -- on below the ones turned off (drawn in a place the list does not show).
+  E.with(function()
+    local id = CM.Create("target")
+    NS.SelectContainer(id)
+    CM.SetField(id, "elements.order", { "text", "indicator", "spells", "number" })
+    CM.SetField(id, "elements.indicator.enabled", true)
+    local ctx = layoutTab()
+    local function rowOf(name)
+      for _, row in ipairs(ctx.rmOrderRows) do if row.rmName == name then return row end end
+    end
+    local shown = {}
+    for i, row in ipairs(ctx.rmOrderRows) do shown[i] = row.rmName end
+    assertEqual(table.concat(shown, ","), "indicator,number,text,spells", "on first, each group in its stored order")
+    rowOf("spells").rmGlyph:__fire("OnClick")
+    assertTrue(CM.Get(id).elements.spells.enabled, "the tick turned spell chips on")
+    assertEqual(table.concat(CM.Get(id).elements.order, ","), "indicator,number,spells,text",
+      "at the end of the drawn ones")
+    rowOf("indicator").rmGlyph:__fire("OnClick")
+    assertFalse(CM.Get(id).elements.indicator.enabled, "the cross turned the indicator off")
+    assertEqual(table.concat(CM.Get(id).elements.order, ","), "number,spells,indicator,text",
+      "at the head of the ones turned off")
   end)
 end)
 
