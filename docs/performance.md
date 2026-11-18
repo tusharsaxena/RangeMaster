@@ -18,6 +18,7 @@ off.
 | `ticker.tick` | the ticker's callback (`modules/Ticker.lua`) | a fresh memo and one read of every watched unit, 10 or 20 times a second while a watched unit exists: the addon's steady cost, bounded by units, never by containers |
 | `range.get` | `NS.Range.Get` on a memo miss (`modules/Range.lua`) | LibRangeCheck's `GetRange` behind the guards, and on Forever the ladder walk |
 | `container.render` | the renderer's `RANGE_UPDATED` fan-out (`modules/Container.lua`) | every instance on the unit that moved: its spell answers, then only what changed is painted; also an instance whose spell chip's answer moved on an unmoved read (`NS.Ticker.OnSteady`) |
+| `cursor.follow` | the cursor follow's one OnUpdate (`modules/Anchors_Cursor.lua`) | every shown cursor container placed at the cursor, once a frame; armed only while one is shown. Its own top-level pass |
 
 `range.get` is declared `within = "ticker.tick"`: every tick runs it there. An event's forced refresh
 runs it at top level, so each call passes the parent it observed to `Perf.Note` (the ticker names
@@ -44,7 +45,10 @@ the ticker's tick at the design spec's load (ten containers over target, focus, 
 plus twenty plates, 24 units: `ticker.tick` with nothing moving, asserted near-free, and
 `ticker.tick.moving` with every unit moving every tick), the renderer over ten drawn containers
 (`render.quiet`, a tick with nothing moving, asserted near-free, and `container.render`, every
-instance changing band every tick, the worst case), and the zero-overhead scenario that proves a
+instance changing band every tick, the worst case), a `nameplates` container over twenty hostile
+plates (`render.plates.quiet`, asserted near-free, and `render.plates`, all twenty changing band),
+the cursor follow over three cursor containers (`cursor.follow`, asserted not to allocate), and the
+zero-overhead scenario that proves a
 dormant bracket costs nothing an armed one does not. LibRangeCheck's own `GetRange` answers a fixed
 bracket there: its cost is the library's. Offline numbers are never cited as in-game evidence; in-game captures are their own
 store.

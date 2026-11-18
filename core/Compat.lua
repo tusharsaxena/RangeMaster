@@ -5,9 +5,10 @@ local _, NS = ...
 -- It routes three things from LibKa0s-Compat-1.0: the client questions (IsForever, IsRetail,
 -- ClientKey, ForClient; clients-§3), the secret-value guards (IsSecret, CanAccess, IsSafeKey;
 -- events-frames-taint-§8) and the spell-info reader (GetSpellInfo). It owns the range engine's client
--- reads (IsEventValid, IsSpellKnown, SpellInRange, ItemInRange, InteractInRange, CanAttack) and the
+-- reads (IsEventValid, IsSpellKnown, SpellInRange, ItemInRange, InteractInRange, CanAttack), the
 -- two unit reads the band sets make (IsFriend, PlayerClass), each pcall-wrapped and secret-checked,
--- and the per-client range ladder (RangeLadder). No other file of
+-- the anchors' frame reads (NamePlateForUnit, PlateToken, NamePlates, GetMouseFocus), each
+-- forbidden-checked, and the per-client range ladder (RangeLadder). No other file of
 -- this addon reads a WOW_PROJECT_* global or decides the client from an interface number. Every
 -- shim, what it wraps and who calls it: docs/compat-layer.md.
 NS.Compat = NS.Compat or {}
@@ -190,6 +191,67 @@ end
 function Compat.IsFriend(unit)
     if not UnitIsFriend then return nil end
     return rangeAnswer(pcall(UnitIsFriend, "player", unit))
+end
+
+-- ---------------------------------------------------------------------------
+-- The frame reads the anchors make (design spec 5.4; docs/compat-layer.md)
+-- ---------------------------------------------------------------------------
+-- A nameplate can be FORBIDDEN (a friendly plate in an instance on 12.x): any method call on one
+-- raises, so the plate reads below ask IsForbidden first, under pcall, and hand a forbidden plate
+-- back as nil. The caller never touches a plate these did not vouch for.
+
+--- Whether `f` is a forbidden frame. A raise or a secret answer counts as forbidden, the side that
+--- never calls a method on it.
+local function forbidden(f)
+    if type(f) ~= "table" then return true end
+    if type(f.IsForbidden) ~= "function" then return false end
+    local ok, v = pcall(f.IsForbidden, f)
+    if not ok or Compat.IsSecret(v) then return true end
+    return v == true
+end
+
+--- The nameplate frame of `unit` ("target", "nameplate3", ...), or nil: no plate, a forbidden
+--- plate, a raise, or a client with no C_NamePlate.
+--- @return table|nil
+function Compat.NamePlateForUnit(unit)
+    if type(unit) ~= "string" or not (C_NamePlate and C_NamePlate.GetNamePlateForUnit) then return nil end
+    local ok, plate = pcall(C_NamePlate.GetNamePlateForUnit, unit)
+    if not ok or forbidden(plate) then return nil end
+    return plate
+end
+
+--- The unit token a nameplate frame serves ("nameplate3"), or nil when it will not say.
+--- @return string|nil
+function Compat.PlateToken(plate)
+    if forbidden(plate) then return nil end
+    local ok, token = pcall(function() return plate.namePlateUnitToken end)
+    if not ok or type(token) ~= "string" or not Compat.IsSafeKey(token) then return nil end
+    return token
+end
+
+--- Every visible, not forbidden nameplate, as a new array of { token = string, plate = frame }.
+--- The stand-up's rescan: a stood-down addon heard no NAME_PLATE_UNIT_ADDED for the plates shown.
+--- @return table
+function Compat.NamePlates()
+    local out = {}
+    if not (C_NamePlate and C_NamePlate.GetNamePlates) then return out end
+    local ok, plates = pcall(C_NamePlate.GetNamePlates)
+    if not ok or type(plates) ~= "table" then return out end
+    for _, plate in ipairs(plates) do
+        local token = Compat.PlateToken(plate)
+        if token then out[#out + 1] = { token = token, plate = plate } end
+    end
+    return out
+end
+
+--- The topmost frame under the cursor, or nil (the frame picker). GetMouseFoci, which answers every
+--- frame under the cursor, topmost first; both clients the TOC admits carry it.
+--- @return table|nil
+function Compat.GetMouseFocus()
+    if not GetMouseFoci then return nil end
+    local ok, foci = pcall(GetMouseFoci)
+    if not ok or type(foci) ~= "table" then return nil end
+    return foci[1]
 end
 
 -- ---------------------------------------------------------------------------

@@ -11,7 +11,7 @@ indicator and a row of spell chips, colored by a shared **band set**. The design
 record are `docs/superpowers/specs/2026-11-18-rangemaster-design.md` and
 `docs/superpowers/plans/2026-11-18-rangemaster-v0.1.0.md`.
 
-**State of the tree: the scaffold, the range engine, the data model, the container registry and the renderer (plan Tasks 1 to 5).** What exists is the
+**State of the tree: the scaffold, the range engine, the data model, the container registry, the renderer and the anchors (plan Tasks 1 to 6).** What exists is the
 born-compliant shell every Ka0s addon shares (the Ace3 addon object, AceDB with its migration runner,
 the LibKa0s setup files, the Master controls and Skin tabs, the slash surface, the launcher, the
 stand-down latch, the diagnostics report, and the two session preview modes with their one writer
@@ -23,9 +23,11 @@ the container and band-set templates (`defaults/Profile.lua`), the four preset b
 the registries' load pass (`core/Database.lua`'s `PrepareProfile`); plus the container registry's
 writer (`modules/ContainerManager.lua`, `NS.CM`) and the three container presets
 (`modules/Presets.lua`, `NS.Presets`); plus the renderer (`modules/Container.lua`, `NS.Container`,
-with `modules/Style.lua` and the four `modules/Elements_*.lua`), which draws every enabled container
-at its stored point on screen. The anchors, the behavior and modes, and the settings pages arrive in
-plan Tasks 6 to 8, and each section below says where a later task plugs in.
+with `modules/Style.lua` and the four `modules/Elements_*.lua`); plus the anchors
+(`modules/Anchors.lua` and its four mode files, `modules/FrameProviders.lua`,
+`modules/FramePicker.lua`, `NS.Anchors`, `NS.Plates`), which put each container free on screen, on a
+unit frame, on a nameplate or at the cursor. The behavior and modes and the settings pages arrive in
+plan Tasks 7 and 8, and each section below says where a later task plugs in.
 
 **The design is dictated by one client fact.** The game answers "is this unit within reach of
 spell or item X", never "how far". The range engine asks LibRangeCheck-3.0 (vendored,
@@ -131,9 +133,50 @@ of six formats and `40+` for an open-ended one, never an invented far bound. The
 this addon's shape art (`media/textures/indicators/`), LibKa0s-Widgets' data bar (fuller the nearer
 the band, empty when unknown) or a spell icon. The spell chips are an array pool per element, each
 chip colored by its own answer and repainted only when that answer moves. Placement is
-`NS.Anchors.Apply` once plan Task 6 adds it; until then each container sits at its stored point on
-`UIParent`. A `nameplates` container gets no instance yet: its per-plate instances come with Task 6.
-Frames stack by `NS.Constants.LAYERS` (the HUD strata; fill, border and overlay offset over the root).
+`NS.Anchors.Apply` (below). A `nameplates` container has no single instance: it owns one per eligible
+plate, from a second keyed pool (`AcquirePlate`, `ReleasePlate`, `GetPlate`, `ForEachPlate`), each
+watching its plate token; which plates get one is the plate registry's call. Frames stack by
+`NS.Constants.LAYERS` (the HUD strata; fill, border and overlay offset over the root).
+
+### Anchors
+
+`NS.Anchors.Apply(inst, container)` (`modules/Anchors.lua`) picks the mode and hands the instance to
+that mode's file, detaching the old one first; a mode may hide the instance while what it belongs on
+is missing (`inst:SetAnchorHidden`), and the renderer tells the anchors each show and hide
+(`ShownChanged`). The five modes:
+
+- **screen** (`modules/Anchors_Screen.lua`): the stored point on `UIParent`. While `locked` is false
+  each screen container wears LibKa0s-Widgets' drag strip (`RefreshLock`, from the Master controls'
+  `locked` row); a drag ends in `NS.CM.SetPosition`, the registry's own writer, rounded to whole
+  pixels, and cannot start in combat. `NS.ResetPositions` (`/rm resetposition`, the Reset position
+  button) puts every screen container back at the new-container point (`NS.CM.ResetPosition`).
+- **frame** (`modules/Anchors_Frame.lua`): on a unit frame from `NS.FrameProviders`
+  (`modules/FrameProviders.lua`): `blizzard` (TargetFrame, FocusFrame, PetFrame), `ellesmere`
+  (EllesmereUIUnitFrames_Target, _Focus, _Pet, read as globals, never `EllesmereUIDB`) or `custom` (a
+  global frame name, typed or picked). A missing frame hides the container at its screen point with
+  one debug line, and is looked for again on `ADDON_LOADED` and `PLAYER_ENTERING_WORLD`. No anchor
+  write onto a unit frame happens in combat: it is held and runs on `PLAYER_REGEN_ENABLED`
+  (`FlushDeferred`). Mouseover has no frame from either addon, so a mouseover container with no custom
+  frame follows the cursor instead.
+- **nameplate** (`modules/Anchors_Nameplate.lua`): on the unit's own plate
+  (`NS.Plates.Get(unit)`), at the container's `nameplate` point, re-placed on a unit change and on a
+  plate coming or going; pet has no plate in practice, so it is hidden.
+- **plates**: a `nameplates` container's per-plate instance, on its plate. `NS.Plates` tracks every
+  plate token from `NAME_PLATE_UNIT_ADDED` / `_REMOVED`; a plate is hostile through
+  `NS.Compat.CanAttack`, and a container with `nameplate.includeFriendly` takes every plate. A plate
+  is identified by its frame, never through `UnitIsUnit`: a removed token's plate is compared with
+  the frame an own-plate container sits on, which is hidden at once, and looked for again a frame
+  later. Every `ADDED` is re-checked one frame later (WoW Forever can announce a plate before it is
+  populated). A forbidden plate never comes back from `NS.Compat`'s plate reads, so it is never
+  touched.
+- **cursor** (`modules/Anchors_Cursor.lua`): one shared driver frame, its `OnUpdate` armed only while
+  a cursor container is shown, places each at `GetCursorPosition()` over `UIParent`'s effective
+  scale plus the stored offset (bucket `cursor.follow`).
+
+`NS.FramePicker.Start(onPick)` (`modules/FramePicker.lua`) is the custom provider's click-to-pick: an
+overlay outlines the nearest named ancestor of the frame under the cursor; left click picks it, right
+click or Escape cancels. It is refused in combat and the combat edge cancels one in progress. The
+`pick` verb and the panel's button that call it arrive with plan Task 8.
 
 ### Libraries
 
@@ -231,17 +274,18 @@ Each verb, its arguments and its refusals: `docs/slash-dispatch.md`.
 
 | Event | Handler | Why |
 |---|---|---|
-| `PLAYER_ENTERING_WORLD` | `addon:OnEnterWorld` | a traced world-entry edge |
-| `PLAYER_REGEN_DISABLED` | `addon:OnCombatChanged` | combat ends Test mode and Sim mode, and the range ticker goes to 20 Hz (bracketed `combatEdge`) |
-| `PLAYER_REGEN_ENABLED` | `addon:OnCombatChanged` | the leave edge; the ticker back to 10 Hz, and a container apply combat held runs (`NS.CM.FlushPending("regen")`) |
+| `PLAYER_ENTERING_WORLD` | `addon:OnEnterWorld` | a traced world-entry edge; `NS.Anchors.Frame.Retry` (EllesmereUI spawns its unit frames at `PLAYER_LOGIN`) |
+| `PLAYER_REGEN_DISABLED` | `addon:OnCombatChanged` | combat ends Test mode, Sim mode and a frame pick, and the range ticker goes to 20 Hz (bracketed `combatEdge`) |
+| `PLAYER_REGEN_ENABLED` | `addon:OnCombatChanged` | the leave edge; the ticker back to 10 Hz, and a container apply combat held runs (`NS.CM.FlushPending("regen")`), then every anchor write onto a unit frame combat held (`NS.Anchors.FlushDeferred`) |
 | `PLAYER_TARGET_CHANGED` | `addon:OnUnitChanged` | a unit change on `"target"`: `NS.Container.UnitChanged`, then `NS.Ticker.Changed` |
 | `PLAYER_FOCUS_CHANGED` | `addon:OnUnitChanged` | the same on `"focus"`; registered only where `NS.Compat.IsEventValid` knows it (`ifValid`) |
 | `UPDATE_MOUSEOVER_UNIT` | `addon:OnUnitChanged` | the same on `"mouseover"` |
 | `UNIT_PET` | `addon:OnPetChanged` | the same on `"pet"`, for the player's own pet only |
-| `NAME_PLATE_UNIT_ADDED` | `addon:OnNamePlateChanged` | the same on the plate's token |
+| `NAME_PLATE_UNIT_ADDED` | `addon:OnNamePlateChanged` | `NS.Plates.Added(token)` (the plate tracked, its instances built, a re-check a frame later), then the same unit change on the plate's token |
 | `UNIT_FACTION` | `addon:OnUnitFaction` | the same on the unit named, a reaction change (the band set follows `bandSetFriendly`); `ifValid` |
-| `NAME_PLATE_UNIT_REMOVED` | `addon:OnNamePlateChanged` | `NS.Ticker.Removed(token)`: `"none"` is sent outright, because the client still resolves the token while this event dispatches and a re-read would see the plate as live |
+| `NAME_PLATE_UNIT_REMOVED` | `addon:OnNamePlateChanged` | `NS.Plates.Removed(token)` (its instances parked, an own-plate container on that plate frame hidden), then `NS.Ticker.Removed(token)`: `"none"` is sent outright, because the client still resolves the token while this event dispatches and a re-read would see the plate as live |
 | `SPELLS_CHANGED` | `addon:OnSpellsChanged` | `NS.Range.Rebuild()`: the ladder and the known-spell cache, debounced 0.5 s |
+| `ADDON_LOADED` | `addon:OnAddonLoaded` | `NS.Anchors.Frame.Retry`: a unit frame a container waits for may exist now |
 
 The ticker itself is a `C_Timer.NewTicker`, not an event; the stand-down cancels it with the pending
 rebuild. The skin picker holds one `PLAYER_REGEN_ENABLED` target of its own while a first-run show
@@ -266,16 +310,28 @@ interact checks are never made on a unit the player cannot attack while in comba
 covered by the library's lock (options-ui-§2). Preview modes end on `PLAYER_REGEN_DISABLED`, while
 secure writes are still allowed.
 
+The anchors keep the same rules. A container is never re-parented: it stays a child of `UIParent` and
+is only anchored (`SetPoint`) to a unit frame, a nameplate or the screen. An anchor onto a unit frame
+(a secure frame) is never written in combat (`modules/Anchors_Frame.lua` holds it for
+`PLAYER_REGEN_ENABLED`). A nameplate is no secure frame and plates come and go in combat, so the
+plate instances are built, placed and parked there (the one instance work done in combat), and the
+cursor follow places its own frames every frame. A forbidden plate or frame is never called: every
+plate comes through `NS.Compat`'s reads, which ask `IsForbidden` first under `pcall`, and the frame
+providers and the frame picker do the same. A frame that refuses the anchor (`SetPoint` raises) is
+treated as missing. The frame picker toggles keyboard propagation only out of combat, and is
+refused in and ended by combat.
+
 ## Known Limitations
 
 - Test mode and Sim mode switch, announce `MODE_CHANGED` and refuse in combat, but the renderer does
   not hear them yet: their placeholders and the distance sweep arrive with plan Task 7.
-- Every container is drawn at its stored point on `UIParent` whatever its anchor mode, and a
-  `nameplates` container is not drawn at all, until the anchors land (plan Task 6). Visibility is the
-  "hide with no unit" rule alone until plan Task 7's rules (combat, reaction, out-of-combat alpha).
+- Visibility is the "hide with no unit" rule (and the anchors' missing frame or plate) alone until
+  plan Task 7's rules (combat, reaction, out-of-combat alpha).
+- A container on a nameplate is anchored to the plate but stays a child of `UIParent`: it does not
+  take the plate's scale or fade, and it draws in the HUD strata over the plates.
+- The frame picker and the frame providers have no settings row or verb yet: `pick` and the
+  Containers page's provider rows arrive with plan Task 8.
 - Without LibKa0s-Widgets-1.0 the bar indicator draws as a flat strip in the band color, not a fill.
-- `/rm resetposition` and the Reset position button report 0 displays until the anchors
-  place containers (plan Task 6).
 - The Advanced preset's out-of-range sound key (`NS.Presets.OOR_SOUND`) is not yet registered with
   LibSharedMedia, so it plays nothing until the band sounds land (plan Task 7).
 - On a load where LibKa0s is missing, the bus's degraded stub keeps no stand-down record, so a disable
@@ -311,7 +367,7 @@ generated directories are named once and never enumerated: `docs/audits/`, `docs
 | `perf-analysis/README.md` | Present | The performance harness is wired (`core/PerfSetup.lua`) |
 | `slash-dispatch.md` | Present | 20 commands in `NS.COMMANDS`, over the eight-or-more threshold |
 | `midnight-quirks.md` | Present | Always (documentation-§3): the vendored `client-quirks` catalog block, then the addon's own section |
-| `compat-layer.md` | Present | `core/Compat.lua` publishes the range reads, the two band-set unit reads and the per-client ladder, ten addon-specific shims beyond what LibKa0s supplies, over the three-or-more threshold |
+| `compat-layer.md` | Present | `core/Compat.lua` publishes the range reads, the two band-set unit reads, the anchors' four frame reads and the per-client ladder, fourteen addon-specific shims beyond what LibKa0s supplies, over the three-or-more threshold |
 | `message-bus.md` | Not applicable | 4 messages in `NS.MSG`; the trigger is more than ten. The table lives in `## Message Bus` above |
 | `profiles.md` | Present | AceDB profiles are user-visible: the Profiles sub-page is a profile control in the options UI |
 | `known-limitations.md` | Not applicable | `## Known Limitations` above is under ~60 lines |

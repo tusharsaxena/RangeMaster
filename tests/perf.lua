@@ -9,7 +9,9 @@
 -- edge (core/RangeMaster.lua's OnCombatChanged, bucket `combatEdge`), the range read on a memo miss
 -- (modules/Range.lua, `range.get`), the range ticker's tick (modules/Ticker.lua, `ticker.tick`),
 -- the last measured at the design spec's load: ten containers over four units plus twenty plates,
--- and the renderer's fan-out over those ten containers (modules/Container.lua, `container.render`).
+-- the renderer's fan-out over those ten containers and over a nameplates container's twenty
+-- per-plate instances (modules/Container.lua, `container.render`), and the cursor follow's one
+-- OnUpdate over three cursor containers (modules/Anchors_Cursor.lua, `cursor.follow`).
 --
 -- Its scenarios are not counted in docs/test-cases.md or the README's [tests] badge.
 
@@ -160,6 +162,80 @@ end)
 for _, id in ipairs(ids) do NS.CM.Delete(id) end
 NS.CM.FlushPending()
 assert_(not NS.Ticker.IsRunning(), "the ticker did not stop when the last container went")
+
+-- The nameplates unit (modules/Anchors_Nameplate.lua): one `nameplates` container over the twenty
+-- enemy plates is twenty per-plate instances, each on its own token, read once per tick like any
+-- unit. A quiet tick draws nothing; a moving one re-renders all twenty (bucket container.render).
+for i = 1, 20 do
+  local token = "nameplate" .. i
+  local plate = mocks.CreateFrame("Frame")
+  rawset(plate, "IsForbidden", function() return false end)
+  mocks.__plates[token] = plate
+  NS.Plates.Added(token)
+end
+local realAttack = mocks.UnitCanAttack
+mocks.UnitCanAttack = function() return true end
+local platesId = NS.CM.Create("nameplates")
+NS.CM.FlushPending()
+local _, plateCount = NS.Container.__plateCounts()
+assert_(plateCount == 20, ("a nameplates container over 20 hostile plates holds %d instances"):format(plateCount))
+farther = false
+tickFn = NS.Ticker.__handle().fn
+-- The mock ticker re-queues its handle on every fire; emptied in place first, so the queue's own
+-- growth (a harness cost, not the addon's) does not land inside the measured window.
+for i = #mocks.__timers, 1, -1 do mocks.__timers[i] = nil end
+local platesQuiet = measure("render.plates.quiet", BURST, function() tickFn() end)
+assert_(platesQuiet.bytesPerIter < 64,
+  ("a quiet tick over 20 plate instances allocates %.1f bytes; nothing moved, so nothing may be drawn")
+    :format(platesQuiet.bytesPerIter))
+measure("render.plates", BURST, function(i)
+  farther = i % 2 == 0
+  tickFn()
+end)
+NS.CM.Delete(platesId)
+NS.CM.FlushPending()
+for i = 1, 20 do
+  NS.Plates.Removed("nameplate" .. i)
+  mocks.__plates["nameplate" .. i] = nil
+end
+mocks.UnitCanAttack = realAttack
+_, plateCount = NS.Container.__plateCounts()
+assert_(plateCount == 0, "the plate instances outlived their container")
+
+-- The cursor follow (modules/Anchors_Cursor.lua, bucket cursor.follow): three cursor containers,
+-- one shared OnUpdate. A frame places each shown container once; it must not allocate.
+local cursorIds = {}
+for i = 1, 3 do cursorIds[i] = NS.CM.Create("target", { anchor = { mode = "cursor" } }) end
+NS.CM.FlushPending()
+local driver = NS.Anchors.Cursor.__driver()
+local followFn = driver and driver:GetScript("OnUpdate")
+-- The kit's frame stub answers a method it does not define with a fresh closure on each access,
+-- which is the harness allocating, not the addon: the three placement calls are defined plainly.
+local function noop() end
+for _, id in ipairs(cursorIds) do
+  local f = NS.Container.Get(id).frame
+  rawset(f, "ClearAllPoints", noop)
+  rawset(f, "SetPoint", noop)
+end
+rawset(mocks.UIParent, "GetEffectiveScale", function() return 1 end)
+assert_(followFn ~= nil, "three shown cursor containers armed no follow")
+if followFn then
+  local follow = measure("cursor.follow", BURST * 10, function(i)
+    mocks.__cursor[1], mocks.__cursor[2] = i % 800, i % 600
+    followFn(driver, 0.016)
+  end)
+  assert_(follow.bytesPerIter < 16,
+    ("the cursor follow allocates %.1f bytes/frame; a per-frame pass must not allocate"):format(follow.bytesPerIter))
+end
+rawset(mocks.UIParent, "GetEffectiveScale", nil)
+for _, id in ipairs(cursorIds) do
+  local f = NS.Container.Get(id).frame
+  rawset(f, "ClearAllPoints", nil)
+  rawset(f, "SetPoint", nil)
+  NS.CM.Delete(id)
+end
+NS.CM.FlushPending()
+assert_(driver == nil or driver:GetScript("OnUpdate") == nil, "the follow stayed armed with no cursor container")
 
 -- The zero-overhead scenario: the same pass with the probe dormant and armed. A dormant bracket is
 -- one upvalue read, one field read and one boolean test (performance-§2), so it must allocate no

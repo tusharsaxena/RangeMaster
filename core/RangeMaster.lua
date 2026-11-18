@@ -69,6 +69,8 @@ local LIFECYCLE_EVENTS = {
     { "UNIT_FACTION",          "OnUnitFaction", ifValid = true },
     -- Learned, unlearned or swapped spells: the ladder and the known-spell cache, debounced.
     { "SPELLS_CHANGED",        "OnSpellsChanged" },
+    -- An addon loaded: a unit frame a container waits for may exist now (modules/Anchors_Frame.lua).
+    { "ADDON_LOADED",          "OnAddonLoaded" },
 }
 -- Suite seam: tests/test_disabled.lua and tests/test_events.lua read the list the code registers.
 NS.__lifecycleEvents = LIFECYCLE_EVENTS
@@ -103,6 +105,9 @@ local EVENT_UNIT = {
 --- re-reads the token and sends its triple even when the bracket did not move.
 local function unitChanged(unit)
     NS.Container.UnitChanged(unit)
+    -- The anchors that follow a token: an own-plate container moves to the new unit's plate, and a
+    -- plate token's eligibility for the `nameplates` containers is asked again (a reaction change).
+    NS.Anchors.UnitChanged(unit)
     NS.Ticker.Changed(unit)
 end
 
@@ -121,12 +126,24 @@ function addon:OnUnitFaction(_, unit)
     if type(unit) == "string" and NS.Compat.IsSafeKey(unit) then unitChanged(unit) end
 end
 
---- A plate came or went. An added plate's token is re-read. A removed one is sent as "none"
---- outright: the client still resolves the token while NAME_PLATE_UNIT_REMOVED dispatches, so a
---- re-read would see the plate as live until the next tick.
+--- A plate came or went. The plate registry hears it first (modules/Anchors_Nameplate.lua: a plate
+--- instance built or parked, the own-plate containers placed), then the range: an added plate's token
+--- is re-read, a removed one is sent as "none" outright, because the client still resolves the token
+--- while NAME_PLATE_UNIT_REMOVED dispatches and a re-read would see the plate as live.
 function addon:OnNamePlateChanged(event, token)
     if type(token) ~= "string" or not NS.Compat.IsSafeKey(token) then return end
-    if event == "NAME_PLATE_UNIT_REMOVED" then NS.Ticker.Removed(token) else unitChanged(token) end
+    if event == "NAME_PLATE_UNIT_REMOVED" then
+        NS.Plates.Removed(token)
+        NS.Ticker.Removed(token)
+    else
+        NS.Plates.Added(token)
+        unitChanged(token)
+    end
+end
+
+--- Any addon loading may have created a unit frame a container waits for.
+function addon:OnAddonLoaded(_, name)
+    NS.Anchors.Frame.Retry(name)
 end
 
 function addon:OnSpellsChanged()
@@ -136,6 +153,8 @@ end
 function addon:OnEnterWorld(_, isLogin, isReload)
     NS.Debug("World", "entering world (%s)",
         isLogin and "login" or isReload and "reload" or "zone change")
+    -- EllesmereUI spawns its unit frames at PLAYER_LOGIN, after this addon's first apply may have run.
+    NS.Anchors.Frame.Retry("PLAYER_ENTERING_WORLD")
 end
 
 --- The combat edge. Both preview modes end when combat starts, while secure writes are still
@@ -145,10 +164,16 @@ function addon:OnCombatChanged(event)
     local t0 = Perf.on and debugprofilestop()
     local entering = event == "PLAYER_REGEN_DISABLED"
     local ended = entering and NS.EndModes("combat started") or 0
+    -- A frame pick never runs in combat (modules/FramePicker.lua).
+    if entering then NS.FramePicker.Cancel("combat") end
     -- The range ticker's rate follows the edge: 20 Hz in combat, 10 Hz out of it.
     NS.Ticker.SetCombat(entering)
     -- A container apply held by combat runs on the leave edge (modules/ContainerManager.lua).
-    if not entering then NS.CM.FlushPending("regen") end
+    if not entering then
+        NS.CM.FlushPending("regen")
+        -- An anchor write onto a unit frame that combat held (modules/Anchors_Frame.lua).
+        NS.Anchors.FlushDeferred()
+    end
     NS.Debug("Combat", entering and "entered: %s preview mode(s) ended" or "left", ended)
     if t0 then Perf.Note("combatEdge", debugprofilestop() - t0) end
 end
@@ -223,10 +248,15 @@ function NS.EndModes(why)
 end
 
 --- Move every range display back to its default position: the Master controls Reset position button
---- and `/rm resetposition`, one handler. Answers how many displays moved. The scaffold has no display
---- yet, so the count is 0 until the container registry exists (the v0.1.0 plan, Tasks 4 and 6).
+--- and `/rm resetposition`, one handler. Every container free on screen goes back to the point a new
+--- container takes (NS.CM.ResetPosition); a container on a frame, a plate or the cursor has no screen
+--- position to reset. Answers how many moved.
 function NS.ResetPositions()
     local n = 0
+    for _, id in ipairs(NS.CM.List()) do
+        local c = NS.CM.Get(id)
+        if c and c.anchor and c.anchor.mode == "screen" and NS.CM.ResetPosition(id) then n = n + 1 end
+    end
     NS.Debug("Position", "reset %s display position(s)", n)
     return n
 end

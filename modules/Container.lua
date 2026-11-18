@@ -13,6 +13,11 @@ local _, NS = ...
 --   NS.Container.UnitChanged(unit)       a different unit sits behind `unit`: its instances forget
 --                                        what they drew, so the next render paints everything
 --   NS.Container.Get(id), Sync(), Repaint(), StandDown()
+--   NS.Container.AcquirePlate(id, token) -> inst   the instance of `nameplates` container `id` on
+--                                        the plate behind `token` (modules/Anchors_Nameplate.lua
+--                                        decides which plates get one), applied now
+--   NS.Container.ReleasePlate(id, token), GetPlate(id, token), ForEachPlate(fn(inst, id, token))
+--   inst:SetAnchorHidden(hidden)         the anchor's say: hidden while its frame or plate is missing
 --
 -- WHO DRIVES IT. CONTAINERS_CHANGED (modules/ContainerManager.lua, coalesced to the next frame and
 -- held through combat) runs Sync: an instance for every enabled container, back to the pool for a
@@ -42,13 +47,21 @@ local _, NS = ...
 -- THE POOL is LibKa0s-Pool-1.0's keyed shape (core/PoolSetup.lua), keyed by container id. The library
 -- deliberately has no per-object release, and a renderer needs one (a deleted container, and plan
 -- Task 6's recycled nameplate), so releaseKeyed below parks one object on the documented plain
--- `{ free, active }` shape, exactly as the library's ReleaseAllKeyed parks each. A `nameplates`
--- container gets no instance here: its per-plate instances arrive with the plate anchors (Task 6).
+-- `{ free, active }` shape, exactly as the library's ReleaseAllKeyed parks each.
 --
--- PLACEMENT is NS.Anchors.Apply (plan Task 6) once that module exists; until then every container sits
--- at its stored point on UIParent. Every frame here is this addon's own and none is protected, and an
--- apply never runs in combat: Sync is reached only through CONTAINERS_CHANGED, which ContainerManager
--- holds to PLAYER_REGEN_ENABLED (the skin's re-apply included).
+-- PER-PLATE INSTANCES. A `nameplates` container has no single instance: it owns one per eligible
+-- plate, from a second keyed pool keyed "<id>|<token>", each watching its plate token. Which plates
+-- get one is the plate anchors' call (modules/Anchors_Nameplate.lua, NS.Plates); this file only
+-- builds, applies and parks them, so it stays the one owner of every instance. A plate arrives and
+-- goes in combat, so a plate instance is the one instance built or parked in combat: it is this
+-- addon's own frame, anchored to a nameplate, which is no secure frame.
+--
+-- PLACEMENT is NS.Anchors.Apply (modules/Anchors.lua), which picks the mode and may hide the
+-- instance (SetAnchorHidden) while the frame or plate it belongs on is missing. Every frame here is
+-- this addon's own and none is protected, and an apply of a container never runs in combat: Sync is
+-- reached only through CONTAINERS_CHANGED, which ContainerManager holds to PLAYER_REGEN_ENABLED (the
+-- skin's re-apply included). A shown-state change is told to the anchors (NS.Anchors.ShownChanged),
+-- so the cursor follow runs only while a cursor container is shown.
 
 NS.Container = NS.Container or {}
 local Container = NS.Container
@@ -64,6 +77,7 @@ local STRATA = { BACKGROUND = true, LOW = true, MEDIUM = true, HIGH = true, DIAL
                  FULLSCREEN = true, FULLSCREEN_DIALOG = true, TOOLTIP = true }
 
 local pool = Pool.NewKeyed()
+local platePool = Pool.NewKeyed()   -- the per-plate instances, keyed "<id>|<token>"
 local byUnit = {}   -- [unit] = { [inst] = true }: the RANGE_UPDATED fan-out
 local NO_SPELLS = {}
 
@@ -132,11 +146,21 @@ end
 -- Applying
 -- ---------------------------------------------------------------------------
 
+--- The anchors place it (modules/Anchors.lua); without them, at its stored point on UIParent.
 local function place(inst, c)
     if NS.Anchors and NS.Anchors.Apply then return NS.Anchors.Apply(inst, c) end
     local a, root = c.anchor, inst.frame
     root:ClearAllPoints()
     root:SetPoint(a.point or "CENTER", UIParent, a.relPoint or "CENTER", tonumber(a.x) or 0, tonumber(a.y) or 0)
+end
+
+--- Show or hide the root, and tell the anchors when that changed.
+local function setShown(inst, show)
+    if show == inst.shown then return end
+    inst.shown = show
+    if show then inst.frame:Show() else inst.frame:Hide() end
+    local A = NS.Anchors
+    if A and A.ShownChanged then A.ShownChanged(inst) end
 end
 
 local function applyFrame(inst, c)
@@ -180,13 +204,29 @@ function Instance:Rerender()
     return self:Update(self.state, self.lo, self.hi)
 end
 
---- Take container `c`'s settings (id `id`) and draw from them.
+--- Take container `c`'s settings (id `id`) and draw from them. A plate instance watches its plate's
+--- token, every other its container's unit.
 function Instance:Apply(id, c)
     self.id, self.container = id, c
+    self.applying = true
     applyFrame(self, c)
     applyElements(self, c)
+    self.applying = nil
     self:Invalidate()
-    if not watch(self, c.unit) then self:Rerender() end
+    if not watch(self, self.plateToken or c.unit) then self:Rerender() end
+end
+
+--- The anchor's say on whether this instance may show: hidden while the frame or plate it belongs on
+--- is missing. Shown again, it draws its unit's range from scratch (outside an apply, which draws on
+--- its own).
+function Instance:SetAnchorHidden(hidden)
+    hidden = hidden and true or false
+    if (self.anchorHidden or false) == hidden then return end
+    self.anchorHidden = hidden
+    if hidden then return setShown(self, false) end
+    if self.applying or not self.container then return end
+    self:Invalidate()
+    self:Rerender()
 end
 
 -- ---------------------------------------------------------------------------
@@ -274,13 +314,10 @@ local function resolveBand(inst, state, lo, hi)
     return true
 end
 
---- Show or hide for the unit's presence; answers whether to draw on.
+--- Show or hide for the anchor's say and the unit's presence; answers whether to draw on.
 local function present(inst, state)
-    local show = state ~= "none" or not inst.container.visibility.hideNoUnit
-    if show ~= inst.shown then
-        inst.shown = show
-        if show then inst.frame:Show() else inst.frame:Hide() end
-    end
+    local show = not inst.anchorHidden and (state ~= "none" or not inst.container.visibility.hideNoUnit)
+    setShown(inst, show)
     return show
 end
 
@@ -343,41 +380,77 @@ end
 
 --- An instance's teardown before it is parked: no watch, no container, nothing drawn remembered.
 local function park(inst)
+    if NS.Anchors and NS.Anchors.Detach then NS.Anchors.Detach(inst) end
     unwatch(inst)
-    inst.key, inst.id, inst.container = nil, nil, nil
-    inst.state, inst.lo, inst.hi, inst.shown = nil, nil, nil, nil
+    inst.key, inst.id, inst.container, inst.pool, inst.plateToken = nil, nil, nil, nil, nil
+    inst.state, inst.lo, inst.hi, inst.shown, inst.anchorHidden = nil, nil, nil, nil, nil
     inst.bandIndex, inst.setId = nil, nil
     inst.frame:ClearAllPoints()
 end
 
---- Park the one object filed under `key`, as Pool.ReleaseAllKeyed parks each.
-local function releaseKeyed(key)
-    local o = pool.active[key]
+--- Park the one object filed under `key` in `from`, as Pool.ReleaseAllKeyed parks each.
+local function releaseKeyed(from, key)
+    local o = from.active[key]
     if not o then return false end
     park(o)
     o:Hide()
-    pool.active[key] = nil
-    pool.free[#pool.free + 1] = o
+    from.active[key] = nil
+    from.free[#from.free + 1] = o
     return true
 end
 
 function Instance:Release()
-    if self.key == nil or pool.active[self.key] ~= self then return false end
-    return releaseKeyed(self.key)
+    local from = self.pool
+    if self.key == nil or not from or from.active[self.key] ~= self then return false end
+    return releaseKeyed(from, self.key)
 end
 
 --- The live instance of container `id`, applied from its settings now. Nil for an unknown id and for
---- a `nameplates` container (its instances are per plate, plan Task 6).
+--- a `nameplates` container (its instances are per plate: AcquirePlate).
 function Container.Acquire(id)
     local c = NS.CM.Get(id)
     if not c or c.unit == "nameplates" then return nil end
     local inst = Pool.AcquireKeyed(pool, id, newInstance)
-    inst.key = id
+    inst.key, inst.pool = id, pool
     inst:Apply(id, c)
     return inst
 end
 
 function Container.Get(id) return pool.active[id] end
+
+-- ---------------------------------------------------------------------------
+-- Per-plate instances (a `nameplates` container's)
+-- ---------------------------------------------------------------------------
+
+local function plateKey(id, token) return tostring(id) .. "|" .. token end
+
+--- The instance of `nameplates` container `id` on the plate behind `token`, applied from its settings
+--- now (a live one is re-applied). Nil for any other container or a token that is not a string.
+function Container.AcquirePlate(id, token)
+    local c = NS.CM.Get(id)
+    if not (c and c.unit == "nameplates" and type(token) == "string") then return nil end
+    local key = plateKey(id, token)
+    local inst = Pool.AcquireKeyed(platePool, key, newInstance)
+    inst.key, inst.pool, inst.plateToken = key, platePool, token
+    inst:Apply(id, c)
+    return inst
+end
+
+function Container.GetPlate(id, token)
+    if type(token) ~= "string" then return nil end
+    return platePool.active[plateKey(id, token)]
+end
+
+--- Park the instance of container `id` on `token`. Answers whether there was one.
+function Container.ReleasePlate(id, token)
+    if type(token) ~= "string" then return false end
+    return releaseKeyed(platePool, plateKey(id, token))
+end
+
+--- fn(inst, id, token) for every live plate instance.
+function Container.ForEachPlate(fn)
+    for _, inst in pairs(platePool.active) do fn(inst, inst.id, inst.plateToken) end
+end
 
 function Container.ForEach(fn)
     for _, inst in pairs(pool.active) do fn(inst) end
@@ -387,33 +460,48 @@ local function wanted(c)
     return c ~= nil and c.enabled and c.unit ~= "nameplates"
 end
 
+local function wantsPlates(c)
+    return c ~= nil and c.enabled and c.unit == "nameplates"
+end
+
 local stale = {}
 
---- Every enabled container drawn, every other one parked.
-function Container.Sync()
-    if NS.IsStoodDown() then return end
+--- Park every instance in `from` whose container `keep` turns down.
+local function releaseStale(from, keep)
     local n = 0
-    for id in pairs(pool.active) do
-        if not wanted(NS.CM.Get(id)) then
+    for key, inst in pairs(from.active) do
+        if not keep(NS.CM.Get(inst.id)) then
             n = n + 1
-            stale[n] = id
+            stale[n] = key
         end
     end
     for i = 1, n do
-        releaseKeyed(stale[i])
+        releaseKeyed(from, stale[i])
         stale[i] = nil
     end
+end
+
+--- Every enabled container drawn, every other one parked; then the plate anchors give each enabled
+--- `nameplates` container its per-plate instances (NS.Plates.SyncAll).
+function Container.Sync()
+    if NS.IsStoodDown() then return end
+    releaseStale(pool, wanted)
+    releaseStale(platePool, wantsPlates)
     for _, id in ipairs(NS.CM.List()) do
         if wanted(NS.CM.Get(id)) then Container.Acquire(id) end
     end
+    if NS.Plates and NS.Plates.SyncAll then NS.Plates.SyncAll() end
+end
+
+local function repaint(inst)
+    inst:Invalidate()
+    inst:Rerender()
 end
 
 --- A band set changed: every instance paints again from its last triple.
 function Container.Repaint()
-    for _, inst in pairs(pool.active) do
-        inst:Invalidate()
-        inst:Rerender()
-    end
+    for _, inst in pairs(pool.active) do repaint(inst) end
+    for _, inst in pairs(platePool.active) do repaint(inst) end
 end
 
 --- A different unit sits behind `unit`: its instances forget what they drew. The caller then has the
@@ -427,6 +515,7 @@ end
 --- The stand-down (core/LifecycleSetup.lua): every instance parked and hidden, every watch dropped.
 function Container.StandDown()
     Pool.ReleaseAllKeyed(pool, park)
+    Pool.ReleaseAllKeyed(platePool, park)
 end
 
 -- ---------------------------------------------------------------------------
@@ -471,8 +560,10 @@ NS.Skin.OnLooksChanged(function() NS.CM.RequestApply() end)
 
 -- Suite seams (tests/test_container_render.lua).
 function Container.__counts() return Pool.CountsKeyed(pool) end
+function Container.__plateCounts() return Pool.CountsKeyed(platePool) end
 function Container.__reset()
     Pool.ReleaseAllKeyed(pool, park)
-    pool = Pool.NewKeyed()
+    Pool.ReleaseAllKeyed(platePool, park)
+    pool, platePool = Pool.NewKeyed(), Pool.NewKeyed()
     for unit in pairs(byUnit) do byUnit[unit] = nil end
 end

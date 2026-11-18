@@ -81,9 +81,12 @@ end
 --   CHILD    FULLSCREEN: the LibKa0s copy window.
 --   POPUP    FULLSCREEN_DIALOG: the color picker and menus.
 --   CURSOR   TOOLTIP: GameTooltip.
+--   PICKER   TOOLTIP: the frame picker's overlay (modules/FramePicker.lua), its outline and name drawn
+--            over the frame under the cursor, whose own tooltip would cover them from lower down.
 C.LAYERS = {
     STRATA = {
         HUD = "MEDIUM",
+        PICKER = "TOOLTIP",
     },
     LEVEL = {
         FILL    = 1,

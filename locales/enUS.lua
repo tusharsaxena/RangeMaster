@@ -91,6 +91,15 @@ L["Visibility rules: nameplates in combat only, hostile only"] = "Visibility rul
 -- modules/Elements_Number.lua
 L["%s yd"] = "%s yd"
 
+-- modules/Anchors_Screen.lua
+L["Range display"] = "Range display"
+L["Drag to move. Lock the displays to hide this strip."] = "Drag to move. Lock the displays to hide this strip."
+
+-- modules/FramePicker.lua
+L["Left-click to pick, right-click to cancel"] = "Left-click to pick, right-click to cancel"
+L["Point at a named frame. Right-click to cancel."] = "Point at a named frame. Right-click to cancel."
+L["Cannot pick a frame during combat."] = "Cannot pick a frame during combat."
+
 -- settings/Slash.lua
 L["List available commands"] = "List available commands"
 L["Open the settings panel"] = "Open the settings panel"

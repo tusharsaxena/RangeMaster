@@ -118,6 +118,19 @@ modules\Elements_Spells.lua
 # Conventional: the renderer; subscribes at load (NS.NewBusTarget, core\Bus.lua) and reaches NS.CM,
 # NS.BandSets, NS.Range and NS.Ticker at call time.
 modules\Container.lua
+# LOAD-BEARING: the anchor dispatcher, before every modules\Anchors_*.lua file, each of which registers
+# its mode on NS.Anchors at load. modules\Container.lua reaches it at call time.
+modules\Anchors.lua
+# Conventional: the unit-frame providers' names; reached by modules\Anchors_Frame.lua at call time.
+modules\FrameProviders.lua
+# Conventional: the four anchor modes, each registering on NS.Anchors at load; the registry, the
+# providers and the plates are reached at call time.
+modules\Anchors_Screen.lua
+modules\Anchors_Frame.lua
+modules\Anchors_Nameplate.lua
+modules\Anchors_Cursor.lua
+# Conventional: the click-to-pick overlay, built on first use; captures NS.Style (modules\Style.lua).
+modules\FramePicker.lua
 # Conventional: the diagnostics report's sections (debug-logging-§14); the DebugLog descriptor asks
 # for them when a report runs.
 modules\Diagnostics.lua

@@ -27,12 +27,12 @@ Composed by `H.MasterControls` from one declaration; the words and the order are
 | General visibility | `visibility` | always, in combat, out of combat or never; read by the displays (plan Task 7) |
 | Master scale | `scale` | scales every display |
 | Master opacity | `alpha` | fades every display |
-| Lock frame | `locked` | locked displays cannot be dragged |
+| Lock frame | `locked` | locked displays cannot be dragged; unlocked, every screen container shows its drag strip (`NS.Anchors.RefreshLock`) |
 | Debug console | `state.debugConsole` | session-only; shows or hides the console window |
 | Minimap button | `global.minimap.shown` | stored in the global store under LibDBIcon's `hide`, inverted; survives every reset (launcher-§3) |
 | Test mode | `state.testMode` | session-only; placeholders on every display; refused in combat and ended by it (`NS.SetTestMode`) |
 | Sim mode | `state.sim` | session-only; the launcher's pair, `NS.IsSimMode` / `NS.ToggleSimMode`, same as `/rm sim` |
-| Reset position (button) | — | `NS.ResetPositions`, the same handler as `/rm resetposition` |
+| Reset position (button) | — | `NS.ResetPositions`, the same handler as `/rm resetposition`: every screen container back at its new-container point |
 | Reset all settings (button) | — | confirms, then `NS.Helpers.RestoreAllDefaults`, the same as `/rm resetall` |
 
 The header **Defaults** button restores every General row on this profile except the minimap row.

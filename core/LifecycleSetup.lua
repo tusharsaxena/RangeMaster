@@ -18,6 +18,39 @@ local addonName, NS = ...
 
 local lib = LibStub and LibStub("LibKa0s-Lifecycle-1.0", true)
 
+--- Run NS[module][fn]() for each { module, fn } in `steps` whose module and function are loaded.
+local function runSteps(steps)
+    for _, step in ipairs(steps) do
+        local mod = NS[step[1]]
+        local f = mod and mod[step[2]]
+        if f then f() end
+    end
+end
+
+-- The feature modules' stand-down, in order (each optional, so a partial load still goes down).
+local DOWN_STEPS = {
+    -- A frame pick in progress ends with no callback: its overlay's OnUpdate goes.
+    { "FramePicker", "Stop" },
+    -- The range containers: every instance parked and hidden, its watch dropped, before the ticker.
+    { "Container", "StandDown" },
+    -- The anchors' waits and timers: the plate registry and its re-checks, the frame waits, the follow.
+    { "Plates", "StandDown" },
+    { "Anchors", "StandDown" },
+    -- The range ticker and the pending spell rebuild: no timer survives a stand-down.
+    { "Ticker", "StandDown" },
+    -- The container registry's coalescing timer; an owed apply stays owed for the stand-up.
+    { "CM", "StandDown" },
+}
+
+local UP_STEPS = {
+    -- Last, once every receiver is back: each watched unit is read and announced again.
+    { "Ticker", "StandUp" },
+    -- The nameplates shown now, which no NAME_PLATE_UNIT_ADDED will announce again.
+    { "Plates", "StandUp" },
+    -- One apply of every container as the settings are now (CONTAINERS_CHANGED on the next frame).
+    { "CM", "StandUp" },
+}
+
 --- EMPTY -> NON-EMPTY: the addon stops. Every registration it owns goes, not gated.
 local function StandDown()
     -- The two preview modes are session state that draws; a stood-down addon draws nothing.
@@ -25,12 +58,7 @@ local function StandDown()
     if NS.HideSkinPicker then NS.HideSkinPicker() end
     local addon = NS.addon
     if addon and addon.UnregisterLifecycleEvents then addon:UnregisterLifecycleEvents() end
-    -- The range containers: every instance parked and hidden, its watch dropped, before the ticker.
-    if NS.Container and NS.Container.StandDown then NS.Container.StandDown() end
-    -- The range ticker and the pending spell rebuild: no timer survives a stand-down.
-    if NS.Ticker and NS.Ticker.StandDown then NS.Ticker.StandDown() end
-    -- The container registry's coalescing timer; an owed apply stays owed for the stand-up.
-    if NS.CM and NS.CM.StandDown then NS.CM.StandDown() end
+    runSteps(DOWN_STEPS)
     if NS.BusStandDown then NS.BusStandDown() end
 end
 
@@ -39,10 +67,7 @@ local function StandUp()
     if NS.BusStandUp then NS.BusStandUp() end
     local addon = NS.addon
     if addon and addon.RegisterLifecycleEvents then addon:RegisterLifecycleEvents() end
-    -- Last, once every receiver is back: each watched unit is read and announced again.
-    if NS.Ticker and NS.Ticker.StandUp then NS.Ticker.StandUp() end
-    -- One apply of every container as the settings are now (CONTAINERS_CHANGED on the next frame).
-    if NS.CM and NS.CM.StandUp then NS.CM.StandUp() end
+    runSteps(UP_STEPS)
 end
 
 NS.StandDown, NS.StandUp = StandDown, StandUp

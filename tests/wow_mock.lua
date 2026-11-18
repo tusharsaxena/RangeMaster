@@ -54,6 +54,25 @@ return function()
   -- outright: the kit carries no UnitIsFriend, and an `or` here would push this builder past CCN 15.
   M.UnitIsFriend = function() return false end
 
+  -- The anchors' client reads (core/Compat.lua's plate and mouse-focus shims, modules/Anchors_*.lua):
+  -- a nameplate per token in M.__plates (a suite builds the frames, each with its own IsForbidden),
+  -- the cursor at M.__cursor, the frames under it in M.__mouseFoci, the buttons held in M.__mouseDown.
+  -- Nothing is there until a suite puts it there.
+  M.__plates, M.__cursor, M.__mouseFoci, M.__mouseDown = {}, { 0, 0 }, {}, {}
+  M.C_NamePlate = {
+    GetNamePlateForUnit = function(unit) return M.__plates[unit] end,
+    GetNamePlates = function()
+      local out = {}
+      for token, plate in pairs(M.__plates) do
+        if token:match("^nameplate%d+$") then out[#out + 1] = plate end
+      end
+      return out
+    end,
+  }
+  M.GetCursorPosition = function() return M.__cursor[1], M.__cursor[2] end
+  M.GetMouseFoci = function() return M.__mouseFoci end
+  M.IsMouseButtonDown = function(button) return M.__mouseDown[button] == true end
+
   -- C_Timer.NewTicker, which the kit's C_Timer does not carry (LibRangeCheck arms a 5 s cache
   -- ticker at load; modules/Ticker.lua is one). Built on the kit's NewTimer, so it queues, cancels
   -- and reports in M.__timers() exactly as that handle does, and it RE-ARMS as the client's does:

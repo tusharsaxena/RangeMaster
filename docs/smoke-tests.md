@@ -22,8 +22,9 @@ unless a check names one.
 | LOC-1 | Non-English client | a deDE or frFR client |
 | RANGE-1..5 | Range engine | brackets, unknown, the Forever ladder, the ticker's rate and stop, the seed spells |
 | DRAW-1..5 | Containers | brackets drawn, unknown gray, elements and order, the skin face, disable |
+| ANCHOR-1..8 | Anchors | screen drag, unit frames (Blizzard, EllesmereUI, custom, missing), combat, nameplates, cursor, the picker |
 
-The remaining range-display themes (ANCHOR, BANDS, SOUND, NAMEPLATE) join with plan Tasks 6 to 8.
+The remaining range-display themes (BANDS, SOUND) join with plan Tasks 7 and 8.
 
 ## Before you start
 
@@ -178,6 +179,37 @@ the namespace, so `.CM.Create("target")` makes a single container the same way).
 - **DRAW-5. Disable.** `/rm disable` → every container disappears; `/rm enable` → they come back.
   Result:
 
+## Anchors
+
+The anchors (plan Task 6). Set a container's mode from chat until the Containers page lands (plan
+Task 8): `/run local a = LibStub("AceAddon-3.0"):GetAddon("RangeMaster"); local c = a.CM.Get(1);
+c.anchor.mode = "frame"; a.CM.RequestApply()`. Run each on Retail and on WoW Forever.
+
+- **ANCHOR-1. Screen drag.** `/rm unlock` → a strip shows above each screen container; drag one, then
+  `/reload` → it is where it was dropped. `/rm lock` hides the strips; in combat a drag does not
+  start. `/rm resetposition` puts screen containers back near the center. Result:
+- **ANCHOR-2. Blizzard frames.** Target, focus and pet containers on provider `blizzard` sit on
+  TargetFrame, FocusFrame and PetFrame (Forever: FocusFrame only if the client has focus). Result:
+- **ANCHOR-3. EllesmereUI frames.** With EllesmereUI Unit Frames enabled and its target, focus and pet
+  frames on, provider `ellesmere` → each sits on EllesmereUI's frame from login, with no `/reload`.
+  With the addon off, the container is hidden and `/rm debug` shows one `[Anchor]` line. Result:
+- **ANCHOR-4. Combat.** Enter combat with a frame container waiting for its frame (a custom name of a
+  frame that loads late) → no `ADDON_ACTION_BLOCKED`; it attaches after combat. Result:
+- **ANCHOR-5. Own nameplate.** A target container in `nameplate` mode sits under the target's plate,
+  follows a retarget, hides when the plate leaves the screen, and comes back with it. Result:
+- **ANCHOR-6. All nameplates.** A `nameplates` container draws on every hostile plate in a pack and on
+  none of the friendly ones; with `includeFriendly` on, friendly plates too. Pulling a pack and
+  killing it (plates recycling fast) raises no error. In an instance, friendly plates (forbidden)
+  draw nothing and raise nothing. On Forever, a plate's container appears on the plate, not at the
+  screen's corner, when the plate first shows. Result:
+- **ANCHOR-7. Cursor.** A mouseover container on `cursor` (or on a `blizzard` unit frame) follows the
+  cursor while hovering a unit and hides when hovering nothing; with the UI scale changed, it stays
+  on the cursor. Result:
+- **ANCHOR-8. Frame picker.** `/run LibStub("AceAddon-3.0"):GetAddon("RangeMaster").FramePicker.Start(print)`
+  → an outline follows the named frame under the cursor; left click prints its name; right click or
+  Escape cancels; entering combat ends it with no error; starting it in combat prints one gray line.
+  Result:
+
 ## Pending sign-off
 
 | ID | Origin | Why it is owed |
@@ -185,3 +217,4 @@ the namespace, so `.CM.Create("target")` makes a single container the same way).
 | every check above | the v0.1.0 scaffold, 2026-11-18 | no client pass recorded yet |
 | RANGE-1..5 | the v0.1.0 range engine (plan Task 2), 2026-11-18 | the Forever interact distances and the seed IDs are unconfirmed in a client |
 | DRAW-1..5 | the v0.1.0 renderer (plan Task 5), 2026-11-18 | no container has been drawn in a client yet |
+| ANCHOR-1..8 | the v0.1.0 anchors (plan Task 6), 2026-11-18 | no anchor has been seen in a client yet; the EllesmereUI names are read from its source, not a running client |

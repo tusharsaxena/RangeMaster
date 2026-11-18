@@ -19,7 +19,7 @@ settings panel in either state; `/rm options` is an alias of `config`.
 | `resetall` | — | yes | every setting back to defaults (a profile reset) |
 | `profile` | [name] | yes | lists profiles, or switches to an existing one |
 | `lock` / `unlock` | — | no | writes `locked` and echoes it |
-| `resetposition` | — | no | `NS.ResetPositions`; 0 displays until the container registry exists |
+| `resetposition` | — | no | `NS.ResetPositions`: every screen container back at its new-container point; echoes how many moved |
 | `test` | [on\|off] | no | toggles or sets Test mode (`NS.SetTestMode`); refused in combat |
 | `sim` | [on\|off] | no | toggles or sets Sim mode (`NS.SetSimMode`); refused in combat |
 | `debug` | [on\|off\|diagnostics] | yes | bare: toggles the console window; on/off: session logging; diagnostics: the report |

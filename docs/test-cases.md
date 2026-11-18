@@ -179,6 +179,60 @@ Total.
 - render: a LibSharedMedia border draws on a backdrop of its own, band-colored, its tiling tracked
 - render: every indicator shape ships as a white 64x64 uncompressed 32-bit TGA
 
+### test_anchors_screen.lua (8)
+
+- anchors: a screen container sits at its stored point on UIParent
+- anchors: a stored point the client does not know falls back to CENTER
+- anchors: a locked screen container shows no drag strip; unlocking shows it, locking hides it
+- anchors: test_screen_drag_saves_point — a drag on the strip saves point and offsets through NS.CM
+- anchors: a drag is refused in combat, and nothing is saved
+- anchors: a non-screen container shows no drag strip, unlocked or not
+- anchors: Reset position puts every screen container back at its default point
+- anchors: switching a container's mode detaches the old anchor
+
+### test_anchors_frame.lua (14)
+
+- frames: the providers name Blizzard's and EllesmereUI's frames per unit, and nothing for mouseover
+- frames: Resolve answers the live global frame, and nil for a missing, forbidden or non-frame one
+- frames: test_frame_blizzard_target — a target container anchors to TargetFrame
+- frames: an EllesmereUI container anchors to EllesmereUI's frame for its unit
+- frames: test_frame_missing_then_loaded — hidden with one debug line, anchored on ADDON_LOADED
+- frames: a frame that appears by PLAYER_ENTERING_WORLD is found there too
+- frames: test_frame_anchor_deferred_in_combat — no anchor write in combat, done on the leave edge
+- frames: test_mouseover_frame_falls_back_to_cursor — a mouseover container on a unit frame follows the cursor
+- frames: a mouseover container on a named custom frame stays on that frame
+- frames: a frame that will not take the anchor hides the container instead of raising
+- picker: NamedAncestor walks to the nearest named ancestor, skipping UIParent and forbidden frames
+- picker: a left click on a named frame calls back with its name and ends the pick
+- picker: refused in combat with one gray line, and combat during a pick cancels it
+- picker: a right click cancels
+
+### test_anchors_nameplate.lua (14)
+
+- plates: test_nameplate_own_plate_follows_target_change — the target container moves to the new target's plate
+- plates: a target with no plate hides the container, and its plate coming into view shows it
+- plates: a removed plate is told apart by its frame — another plate going leaves the target where it is
+- plates: a pet container on its own nameplate is hidden (a pet has no plate in practice)
+- plates: test_nameplates_instance_per_hostile_plate — one instance per hostile plate, each on it
+- plates: plates already shown when a nameplates container is created get instances on its apply
+- plates: test_nameplates_friendly_toggle — includeFriendly gives friendly plates an instance too
+- plates: a reaction change (UNIT_FACTION) moves a plate in or out
+- plates: test_nameplate_recycle — REMOVED releases the plate's instance, and the stale token errs nowhere
+- plates: a plate not populated at ADDED is picked up by the next frame's re-check
+- plates: test_forbidden_plate_skipped — a forbidden plate gets no instance and no anchor
+- plates: ForEachHostile walks the hostile plates, and every plate with includeFriendly
+- plates: deleting the nameplates container releases every plate instance
+- plates: the stand-down releases every plate instance and leaves no re-check armed; the stand-up rescans
+
+### test_anchors_cursor.lua (6)
+
+- cursor: test_cursor_single_onupdate — three cursor containers, one OnUpdate script
+- cursor: the follow places each shown container at the cursor over UIParent's scale, plus its offset
+- cursor: a container drawn at another scale is placed in its own units
+- cursor: the follow runs only while a cursor container is shown
+- cursor: a container leaving the cursor mode, or deleted, drops out of the follow
+- cursor: the stand-down leaves the follow disarmed, and the stand-up arms it again
+
 ### test_compat.lua (6)
 
 - compat: the client answer follows the kit profile this run uses
@@ -640,6 +694,10 @@ Total.
 | test_presets.lua | 11 |
 | test_number_format.lua | 5 |
 | test_container_render.lua | 31 |
+| test_anchors_screen.lua | 8 |
+| test_anchors_frame.lua | 14 |
+| test_anchors_nameplate.lua | 14 |
+| test_anchors_cursor.lua | 6 |
 | test_compat.lua | 6 |
 | test_range.lua | 22 |
 | test_ticker.lua | 13 |
@@ -678,4 +736,4 @@ Total.
 | test_skin_switch.lua | 6 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **484** |
+| **Total** | **526** |

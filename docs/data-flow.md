@@ -37,8 +37,26 @@ SPELLS_CHANGED ─► NS.Range.Rebuild()  0.5 s after the last one: the ladder a
 
 Every container instance watches its unit through `NS.Ticker.Watch` when it is acquired and
 `Unwatch`es it when it goes back to the pool, so the ticker runs exactly while a drawn container has
-a live unit. A `nameplates` container watches nothing yet: its per-plate instances arrive with the
-plate anchors (plan Task 6).
+a live unit. A `nameplates` container watches through its per-plate instances, one per eligible plate
+token, each watched from `NAME_PLATE_UNIT_ADDED` (`NS.Plates.Added`) until `_REMOVED` parks it.
+
+## Placement (plan Task 6)
+
+```
+CONTAINERS_CHANGED ─► NS.Container.Sync ─► inst:Apply ─► NS.Anchors.Apply(inst, c)
+     screen     stored point on UIParent; unlocked: drag strip ─► drag stop ─► NS.CM.SetPosition
+     frame      NS.FrameProviders.Resolve ─► found: SetPoint on it (held in combat → PLAYER_REGEN_ENABLED)
+                                          └► missing: hidden, one debug line ─► ADDON_LOADED /
+                                             PLAYER_ENTERING_WORLD ─► Retry
+     nameplate  NS.Plates.Get(unit) ─► on the plate, or hidden; re-placed on the unit change and plates
+     plates     (nameplates container) NS.Plates.SyncAll ─► one instance per hostile plate (all with
+                includeFriendly)
+     cursor     one shared OnUpdate while a cursor container is shown ─► GetCursorPosition / scale
+NAME_PLATE_UNIT_ADDED ─► NS.Plates.Added ─► track (forbidden: nil) ─► instances built, own plates placed
+                      └► next frame: the same again (a plate populated late)
+NAME_PLATE_UNIT_REMOVED ─► NS.Plates.Removed ─► instances parked; own-plate container on that plate
+                           frame hidden ─► next frame: placed again ─► NS.Ticker.Removed
+```
 
 ## Container writes (plan Task 4)
 

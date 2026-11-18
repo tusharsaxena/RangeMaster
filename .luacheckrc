@@ -28,6 +28,8 @@ read_globals = {
   "UnitIsFriend",                            -- core/Compat.lua's IsFriend (modules/BandSets.lua's friendly override)
   "C_Timer",                                 -- modules/Ticker.lua's ticker, modules/Range.lua's rebuild debounce
   "BackdropTemplateMixin", "Mixin",           -- modules/Style.lua's media border, on a plain frame
+  -- core/Compat.lua's plate and mouse-focus reads, and the anchors' cursor (design spec 5.4)
+  "C_NamePlate", "GetMouseFoci", "GetCursorPosition", "IsMouseButtonDown",
 }
 
 globals = {

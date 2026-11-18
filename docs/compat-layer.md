@@ -1,18 +1,18 @@
 # Compat layer — Ka0s Range Master
 
-`core/Compat.lua` is the whole compat family (compat) and publishes **14** shims on `NS.Compat`,
+`core/Compat.lua` is the whole compat family (compat) and publishes **18** shims on `NS.Compat`,
 counted with the command documentation-§3 fixes:
 
 ```sh
-cat core/Compat*.lua | grep -cE '^\s*function\s+[A-Za-z_][A-Za-z0-9_]*\.'    # 14
+cat core/Compat*.lua | grep -cE '^\s*function\s+[A-Za-z_][A-Za-z0-9_]*\.'    # 18
 ```
 
 Four of them (`IsForever`, `IsRetail`, `ClientKey`, `ForClient`) only route `LibKa0s-Compat-1.0`'s
 answer to "which client is this" (clients-§3), each with a library-absent stand-in that answers
 Retail. The secret guards (`IsSecret`, `CanAccess`, `IsSafeKey`) and the spell-info reader
 (`GetSpellInfo`) are the library's members handed over by reference, with the one-rung bodies the
-library's degradation rule asks for; they are LibKa0s's and are not documented again here. The ten
-below are this addon's own.
+library's degradation rule asks for; they are LibKa0s's and are not documented again here. The
+fourteen below are this addon's own.
 
 ## The range reads and the ladder
 
@@ -33,6 +33,27 @@ secret, or a value that is neither a boolean nor 1/0 answers `nil`, "no answer",
 | 8 | `RangeLadder()` | `ClientKey`, `UnitRace`, `UnitClass`, shim 2, `GetSpellInfo` | Retail: spell rungs only; no class or race read: no spell rungs, no race offset | The per-client rung list, sorted by yd (below) | `modules/Range.lua`, built on first use and again on `SPELLS_CHANGED` |
 | 9 | `IsFriend(unit)` | `UnitIsFriend("player", unit)` (pcall, secret-checked) | `nil`, which the caller reads as "not friendly": the container stays on its own band set | A band set's friendly override applies only to a unit the client says is friendly | `modules/BandSets.lua` (`ForUnit`) |
 | 10 | `PlayerClass()` | `UnitClass("player")`'s class token (pcall, secret-checked) | `nil`: the seed picks Melee / Ranged | The first-run band-set seed puts the class default first | `modules/BandSets.lua` (the seed routine) |
+
+## The frame reads the anchors make
+
+A nameplate can be forbidden (a friendly plate in an instance on 12.x), and any method call on one
+raises. Each read below asks `IsForbidden` first, under `pcall`; a raise or a secret answer counts as
+forbidden, and a forbidden plate is answered as `nil`, so no caller ever touches one.
+
+| # | Shim | Wraps | Absent or refused | Why it exists | Called from |
+|---|---|---|---|---|---|
+| 11 | `NamePlateForUnit(unit)` | `C_NamePlate.GetNamePlateForUnit` (pcall, forbidden-checked) | `nil` | A plate token's plate, and the own-plate containers' "target" / "focus" / "mouseover" plate | `modules/Anchors_Nameplate.lua` |
+| 12 | `PlateToken(plate)` | the plate's `namePlateUnitToken` (pcall, forbidden- and secret-checked) | `nil` | The token a scanned plate serves | shim 13 |
+| 13 | `NamePlates()` | `C_NamePlate.GetNamePlates` (pcall), shim 12 per plate | `{}` | The stand-up's rescan: a stood-down addon heard no `NAME_PLATE_UNIT_ADDED` for the plates shown | `modules/Anchors_Nameplate.lua` (`StandUp`) |
+| 14 | `GetMouseFocus()` | `GetMouseFoci()[1]` (pcall) | `nil` | The frame picker's frame under the cursor; both clients carry `GetMouseFoci` | `modules/FramePicker.lua` |
+
+The unit-frame names the `ellesmere` provider reads (`modules/FrameProviders.lua`) are no client
+read and live there, not here: `EllesmereUIUnitFrames_Target`, `EllesmereUIUnitFrames_Focus` and
+`EllesmereUIUnitFrames_Pet`, the names EllesmereUIUnitFrames' `EUI_UnitFrames_Init.lua` spawns its
+frames under (`ns.Engine.SpawnUnitFrame`), verified identical in the installed Retail (9.8.6) and WoW
+Forever (9.8.8) builds on 2026-11-18. It spawns a unit's frame only when that unit's source is
+EllesmereUI, at `PLAYER_LOGIN`, which is why the frame anchor looks again on `PLAYER_ENTERING_WORLD`
+and `ADDON_LOADED`. `EllesmereUIDB` is never read.
 
 ## `RangeLadder()`: what each client gets
 

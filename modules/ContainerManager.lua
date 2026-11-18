@@ -11,6 +11,8 @@ local _, NS = ...
 --   NS.CM.Snapshot() -> snap, RestoreSnapshot(snap) -> boolean   the registry whole, ids included
 --   NS.CM.List() -> { id, ... }, Get(id) -> container
 --   NS.CM.RequestApply()                     coalesced to the next frame, deferred in combat
+--   NS.CM.SetPosition(id, point, relPoint, x, y) -> boolean   a drag's result (modules/Anchors_Screen)
+--   NS.CM.ResetPosition(id) -> boolean       back to the new-container point (Reset position)
 --
 -- APPLYING IS COALESCED AND DEFERRED. Every write above asks for an apply; the request arms one
 -- zero-delay C_Timer, so a whole preset or a slider drag announces CONTAINERS_CHANGED once, on the
@@ -185,6 +187,11 @@ local function insert(p, c, afterId)
     return id
 end
 
+--- The new-container offset of id `id`: down from the center, eight rows of 30 before it wraps.
+local function staggerY(id)
+    return 0 - (((tonumber(id) or 1) - 1) % 8) * 30
+end
+
 --- A new container on `unit` from the template: the default band set, the class's spell seeds,
 --- then `opts` merged over it, and a unique name (opts.name, else the unit's). opts.unit is ignored:
 --- the positional `unit` is the one checked against the watched units, so it is the one stored. A new
@@ -197,7 +204,7 @@ function CM.Create(unit, opts)
     local c = copy(NS.CONTAINER_TEMPLATE)
     c.unit, c.bandSet = unit, NS.BandSets.DefaultId()
     c.elements.spells.list = seedSpells()
-    c.anchor.y = -(((p.nextContainerId or 1) - 1) % 8) * 30
+    c.anchor.y = staggerY(p.nextContainerId or 1)
     if type(opts) == "table" then merge(c, opts) end
     c.unit = unit
     c.name = CM.UniqueName(type(opts) == "table" and opts.name or UNIT_NAME[unit])
@@ -205,6 +212,23 @@ function CM.Create(unit, opts)
     NS.Debug("Containers", "created %s '%s' (%s)", id, c.name, unit)
     CM.RequestApply()
     return id
+end
+
+--- Store where container `id` sits: `point` of the frame on `relPoint` of its anchor, offset `x`, `y`
+--- (whole numbers). Refuses an unknown id and non-numeric offsets.
+function CM.SetPosition(id, point, relPoint, x, y)
+    local c = CM.Get(id)
+    if not c or type(point) ~= "string" or type(x) ~= "number" or type(y) ~= "number" then return false end
+    local a = c.anchor
+    a.point, a.relPoint, a.x, a.y = point, relPoint or point, x, y
+    NS.Debug("Containers", "moved %s to %s %s %d %d", id, point, a.relPoint, x, y)
+    CM.RequestApply()
+    return true
+end
+
+--- Put container `id` back at the point a new container takes (the center, staggered by its id).
+function CM.ResetPosition(id)
+    return CM.SetPosition(id, "CENTER", "CENTER", 0, staggerY(id))
 end
 
 --- Delete container `id`. Refuses an unknown id.

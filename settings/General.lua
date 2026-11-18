@@ -80,7 +80,8 @@ local masterOnChange = {
     ["visibility"] = function() end,
     ["scale"]      = function() end,
     ["alpha"]      = function() end,
-    ["locked"]     = function() end,
+    -- The screen containers' drag strips show while unlocked (modules/Anchors_Screen.lua).
+    ["locked"]     = function() NS.Anchors.RefreshLock() end,
     -- The console's visibility is the ConsoleCheckbox's own `set`, stamped below.
     [DEBUG_CONSOLE_PATH] = function() end,
     -- The minimap button moves in the row's own `set` (NS.SetMinimapShown, core/Data.lua).

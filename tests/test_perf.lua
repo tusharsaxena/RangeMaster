@@ -187,7 +187,7 @@ end)
 test("perf: the addon holds a real LibKa0s-Perf instance, on this addon's latch", function()
   assertTrue(type(P.Note) == "function" and type(P.BuildRecord) == "function",
     "NS.Perf is the library instance, not the degradation stub")
-  assertEqual(table.concat(P.BUCKET_ORDER, ","), "combatEdge,ticker.tick,range.get,container.render",
+  assertEqual(table.concat(P.BUCKET_ORDER, ","), "combatEdge,ticker.tick,range.get,container.render,cursor.follow",
     "the descriptor's declared buckets, in report order, and nothing undeclared")
 end)
 
@@ -247,6 +247,11 @@ test("perf: every declared bucket is reached by a real bracket", function()
   NS.CM.FlushPending()
   far = true
   NS.Ticker.__handle().fn()
+  -- The cursor follow's one OnUpdate (modules/Anchors_Cursor.lua), armed by a shown cursor container.
+  NS.CM.Get(id).anchor.mode = "cursor"
+  NS.CM.RequestApply()
+  NS.CM.FlushPending()
+  NS.Anchors.Cursor.__driver():__fire("OnUpdate", 0.016)
   NS.CM.Delete(id)
   NS.CM.FlushPending()
   LRC.GetRange, mocks.__unitExists.target = realGet, hadTarget

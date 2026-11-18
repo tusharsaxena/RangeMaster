@@ -64,6 +64,9 @@ NS.Perf = lib:New({
         -- tick's pass, so nested in ticker.tick; a forced refresh runs it at top level, and the
         -- parent it observed (NS.Range.PerfParent) is what it records.
         { key = "container.render", within = "ticker.tick" },
+        -- modules/Anchors_Cursor.lua's one shared OnUpdate: every shown cursor container placed at
+        -- the cursor, once a frame, armed only while one is shown. Its own top-level pass.
+        { key = "cursor.follow" },
     },
 
     -- THE LATCH, AND THE ONLY ROUTE THIS PROBE HAS TO MAKING THE ADDON INERT (Perf 12): the suspended
