@@ -168,6 +168,10 @@ function addon:OnCombatChanged(event)
     if entering then NS.FramePicker.Cancel("combat") end
     -- The range ticker's rate follows the edge: 20 Hz in combat, 10 Hz out of it.
     NS.Ticker.SetCombat(entering)
+    -- The visibility rules read the edge (modules/Visibility.lua): every container's combat rule and
+    -- out-of-combat opacity are asked again. Own frames only: a show, a hide or an opacity.
+    NS.Visibility.SetCombat(entering)
+    NS.Container.RefreshVisibility()
     -- A container apply held by combat runs on the leave edge (modules/ContainerManager.lua).
     if not entering then
         NS.CM.FlushPending("regen")
@@ -186,18 +190,22 @@ end
 -- reaches it through that writer: the Master controls checkboxes (settings/General.lua), the launcher
 -- menu (core/LauncherSetup.lua), `/rm test` and `/rm sim` (settings/Slash.lua) and the skin picker's
 -- eye (core/SkinSetup.lua). A start is refused in combat and while the addon stands down; combat
--- and a stand-down end both. What each mode DRAWS arrives with the renderer (the v0.1.0 plan,
--- Task 7): the containers subscribe to MODE_CHANGED.
+-- and a stand-down end both. Test mode is also refused while a sim runs (the Sim major's H5). What
+-- each mode DRAWS is modules/Preview.lua's and modules/Sim.lua's, both subscribed to MODE_CHANGED,
+-- whose payload is (mode, on, why).
 
 local MODE_FIELD = { test = "testMode", sim = "simMode" }
 
 --- Why a mode cannot start right now, as the gray line to print, or nil.
-local function startRefusal()
+local function startRefusal(mode)
     if InCombatLockdown() then
         return L["Cannot start a preview mode during combat."]
     end
     if NS.IsStoodDown() then
         return L["Cannot start a preview mode while Range Master is stood down."]
+    end
+    if mode == "test" and NS.State.simMode then
+        return L["Cannot start Test mode while Sim mode runs."]
     end
 end
 
@@ -208,7 +216,7 @@ local function setMode(mode, on, why)
     on = on and true or false
     if NS.State[field] == on then return true end
     if on then
-        local refusal = startRefusal()
+        local refusal = startRefusal(mode)
         if refusal then
             NS.Printf("|cff808080%s|r", refusal)
             NS.Debug("Mode", "%s start refused (%s)", mode, refusal)
@@ -217,7 +225,7 @@ local function setMode(mode, on, why)
     end
     NS.State[field] = on
     NS.Debug("Mode", "%s %s (%s)", mode, on and "on" or "off", tostring(why or "?"))
-    NS.bus:SendMessage(NS.MSG.MODE_CHANGED, mode, on)
+    NS.bus:SendMessage(NS.MSG.MODE_CHANGED, mode, on, why)
     if NS.RefreshOptionsPanel then NS.RefreshOptionsPanel() end
     return true
 end

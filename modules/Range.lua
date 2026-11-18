@@ -14,6 +14,10 @@ local _, NS = ...
 --                                      modules/Ticker.lua names "ticker.tick" for its tick, false after
 --   NS.Range.Rebuild()                 rebuild the ladder and the known-spell cache, 0.5 s after
 --                                      the last call (SPELLS_CHANGED comes in bursts)
+--   NS.Range.SetSource(src|nil)        the preview modes' fake range (modules/Preview.lua is its one
+--                                      caller): while set, every read answers src.Get(unit) and
+--                                      src.InSpell(spellID, unit) instead of the client
+--   NS.Range.HasSource()               whether a fake range is set
 --
 -- THE ESTIMATOR is LibRangeCheck-3.0's GetRange(unit, true, nil, 0), called inside pcall with both
 -- answers passed through NS.Compat.IsSecret before anything compares them. The 0 is maxCacheAge: the
@@ -33,6 +37,11 @@ local _, NS = ...
 -- THE MEMO is keyed by unit token (nameplateN included), never by GUID: a GUID can be a secret on
 -- 12.x and a secret is not a legal table key. N containers on one unit cost one query per tick.
 -- Each token's entry is one reused table, so a tick allocates nothing once every token is seen.
+--
+-- THE FAKE SOURCE. Test mode and Sim mode draw through the real render path (design spec 5.5): the
+-- ticker, the memo, RANGE_UPDATED and the renderer are the live ones, and only the answer comes from
+-- a table the preview owns. It answers for any token, so a container with no unit draws too. Setting
+-- or clearing it starts a new tick, so no memo entry from the other source is read back.
 
 NS.Range = NS.Range or {}
 local Range = NS.Range
@@ -53,6 +62,7 @@ local ladder               -- NS.Compat.RangeLadder(), built on first use and on
 local known = {}           -- [spellID] = boolean, wiped on Rebuild
 local rebuildTimer
 local perfParent = false   -- the observed parent handed to Perf.Note("range.get")
+local source               -- the preview's fake range, or nil (live)
 
 -- ---------------------------------------------------------------------------
 -- The Forever ladder walk
@@ -122,6 +132,7 @@ local function bracket(lo, hi)
 end
 
 local function query(unit)
+    if source then return source.Get(unit) end
     if not UnitExists(unit) then return "none" end
     local lo, hi = estimator(unit)
     if lo == false then return "unknown" end
@@ -154,7 +165,9 @@ end
 --- the spell, cannot use it right now, the unit does not exist, or the client gave no usable answer.
 --- @return boolean|nil
 function Range.InSpellRange(spellID, unit)
-    if type(spellID) ~= "number" or not UnitExists(unit) then return nil end
+    if type(spellID) ~= "number" then return nil end
+    if source then return source.InSpell(spellID, unit) end
+    if not UnitExists(unit) then return nil end
     local k = known[spellID]
     if k == nil then
         k = Compat.IsSpellKnown(spellID)
@@ -167,6 +180,17 @@ end
 --- Start a new tick: every memo entry from the last one goes stale. Nothing is freed.
 function Range.BeginTick()
     tickId = tickId + 1
+end
+
+--- Set (or, with nil, clear) the fake range every read answers from. A new tick starts at once.
+--- @param src table|nil  { Get = fn(unit) -> state, minYd, maxYd, InSpell = fn(spellID, unit) -> bool|nil }
+function Range.SetSource(src)
+    source = src
+    tickId = tickId + 1
+end
+
+function Range.HasSource()
+    return source ~= nil
 end
 
 --- Name the perf bucket the reads that follow run inside, or false for none: what range.get records

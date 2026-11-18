@@ -30,6 +30,8 @@ read_globals = {
   "BackdropTemplateMixin", "Mixin",           -- modules/Style.lua's media border, on a plain frame
   -- core/Compat.lua's plate and mouse-focus reads, and the anchors' cursor (design spec 5.4)
   "C_NamePlate", "GetMouseFoci", "GetCursorPosition", "IsMouseButtonDown",
+  -- the band sounds' clock and the client's sound call (modules/Sounds.lua, modules/Container.lua)
+  "GetTime", "PlaySoundFile",
 }
 
 globals = {

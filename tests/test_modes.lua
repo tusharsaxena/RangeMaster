@@ -1,7 +1,7 @@
 -- tests/test_modes.lua — Test mode and Sim mode (preview-mode, options-ui-§15): session state with one
 -- writer each (core/RangeMaster.lua), reached by the Master controls checkboxes, the launcher menu,
 -- `/rm test` and `/rm sim`, refused in combat and ended by it, announced on MODE_CHANGED, and never
--- persisted. What each mode draws arrives with the renderer (the v0.1.0 plan, Task 7).
+-- persisted; and what each mode draws (modules/Preview.lua, modules/Sim.lua; the v0.1.0 plan, Task 7).
 
 local T = _G.RM_TEST
 local NS, M = T.NS, T.mocks
@@ -46,7 +46,7 @@ test("modes: each writer sets its mode, announces once on a change, and a repeat
   off()
 end)
 
-test("modes: a start is refused in combat with one gray line, and nothing changes", function()
+test("modes: test_refuse_in_combat — a start is refused in combat with one gray line, and nothing changes", function()
   -- red under: a setMode with no combat gate.
   off()
   M.__resetPrinted()
@@ -60,7 +60,7 @@ test("modes: a start is refused in combat with one gray line, and nothing change
   assertTrue(printed[1]:find("|cff808080", 1, true) ~= nil, "the refusal is gray: " .. printed[1])
 end)
 
-test("modes: entering combat ends both modes", function()
+test("modes: test_combat_ends_modes — entering combat ends both modes", function()
   off()
   NS.SetTestMode(true, "test")
   NS.SetSimMode(true, "test")
@@ -138,7 +138,7 @@ local function launcherObject()
   return NS.Launcher:Object()
 end
 
-test("modes: the launcher menu is Enabled, Locked, Test mode, Sim mode, each the verb's handler", function()
+test("modes: test_launcher_and_slash_same_handler — the launcher menu is Enabled, Locked, Test mode, Sim mode, each the verb's handler", function()
   -- launcher-§2: the entries the roster row records, and each toggle the slash verb's own handler.
   off()
   local object = launcherObject()
@@ -162,4 +162,212 @@ test("modes: the launcher menu is Enabled, Locked, Test mode, Sim mode, each the
   Menu.remove()
   off()
   assertTrue(ok, tostring(err))
+end)
+
+-- ---------------------------------------------------------------------------
+-- What the modes draw (modules/Preview.lua, modules/Sim.lua)
+-- ---------------------------------------------------------------------------
+
+local H = dofile("tests/anchors_env.lua")
+local installPaint = dofile("tests/_kit/mock_paint.lua")
+
+--- H.with under the kit's paint recorder (font strings that keep their text, frames their opacity and
+--- scale), with the combat edge put back however the case ends.
+local function withEnv(body)
+  local restore = installPaint(M)
+  local ok, err = pcall(H.with, body)
+  restore()
+  M.InCombatLockdown = function() return false end
+  NS.addon:OnCombatChanged("PLAYER_REGEN_ENABLED")
+  if not ok then error(err, 0) end
+end
+local EN = "\226\128\147"
+
+--- The instance drawing container `id`: its own, or (for a `nameplates` container) its stand-in.
+local function drawn(id) return NS.Container.Get(id) end
+
+test("modes: test_test_mode_placeholders_all_containers — every enabled container shows a placeholder", function()
+  off()
+  withEnv(function()
+    M.__unitExists.target = false
+    local ids = {
+      screen   = NS.CM.Create("target"),
+      combat   = NS.CM.Create("focus", { visibility = { combat = "in" } }),
+      frame    = NS.CM.Create("pet", { anchor = { mode = "frame", frame = { provider = "custom", name = "NoSuchFrame" } } }),
+      ownPlate = NS.CM.Create("target", { anchor = { mode = "nameplate" } }),
+      plates   = NS.CM.Create("nameplates", { anchor = { mode = "nameplate" } }),
+      cursor   = NS.CM.Create("mouseover", { anchor = { mode = "cursor" } }),
+    }
+    local disabled = NS.CM.Create("target", { enabled = false })
+    NS.CM.FlushPending()
+    for name, id in pairs(ids) do
+      local inst = drawn(id)
+      assertFalse(inst ~= nil and inst.frame:IsShown(), name .. " is hidden before Test mode")
+    end
+    assertTrue(NS.SetTestMode(true, "test"))
+    for name, id in pairs(ids) do
+      local inst = drawn(id)
+      assertTrue(inst ~= nil, name .. " has an instance in Test mode")
+      assertTrue(inst.frame:IsShown(), name .. " shows its placeholder")
+      assertEqual(inst.elements.number.fs:GetText(), "20" .. EN .. "25", name .. " reads the placeholder range")
+      assertEqual(inst.state, "known", name .. " drew it through the real render path")
+      if inst.strips then
+        assertTrue(inst.strips.test and inst.strips.test:IsShown(), name .. " carries the test strip")
+      end
+    end
+    assertEqual(drawn(disabled), nil, "a disabled container shows nothing")
+    assertEqual(NS.Preview.Kind(), "test")
+    NS.SetTestMode(false, "test")
+    assertEqual(NS.Preview.Kind(), nil)
+    assertEqual(drawn(ids.plates), nil, "the nameplates stand-in goes with the mode")
+    for name, id in pairs(ids) do
+      local inst = drawn(id)
+      assertFalse(inst ~= nil and inst.frame:IsShown(), name .. " is hidden again")
+      if inst and inst.strips and inst.strips.test then
+        assertFalse(inst.strips.test:IsShown(), name .. "'s strip is hidden")
+      end
+    end
+    assertFalse(NS.Range.HasSource(), "the live range is back")
+  end)
+  off()
+end)
+
+test("modes: Test mode keeps the ticker reading the placeholder while it is on", function()
+  off()
+  withEnv(function()
+    M.__unitExists.target = false
+    local id = NS.CM.Create("target")
+    NS.CM.FlushPending()
+    assertFalse(NS.Ticker.IsRunning(), "no live unit: no ticker")
+    NS.SetTestMode(true, "test")
+    assertTrue(NS.Ticker.IsRunning(), "the placeholder is live")
+    assertEqual(NS.Range.InSpellRange(1, "target"), true, "a chip reads in range")
+    NS.SetTestMode(false, "test")
+    assertFalse(NS.Ticker.IsRunning(), "and stops with it")
+    assertFalse(drawn(id).frame:IsShown())
+  end)
+  off()
+end)
+
+--- Play the running sweep one step at a time, a steady read between steps, half a second apart;
+--- answers the target container's band after each step, until the session ends (bounded).
+local function sweep(inst)
+  local session = NS.Sim.Session()
+  local bands = { inst.bandIndex }
+  for _ = 1, 60 do
+    if not session:IsActive() then break end
+    M.__now = M.__now + 0.5
+    session:Step()
+    M.__now = M.__now + 0.5
+    NS.Ticker.Refresh()
+    if bands[#bands] ~= inst.bandIndex and session:IsActive() then bands[#bands + 1] = inst.bandIndex end
+  end
+  return bands
+end
+
+test("modes: test_sim_sweeps_bands — Sim mode walks 0 to 50 to 0 yd through every band, with sounds", function()
+  off()
+  withEnv(function()
+    local played, savedPlay, savedNow = 0, M.PlaySoundFile, M.__now
+    M.PlaySoundFile = function() played = played + 1 return true end
+    local ok, err = pcall(function()
+      local setId = NS.BandSets.Create("Sweep", "melee_ranged")
+      for i = 1, 5 do NS.BandSets.SetBandSound(setId, i, NS.Presets.OOR_SOUND) end
+      local _, inst = H.container("target", { bandSet = setId, sounds = { enabled = true } })
+      M.__now = 50
+      assertTrue(NS.SetSimMode(true, "test"))
+      assertTrue(NS.Sim.IsRunning(), "a LibKa0s-Sim session runs")
+      assertEqual(NS.Preview.Kind(), "sim")
+      local steps = NS.Sim.Session():Steps()
+      assertEqual(steps[1].yd, 0)
+      assertEqual(steps[11].yd, 50, "out to 50 yd")
+      assertEqual(steps[21].yd, 0, "and back to 0")
+      assertEqual(#steps, 22, "21 distances and the end")
+      assertEqual(inst.bandIndex, 1, "the first step is in melee")
+      M.__now = M.__now + 0.5
+      NS.Ticker.Refresh()                -- the ticker's steady read settles melee, silently
+      assertEqual(played, 0, "the first band is silent")
+      local bands = sweep(inst)
+      assertEqual(table.concat(bands, ","), "1,2,3,4,5,4,3,2,1", "every band, out and back")
+      assertEqual(played, 8, "a sound on each band entered after the first")
+      assertFalse(NS.IsSimMode(), "the sweep ends the mode")
+      assertFalse(NS.Range.HasSource())
+      assertEqual(inst.elements.number.fs:GetText(), "20" .. EN .. "25", "the live range is drawn again")
+    end)
+    M.PlaySoundFile, M.__now = savedPlay, savedNow
+    if not ok then error(err, 0) end
+  end)
+  off()
+end)
+
+test("modes: the sweep's run plays on its own timers, and Sim mode off stops it", function()
+  off()
+  withEnv(function()
+    local _, inst = H.container("target")
+    NS.SetSimMode(true, "test")
+    assertEqual(inst.elements.number.fs:GetText(), "0" .. EN .. "1", "the first step drew at once")
+    M.__fireTimers()
+    assertEqual(NS.Sim.Session():Status().pos, 2, "the next step came on a timer")
+    NS.SetSimMode(false, "test")
+    assertFalse(NS.Sim.IsRunning(), "the session stopped with the mode")
+    assertFalse(NS.Range.HasSource())
+  end)
+  off()
+end)
+
+test("modes: Sim mode wins over Test mode, and Test mode is refused while a sim runs", function()
+  off()
+  withEnv(function()
+    local _, inst = H.container("target")
+    NS.SetTestMode(true, "test")
+    NS.SetSimMode(true, "test")
+    assertEqual(NS.Preview.Kind(), "sim")
+    assertEqual(inst.elements.number.fs:GetText(), "0" .. EN .. "1", "the sweep, not the placeholder")
+    NS.SetTestMode(false, "test")
+    M.__resetPrinted()
+    assertFalse(NS.SetTestMode(true, "test"), "Test mode refused while the sim runs")
+    assertEqual(#M.__printed(), 1, "with one line")
+    NS.SetSimMode(false, "test")
+    assertTrue(NS.SetTestMode(true, "test"), "accepted once it ends")
+  end)
+  off()
+end)
+
+test("modes: entering combat stops the sim session and puts the live range back", function()
+  off()
+  withEnv(function()
+    local _, inst = H.container("target")
+    NS.SetSimMode(true, "test")
+    NS.SetTestMode(false, "test")
+    M.InCombatLockdown = function() return true end
+    NS.addon:OnCombatChanged("PLAYER_REGEN_DISABLED")
+    assertFalse(NS.Sim.IsRunning(), "combat stopped the session")
+    assertFalse(NS.IsSimMode())
+    assertFalse(NS.Range.HasSource())
+    assertEqual(inst.elements.number.fs:GetText(), "20" .. EN .. "25")
+    M.InCombatLockdown = function() return false end
+    NS.addon:OnCombatChanged("PLAYER_REGEN_ENABLED")
+  end)
+  off()
+end)
+
+test("modes: /rm sim passes any other word to the simulator's own verbs", function()
+  off()
+  withEnv(function()
+    H.container("target")
+    M.__resetPrinted()
+    NS.Slash:OnSlash("sim status")
+    assertTrue(#M.__printed() >= 1, "the status line printed in chat")
+    NS.Slash:OnSlash("sim start sweep")
+    assertTrue(NS.IsSimMode(), "a typed start turns Sim mode on")
+    NS.Slash:OnSlash("sim stop")
+    assertFalse(NS.IsSimMode(), "a typed stop turns it off")
+  end)
+  off()
+end)
+
+test("modes: the simulator's seam leaves no Compat member unwrapped", function()
+  local seam = NS.Sim.Seam()
+  assertTrue(seam ~= nil, "the seam exists")
+  assertEqual(#seam:Unwrapped(), 0)
 end)

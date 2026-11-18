@@ -98,7 +98,8 @@ NS.MSG = Bus.Catalog(addonName, {
     -- Sender: modules/BandSets.lua. Payload: none. A band set was created, deleted, renamed or
     -- edited.
     BANDSETS_CHANGED   = "Ka0s_RangeMaster_BandSetsChanged",
-    -- Sender: core/RangeMaster.lua (NS.SetTestMode / NS.SetSimMode). Payload: (mode, on), mode one
-    -- of "test" or "sim". Test mode or Sim mode started or ended.
+    -- Sender: core/RangeMaster.lua (NS.SetTestMode / NS.SetSimMode). Payload: (mode, on, why), mode
+    -- one of "test" or "sim", why the writer's reason ("combat started", "stood down", a surface).
+    -- Test mode or Sim mode started or ended.
     MODE_CHANGED       = "Ka0s_RangeMaster_ModeChanged",
 })

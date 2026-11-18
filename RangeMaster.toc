@@ -131,6 +131,14 @@ modules\Anchors_Nameplate.lua
 modules\Anchors_Cursor.lua
 # Conventional: the click-to-pick overlay, built on first use; captures NS.Style (modules\Style.lua).
 modules\FramePicker.lua
+# Conventional: the behavior rules, reached by modules\Container.lua at call time: visibility, and the
+# band sounds (registers its built-in sound keys with LibSharedMedia at load; reads NS.Presets).
+modules\Visibility.lua
+modules\Sounds.lua
+# Conventional: the two preview modes, each subscribing to MODE_CHANGED at load. modules\Sim.lua builds
+# its LibKa0s-Sim-1.0 seam and session at load; modules\Preview.lua owns the fake range source.
+modules\Sim.lua
+modules\Preview.lua
 # Conventional: the diagnostics report's sections (debug-logging-§14); the DebugLog descriptor asks
 # for them when a report runs.
 modules\Diagnostics.lua

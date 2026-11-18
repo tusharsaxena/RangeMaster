@@ -165,3 +165,16 @@ L["Reset this profile to the addon's defaults? Everything you have configured or
 L["Yes"] = "Yes"
 L["No"] = "No"
 L["Restore every General setting on this profile to its addon default."] = "Restore every General setting on this profile to its addon default."
+
+-- Behavior and modes (modules/Preview.lua, modules/Sim.lua, core/RangeMaster.lua; plan Task 7)
+L["Cannot start Test mode while Sim mode runs."] = "Cannot start Test mode while Sim mode runs."
+L["TEST"] = "TEST"
+L["SIM"] = "SIM"
+L["Target at %d yd"] = "Target at %d yd"
+L["Sweep complete"] = "Sweep complete"
+L["A target walking out to 50 yd and back"] = "A target walking out to 50 yd and back"
+L["Sim mode needs LibKa0s-Sim-1.0, which did not load."] = "Sim mode needs LibKa0s-Sim-1.0, which did not load."
+L["Simulation finished."] = "Simulation finished."
+L["Simulation stopped: Sim mode is off."] = "Simulation stopped: Sim mode is off."
+L["Simulation stopped: combat started."] = "Simulation stopped: combat started."
+L["Range Master - SIM"] = "Range Master - SIM"

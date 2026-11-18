@@ -171,8 +171,12 @@ function runTest(rest)
     end
 end
 
--- `/rm sim` toggles; `on` / `off` set. Through NS.SetSimMode, the one writer of the mode.
+-- `/rm sim` toggles; `on` / `off` set. Through NS.SetSimMode, the one writer of the mode. Any other
+-- word is the simulator's own verb (`step`, `pause`, `resume`, `restart`, `stop`, `status`, `panel`,
+-- `start sweep`; modules/Sim.lua), so the commands its step panel shows are the ones typed here.
 function runSim(rest)
+    local word = firstWord(rest)
+    if word ~= "" and ON_OFF[word] == nil then return NS.Sim.RunVerb(rest) end
     local want = readOnOff(rest, NS.IsSimMode(), L["Usage: /rm sim [on|off]"])
     if want == nil then return end
     if NS.SetSimMode(want, "/rm sim") then

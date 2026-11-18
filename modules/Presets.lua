@@ -42,7 +42,7 @@ local L = NS.L
 Presets.ORDER = { "simple", "intermediate", "advanced" }
 
 --- The LSM sound key Advanced puts on the out-of-range band. Registered with LibSharedMedia by the
---- band sounds (plan Task 7, modules/Sounds.lua); a key LSM does not know plays nothing.
+--- band sounds (modules/Sounds.lua's BUILTIN, the raid warning chime), so it plays without LSM too.
 Presets.OOR_SOUND = "Ka0s Range Master: Out of range"
 
 local lastSnapshot   -- the one Undo level

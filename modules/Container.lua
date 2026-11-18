@@ -18,6 +18,10 @@ local _, NS = ...
 --                                        decides which plates get one), applied now
 --   NS.Container.ReleasePlate(id, token), GetPlate(id, token), ForEachPlate(fn(inst, id, token))
 --   inst:SetAnchorHidden(hidden)         the anchor's say: hidden while its frame or plate is missing
+--   NS.Container.SetPreview(kind|nil)    Test mode ("test") or Sim mode ("sim") draws, or neither
+--                                        (modules/Preview.lua is its one caller)
+--   NS.Container.RefreshVisibility()     ask every instance's visibility again (the combat edge,
+--                                        the General visibility and Master opacity rows)
 --
 -- WHO DRIVES IT. CONTAINERS_CHANGED (modules/ContainerManager.lua, coalesced to the next frame and
 -- held through combat) runs Sync: an instance for every enabled container, back to the pool for a
@@ -62,6 +66,25 @@ local _, NS = ...
 -- reached only through CONTAINERS_CHANGED, which ContainerManager holds to PLAYER_REGEN_ENABLED (the
 -- skin's re-apply included). A shown-state change is told to the anchors (NS.Anchors.ShownChanged),
 -- so the cursor follow runs only while a cursor container is shown.
+--
+-- SHOWN OR HIDDEN is the anchor's say first (SetAnchorHidden), then NS.Visibility.Evaluate
+-- (modules/Visibility.lua: the Master controls' General visibility, the container's combat, reaction
+-- and no-unit rules), whose opacity multiplies the layout's. Both are asked on every render, and again
+-- over every instance on the combat edge and on a master row's write (RefreshVisibility). A render of
+-- a hidden instance stops there, so it paints nothing and plays nothing.
+--
+-- THE PREVIEW MODES (modules/Preview.lua) draw through this same path, from NS.Range's fake source.
+-- While one runs every instance shows whatever its visibility says, an instance whose anchor hides it
+-- (a missing frame, no plate) is placed at its screen point instead (NS.Anchors.Screen.Place), and a
+-- `nameplates` container gets one stand-in instance of its own (the main pool, keyed by its id) so it
+-- has a placeholder with no plate on screen; the stand-in goes when the preview ends. Each instance
+-- wears LibKa0s-Widgets' TestStrip while a preview runs (preview-mode: amber for Test mode, cyan for
+-- Sim mode), docked on its top edge (`dock = "hud"`), built on first use and kept with the frame. A
+-- preview never runs in combat (refused in it, ended by it), so the stand-ins are built out of combat.
+--
+-- BAND SOUNDS (modules/Sounds.lua) hear every shown render's band and every steady read of a shown
+-- instance's unit; a unit change forgets the instance's sound state (UnitChanged), as does a preview
+-- starting or ending.
 
 NS.Container = NS.Container or {}
 local Container = NS.Container
@@ -76,10 +99,15 @@ local ELEMENT = { number = E.Number, text = E.Text, indicator = E.Indicator, spe
 local STRATA = { BACKGROUND = true, LOW = true, MEDIUM = true, HIGH = true, DIALOG = true,
                  FULLSCREEN = true, FULLSCREEN_DIALOG = true, TOOLTIP = true }
 
+local KW = LibStub and LibStub("LibKa0s-Widgets-1.0", true)
+local L = NS.L
+
 local pool = Pool.NewKeyed()
 local platePool = Pool.NewKeyed()   -- the per-plate instances, keyed "<id>|<token>"
 local byUnit = {}   -- [unit] = { [inst] = true }: the RANGE_UPDATED fan-out
 local NO_SPELLS = {}
+local preview      -- nil, "test" or "sim": the preview drawing (SetPreview)
+local STRIP_KINDS = { "test", "sim" }
 
 local Instance = {}
 local InstanceMT = { __index = Instance }
@@ -163,12 +191,22 @@ local function setShown(inst, show)
     if A and A.ShownChanged then A.ShownChanged(inst) end
 end
 
+--- The root's opacity: the layout's, times the visibility's (`a`). Set only when it moved.
+local function setAlpha(inst, a)
+    local v = (inst.baseAlpha or 1) * (a or 1)
+    if v == inst.alpha then return end
+    inst.alpha = v
+    inst.frame:SetAlpha(v)
+end
+
 local function applyFrame(inst, c)
     local root, lay = inst.frame, c.layout
     root:SetFrameStrata(STRATA[c.anchor.strata] and c.anchor.strata or LAYERS.STRATA.HUD)
-    inst.appliedScale = tonumber(lay.scale) or 1
+    -- The container's own scale inside the Master controls' Master scale.
+    inst.appliedScale = (tonumber(lay.scale) or 1) * (tonumber(NS.GetSetting("scale")) or 1)
     root:SetScale(inst.appliedScale)
-    root:SetAlpha(tonumber(lay.alpha) or 1)
+    inst.baseAlpha, inst.alpha = tonumber(lay.alpha) or 1, nil
+    root:SetAlpha(inst.baseAlpha)
     Style.Border(inst.border, c.frame.border)
     inst.background:SetShown(c.frame.background.enabled and true or false)
     place(inst, c)
@@ -223,6 +261,10 @@ function Instance:SetAnchorHidden(hidden)
     hidden = hidden and true or false
     if (self.anchorHidden or false) == hidden then return end
     self.anchorHidden = hidden
+    if hidden and preview and self.container then
+        -- A preview shows it anyway, at its screen point (the frame or plate it belongs on is missing).
+        return NS.Anchors.Screen.Place(self, self.container)
+    end
     if hidden then return setShown(self, false) end
     if self.applying or not self.container then return end
     self:Invalidate()
@@ -314,10 +356,48 @@ local function resolveBand(inst, state, lo, hi)
     return true
 end
 
---- Show or hide for the anchor's say and the unit's presence; answers whether to draw on.
+--- The preview's strip of `kind` on this instance, built on first use; false without the library.
+local function stripFor(inst, kind)
+    inst.strips = inst.strips or {}
+    local s = inst.strips[kind]
+    if s ~= nil then return s end
+    s = false
+    if KW and KW.TestStrip then
+        local ok, built = pcall(KW.TestStrip, inst.frame, {
+            text = kind == "sim" and L["SIM"] or L["TEST"], icon = NS.Icon("info"), kind = kind,
+            owner = NS.name, dock = "hud", target = inst.frame, clear = inst.dragHandle or nil,
+        })
+        if ok and built then s = built end
+    end
+    inst.strips[kind] = s
+    return s
+end
+
+--- Show the running preview's strip and hide the other (every strip with no preview).
+local function showStrips(inst)
+    if not preview and not inst.strips then return end
+    for _, kind in ipairs(STRIP_KINDS) do
+        local s = preview == kind and stripFor(inst, kind) or (inst.strips and inst.strips[kind])
+        if s then
+            s:SetShown(preview == kind)
+            if preview == kind and s.Place then pcall(s.Place, s) end
+        end
+    end
+end
+
+--- Show or hide for the anchor's say and the visibility rules (or the preview); answers whether to
+--- draw on.
 local function present(inst, state)
-    local show = not inst.anchorHidden and (state ~= "none" or not inst.container.visibility.hideNoUnit)
+    if preview then
+        if inst.anchorHidden then NS.Anchors.Screen.Place(inst, inst.container) end
+        setShown(inst, true)
+        setAlpha(inst, 1)
+        return true
+    end
+    local show, alpha = NS.Visibility.Evaluate(inst.container, inst.unit, state)
+    show = show and not inst.anchorHidden
     setShown(inst, show)
+    if show then setAlpha(inst, alpha) end
     return show
 end
 
@@ -330,6 +410,7 @@ function Instance:Render(state, lo, hi, spellResults)
     ctx.state, ctx.lo, ctx.hi, ctx.spells = state, lo, hi, spellResults or NO_SPELLS
     ctx.unit = self.unit
     local moved = resolveBand(self, state, lo, hi) and self:Paint(ctx) or false
+    if c.sounds and c.sounds.enabled then NS.Sounds.OnBand(self, self.bandIndex, GetTime()) end
     for name, mod in pairs(ELEMENT) do
         local el = self.elements[name]
         if el and el.on and mod.Update(el, c.elements[name], ctx) then moved = true end
@@ -384,7 +465,12 @@ local function park(inst)
     unwatch(inst)
     inst.key, inst.id, inst.container, inst.pool, inst.plateToken = nil, nil, nil, nil, nil
     inst.state, inst.lo, inst.hi, inst.shown, inst.anchorHidden = nil, nil, nil, nil, nil
-    inst.bandIndex, inst.setId = nil, nil
+    inst.bandIndex, inst.setId, inst.sound, inst.alpha = nil, nil, nil, nil
+    if inst.strips then
+        for _, s in pairs(inst.strips) do
+            if s then s:Hide() end
+        end
+    end
     inst.frame:ClearAllPoints()
 end
 
@@ -409,7 +495,7 @@ end
 --- a `nameplates` container (its instances are per plate: AcquirePlate).
 function Container.Acquire(id)
     local c = NS.CM.Get(id)
-    if not c or c.unit == "nameplates" then return nil end
+    if not c or (c.unit == "nameplates" and not preview) then return nil end
     local inst = Pool.AcquireKeyed(pool, id, newInstance)
     inst.key, inst.pool = id, pool
     inst:Apply(id, c)
@@ -457,7 +543,7 @@ function Container.ForEach(fn)
 end
 
 local function wanted(c)
-    return c ~= nil and c.enabled and c.unit ~= "nameplates"
+    return c ~= nil and c.enabled and (c.unit ~= "nameplates" or preview ~= nil)
 end
 
 local function wantsPlates(c)
@@ -509,8 +595,51 @@ end
 function Container.UnitChanged(unit)
     local set = byUnit[unit]
     if not set then return end
-    for inst in pairs(set) do inst:Invalidate() end
+    for inst in pairs(set) do
+        inst:Invalidate()
+        NS.Sounds.Reset(inst)
+    end
 end
+
+--- Ask one instance's visibility again from its last triple; one newly shown draws in full.
+local function revisit(inst)
+    if not inst.container or inst.state == nil then return end
+    local was = inst.shown
+    if present(inst, inst.state) and not was then repaint(inst) end
+end
+
+function Container.RefreshVisibility()
+    for _, inst in pairs(pool.active) do revisit(inst) end
+    for _, inst in pairs(platePool.active) do revisit(inst) end
+end
+
+--- Draw one instance again from the current source: everything forgotten, its unit read now.
+local function redraw(inst)
+    inst:Invalidate()
+    NS.Sounds.Reset(inst)
+    showStrips(inst)
+    if inst.unit then inst:Update(NS.Range.Get(inst.unit)) end
+end
+
+--- Test mode ("test"), Sim mode ("sim") or neither (nil) draws now. The caller (modules/Preview.lua)
+--- has set NS.Range's source first, so each redraw reads the preview's range. Starting one gives each
+--- enabled `nameplates` container its stand-in; ending one parks them.
+function Container.SetPreview(kind)
+    preview = kind
+    if not NS.IsStoodDown() then
+        releaseStale(pool, wanted)
+        if kind then
+            for _, id in ipairs(NS.CM.List()) do
+                local c = NS.CM.Get(id)
+                if wantsPlates(c) and not pool.active[id] then Container.Acquire(id) end
+            end
+        end
+    end
+    for _, inst in pairs(pool.active) do redraw(inst) end
+    for _, inst in pairs(platePool.active) do redraw(inst) end
+end
+
+function Container.PreviewKind() return preview end
 
 --- The stand-down (core/LifecycleSetup.lua): every instance parked and hidden, every watch dropped.
 function Container.StandDown()
@@ -538,9 +667,14 @@ local function onSteady(unit)
     local set = byUnit[unit]
     if not set then return end
     local t0 = Perf.on and debugprofilestop()
-    local rendered = false
+    local rendered, now = false, nil
     for inst in pairs(set) do
         if inst:PollSpells() then rendered = true end
+        local snd = inst.shown and inst.container and inst.container.sounds
+        if snd and snd.enabled then
+            now = now or GetTime()
+            NS.Sounds.OnBand(inst, inst.bandIndex, now)
+        end
     end
     if t0 and rendered then Perf.Note("container.render", debugprofilestop() - t0, NS.Range.PerfParent()) end
 end
@@ -565,5 +699,6 @@ function Container.__reset()
     Pool.ReleaseAllKeyed(pool, park)
     Pool.ReleaseAllKeyed(platePool, park)
     pool, platePool = Pool.NewKeyed(), Pool.NewKeyed()
+    preview = nil
     for unit in pairs(byUnit) do byUnit[unit] = nil end
 end

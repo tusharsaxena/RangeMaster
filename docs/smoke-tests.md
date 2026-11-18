@@ -15,7 +15,7 @@ unless a check names one.
 | PANEL-1..4 | Panel | the landing page, General's two tabs, combat lock |
 | PROFILE-1..2 | Profiles | the Profiles page and `/rm profile` |
 | STATE-1..3 | State | enable and disable, the latch, the launcher menu |
-| MODES-1..4 | Modes | Test mode and Sim mode: start, refuse in combat, end on combat |
+| MODES-1..7 | Modes | Test mode and Sim mode: start, refuse in combat, end on combat, placeholders, the sweep |
 | COMBAT-1 | Combat | the settings panel under combat lockdown |
 | DIAG-1..3 | Diagnostics | the console, the report, the perf verb |
 | DEGRADED-1 | Degraded | the library-absent install |
@@ -23,8 +23,10 @@ unless a check names one.
 | RANGE-1..5 | Range engine | brackets, unknown, the Forever ladder, the ticker's rate and stop, the seed spells |
 | DRAW-1..5 | Containers | brackets drawn, unknown gray, elements and order, the skin face, disable |
 | ANCHOR-1..8 | Anchors | screen drag, unit frames (Blizzard, EllesmereUI, custom, missing), combat, nameplates, cursor, the picker |
+| VIS-1..3 | Visibility | combat and reaction rules, out-of-combat opacity, the master rows |
+| SOUND-1..2 | Sounds | the debounced band sound, none on nameplates |
 
-The remaining range-display themes (BANDS, SOUND) join with plan Tasks 7 and 8.
+The remaining range-display theme (BANDS, the band-set editor) joins with plan Task 8.
 
 ## Before you start
 
@@ -88,8 +90,19 @@ spell. Keep the chat frame visible; every line the addon prints starts with a cy
   ends it. Result:
 - **MODES-3. Refused in combat.** Enter combat (attack a training dummy), then `/rm test` → one gray
   line `Cannot start a preview mode during combat.`; nothing turns on. Result:
-- **MODES-4. Combat ends both.** Start Test mode and Sim mode, then enter combat → both turn off at
-  the pull (the boxes untick on an open panel). Result:
+- **MODES-4. Combat ends both.** Start Test mode, then Sim mode, then enter combat → both turn off at
+  the pull (the boxes untick on an open panel), and the displays read the live range again. Result:
+- **MODES-5. Placeholders everywhere.** With no target, apply the Advanced preset and tick **Test
+  mode** → every container shows `20–25` with an amber `TEST` strip on its top edge: the ones on unit
+  frames, the own-plate one and the all-nameplates one (no plate on screen) at their screen points,
+  the in-combat ones out of combat. Untick → each goes back to what its rules say. Result:
+- **MODES-6. The sweep.** `/rm sim` → the `Range Master - SIM` step panel opens and every container
+  walks `0–1` out to `50+` and back over about 20 s, each band's color in turn, with a cyan `SIM`
+  strip; the Advanced preset's target plays its out-of-range chime once on the way out. At the end
+  the panel closes and Sim mode unticks. `/rm sim status`, `/rm sim pause`, `/rm sim resume` and
+  `/rm sim stop` answer in chat. Result:
+- **MODES-7. One at a time.** With Sim mode running, `/rm test` → one gray line `Cannot start Test
+  mode while Sim mode runs.` Result:
 
 ## Combat
 
@@ -211,6 +224,28 @@ c.anchor.mode = "frame"; a.CM.RequestApply()`. Run each on Retail and on WoW For
   Escape cancels; entering combat ends it with no error; starting it in combat prints one gray line.
   Result:
 
+## Visibility
+
+The visibility rules (plan Task 7). Set a container's rule from chat until the Containers page lands
+(plan Task 8): `/run local a = LibStub("AceAddon-3.0"):GetAddon("RangeMaster"); local c = a.CM.Get(1);
+c.visibility.combat = "in"; a.Container.RefreshVisibility()`.
+
+- **VIS-1. Combat.** `combat = "in"` → the container is hidden out of combat and shows on the pull;
+  `"out"` the reverse; no `ADDON_ACTION_BLOCKED` on either edge. Result:
+- **VIS-2. Reaction.** `reaction = "hostile"` → shows on an enemy, hides on a friendly player; a duel
+  starting (the player turning hostile) shows it without a retarget. Result:
+- **VIS-3. Opacity and the master rows.** `oocAlpha = 0.4` → faint out of combat, full in it. General
+  visibility `never` hides every container at once, `inCombat` only shows them in combat; Master
+  opacity and Master scale apply to every container. Result:
+
+## Sounds
+
+- **SOUND-1. The out-of-range chime.** Apply Advanced, target a dummy in range, walk out past 40 yd →
+  one chime about 0.2 s after crossing; walking back and forth across the edge quickly does not
+  chain chimes (at most one a second); retargeting while out of range is silent. Result:
+- **SOUND-2. None on nameplates.** Put a sound on every band of the all-nameplates container's set and
+  pull a pack → no sound plays from it. Result:
+
 ## Pending sign-off
 
 | ID | Origin | Why it is owed |
@@ -219,3 +254,4 @@ c.anchor.mode = "frame"; a.CM.RequestApply()`. Run each on Retail and on WoW For
 | RANGE-1..5 | the v0.1.0 range engine (plan Task 2), 2026-11-18 | the Forever interact distances and the seed IDs are unconfirmed in a client |
 | DRAW-1..5 | the v0.1.0 renderer (plan Task 5), 2026-11-18 | no container has been drawn in a client yet |
 | ANCHOR-1..8 | the v0.1.0 anchors (plan Task 6), 2026-11-18 | no anchor has been seen in a client yet; the EllesmereUI names are read from its source, not a running client |
+| MODES-5..7, VIS-1..3, SOUND-1..2 | the v0.1.0 behavior and modes (plan Task 7), 2026-11-18 | no preview, visibility rule or sound has been seen or heard in a client yet; the chime's file id (567397) is unconfirmed on Forever |

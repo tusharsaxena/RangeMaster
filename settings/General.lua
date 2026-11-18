@@ -74,12 +74,12 @@ local masterOnChange = {
     -- THE ADDON-WIDE SWITCH, AND IT IS NOT A DRAW GATE: it moves the `disabled` hold on the one latch
     -- (core/LifecycleSetup.lua), whose StandDown unregisters everything (slash-commands-§7).
     ["enabled"] = function() NS.SyncEnabledHold() end,
-    -- Declared no-ops until the range containers exist to read them (the v0.1.0 plan, Tasks 5 to 7):
-    -- each container reads the stored value when it renders. A row that deliberately does nothing
-    -- has to SAY so, or the next reader takes the absence for an oversight.
-    ["visibility"] = function() end,
-    ["scale"]      = function() end,
-    ["alpha"]      = function() end,
+    -- The range containers read these (modules/Visibility.lua, modules/Container.lua): visibility and
+    -- opacity are asked again over every container at once; scale is part of an apply, which the
+    -- registry coalesces to the next frame and holds through combat.
+    ["visibility"] = function() NS.Container.RefreshVisibility() end,
+    ["scale"]      = function() NS.CM.RequestApply() end,
+    ["alpha"]      = function() NS.Container.RefreshVisibility() end,
     -- The screen containers' drag strips show while unlocked (modules/Anchors_Screen.lua).
     ["locked"]     = function() NS.Anchors.RefreshLock() end,
     -- The console's visibility is the ConsoleCheckbox's own `set`, stamped below.

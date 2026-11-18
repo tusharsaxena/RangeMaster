@@ -236,6 +236,33 @@ Total.
 - cursor: the stand-down leaves the follow disarmed, and the stand-up arms it again
 - cursor: a new cursor container sits at the cursor default offset, whatever its id or screen point
 
+### test_visibility.lua (11)
+
+- visibility: test_visibility_matrix — combat any/in/out x reaction any/hostile/friendly x hideNoUnit
+- visibility: with no state given, the unit's existence is asked
+- visibility: an unreadable reaction never passes a hostile or friendly rule
+- visibility: test_ooc_alpha — oocAlpha applies out of combat only, inside the Master opacity
+- visibility: the General visibility dropdown wraps every container's own rules
+- visibility: the combat edge flag counts as combat before the lockdown answers it
+- visibility: an in-combat container shows on the combat edge and hides on the leave edge
+- visibility: a hostile-only container follows the unit's reaction
+- visibility: the frame's opacity is the layout's times oocAlpha out of combat
+- visibility: writing General visibility or Master opacity re-evaluates every container
+- visibility: Master scale multiplies each container's own scale on the next apply
+
+### test_sounds.lua (10)
+
+- sounds: test_settle_200ms — a band's sound waits out the settle, then plays once
+- sounds: a band left inside the settle never plays, and coming back to the settled one is quiet
+- sounds: test_gap_1s — a second band settling inside the gap is silent
+- sounds: test_silent_first_band — the first band after a unit change is silent
+- sounds: test_no_sound_for_nameplates — a nameplates container never sounds
+- sounds: a container with sounds off, or a band with no sound, plays nothing
+- sounds: a key LibSharedMedia does not know plays nothing, and a raising client is contained
+- sounds: through the render path, a band change plays after the next steady read
+- sounds: a hidden container plays nothing
+- sounds: the out-of-range key the Advanced preset uses is built in
+
 ### test_compat.lua (6)
 
 - compat: the client answer follows the kit profile this run uses
@@ -434,15 +461,23 @@ Total.
 
 - launcher descriptor passes openSkinPicker, which runs the skin verb
 
-### test_modes.lua (7)
+### test_modes.lua (15)
 
 - modes: each writer sets its mode, announces once on a change, and a repeat is silent
-- modes: a start is refused in combat with one gray line, and nothing changes
-- modes: entering combat ends both modes
+- modes: test_refuse_in_combat — a start is refused in combat with one gray line, and nothing changes
+- modes: test_combat_ends_modes — entering combat ends both modes
 - modes: neither mode is ever written to SavedVariables
 - modes: /rm test and /rm sim toggle, take on and off, and refuse another word
 - modes: the Master controls carry Test mode, then Sim mode, as session rows on the one writer
-- modes: the launcher menu is Enabled, Locked, Test mode, Sim mode, each the verb's handler
+- modes: test_launcher_and_slash_same_handler — the launcher menu is Enabled, Locked, Test mode, Sim mode, each the verb's handler
+- modes: test_test_mode_placeholders_all_containers — every enabled container shows a placeholder
+- modes: Test mode keeps the ticker reading the placeholder while it is on
+- modes: test_sim_sweeps_bands — Sim mode walks 0 to 50 to 0 yd through every band, with sounds
+- modes: the sweep's run plays on its own timers, and Sim mode off stops it
+- modes: Sim mode wins over Test mode, and Test mode is refused while a sim runs
+- modes: entering combat stops the sim session and puts the live range back
+- modes: /rm sim passes any other word to the simulator's own verbs
+- modes: the simulator's seam leaves no Compat member unwrapped
 
 ### test_optionssetup.lua (16)
 
@@ -701,6 +736,8 @@ Total.
 | test_anchors_frame.lua | 16 |
 | test_anchors_nameplate.lua | 14 |
 | test_anchors_cursor.lua | 7 |
+| test_visibility.lua | 11 |
+| test_sounds.lua | 10 |
 | test_compat.lua | 6 |
 | test_range.lua | 22 |
 | test_ticker.lua | 13 |
@@ -715,7 +752,7 @@ Total.
 | test_layers.lua | 3 |
 | test_launcher.lua | 30 |
 | test_launcher_skin_entry.lua | 1 |
-| test_modes.lua | 7 |
+| test_modes.lua | 15 |
 | test_optionssetup.lua | 16 |
 | test_realpages.lua | 7 |
 | test_skinsetup.lua | 12 |
@@ -739,4 +776,4 @@ Total.
 | test_skin_switch.lua | 6 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **529** |
+| **Total** | **558** |

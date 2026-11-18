@@ -3,7 +3,7 @@
 ![WoW](https://img.shields.io/badge/WoW-Midnight_12.1.5_and_Forever_1.60.1-purple)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
-![Tests](https://img.shields.io/badge/Tests-529%2F529_passing-green)
+![Tests](https://img.shields.io/badge/Tests-558%2F558_passing-green)
 
 Supports Retail and WoW Forever. Range Master lets you build your own range displays for your
 target, your focus, your pet, whatever is under your mouse, and every enemy nameplate on screen.
@@ -71,7 +71,7 @@ none at all when the addon is turned off.
 |---------|-----|
 | Nothing shows at all | On General → Master controls, check that **Enable Range Master** is ticked (`/rm enable` ticks it) and that **General visibility** isn't set to *Never*, or to a combat state you're not in. |
 | I only see sample ranges | Test mode is on. Type `/rm test off`, or untick **Test mode** under General → Master controls. |
-| Test mode or Sim mode will not start | Neither can start during combat. Wait until combat ends and try again. |
+| Test mode or Sim mode will not start | Neither can start during combat. Wait until combat ends and try again. Test mode also waits while Sim mode runs: type `/rm sim off` first. |
 | Something looks wrong and I want to report it | Follow [Reporting a bug](#reporting-a-bug) below. |
 
 ## Reporting a bug

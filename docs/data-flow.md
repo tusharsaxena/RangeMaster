@@ -29,9 +29,12 @@ the ticker (one C_Timer.NewTicker, 10 Hz idle / 20 Hz in combat, stopped while n
                                       renders only when an answer moved (an edge inside a bracket)
   ─► modules/Container.lua: the instances watching that unit, and no other (bucket container.render)
         NS.Range.InSpellRange per spell chip → inst:Render(state, minYd, maxYd, spellResults)
+        the anchor's say, then NS.Visibility.Evaluate → shown, alpha (hidden: stop here)
         NS.BandSets.ForUnit (the friendly override) → NS.BandSets.Resolve → band index
         band or set changed → recolor the border, the fill and every element (else nothing)
         text changed        → SetText (else nothing); a cell's width moved → re-layout
+        sounds on           → NS.Sounds.OnBand(inst, band, GetTime()) (also on each steady read)
+the combat edge, a General visibility or Master opacity write ─► NS.Container.RefreshVisibility
 SPELLS_CHANGED ─► NS.Range.Rebuild()  0.5 s after the last one: the ladder and the known-spell cache
 ```
 
@@ -39,6 +42,20 @@ Every container instance watches its unit through `NS.Ticker.Watch` when it is a
 `Unwatch`es it when it goes back to the pool, so the ticker runs exactly while a drawn container has
 a live unit. A `nameplates` container watches through its per-plate instances, one per eligible plate
 token, each watched from `NAME_PLATE_UNIT_ADDED` (`NS.Plates.Added`) until `_REMOVED` parks it.
+
+## The preview modes (plan Task 7)
+
+```
+NS.SetTestMode / NS.SetSimMode (the one writer each) ─► MODE_CHANGED (mode, on, why)
+  ─► modules/Sim.lua: Sim on ─► LibKa0s-Sim session "sweep" Start + Run; off ─► Stop(reason)
+  ─► modules/Preview.lua: NS.Preview.Refresh ─► Kind(): "sim" (a session runs) / "test" / nil
+        NS.Range.SetSource(the sweep's or the 20–25 placeholder, or nil)   a new tick
+        NS.Container.SetPreview(kind)   stand-ins for nameplates containers, strips, every
+                                        instance redrawn from the source, sound state forgotten
+        NS.Ticker.Refresh()             the live ticker carries the fake range from here
+sweep step (1 s) ─► the distance ─► NS.Ticker.Refresh ─► RANGE_UPDATED ─► the render above
+session ends (last step, stop, combat, stand-down) ─► OnStop ─► Refresh ─► NS.SetSimMode(false)
+```
 
 ## Placement (plan Task 6)
 

@@ -21,7 +21,7 @@ settings panel in either state; `/rm options` is an alias of `config`.
 | `lock` / `unlock` | — | no | writes `locked` and echoes it |
 | `resetposition` | — | no | `NS.ResetPositions`: every screen container back at its new-container point; echoes how many moved |
 | `test` | [on\|off] | no | toggles or sets Test mode (`NS.SetTestMode`); refused in combat |
-| `sim` | [on\|off] | no | toggles or sets Sim mode (`NS.SetSimMode`); refused in combat |
+| `sim` | [on\|off], or a simulator verb | no | bare, `on` or `off` toggles or sets Sim mode (`NS.SetSimMode`), refused in combat; any other word is LibKa0s-Sim's own verb (`status`, `step`, `pause`, `resume`, `restart`, `stop`, `panel`, `start sweep`; `NS.Sim.RunVerb`), its answer printed in chat |
 | `debug` | [on\|off\|diagnostics] | yes | bare: toggles the console window; on/off: session logging; diagnostics: the report |
 | `diagnostics` | — | yes | writes the diagnostics report to the console (debug-logging-§14) |
 | `perf` | [step] | yes | the perf harness's verb; bare prints the workflow (performance-§4) |

@@ -24,7 +24,7 @@ Composed by `H.MasterControls` from one declaration; the words and the order are
 | Row | Schema key | Behavior |
 |---|---|---|
 | Enable Range Master | `enabled` | moves the `disabled` hold on the one latch (`NS.SyncEnabledHold`); off stands the addon down |
-| General visibility | `visibility` | always, in combat, out of combat or never; read by the displays (plan Task 7) |
+| General visibility | `visibility` | always, in combat, out of combat or never; asked by every container on each render and at once on a write (`modules/Visibility.lua`) |
 | Master scale | `scale` | scales every display |
 | Master opacity | `alpha` | fades every display |
 | Lock frame | `locked` | locked displays cannot be dragged; unlocked, every screen container shows its drag strip (`NS.Anchors.RefreshLock`) |

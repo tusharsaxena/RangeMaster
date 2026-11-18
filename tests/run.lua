@@ -127,6 +127,8 @@ Kit.run{
     "test_anchors_frame",
     "test_anchors_nameplate",
     "test_anchors_cursor",
+    "test_visibility",
+    "test_sounds",
     "test_compat",
     "test_range",
     "test_ticker",

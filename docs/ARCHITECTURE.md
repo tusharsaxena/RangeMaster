@@ -11,7 +11,7 @@ indicator and a row of spell chips, colored by a shared **band set**. The design
 record are `docs/superpowers/specs/2026-11-18-rangemaster-design.md` and
 `docs/superpowers/plans/2026-11-18-rangemaster-v0.1.0.md`.
 
-**State of the tree: the scaffold, the range engine, the data model, the container registry, the renderer and the anchors (plan Tasks 1 to 6).** What exists is the
+**State of the tree: the scaffold, the range engine, the data model, the container registry, the renderer, the anchors and the behavior and modes (plan Tasks 1 to 7).** What exists is the
 born-compliant shell every Ka0s addon shares (the Ace3 addon object, AceDB with its migration runner,
 the LibKa0s setup files, the Master controls and Skin tabs, the slash surface, the launcher, the
 stand-down latch, the diagnostics report, and the two session preview modes with their one writer
@@ -26,8 +26,10 @@ writer (`modules/ContainerManager.lua`, `NS.CM`) and the three container presets
 with `modules/Style.lua` and the four `modules/Elements_*.lua`); plus the anchors
 (`modules/Anchors.lua` and its four mode files, `modules/FrameProviders.lua`,
 `modules/FramePicker.lua`, `NS.Anchors`, `NS.Plates`), which put each container free on screen, on a
-unit frame, on a nameplate or at the cursor. The behavior and modes and the settings pages arrive in
-plan Tasks 7 and 8, and each section below says where a later task plugs in.
+unit frame, on a nameplate or at the cursor; plus the behavior and modes (`modules/Visibility.lua`,
+`modules/Sounds.lua`, `modules/Preview.lua`, `modules/Sim.lua`): the visibility rules, the debounced
+band sounds, Test mode's placeholders and Sim mode's distance sweep. The settings pages arrive in
+plan Task 8, and each section below says where it plugs in.
 
 **The design is dictated by one client fact.** The game answers "is this unit within reach of
 spell or item X", never "how far". The range engine asks LibRangeCheck-3.0 (vendored,
@@ -181,6 +183,49 @@ overlay outlines the nearest named ancestor of the frame under the cursor; left 
 click or Escape cancels. It is refused in combat and the combat edge cancels one in progress. The
 `pick` verb and the panel's button that call it arrive with plan Task 8.
 
+### Behavior and modes
+
+- **Visibility** (`modules/Visibility.lua`): `NS.Visibility.Evaluate(container, unit, state?)` answers
+  `shown, alpha`. The Master controls' General visibility (always, inCombat, outOfCombat, never) wraps
+  the container's `visibility.combat` (any, in, out); with no unit `hideNoUnit` decides; with one,
+  `visibility.reaction` (any, hostile, friendly) through `NS.Compat.CanAttack` / `IsFriend`, an
+  unreadable reaction passing neither. The opacity is Master opacity times `oocAlpha` out of combat,
+  times the layout's own. The renderer asks on every render (the anchor's say first), and again over
+  every instance on the combat edge (`NS.Visibility.SetCombat`, then
+  `NS.Container.RefreshVisibility`, from `OnCombatChanged`) and on a write of the General visibility
+  or Master opacity rows; a unit or reaction change re-renders through the ticker. Master scale
+  multiplies each container's scale on its next apply (`NS.CM.RequestApply`, held through combat).
+- **Band sounds** (`modules/Sounds.lua`): the renderer reports each shown instance's band on every
+  render and every steady read (`NS.Ticker.OnSteady`) to `NS.Sounds.OnBand(inst, band, now)`. State
+  lives on the render instance (`inst.sound`): a band plays its LibSharedMedia sound once it has held
+  0.2 s, not within 1 s of the container's last sound, never for the first band after the unit
+  changed (`NS.Container.UnitChanged`, or the unit going away), and a flicker back into the band that
+  had settled is quiet. A `nameplates` container never sounds (its per-plate instances keep no
+  state). The Advanced preset's out-of-range key is built in (`NS.Sounds.BUILTIN`: the raid warning
+  chime, file id 567397) and registered with LibSharedMedia at load.
+- **Test mode** (`modules/Preview.lua`): `NS.Preview.Refresh` is the one caller of
+  `NS.Range.SetSource` (a fake range every read answers, for any token) and
+  `NS.Container.SetPreview`. Test mode's source is the `20–25` placeholder (every spell chip in range).
+  While a preview runs every enabled container shows, whatever its visibility says: one whose frame
+  or plate is missing at its screen point, and a `nameplates` container through a stand-in instance
+  in the main pool that goes with the preview. Each wears LibKa0s-Widgets' TestStrip (`dock =
+  "hud"`, amber `TEST`, cyan `SIM`). The ticker, the memo, `RANGE_UPDATED` and the render are the
+  live ones.
+- **Sim mode** (`modules/Sim.lua`): a LibKa0s-Sim-1.0 session on an empty seam (it simulates no
+  client read), one scenario `sweep`: 0, 5, … 50, … 0 yd, one step a second, then the step that ends
+  it. The range is the bracket a yard either side (`50+` at the far end); a chip is in range while the
+  distance is inside the spell's own range. The step panel shows for the whole session. Sim mode on
+  starts and runs the session; the session ending (its last step, `/rm sim stop`, the panel, combat,
+  a stand-down, Sim mode off) turns the mode off and the live range back on; a typed `/rm sim start
+  sweep` turns the mode on. A running sweep wins over Test mode, and Test mode is refused while one
+  runs. The library's lines go to the debug console; a typed `/rm sim <verb>` answers in chat.
+- **Both modes** keep one writer each (`NS.SetTestMode`, `NS.SetSimMode`, `core/RangeMaster.lua`; the
+  plan's `NS.Preview.SetTestMode` and `NS.Sim.SetSimMode` call them), are refused in combat and while
+  stood down, and end on `PLAYER_REGEN_DISABLED` and at the stand-down (the sweep stops with reason
+  `combat` or `standDown`). Nothing either draws is stored.
+- **Lock**: the Master controls' Lock frame row, `/rm lock` / `/rm unlock` and the launcher's Locked
+  entry show LibKa0s-Widgets' drag strip on every screen container while unlocked (Anchors, above).
+
 ### Libraries
 
 Everything is vendored under `libs/`: LibStub and CallbackHandler, the Ace3 stack, LibSharedMedia,
@@ -257,7 +302,7 @@ stand-down takes every subscription down and a stand-up replays it.
 | `RANGE_UPDATED` | `Ka0s_RangeMaster_RangeUpdated` | `modules/Ticker.lua` | `unit, state, minYd, maxYd` | `modules/Container.lua`: the instances watching that unit |
 | `CONTAINERS_CHANGED` | `Ka0s_RangeMaster_ContainersChanged` | `modules/ContainerManager.lua` (`FlushPending`, coalesced to the next frame, held in combat) | none | the renderer (`NS.Container.Sync`) and the settings pages (Task 8) |
 | `BANDSETS_CHANGED` | `Ka0s_RangeMaster_BandSetsChanged` | `modules/BandSets.lua` (`Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`, `SetBandSound`, `RestoreSnapshot`; never the load pass) | none | the renderer and the settings pages |
-| `MODE_CHANGED` | `Ka0s_RangeMaster_ModeChanged` | `core/RangeMaster.lua` (`NS.SetTestMode`, `NS.SetSimMode`) | `mode` (`"test"` or `"sim"`), `on` | the renderer (Task 7) |
+| `MODE_CHANGED` | `Ka0s_RangeMaster_ModeChanged` | `core/RangeMaster.lua` (`NS.SetTestMode`, `NS.SetSimMode`) | `mode` (`"test"` or `"sim"`), `on`, `why` | `modules/Preview.lua` (what the displays draw) and `modules/Sim.lua` (starts or stops the sweep) |
 
 Ten or fewer messages, so `docs/message-bus.md` is not required; this table is the register.
 
@@ -278,8 +323,8 @@ Each verb, its arguments and its refusals: `docs/slash-dispatch.md`.
 | Event | Handler | Why |
 |---|---|---|
 | `PLAYER_ENTERING_WORLD` | `addon:OnEnterWorld` | a traced world-entry edge; `NS.Anchors.Frame.Retry` (EllesmereUI spawns its unit frames at `PLAYER_LOGIN`) |
-| `PLAYER_REGEN_DISABLED` | `addon:OnCombatChanged` | combat ends Test mode, Sim mode and a frame pick, and the range ticker goes to 20 Hz (bracketed `combatEdge`) |
-| `PLAYER_REGEN_ENABLED` | `addon:OnCombatChanged` | the leave edge; the ticker back to 10 Hz, and a container apply combat held runs (`NS.CM.FlushPending("regen")`), then every anchor write onto a unit frame combat held (`NS.Anchors.FlushDeferred`) |
+| `PLAYER_REGEN_DISABLED` | `addon:OnCombatChanged` | combat ends Test mode, Sim mode and a frame pick, the range ticker goes to 20 Hz, and every container's visibility is asked again (bracketed `combatEdge`) |
+| `PLAYER_REGEN_ENABLED` | `addon:OnCombatChanged` | the leave edge; the ticker back to 10 Hz, every container's visibility asked again, and a container apply combat held runs (`NS.CM.FlushPending("regen")`), then every anchor write onto a unit frame combat held (`NS.Anchors.FlushDeferred`) |
 | `PLAYER_TARGET_CHANGED` | `addon:OnUnitChanged` | a unit change on `"target"`: `NS.Container.UnitChanged`, then `NS.Anchors.UnitChanged` (an own-plate container moves to the new unit's plate, and a plate token's eligibility for the `nameplates` containers is asked again), then `NS.Ticker.Changed` |
 | `PLAYER_FOCUS_CHANGED` | `addon:OnUnitChanged` | the same on `"focus"`; registered only where `NS.Compat.IsEventValid` knows it (`ifValid`) |
 | `UPDATE_MOUSEOVER_UNIT` | `addon:OnUnitChanged` | the same on `"mouseover"` |
@@ -322,21 +367,23 @@ cursor follow places its own frames every frame. A forbidden plate or frame is n
 plate comes through `NS.Compat`'s reads, which ask `IsForbidden` first under `pcall`, and the frame
 providers and the frame picker do the same. A frame that refuses the anchor (`SetPoint` raises) is
 treated as missing. The frame picker toggles keyboard propagation only out of combat, and is
-refused in and ended by combat.
+refused in and ended by combat. The combat edge's visibility pass only shows, hides and fades this
+addon's own frames (never a `SetPoint`); the preview modes' stand-ins and screen-point fallbacks are
+placed out of combat, because both modes are refused in it and ended at its start.
 
 ## Known Limitations
 
-- Test mode and Sim mode switch, announce `MODE_CHANGED` and refuse in combat, but the renderer does
-  not hear them yet: their placeholders and the distance sweep arrive with plan Task 7.
-- Visibility is the "hide with no unit" rule (and the anchors' missing frame or plate) alone until
-  plan Task 7's rules (combat, reaction, out-of-combat alpha).
+- The visibility rules, the band sounds and the preview modes have no settings rows yet: the
+  Containers page's Visibility and Sounds sections arrive with plan Task 8.
+- Sim mode's sweep moves every container through one simulated distance; it does not simulate a
+  unit's reaction, class or existence.
 - A container on a nameplate is anchored to the plate but stays a child of `UIParent`: it does not
   take the plate's scale or fade, and it draws in the HUD strata over the plates.
 - The frame picker and the frame providers have no settings row or verb yet: `pick` and the
   Containers page's provider rows arrive with plan Task 8.
 - Without LibKa0s-Widgets-1.0 the bar indicator draws as a flat strip in the band color, not a fill.
-- The Advanced preset's out-of-range sound key (`NS.Presets.OOR_SOUND`) is not yet registered with
-  LibSharedMedia, so it plays nothing until the band sounds land (plan Task 7).
+- The built-in out-of-range chime is a stock game sound by file id (567397, the raid warning); it is
+  not yet heard on WoW Forever (`docs/smoke-tests.md`, SOUND-1).
 - On a load where LibKa0s is missing, the bus's degraded stub keeps no stand-down record, so a disable
   leaves bus subscriptions live there (the untracked-target stub, `core/Bus.lua`).
 - A unit LibRangeCheck will not measure because the client does not draw it (`UnitIsVisible` false)

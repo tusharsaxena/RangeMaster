@@ -42,7 +42,7 @@ runner's load list to the TOC.
 | `defaults/SpellSeeds.lua` | `NS.SpellSeeds[client][classFile] = { chips, ladder }`: the per-client, per-class spell seeds; data only |
 | `defaults/BandSetPresets.lua` | `NS.BandSetPresets`: the four preset band sets (the Hunter set per client), `ORDER`, `DefaultFor(classFile)`; data only |
 | `modules/BandSets.lua` | `NS.BandSets`: the band-set registry's writer (`Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`, `RestoreSnapshot`), `Snapshot`, `List`, `Get`, `DefaultId`, `Resolve`, `ForUnit`, and the load pass's `Seed` and `NormalizeSet`; sender of `BANDSETS_CHANGED` |
-| `modules/Range.lua` | `NS.Range`: `Get` (the guarded LibRangeCheck bracket, the per-tick memo by unit token, Forever's ladder fallback), `InSpellRange`, `BeginTick`, `SetPerfParent`, `Rebuild`. LOAD-BEARING: before Ticker |
+| `modules/Range.lua` | `NS.Range`: `Get` (the guarded LibRangeCheck bracket, the per-tick memo by unit token, Forever's ladder fallback), `InSpellRange`, `BeginTick`, `SetPerfParent`, `Rebuild`, the preview's fake source (`SetSource`, `HasSource`). LOAD-BEARING: before Ticker |
 | `modules/Ticker.lua` | `NS.Ticker`: the watch list, the one adaptive `C_Timer` ticker, `RANGE_UPDATED` on change, `Changed` for a new unit behind a token (sent even unmoved), `OnSteady` listeners for an unmoved read, `Removed` for a plate going away; `StandDown` / `StandUp` |
 | `modules/ContainerManager.lua` | `NS.CM`: the container registry's writer (`Create`, `Delete`, `Duplicate`, `Rename`, `UniqueName`, `CopySettings`, `Clear`, `Snapshot`, `RestoreSnapshot`), `List`, `Get`, `SetPosition` / `ResetPosition` (a drag's result, Reset position), the coalesced, combat-deferred `RequestApply` / `FlushPending`; sender of `CONTAINERS_CHANGED` |
 | `modules/Presets.lua` | `NS.Presets`: `Apply` (Simple, Intermediate, Advanced, through `NS.CM`), the one-level `Undo` / `CanUndo`, `Describe` for the preset cards, `OOR_SOUND` |
@@ -51,7 +51,7 @@ runner's load list to the TOC.
 | `modules/Elements_Text.lua` | `NS.Elements.Text`: the band label element |
 | `modules/Elements_Indicator.lua` | `NS.Elements.Indicator`: the shapes (this addon's art), the bar (LibKa0s-Widgets' `W.Bar`) and the spell icon |
 | `modules/Elements_Spells.lua` | `NS.Elements.Spells`: the spell chips, pooled per element, colored by each spell's own answer |
-| `modules/Container.lua` | `NS.Container`: the renderer: one pooled instance per enabled container (`Acquire`, `Get`, `ForEach`, `Sync`, `Repaint`, `UnitChanged`, `StandDown`; `inst:Render`, `inst:Update`, `inst:PollSpells`, `inst:Release`, `inst:SetAnchorHidden`) and one per plate for a `nameplates` container (`AcquirePlate`, `GetPlate`, `ReleasePlate`, `ForEachPlate`), the `RANGE_UPDATED` fan-out by unit and the spell chips' steady re-ask |
+| `modules/Container.lua` | `NS.Container`: the renderer: one pooled instance per enabled container (`Acquire`, `Get`, `ForEach`, `Sync`, `Repaint`, `UnitChanged`, `RefreshVisibility`, `SetPreview`, `StandDown`; `inst:Render`, `inst:Update`, `inst:PollSpells`, `inst:Release`, `inst:SetAnchorHidden`) and one per plate for a `nameplates` container (`AcquirePlate`, `GetPlate`, `ReleasePlate`, `ForEachPlate`), the `RANGE_UPDATED` fan-out by unit, the spell chips' steady re-ask, the visibility and band-sound calls, the preview's stand-ins and TestStrips |
 | `modules/Anchors.lua` | `NS.Anchors`: the dispatcher (`Apply`, `Detach`, `ShownChanged`, `UnitChanged`, `FlushDeferred`, `RefreshLock`, `StandDown`), the mode registry and the point and offset readers. LOAD-BEARING: before the mode files |
 | `modules/FrameProviders.lua` | `NS.FrameProviders`: the `blizzard`, `ellesmere` and `custom` frame names per unit (`NameFor`) and the guarded global lookup (`Resolve`, `Lookup`) |
 | `modules/Anchors_Screen.lua` | The `screen` mode (`NS.Anchors.Screen`): the stored point on `UIParent`, LibKa0s-Widgets' drag strip while unlocked, a drag saved through `NS.CM.SetPosition` |
@@ -59,6 +59,10 @@ runner's load list to the TOC.
 | `modules/Anchors_Nameplate.lua` | `NS.Plates`, the plate registry (`Get`, `ForEachHostile`, `Added`, `Removed`, `SyncAll`, the one-frame re-check), and the `nameplate` (own plate) and `plates` (per-plate instance) modes |
 | `modules/Anchors_Cursor.lua` | The `cursor` mode (`NS.Anchors.Cursor`): one shared OnUpdate for every cursor container, armed only while one is shown |
 | `modules/FramePicker.lua` | `NS.FramePicker`: the click-to-pick overlay (`Start`, `Stop`, `Cancel`, `IsActive`, `NamedAncestor`), refused in and ended by combat |
+| `modules/Visibility.lua` | `NS.Visibility`: `Evaluate(container, unit, state?) -> shown, alpha` (General visibility, the combat, no-unit and reaction rules, Master opacity times `oocAlpha`), the combat edge's flag (`SetCombat`, `InCombat`) |
+| `modules/Sounds.lua` | `NS.Sounds`: `OnBand(inst, band, now)` (the 0.2 s settle, the 1 s gap, the silent first band, per-instance state), `Reset`, `Wants` (never a `nameplates` container), `BUILTIN` (the out-of-range chime, registered with LibSharedMedia at load) |
+| `modules/Sim.lua` | `NS.Sim`: Sim mode's 0 to 50 to 0 yd sweep on LibKa0s-Sim-1.0 (an empty seam, the session, its step panel), `Source`, `IsRunning`, `RunVerb` (`/rm sim <verb>`), `SetSimMode` through the one writer |
+| `modules/Preview.lua` | `NS.Preview`: what Test mode draws (the `20–25` placeholder), `Kind` (Sim wins), `Refresh`, the one caller of `NS.Range.SetSource` and `NS.Container.SetPreview`; `SetTestMode` through the one writer |
 | `modules/Diagnostics.lua` | The `/rm diagnostics` report's sections |
 | `settings/Schema.lua` | `LibKa0s-Schema-1.0` instance and its runtime-completing stub: `NS.SetByPath`, `NS.FindSchemaRow`, `NS.ApplyDefault`, `NS.SchemaForPage`, `NS.ValidateSchema`. LOAD-BEARING |
 | `settings/Slash.lua` | `NS.COMMANDS` and the `LibKa0s-Slash-1.0` descriptor. LOAD-BEARING |
@@ -73,10 +77,10 @@ Wired, one setup file each: Core, Env, Compat, Media, Skin, Bus, Lifecycle, Perf
 Schema (in `settings/Schema.lua`), Slash, Options, Pool (`core/PoolSetup.lua`: the container
 instances and the spell chips). Widgets is read where it is drawn, as the library's optional
 widgets are: `W.Bar` for the bar indicator (`modules/Elements_Indicator.lua`, a flat strip without
-it) and the drag strip on unlocked screen containers (`modules/Anchors_Screen.lua`); its test strip
-arrives with plan Task 7. Vendored but not yet wired
-(normal: adoption is per module): Sim (Sim mode's distance sweep, Task 7), Tooltip, Role, Item, Glow,
-Callout, Charts, IconBrowser, Toast and WaypointArrow.
+it), the drag strip on unlocked screen containers (`modules/Anchors_Screen.lua`) and the TestStrip a
+container wears in Test mode and Sim mode (`modules/Container.lua`). Sim is wired in
+`modules/Sim.lua` (Sim mode's sweep, on an empty seam). Vendored but not yet wired (normal: adoption
+is per module): Tooltip, Role, Item, Glow, Callout, Charts, IconBrowser, Toast and WaypointArrow.
 
 ## Media
 
