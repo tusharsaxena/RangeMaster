@@ -298,3 +298,11 @@ docs), each finding adversarially verified, one fix pass; then every doc that na
 engine (docs/schema.md, settings-panel.md, data-flow.md, module-map.md, ARCHITECTURE.md, compat-layer.md,
 midnight-quirks.md, smoke-tests.md with the owner's in-game probes, README), test-cases.md regenerated, the
 badge, a 20-plate perf scenario, the gate, push.
+
+## Follow-up (2026-11-19, after the merge): beyond shows OOR
+
+The owner ruled that when every spell says out of range the display reads OOR, not unknown, wherever the
+yards put the bracket (the band-matrix workbook showed 30-40 yd unknown on most classes). `beyondHolds`
+no longer yields to the beyond band's fallback yards; it still yields while the bracket reaches into a gap
+band's yards, so the hunter dead zone is never called OOR on a guess. Branch
+`fix/2026-11-19-beyond-shows-oor`.

@@ -337,7 +337,7 @@ Total.
 - compat: ShapeshiftFormID answers the form, nil for none, a secret, a raise or no API
 - compat: the degraded load's anchor reads answer nil
 
-### test_range.lua (48)
+### test_range.lua (49)
 
 - range: test_known_bracket — a 20 to 25 yd answer reads known 20, 25
 - range: the library is asked with no cache of its own (maxCacheAge 0)
@@ -376,6 +376,7 @@ Total.
 - anchors: LibRangeCheck's CHECKERS_CHANGED rebuilds while up, and is dropped by the stand-down
 - rules: the owner's case: a 35-40 bracket with Auto Shot in range reads AUTO, not OOR
 - rules: the dead zone holds only when a shorter check confirms the target is near
+- rules: every spell out of range reads OOR, short of beyond's yards too (owner, 2026-11-19)
 - rules: an unlearned anchor falls back to its band's yards, and unknown stays unknown
 - rules: a nil or secret answer is no answer: the yards decide, or unknown
 - rules: yards that contradict a band's own anchor read unknown
@@ -918,7 +919,7 @@ Total.
 | test_visibility.lua | 11 |
 | test_sounds.lua | 12 |
 | test_compat.lua | 14 |
-| test_range.lua | 48 |
+| test_range.lua | 49 |
 | test_ticker.lua | 13 |
 | test_envsetup.lua | 6 |
 | test_coresetup.lua | 8 |
@@ -958,4 +959,4 @@ Total.
 | test_skin_switch.lua | 6 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **724** |
+| **Total** | **725** |

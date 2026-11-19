@@ -37,8 +37,10 @@ local _, NS = ...
 --   spell(role) holds on its anchor's true (NS.Range.RoleInRange); on a nil it is a yard band;
 --   gap holds when the ranged anchor says false, the melee anchor does not say true and a shorter
 --     check confirms the unit is near (NS.Range.Near);
---   beyond holds when every spell band's anchor said false and no gap holds, unless the bracket lies
---     wholly short of its fallback yards (its far bound under the band's `from`).
+--   beyond holds when every spell band's anchor said false and no gap holds, whatever its fallback
+--     yards say (the owner, 2026-11-19: a 30 yd spell out of range reads OOR, not unknown), unless the
+--     bracket still reaches into a gap band's yards (its near bound under that band's `to`): a dead
+--     zone the shorter check could not confirm is never called out of range on a guess.
 -- When none holds, the band the yards pick is taken unless that band's own anchor contradicts it
 -- (a spell band whose anchor said false, a gap band while an anchor says true): then, as with no
 -- bracket, the answer is "unknown", never out of range. A set with no rule reads its yards alone
@@ -238,7 +240,7 @@ end
 -- One Resolve's reading, reused (Resolve never re-enters): each spell band's answer, NONE for nil.
 local NONE = {}
 local answers = {}
-local cur = { bands = nil, unit = nil, state = nil, maxYd = nil, gap = nil }
+local cur = { bands = nil, unit = nil, state = nil, minYd = nil, maxYd = nil, gap = nil }
 
 local function answerOf(i, rule)
     local v = answers[i]
@@ -261,17 +263,22 @@ local function gapHolds()
     return cur.gap
 end
 
---- Whether the bracket lies wholly short of band `i`'s fallback yards (its far bound under the band's
---- `from`; a bracket ending at `from` may still reach it): the yards then rule the band out, whatever
---- the spells say.
-local function shortOf(i)
-    local from = cur.bands[i].from
-    return cur.state == "known" and type(cur.maxYd) == "number" and type(from) == "number" and cur.maxYd < from
+--- Whether the bracket may still lie in a gap band's yards (its near bound under that band's `to`):
+--- the unit may be in the dead zone, so beyond may not call it out of range.
+local function inGapYards()
+    if cur.state ~= "known" then return false end
+    local lo = type(cur.minYd) == "number" and cur.minYd or 0
+    local bands = cur.bands
+    for i = 1, #bands do
+        local r, to = ruleOf(bands[i]), bands[i].to
+        if r and r.type == "gap" and type(to) == "number" and lo < to then return true end
+    end
+    return false
 end
 
---- Whether the beyond band at index `at` holds.
-local function beyondHolds(at)
-    if shortOf(at) then return false end
+--- Whether the beyond band holds (see the header: every spell band out, no gap, no dead-zone yards).
+local function beyondHolds()
+    if inGapYards() then return false end
     local bands, any = cur.bands, false
     for i = 1, #bands do
         local r = ruleOf(bands[i])
@@ -306,14 +313,14 @@ local function holds(i, pick)
     elseif r and r.type == "gap" then
         return gapHolds()
     elseif r then
-        return beyondHolds(i)
+        return beyondHolds()
     end
     return pick == i
 end
 
-local function resolveRules(bands, pick, state, maxYd, unit)
+local function resolveRules(bands, pick, state, minYd, maxYd, unit)
     for i = 1, #bands do answers[i] = nil end
-    cur.bands, cur.unit, cur.state, cur.maxYd, cur.gap = bands, unit, state, maxYd, nil
+    cur.bands, cur.unit, cur.state, cur.minYd, cur.maxYd, cur.gap = bands, unit, state, minYd, maxYd, nil
     local out = "unknown"
     for i = 1, #bands do
         if holds(i, pick) then
@@ -338,7 +345,7 @@ function BandSets.Resolve(setId, state, minYd, maxYd, unit)
     if not set or #set.bands == 0 then return "unknown" end
     local pick = state == "known" and yardPick(set, minYd, maxYd) or nil
     if not hasRule(set.bands) then return pick or "unknown" end
-    return resolveRules(set.bands, pick, state, maxYd, unit)
+    return resolveRules(set.bands, pick, state, minYd, maxYd, unit)
 end
 
 --- The set a container uses for `unit`: its friendly override when one is set, exists and the client

@@ -168,8 +168,8 @@ unless a replacement was named), and the last set cannot be deleted. Names stay 
 `Caster 40 copy 2`), as containers do, so `/rm bands <name>` names one set. A band may carry a rule
 (dynamic-bands plan): `spell(role)` holds on its anchor's true, `gap` when the ranged anchor says
 false, the melee one does not say true and a shorter check confirms near (`NS.Range.Near`), and
-`beyond` when every spell band's anchor said false, unless the bracket's far bound lies short of the
-beyond band's fallback `from` (the yards rule it out). `Resolve` walks the bands in order and takes the
+`beyond` when every spell band's anchor said false, whatever its fallback yards say, unless the
+bracket's near bound still lies inside a gap band's yards (an unconfirmed dead zone). `Resolve` walks the bands in order and takes the
 first that holds, a yard band or a spell band with no answer holding by its yards; with none, the
 yards' band unless its own anchor contradicts it, else `"unknown"`, never out of range. A
 non-hunter's melee true is voided when the bracket's near bound is 20 yd or more. The Hunter preset is two lists,

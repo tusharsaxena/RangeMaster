@@ -916,12 +916,30 @@ test("rules: the dead zone holds only when a shorter check confirms the target i
     assertEqual(resolve(setId, spec), 4, "nothing confirms near, every anchor out: OOR")
     spec.bracket = { 5, 10 }
     assertEqual(resolve(setId, spec), "unknown",
-      "a bracket reaching past the min confirms nothing, and a bracket short of beyond's yards is never OOR")
+      "a bracket reaching into the dead zone's yards confirms nothing: unknown, never OOR")
     spec.bracket = { 30, 40 }
     assertEqual(resolve(setId, spec), 4, "a bracket reaching into beyond's yards: OOR")
     spec.bracket = { 5, 10 }
     spec.interact[3], spec.inRange[75] = true, true
     assertEqual(resolve(setId, spec), 3, "the ranged anchor in range is never the dead zone")
+  end)
+end)
+
+test("rules: every spell out of range reads OOR, short of beyond's yards too (owner, 2026-11-19)", function()
+  -- red under: a beyond that gives way to the yards (a Forever caster's 30-yd spell left 30-40 unknown).
+  local bands = {
+    { from = 0, to = 8, label = "CLOSE" },
+    { from = 8, to = 40, label = "CAST", rule = { type = "spell", role = "ranged" } },
+    { from = 40, label = "OOR", rule = { type = "beyond" } },
+  }
+  local spec = { bands = bands, class = "MAGE", anchors = { ranged = { 133 } }, known = { [133] = true },
+    info = { [133] = { "Fireball", 133, 0, 35 } }, bracket = { 30, 35 }, inRange = { [133] = false } }
+  withRules(spec, function(setId)
+    assertEqual(resolve(setId, spec), 3, "Fireball out of range at 30-35: OOR, not unknown")
+    spec.inRange[133] = true
+    assertEqual(resolve(setId, spec), 2, "Fireball in range: CAST")
+    spec.bracket = { 0, 5 }
+    assertEqual(resolve(setId, spec), 1, "a nearer yard band still wins in band order")
   end)
 end)
 
