@@ -76,9 +76,11 @@ NS.CONTAINER_TEMPLATE = {
     -- the elements centered in it (modules/Container.lua, Instance:Layout).
     layout = { direction = "row", spacing = 4, padding = 4, scale = 1, alpha = 1,
                sizing = "fit", width = 120, height = 28 },
+    -- border.alpha multiplies the border color's own alpha in every color mode (modules/Container.lua
+    -- Paint). A container stored before schemaVersion 1 was given 1 by that step (core/Database.lua).
     frame = {
-        border = { enabled = true, texture = "", size = 1, colorMode = "band", color = white() },
-        background = { enabled = false, colorMode = "band", color = C.HexColor("000000", 0.5), bandAlpha = 0.15 },
+        border = { enabled = true, texture = "", size = 1, colorMode = "band", color = white(), alpha = 0.25 },
+        background = { enabled = true, colorMode = "band", color = C.HexColor("000000", 0.5), bandAlpha = 0.15 },
     },
     elements = {
         -- An ARRAY: the load pass never backfills it index by index; it appends a missing name once.

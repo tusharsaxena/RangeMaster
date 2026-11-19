@@ -439,3 +439,19 @@ test("settings: test_position_rows — each attach mode reads as AuraMaster's: i
   assertNil(strata.shownWhen, "Frame strata applies in every mode, so every mode draws it")
   assertEqual(strata.subgroup, byPath["container.anchor.mode"].subgroup, "under Attach to")
 end)
+
+test("settings: Display > Frame > Border ends with Border opacity, a percent slider after the color pair", function()
+  -- Red under the v0.1.0 page, which had no border opacity row.
+  local border = {}
+  for _, row in ipairs(NS.Schema) do
+    if row.page == "containers_display" and row.subgroup == NS.L["Border"] then border[#border + 1] = row end
+  end
+  table.sort(border, function(a, b) return a.order < b.order end)
+  local opacity = border[#border]
+  assertEqual(opacity.path, "container.frame.border.alpha", "the last Border row")
+  assertEqual(opacity.label, NS.L["Border opacity"])
+  assertEqual(opacity.group, NS.L["Frame"])
+  assertEqual(border[#border - 1].path, "container.frame.border.colorMode", "right after the color pair")
+  assertTrue(opacity.isPercent, "shown as a percent")
+  assertEqual(opacity.min, 0); assertEqual(opacity.max, 1); assertEqual(opacity.step, 0.05)
+end)

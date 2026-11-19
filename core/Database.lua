@@ -186,10 +186,47 @@ function NS:InitDB()
 end
 
 -- The migration ladder. Each step is idempotent against a fresh default profile; the runner owns the
--- stamp and advances it only past a step that returned without raising. v0.1.0 ships the first data
--- shape, so there is nothing to migrate from yet and the ladder is empty: the stamp stays 0, which is
--- also the declared default (AceDB strips a stored value equal to it at logout, so 0 is safe).
-local SCHEMA_STEPS = {}
+-- stamp and advances it only past a step that returned without raising. The declared default stays 0
+-- (AceDB strips a stored value equal to it at logout, so 0 is safe); a fresh install climbs every step
+-- at once against a profile with no container, which changes nothing.
+
+--- Every stored profile once: AceDB's db.profiles (the raw SavedVariables' table), the kit's db.sv
+--- view of the same, and the active profile (the only one the soft fallback has).
+local function eachProfile(db, fn)
+    local seen = {}
+    local function visit(p)
+        if type(p) == "table" and not seen[p] then
+            seen[p] = true
+            fn(p)
+        end
+    end
+    local function visitAll(list)
+        if type(list) == "table" then
+            for _, p in pairs(list) do visit(p) end
+        end
+    end
+    visitAll(db.profiles)
+    visitAll(type(db.sv) == "table" and db.sv.profiles)
+    visit(db.profile)
+end
+
+--- v0 -> v1, the frame defaults: a new container's border is drawn at 25% and its dot is matte. A
+--- container already stored keeps its look: full border opacity and the plain dot, where unset.
+local function keepStoredLook(db)
+    eachProfile(db, function(p)
+        if type(p.containers) ~= "table" then return end
+        for _, c in pairs(p.containers) do
+            local border = type(c) == "table" and type(c.frame) == "table" and c.frame.border
+            if type(border) == "table" and border.alpha == nil then border.alpha = 1 end
+            local ind = type(c) == "table" and type(c.elements) == "table" and c.elements.indicator
+            if type(ind) == "table" and ind.style == nil then ind.style = "plain" end
+        end
+    end)
+end
+
+local SCHEMA_STEPS = {
+    { to = 1, apply = keepStoredLook },
+}
 
 --- The runner's target: the highest step's `to`, or 0 with no step.
 NS.SCHEMA_VERSION = SCHEMA_STEPS[#SCHEMA_STEPS] and SCHEMA_STEPS[#SCHEMA_STEPS].to or 0

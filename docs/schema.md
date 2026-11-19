@@ -105,9 +105,12 @@ path against its template. The template gained `elements.number.shadow` and `ele
 
 ## Migrations
 
-`core/Database.lua`'s ladder is empty: v0.1.0 ships the first data shape, `NS.SCHEMA_VERSION` is 0 and
-a fresh install stays stamped 0. The runner climbs from `db.global.schemaVersion`, advances the stamp
+`core/Database.lua`'s ladder has one step, so `NS.SCHEMA_VERSION` is 1 (the declared default stays 0).
+**v0 -> v1, the frame defaults:** a new container draws its border at 25% (`frame.border.alpha`, new)
+over a background (`frame.background.enabled` now true) with a matte dot; so that an existing one keeps
+its look, the step writes `frame.border.alpha = 1` and `elements.indicator.style = "plain"`, where
+unset, onto every container already stored, in every profile (`db.profiles`, `db.sv.profiles` and the
+active profile). A fresh install climbs it against a profile with no container. The runner climbs from `db.global.schemaVersion`, advances the stamp
 only past a step that returned, and on a raising step prints one line and leaves the stamp where it
 was. After the ladder, the active profile is backfilled from the defaults with `== nil` tests, so a
-stored `false` survives (savedvariables-§5), and the registries' load pass runs (above). The first real step will be the first change to a stored
-shape after v0.1.0 ships.
+stored `false` survives (savedvariables-§5), and the registries' load pass runs (above).

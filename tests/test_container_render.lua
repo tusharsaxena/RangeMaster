@@ -226,6 +226,31 @@ test("render: test_color_modes — band, fixed and class, for the number, the bo
   end, "MAGE")
 end)
 
+test("render: the border paints at its own opacity, 25% by default, in every color mode", function()
+  -- Red under the v0.1.0 Paint, which drew the border at its color's own alpha.
+  withRenderer(function()
+    local fixed = { r = 0.2, g = 0.4, b = 0.6, a = 0.8 }
+    local _, setId, inst = newContainer()
+    local bandA = band(setId, 3).frameColor.a or 1
+    assertTrue(near(M.__paint(inst.border.strips[1]).color[4], bandA * 0.25), "band: 25% by default")
+    assertTrue(inst.background:IsShown(), "the background is on by default")
+
+    local _, _, migrated = newContainer({ frame = { border = { alpha = 1 } } })
+    assertTrue(near(M.__paint(migrated.border.strips[1]).color[4], bandA), "a migrated container keeps 100%")
+
+    local _, _, inst2 = newContainer({ frame = { border = { colorMode = "fixed", color = fixed, alpha = 0.5 } } })
+    assertTrue(near(M.__paint(inst2.border.strips[1]).color[4], 0.4), "fixed: the color's alpha times the opacity")
+
+    local _, _, inst3 = newContainer({ frame = { border = { colorMode = "class", color = fixed, alpha = 0.5 } } })
+    assertTrue(near(M.__paint(inst3.border.strips[1]).color[4], 0.4), "class: the same")
+
+    local _, _, over = newContainer({ frame = { border = { colorMode = "fixed", color = fixed, alpha = 3 } } })
+    assertTrue(near(M.__paint(over.border.strips[1]).color[4], 0.8), "an opacity over 1 is clamped to 1")
+    local _, _, under = newContainer({ frame = { border = { colorMode = "fixed", color = fixed, alpha = -1 } } })
+    assertTrue(near(M.__paint(under.border.strips[1]).color[4], 0), "and one under 0 to 0")
+  end, "MAGE")
+end)
+
 test("render: an unknown range reads the set's gray ? on every element, never a band", function()
   withRenderer(function(_, LRC)
     -- A raise: unknown on both clients (a nil answer on Forever walks the Compat ladder instead).

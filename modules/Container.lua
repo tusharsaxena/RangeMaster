@@ -390,7 +390,12 @@ end
 function Instance:Paint(ctx)
     local c = self.container
     local bd, bg = c.frame.border, c.frame.background
-    if bd.enabled then Style.PaintBorder(self.border, Style.Color(bd.colorMode, bd.color, ctx, "frameColor")) end
+    if bd.enabled then
+        local r, g, b, a = Style.Color(bd.colorMode, bd.color, ctx, "frameColor")
+        local k = tonumber(bd.alpha) or 1
+        if k < 0 then k = 0 elseif k > 1 then k = 1 end
+        Style.PaintBorder(self.border, r, g, b, a * k)
+    end
     if bg.enabled then
         local r, g, b, a = Style.Color(bg.colorMode, bg.color, ctx, "frameColor")
         if bg.colorMode == "band" then a = a * (tonumber(bg.bandAlpha) or 0.15) end

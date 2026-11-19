@@ -8,7 +8,8 @@ local _, NS = ...
 --              [Size] / [Width (px)] [Height (px)]  (grayed while Size fits the content)
 --              -- Element order --  a drag list, one row per element: handle, on/off tick, name; the
 --              elements turned on first and only they drag
---     Frame    -- Border --      the composed border block (options-ui-§16), Show border first
+--     Frame    -- Border --      the composed border block (options-ui-§16), Show border first, then
+--                                [Border opacity] as the block's extra
 --              -- Background --  [Show background], the background swatch and its color mode,
 --                                [Band tint opacity]
 --     Number   [Show number] [Format]  -- Font --  the composed Font block
@@ -98,6 +99,11 @@ add(H.BorderGroup({
     show = true, classColor = UNIT_CLASS,
     keys = { borderShow = "enabled", borderStyle = "texture", borderSize = "size", borderColor = "color",
              useClassColorBorder = "colorMode" },
+    extra = {
+        { path = "container.frame.border.alpha", type = "number", startsLine = true, min = 0, max = 1,
+          step = 0.05, isPercent = true, label = L["Border opacity"],
+          desc = L["How opaque the border is, multiplying its color's own opacity in every color mode."] },
+    },
 }))
 add({
     { path = "container.frame.background.enabled", page = PAGE, group = FRAME, subgroup = L["Background"],
