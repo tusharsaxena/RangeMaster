@@ -37,6 +37,10 @@ The owner's rulings for this run (2026-11-19):
 | M4 | The five presets | done | `b80fa90` |
 | M5 | Review: parallel reviewers, adversarially verified, fixes | done | `2c6518c` |
 | M6 | Docs sweep, test-case list, badge, gate, push | done | `5d735d9` |
+| M7 | Display > Label tab: a name caption on each container | pending | |
+| M8 | Band preview blocks removed from the settings | pending | |
+| M9 | Halo-free styles drawn at the old art's fill | pending | |
+| M10 | Review of M7-M9, fixes, docs, push | pending | |
 
 ## M1. Indicator art and styles
 
@@ -104,3 +108,40 @@ Every doc that names the old presets, the Indicator entry, the old art or the ol
 (`docs/settings-panel.md`, `docs/smoke-tests.md`, `docs/data-flow.md`, `docs/module-map.md`,
 `docs/schema.md`, `README.md`), `docs/test-cases.md` regenerated
 (`lua tests/run.lua --list`), the README test badge, the gate, push.
+
+## Added 2026-11-19, after M6 (the owner's requests during the run)
+
+### M7. Display > Label tab
+
+A caption naming the display (the owner: "where can I set the container labels, decide where to show
+them and select text styling options"). New container fields under `label`:
+`enabled` (default false, so no stored container changes and no migration is needed), `text` (""
+means the container's name, the Name row on General), `position` (`top`, `bottom`, `left`, `right`:
+outside the elements but INSIDE the root, so the root's size includes it and the drag strip and the
+preview strips, which sit on the root's top edge, clear it), `align` (`left`, `center`, `right` for
+top/bottom), `gap` (px between caption and elements), and the font block the Number and Text tabs
+use (font, size, outline, shadow) plus a color pair (`color`, `colorMode`: band / fixed / class, as
+the other elements). Drawn by `modules/Container.lua` as a FontString on the root's overlay, laid out
+in `Instance:Layout` with the cells (a fixed-size container keeps its box: the caption goes inside it
+as well). A Label tab in Containers > Display after Text, rows in the order above; the Text row's
+EditBox applies on Enter. Tests: the caption's text (name fallback, own text), each position's
+placement and the root's grown size, hidden while disabled, the color modes.
+
+### M8. Band preview blocks removed
+
+Remove the band preview from the settings wherever it shows: Containers > General's Preview section
+(`settings/Containers.lua` renderPreview and its strings) and the band ribbon over the Bands list on
+the Band sets page (`settings/BandSets.lua` renderBands). `/rm bands` keeps its chat line (command
+output, not a settings preview). Delete strings nothing uses; `NS.BandRibbon` stays only if something
+still calls it. Tests and docs that named the preview follow.
+
+### M9. Halo-free styles at the old fill
+
+M1 draws every shape at about 70% of the 128 box (room for halos); the old art filled about 87%, so a
+migrated container (style `plain`) draws a visibly smaller shape at the same Size. Plain, matte,
+glossy and gem are drawn at the old art's fill; glowing and neon keep the smaller core with the halo
+around it. Regenerate the tiles; the art tests follow (the border-transparency check still holds).
+
+### M10. Review
+
+As M5 and M6, over M7-M9's diff.
