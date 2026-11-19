@@ -24,7 +24,7 @@ unless a check names one. The anchors are run as a matrix, one result per mode a
 | RANGE-1..11 | Range engine | brackets, unknown, the Forever ladder, the ticker's rate and stop, the seed spells; the anchor probes: reported ranges under talents, rank IDs, the talent event, overrides, Auto Shot unarmed |
 | DRAW-1..5 | Containers drawn | brackets drawn, unknown gray, elements and order, the skin face, disable |
 | CONT-1..10 | Containers page | New container (no band preview), the rail, Position, Duplicate / Delete / Copy settings from, Defaults, Color from, the Dot tab and its Style tiles, Border opacity, the caption's positions, the caption's styling |
-| BANDS-1..10 | Band sets page | the picker, the Bands editor (no band ribbon), shared sets, the friendly override, the unknown label; spell bands: the rule controls, the read-out, the owner's Hawk Eye case, the dead zone, the v1 -> v2 conversion |
+| BANDS-1..11 | Band sets page | the picker, the Bands editor (no band ribbon), shared sets, the friendly override, the unknown label; spell bands: the rule controls, the read-out, the owner's Hawk Eye case, the dead zone, the v1 -> v2 conversion, the band rail |
 | PRESET-1..4 | Presets | the first-run picker, Apply on an empty profile, Apply over containers with Undo, what each of the five shows |
 | ANCHOR-1..8 | Anchors | every mode on both clients: screen, unit frames (Blizzard, EllesmereUI, custom, missing), own nameplate, all nameplates, cursor, the picker |
 | VIS-1..3 | Visibility | combat and reaction rules, out-of-combat opacity, the master rows |
@@ -334,9 +334,10 @@ a training dummy for each. The spell IDs are the anchors in `defaults/SpellSeeds
   `(default)`; **New band set** makes and selects one; **Duplicate band set** makes `<name> copy`;
   **Delete band set…** asks first and moves its containers to the default set; deleting the last set
   prints `The last band set cannot be deleted.` Result:
-- **BANDS-2. The Bands editor.** Bands → a heading per band, no ribbon above them; change a band's
-  **Up to** → the next band starts there and the headings follow; **Add band** splits a band off the
-  open-ended last one; **Remove band** removes one, and the last band left cannot be removed. Result:
+- **BANDS-2. The Bands editor.** Bands → a rail of the bands on the left, no ribbon above it; change
+  a band's **Up to** → the next band starts there and the rail entries follow; **Add band** splits a
+  band off the open-ended last one; **Remove band** removes one, and the last band left cannot be
+  removed. Result:
 - **BANDS-3. Shared.** Put two containers on one set and change a band's Frame color → both change
   at once, without a reload. Result:
 - **BANDS-4. Friendly override.** On a target container set Friendly band set to Healer, target an
@@ -367,6 +368,19 @@ a training dummy for each. The spell IDs are the anchors in `defaults/SpellSeeds
   colors and sounds; the Hunter, Caster 40 and Melee / Ranged sets show Spell and Dead zone rules on
   their bands, a custom set's last band reads Beyond the last spell band, and a set used only as a
   Friendly band set has a `(Spell: Friendly)` band. Result:
+- **BANDS-11. The band rail.** Band sets → Bands on the Hunter set → a rail on the left lists
+  `1 MELEE · 0–5 yd`, `2 DEAD · 5–8 yd`, ... each led by a square of its frame color, the labels inside
+  the rail's border (none runs past its right edge), and beside it band 1's heading and controls
+  only. Hover an entry → its tooltip is the band's full heading. Click band 3 → band 3's controls
+  show, its entry white and highlighted, the others gold; change its Label → the page redraws and
+  band 3 stays selected, its entry showing the new label; drag its Fallback → its entry's span and the
+  next one's follow and band 3 stays selected. Change its Frame color → its chip follows. Remove band
+  on band 3 → band 4 (now 3) is selected; Remove band on the last band → the one before it is
+  selected. **Add band** → the new band is selected. Pick another band set in the banner → band 1 of
+  that set is selected. Close and reopen the panel → the selection is kept; `/reload` → band 1. Enter
+  combat with the page open → the lock covers the rail and a click on it does nothing. With a skin
+  on (General > Skin) → the rail pane and entries take the skin like the Containers page's rail.
+  Result:
 
 ## Presets
 

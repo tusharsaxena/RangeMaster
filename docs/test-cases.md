@@ -649,7 +649,7 @@ Total.
 - settings: test_dot_style_tiles_onrelease — a release the page does not see still takes the tiles off their slot
 - settings: test_dot_shape_row — the Shape row offers the seven shapes, Bar and Spell icon, and /rm set takes the new ones
 
-### test_settings_bandsets.lua (11)
+### test_settings_bandsets.lua (16)
 
 - bandsets: test_bandset_paths_get_set — /rm set bandSet.matchBy changes the selected band set
 - bandsets: SetBand moves an edge and the next band follows; an edge that would leave no width is refused
@@ -662,6 +662,11 @@ Total.
 - bandsets: the read-out names the anchor in use and its reported range, or the fallback yards
 - bandsets: the Bands tab draws the rule controls, Fallback on rule bands, and the rule in each heading
 - bandsets: a rebuild that moves an anchor redraws the page (the read-out)
+- bandsets: the Bands tab lists every band on a rail and draws only the selected band
+- bandsets: a rail click selects its band, and the selection survives a redraw
+- bandsets: removing a band selects its neighbor, and Add band selects the new band
+- bandsets: an edge change keeps the selected band, and a band the set lost is clamped
+- bandsets: switching band set resets the band selection to band 1
 
 ### test_settings_presets.lua (14)
 
@@ -935,7 +940,7 @@ Total.
 | test_optionssetup.lua | 16 |
 | test_realpages.lua | 7 |
 | test_settings_containers.lua | 30 |
-| test_settings_bandsets.lua | 11 |
+| test_settings_bandsets.lua | 16 |
 | test_settings_presets.lua | 14 |
 | test_skinsetup.lua | 12 |
 | test_skin_picker.lua | 16 |
@@ -958,4 +963,4 @@ Total.
 | test_skin_switch.lua | 6 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **724** |
+| **Total** | **729** |
