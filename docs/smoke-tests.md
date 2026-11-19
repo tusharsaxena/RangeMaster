@@ -271,8 +271,8 @@ RANGE-1 to RANGE-4 are run through a target container. RANGE-5 needs only the ch
   `(default)`; **New band set** makes and selects one; **Duplicate band set** makes `<name> copy`;
   **Delete band set…** asks first and moves its containers to the default set; deleting the last set
   prints `The last band set cannot be deleted.` Result:
-- **BANDS-2. The Bands editor.** Bands → the ribbon shows every band in its color; change a band's
-  **Up to** → the next band starts there and the ribbon follows; **Add band** splits a band off the
+- **BANDS-2. The Bands editor.** Bands → a heading per band, no ribbon above them; change a band's
+  **Up to** → the next band starts there and the headings follow; **Add band** splits a band off the
   open-ended last one; **Remove band** removes one, and the last band left cannot be removed. Result:
 - **BANDS-3. Shared.** Put two containers on one set and change a band's Frame color → both change
   at once, without a reload. Result:

@@ -224,7 +224,8 @@ test("settings: the Containers page draws the banner with New container, and New
     labels = E.labels(ctx)
     assertTrue(labels["Duplicate container"] and labels["Delete container\226\128\166"],
       "the General tab carries the acts on the selected container")
-    assertTrue(labels["Preview"], "and the band preview")
+    -- Red under the General tab still drawing the band Preview section (plan M8).
+    assertNil(labels["Preview"], "and no band preview")
   end)
 end)
 

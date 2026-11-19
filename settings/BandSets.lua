@@ -5,8 +5,7 @@ local _, NS = ...
 --     strip  [ General ][ Bands ]
 --     General  [Name] [Match band by] / -- Unknown range -- [Unknown label] [Unknown color]
 --              Used by: Target, Pet            [Duplicate band set] [Delete band set…]
---     Bands    0–5 MELEE   5–20 CLOSE   20–30 MID   30–40 LONG   40+ OOR   ?     <- the distance ribbon
---              -- Band 1: 0–5 MELEE --  [Up to (yards)] [Label] / [Frame color] [Text color] /
+--     Bands    -- Band 1: 0–5 MELEE --  [Up to (yards)] [Label] / [Frame color] [Text color] /
 --                                       [Dot color] [Sound on enter] / [Remove band]
 --              ...                      [Add band]
 --
@@ -219,7 +218,6 @@ end
 local function renderBands(ctx)
     local set, id = NS.SelectedBandSet()
     if not set then return H.TextRow(ctx, L["No band set exists yet."]) end
-    H.TextRow(ctx, NS.BandRibbon(set))
     for i, b in ipairs(set.bands) do
         H.Section(ctx, bandHeading(i, b))
         H.RenderGrid(ctx, bandItems(id, set, i))
@@ -278,7 +276,7 @@ NS.__renderBandSetsPage = function(ctx) return render(ctx) end
 NS.__bandItems = bandItems
 
 -- A band-set write from anywhere (this page, a preset, `/rm set bandSet.*`) redraws the pages on the
--- next frame: the ribbon, the band headings and the Containers page's band-set pickers all read it.
+-- next frame: the band headings and the Containers page's band-set pickers all read it.
 local target = NS.NewBusTarget and NS.NewBusTarget()
 if target then target:RegisterMessage(NS.MSG.BANDSETS_CHANGED, function() NS.RequestPanelRefresh() end) end
 

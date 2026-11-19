@@ -9,7 +9,6 @@ local _, NS = ...
 --                            [Friendly band set]
 --                            [Duplicate container] [Delete container…]
 --                            -- Copy settings from --  [Source v] [Copy onto this container]
---                            -- Preview --  every band of the band set, in its own color
 --
 -- ONE PAGE, A RAIL OF FOUR ENTRIES (options-ui-§13, §14; design spec 5.6). The band carries the page's
 -- only picker and its create act (O.PageBanner with `action`); the rail chooses which part of the
@@ -389,17 +388,6 @@ local function renderCopy(ctx)
     }, nil)
 end
 
---- The selected container's band set, drawn band by band in each band's frame color: the page's
---- preview (the mockup's), read through the same band set the renderer reads.
-local function renderPreview(ctx, c)
-    local set = NS.BandSets.Get(NS.BandSets.ForUnit(c, c.unit)) or NS.BandSets.Get(NS.BandSets.DefaultId())
-    if not set then return end
-    H.Section(ctx, L["Preview"])
-    H.TextRow(ctx, NS.BandRibbon(set))
-    H.TextRow(ctx, L["Every band of the selected band set, in its own color. Test mode shows the same on screen."],
-        { fontObject = "GameFontDisableSmall" })
-end
-
 local function afterGeneral(ctx)
     local c = NS.SelectedContainer()
     if not c then return end
@@ -409,7 +397,6 @@ local function afterGeneral(ctx)
         { text = L["Delete container\226\128\166"], tooltip = L["Delete this container. Asks first."],
           onClick = doDelete })
     if #NS.CM.List() > 1 then renderCopy(ctx) end
-    renderPreview(ctx, c)
 end
 
 --- Pick on screen, under the frame rows: the pick-on-screen overlay (modules/FramePicker.lua), whose
@@ -443,7 +430,7 @@ NS.RegisterContainerSection(PAGE, GENERAL, {
 })
 
 -- ---------------------------------------------------------------------------
--- The band ribbon (the Preview here, and the Band sets page's distance ribbon)
+-- The band ribbon (`/rm bands`' chat line, settings/Slash.lua)
 -- ---------------------------------------------------------------------------
 
 --- A stored color as a `|cffRRGGBB` escape.
