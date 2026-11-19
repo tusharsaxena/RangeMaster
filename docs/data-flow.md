@@ -70,13 +70,15 @@ CONTAINERS_CHANGED ─► NS.Container.Sync ─► inst:Apply ─► NS.Anchors.
                                           └► missing: hidden, one debug line ─► ADDON_LOADED /
                                              PLAYER_ENTERING_WORLD ─► Retry
      nameplate  NS.Plates.Get(unit) ─► on the plate, or hidden; re-placed on the unit change and plates
-     plates     (nameplates container) NS.Plates.SyncAll ─► one instance per hostile plate (all with
-                includeFriendly)
+     plates     (nameplates / nameplatesExceptTarget container) NS.Plates.SyncAll ─► one instance per
+                hostile plate (all with includeFriendly; the target's skipped by nameplatesExceptTarget,
+                every plate asked again on a retarget)
                 both: nameplate.attachTo "castbar" ─► NS.FrameProviders.PlateCastBar ─► EllesmereUI's
                       cast bar, else the client's, else (or refused) the plate itself;
-                      "castbarWhenCasting" the same while the unit casts, else the plate
+                      "castbarWhenCasting" the same while the plate's cast bar is shown, else the plate
+cast bar OnShow / OnHide (hooked once per bar) ─► the "castbarWhenCasting" instances it pins placed again
 UNIT_SPELLCAST_* ─► addon:OnPlateCast ─► NS.Plates.CastChanged (tracked plate tokens only) ─►
-                    the "castbarWhenCasting" instances on that plate placed again
+                    the same instances placed again (a nudge: the event can precede the bar)
      cursor     one shared OnUpdate while a cursor container is shown ─► GetCursorPosition / scale
 NAME_PLATE_UNIT_ADDED ─► NS.Plates.Added ─► track (forbidden: nil) ─► instances built, own plates placed
                       └► next frame: the same again (a plate populated late)
@@ -166,7 +168,7 @@ normalized on each write and on load (sorted, contiguous from 0, last band open-
 band, at least one band), so `Resolve` is total over [0, infinity). `ForUnit(container, unit)` picks
 the container's `bandSetFriendly` when it is set, exists and `NS.Compat.IsFriend` says the unit is
 friendly, else its `bandSet`, else the default. The default set is the first in `bandSetOrder`; the
-first-run seed puts the class default there (`NS.BandSetPresets.DefaultFor`). Deleting a set moves
+first-run seed puts the class (and spec) default there (`NS.BandSetPresets.DefaultFor`; Devourer reads Caster 40). Deleting a set moves
 every container on it to the named replacement or the default (a friendly override on it falls away
 unless a replacement was named), and the last set cannot be deleted. Names stay unique, case-blind:
 `Create`, `Duplicate` (`"<name> copy"`) and `Rename` all go through `UniqueName` (`Caster 40 copy`,
@@ -180,7 +182,8 @@ unconfirmed dead zone). `Resolve` asks beyond first, so it wins over a yard band
 too; otherwise it walks the bands in order and takes the first that holds, a yard band or a spell
 band with no answer holding by its yards; with none, the yards' band unless its own anchor
 contradicts it, else `"unknown"`, never out of range. A role's anchor is a list of candidates
-(longest reported reach first; the first usable one answers), and a melee true is voided for every
+(a ranged or friendly list longest reported reach first, a melee list in seed order without a spell
+reported past 8 yd; the first candidate that can vouch answers, an unusable one passing to the next), and a melee true is voided for every
 class at a bracket near bound of 8 yd or more, while a min-range ranged anchor says true, or when the
 melee spell (or its live override) reaches past 8 yd. The Hunter preset is two lists,
 one per client, picked once at load (clients-§5): WoW Forever's has the 5-8 yd Auto Shot dead zone.
@@ -203,18 +206,23 @@ addon arms no timer, and the stand-up asks for one apply. A profile switch, copy
 three AceDB callbacks, `adoptProfile` in `core/RangeMaster.lua`) replaces the registry whole, so it
 asks for one apply too.
 
-`NS.Presets.Apply(key)` (`simple`, `text`, `numbers`, `advanced`, `expert`) snapshots, clears and creates through
+`NS.Presets.Apply(key)` (`simple`, `text`, `numbers`, `advanced`, `expert`, `ka0s`) snapshots, clears and creates through
 `NS.CM`, and answers the snapshot; `Undo` restores it (one level). The Undo slot belongs to the
 profile it was taken on: `adoptProfile` calls `ForgetUndo` on a switch, copy or reset. Every preset puts target, focus, pet and
 mouseover free on screen at their homes (`Presets.HOME`), each named by its caption at Outside top,
-on a faint frame (background and band-colored border on, the border and the band tint at 10%, the
-plate containers too) and the matte dot; only the elements differ. Simple: the dot. Intermediate
+shown for hostile units only (the pet, always friendly, at any reaction), on a faint frame (background
+and band-colored border on, the border and the band tint at 10%, the plate containers too) and the
+matte dot; a plate container sits on the cast bar while casting, else the plate, at offset 0
+(`nameplate.attachTo = "castbarWhenCasting"`); only the elements differ. Simple: the dot. Intermediate
 (Range Text, `text`): the band's text label. Intermediate (Range Numbers, `numbers`): the range
 number. Advanced: dot + number + text. Expert: Advanced with spell chips, the Healer set as the
-friendly override on target, focus and mouseover (reused by name, else created), sounds on target
-(its set's out-of-range band gets `NS.Presets.OOR_SOUND` through `NS.BandSets.SetBandSound` when it
-has no sound), plus target on its own nameplate (diamond + number) and every hostile nameplate (dot +
-the `max` number), both shown whenever their unit is there. `Describe(key)` feeds the
+friendly override on target, focus and mouseover (reused by name, else created; those three shown at
+any reaction), sounds on target (its set's out-of-range band gets `NS.Presets.OOR_SOUND` through
+`NS.BandSets.SetBandSound` when it has no sound), plus target on its own nameplate (diamond + number)
+and every hostile nameplate but the target's (`nameplatesExceptTarget`, dot + the `max` number), both
+shown whenever their unit is there. Ka0s (five containers): the four with number and text on one line
+on the class's own band set (by name, else created), the Healer set on friendly target, focus and
+mouseover, and the target's own plate with the number alone; no every-plate container and no sound. `Describe(key)` feeds the
 preset cards on General › Presets. `PickerDue` / `MarkPickerSeen` are the one runtime reader and
 writer of `profile.seeded`, the first-run preset picker's sentinel (`settings/Presets.lua` shows the
 picker and marks it seen as it shows). The picker's picks preview through `BeginPreview` /
@@ -251,14 +259,18 @@ with no unit. Colors read `band` (the band's frame, text or indicator color), `f
 `class` (the TRACKED unit's class color, the swatch's alpha kept, an unresolvable class falling
 through to the swatch; options-ui-§17, because a range container describes its unit; the
 color rows declare `classColorSource = "unit"`). The elements follow
-`elements.order` along `layout.direction`, `spacing` apart, centered across; only an enabled element
+`elements.order` along `layout.direction`, `spacing` apart, centered across, the block placed by
+`layout.align` (left, center, right) against the caption and inside a fixed box; only an enabled element
 is ever built, and one turned off is hidden. The caption (`label`, while enabled; no element of the
 order) sits between the padding and the elements' block on its side (top, bottom, left or right),
 `gap` px from it (no gap with no element shown), and the cells are offset by it: the block and the
 caption are centered on each other, and the root grows to hold both (a fixed-size box keeps its size,
 the caption inside it). Paint colors the caption with the frame and measures it again, so a width
 that moved lays the container out again. The number writes the bracket in one
-of six formats and `40+` for an open-ended one, never an invented far bound. The indicator draws
+of six formats and `40+` for an open-ended one, never an invented far bound, or in format `band` the
+drawn band's own span (a spell band's reported reach, beyond from the reach before it); with
+`layout.joinText` (on by default) it writes the band's label on the same line, in the text element's
+color, and the text element takes no cell. The indicator draws
 this addon's shape art in the stored style (`media/textures/indicators/<shape>_<style>`, matte by
 default; plain, matte, glossy and gem fill the box as the v0.1.0 art did, so a migrated `plain` dot
 keeps its size, and glowing and neon draw a smaller core inside their halo), LibKa0s-Widgets' data bar (fuller the nearer

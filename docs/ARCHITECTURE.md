@@ -6,7 +6,7 @@ in the topic docs registered under [Documentation map](#documentation-map) (docu
 ## Overview
 
 Ka0s Range Master draws player-built range **containers**: one unit each (`target`, `focus`, `pet`,
-`mouseover`, or every enemy nameplate), showing a range bracket as a number, a band label, an
+`mouseover`, every enemy nameplate, or every enemy nameplate but the target's), showing a range bracket as a number, a band label, an
 indicator and a row of spell chips, with an optional caption naming it, colored by a shared **band set**. The design and the plan of
 record are `docs/superpowers/specs/2026-11-18-rangemaster-design.md` and
 `docs/superpowers/plans/2026-11-18-rangemaster-v0.1.0.md`.
@@ -34,7 +34,7 @@ change. A secret or failed answer reads as *unknown*, never as out of range.
 |---|---|---|
 | Range engine | `modules/Range.lua` (`NS.Range`), `modules/Ticker.lua` (`NS.Ticker`), `core/Compat.lua` | A guarded, memoized bracket per unit token per tick; the per-class anchor spells resolved at rebuild and asked once per spell per unit per tick (shared with the chips); one adaptive ticker that sends `RANGE_UPDATED` on change |
 | Band sets | `modules/BandSets.lua` (`NS.BandSets`), `defaults/BandSetPresets.lua` | Named, shared, normalized bands of yards, each of which may carry a spell, dead-zone or beyond rule (its yards then the fallback); `Resolve` turns a bracket into a band, `ForUnit` picks the friendly override |
-| Containers and presets | `modules/ContainerManager.lua` (`NS.CM`), `modules/Presets.lua` (`NS.Presets`) | The container registry's one writer and its coalesced, combat-held apply; Simple, Intermediate (Range Text), Intermediate (Range Numbers), Advanced and Expert, with a one-level Undo |
+| Containers and presets | `modules/ContainerManager.lua` (`NS.CM`), `modules/Presets.lua` (`NS.Presets`) | The container registry's one writer and its coalesced, combat-held apply; Simple, Intermediate (Range Text), Intermediate (Range Numbers), Advanced, Expert and Ka0s, with a one-level Undo |
 | Rendering | `modules/Container.lua` (`NS.Container`), `modules/Style.lua`, `modules/Elements_*.lua` | One pooled instance per enabled container (one per plate for `nameplates` and `nameplatesExceptTarget`), repainted only on a band or text change |
 | Anchors | `modules/Anchors.lua` (`NS.Anchors`), `modules/Anchors_*.lua`, `modules/FrameProviders.lua`, `modules/FramePicker.lua` | Free on screen, on a unit frame, on a nameplate (own plate or every plate), at the cursor |
 | Behavior and modes | `modules/Visibility.lua`, `modules/Sounds.lua`, `modules/Preview.lua`, `modules/Sim.lua` | The visibility rules, the debounced band sounds, Test mode's placeholder and Sim mode's distance sweep |
@@ -148,7 +148,7 @@ stand-down takes every subscription down and a stand-up replays it.
 | `CONTAINERS_CHANGED` | `Ka0s_RangeMaster_ContainersChanged` | `modules/ContainerManager.lua` (`FlushPending`, coalesced to the next frame, held in combat) | none | the renderer (`NS.Container.Sync`) |
 | `BANDSETS_CHANGED` | `Ka0s_RangeMaster_BandSetsChanged` | `modules/BandSets.lua` (every writer: `Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`, `SetField`, `SetBand`, `AddBand`, `RemoveBand`, `SetBandSound`, `SetBandRule`, `RestoreSnapshot`; never the load pass) | none | the renderer (`Repaint`) and `settings/BandSets.lua` (a redraw of the pages, coalesced to the next frame) |
 | `ANCHORS_CHANGED` | `Ka0s_RangeMaster_AnchorsChanged` | `modules/Range.lua` (the debounced rebuild, only when a band rule's resolved anchor spell, its reported range, or the anchor a druid's form puts in use moved) | none | the renderer (`Repaint`); the Band sets page (`settings/BandSets.lua`, a redraw for the spell bands' read-out) |
-| `MODE_CHANGED` | `Ka0s_RangeMaster_ModeChanged` | `core/RangeMaster.lua` (`NS.SetTestMode`, `NS.SetSimMode`) | `mode` (`"test"` or `"sim"`), `on`, `why` | `modules/Preview.lua` (what the displays draw) and `modules/Sim.lua` (starts or stops the sweep) |
+| `MODE_CHANGED` | `Ka0s_RangeMaster_ModeChanged` | `core/RangeMaster.lua` (`NS.SetTestMode`, `NS.SetSimMode`) | `mode` (`"test"` or `"sim"`), `on`, `why` | `modules/Preview.lua` (what the displays draw), `modules/Sim.lua` (starts or stops the sweep) and `settings/Presets.lua` (the preset picker repaints its Test mode buttons while shown) |
 
 Ten or fewer messages, so `docs/message-bus.md` is not required; this table is the register.
 
@@ -172,9 +172,9 @@ Each verb, its arguments and its refusals: `docs/slash-dispatch.md`.
 | Event | Handler | Why |
 |---|---|---|
 | `PLAYER_ENTERING_WORLD` | `addon:OnEnterWorld` | a traced world-entry edge; `NS.Anchors.Frame.Retry` (EllesmereUI spawns its unit frames at `PLAYER_LOGIN`) |
-| `PLAYER_REGEN_DISABLED` | `addon:OnCombatChanged` | combat ends Test mode, Sim mode and a frame pick, the range ticker goes to 20 Hz, and every container's visibility is asked again (bracketed `combatEdge`) |
+| `PLAYER_REGEN_DISABLED` | `addon:OnCombatChanged` | combat ends Test mode, Sim mode, a frame pick and a preset picker's preview (`NS.PresetPickerCombat`), the range ticker goes to 20 Hz, and every container's visibility is asked again (bracketed `combatEdge`) |
 | `PLAYER_REGEN_ENABLED` | `addon:OnCombatChanged` | the leave edge; the ticker back to 10 Hz, every container's visibility asked again, and a container apply combat held runs (`NS.CM.FlushPending("regen")`), then every anchor write onto a unit frame combat held (`NS.Anchors.FlushDeferred`) |
-| `PLAYER_TARGET_CHANGED` | `addon:OnUnitChanged` | a unit change on `"target"`: `NS.Container.UnitChanged`, then `NS.Anchors.UnitChanged` (an own-plate container moves to the new unit's plate, and a plate token's eligibility for the `nameplates` containers is asked again), then `NS.Ticker.Changed` |
+| `PLAYER_TARGET_CHANGED` | `addon:OnUnitChanged` | a unit change on `"target"`: `NS.Container.UnitChanged`, then `NS.Anchors.UnitChanged` (an own-plate container moves to the new unit's plate, and every plate's eligibility for the plate containers is asked again, since a retarget moves the plate a `nameplatesExceptTarget` container skips), then `NS.Ticker.Changed` |
 | `PLAYER_FOCUS_CHANGED` | `addon:OnUnitChanged` | the same on `"focus"`; registered only where `NS.Compat.IsEventValid` knows it (`ifValid`) |
 | `UPDATE_MOUSEOVER_UNIT` | `addon:OnUnitChanged` | the same on `"mouseover"` |
 | `UNIT_PET` | `addon:OnPetChanged` | the same on `"pet"`, for the player's own pet only, and `NS.Range.Rebuild()` |
@@ -194,12 +194,12 @@ where the library offers its CallbackHandler surface).
 The ticker itself is a `C_Timer.NewTicker`, not an event; the stand-down cancels it with the pending
 rebuild, which stays owed: a `Rebuild` asked while stood down arms nothing, and the stand-up runs an
 owed rebuild at once (`NS.Range.RunOwedRebuild`). The skin picker holds one `PLAYER_REGEN_ENABLED`
-target of its own while a first-run show waits out combat, and the one-time skin notice holds another
-while it is owed through combat (`core/SkinSetup.lua`); the stand-down drops both.
+target of its own while a first-run show waits out combat, the one-time skin notice holds another
+while it is owed through combat (`core/SkinSetup.lua`), and the first-run preset picker a third while its show waits out combat (`settings/Presets.lua`, `NS.MaybeShowPresetPicker`); each is a tracked `NS.NewBusTarget()`, so the stand-down drops all three.
 
 ## Taint Notes
 
-The addon hooks nothing, and every frame it draws is its own, plain and unprotected: the renderer's
+The addon's one hook is a `HookScript` on a nameplate cast bar's `OnShow` and `OnHide` (`modules/Anchors_Nameplate.lua`, once per bar, under `pcall`, for *Cast bar while casting*), and its handler only re-anchors this addon's own frames. Every frame it draws is its own, plain and unprotected: the renderer's
 container instances are `CreateFrame("Frame")` children of `UIParent`, built only on an apply, which
 the container registry holds through combat (`NS.CM.FlushPending` runs it on `PLAYER_REGEN_ENABLED`;
 the skin's re-apply goes through `NS.CM.RequestApply` too); a render inside combat only recolors and
@@ -266,9 +266,7 @@ never a real plate, and nothing measures it.
   container under it. Whether Frame level 1 at Background reaches under a plate drawn in the same
   strata is unconfirmed (smoke check ANCHOR-11 records it). Attach to part on Cast bar (or Cast bar
   while casting, else nameplate) moves the container off the bar instead.
-- *Cast bar while casting* reads the cast events and `UnitCastingInfo` / `UnitChannelInfo`. WoW Forever
-  has neither read, so there a plate shown mid-cast is judged by whether its cast bar is shown until
-  the next cast event. The unlocked preview nameplate draws no cast bar.
+- *Cast bar while casting* is decided on both clients by whether the plate's cast bar is shown: the bar's own `OnShow` / `OnHide` (hooked once per bar) place the container, and the cast events only nudge it. No cast read (`UnitCastingInfo` / `UnitChannelInfo`) is made. The unlocked preview nameplate draws no cast bar.
 - Without LibKa0s-Widgets-1.0 the bar indicator draws as a flat strip in the band color, not a fill.
 - The built-in out-of-range chime is a stock game sound by file id (567397, the raid warning); it is
   not yet heard on WoW Forever (`docs/smoke-tests.md`, SOUND-1).
@@ -336,7 +334,7 @@ generated directories are named once and never enumerated: `docs/audits/`, `docs
 | `perf-analysis/README.md` | Present | The performance harness is wired (`core/PerfSetup.lua`) |
 | `slash-dispatch.md` | Present | 27 commands in `NS.COMMANDS` as measured on 2026-11-18, over the eight-or-more threshold |
 | `midnight-quirks.md` | Present | Always (documentation-§3): the vendored `client-quirks` catalog block, then the addon's own section |
-| `compat-layer.md` | Present | `core/Compat.lua` publishes the range reads, the two band-set unit reads, the anchors' four frame reads, the band rules' three anchor reads and the per-client ladder, 21 shims by documentation-§3's count as measured on 2026-11-19, seventeen of them addon-specific beyond what LibKa0s supplies, over the three-or-more threshold |
+| `compat-layer.md` | Present | `core/Compat.lua` publishes the range reads, the two band-set unit reads, the anchors' four frame reads, the band rules' anchor reads (with `OverrideSpell` and the spec read `PlayerSpecID`) and the per-client ladder, 23 shims by documentation-§3's count as measured on 2026-11-20, nineteen of them addon-specific beyond what LibKa0s supplies, over the three-or-more threshold |
 | `message-bus.md` | Not applicable | 5 messages in `NS.MSG` as measured on 2026-11-19 (`RANGE_UPDATED`, `CONTAINERS_CHANGED`, `BANDSETS_CHANGED`, `ANCHORS_CHANGED`, `MODE_CHANGED`); the trigger is more than ten. The table lives in `## Message Bus` above |
 | `profiles.md` | Present | AceDB profiles are user-visible: the Profiles sub-page is a profile control in the options UI |
 | `known-limitations.md` | Not applicable | `## Known Limitations` above is under ~60 lines |

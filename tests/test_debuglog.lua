@@ -112,7 +112,7 @@ end
 -- ── the descriptor's seams ─────────────────────────────────────────────────────────────────
 
 test("the debug flag the library reads and writes is NS.State.debug", function()
-  -- The library keeps no copy: NS.ShouldShowBar's ladder and the settings panel both read this one.
+  -- The library keeps no copy: core/Bus.lua's rejected-key debug line and the settings panel (settings/Schema.lua's debugEnabled) both read this one.
   NS.State.debug = false
   NS.DebugLog:SetEnabled(true)
   assertTrue(NS.State.debug == true, "setEnabled writes our flag")

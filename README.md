@@ -89,7 +89,7 @@ Everything else is under Settings → AddOns → Ka0s Range Master, and `/rm hel
 |----------|--------|
 | Does it show the exact distance? | No addon can. The game only answers "in range of this spell or not", so Range Master shows the narrowest bracket the answers allow. |
 | Does it work on WoW Forever? | Yes, from the same download. Range Master uses each client's own spells and items to measure distance. |
-| Can I have a different band set for friends? | Yes. Each display has a Friendly band set, used whenever its unit is friendly. The Expert preset sets it to Healer. |
+| Can I have a different band set for friends? | Yes. Each display has a Friendly band set, used whenever its unit is friendly. The Expert and Ka0s presets set it to Healer. |
 | Does it follow range talents such as Hawk Eye? | Yes, on bands defined by a spell. The preset band sets use them, so a hunter with Hawk Eye sees Auto Shot's band reach past 35 yards without changing anything. A band you set to yards stays at its yards. |
 | Will it slow my game down? | It does one small pass ten or twenty times a second, only while a display is watching a unit, and none at all when the addon is turned off. |
 
@@ -124,7 +124,7 @@ Please file reports there rather than in comments, so nothing gets lost.
 
 | Version | Date | Highlights |
 |---------|------|------------|
-| 0.1.0 | Unreleased | - Range displays for your target, focus, pet, mouseover and every enemy nameplate, each showing a range bracket as a number, a band name, a colored shape and your own spells<br>- Shared band sets with their own colors and sounds, and a separate set for friendly units<br>- Bands that follow your own spells, so range talents, gear and forms move them; saved band sets are converted on first login<br>- Displays free on screen, on Blizzard or EllesmereUI unit frames or any frame you click, on nameplates, or at the cursor<br>- Five presets (Simple, two Intermediates for range text or range numbers, Advanced and Expert), offered on first run, with Undo<br>- Dot shapes in six styles (plain, matte, glossy, glowing, neon, gem)<br>- An optional caption naming each display, on any side, inside or outside its border, in its own font and color<br>- Visibility by combat, reaction and missing unit<br>- Test mode and Sim mode for placing and checking your displays<br>- Works on Retail and WoW Forever |
+| 0.1.0 | Unreleased | - Range displays for your target, focus, pet, mouseover and every enemy nameplate, each showing a range bracket as a number, a band name, a colored shape and your own spells<br>- Shared band sets with their own colors and sounds, and a separate set for friendly units<br>- Bands that follow your own spells, so range talents, gear and forms move them; saved band sets are converted on first login<br>- Displays free on screen, on Blizzard or EllesmereUI unit frames or any frame you click, on nameplates (every nameplate, or every one but your target's, on the plate or on its cast bar while the unit casts), or at the cursor<br>- Six presets (Simple, two Intermediates for range text or range numbers, Advanced, Expert and Ka0s, the author's own), offered on first run, with Undo<br>- Dot shapes in six styles (plain, matte, glossy, glowing, neon, gem)<br>- An optional caption naming each display, on any side, inside or outside its border, in its own font and color<br>- Visibility by combat, reaction and missing unit<br>- Test mode and Sim mode for placing and checking your displays<br>- Works on Retail and WoW Forever |
 
 ## Credits
 
