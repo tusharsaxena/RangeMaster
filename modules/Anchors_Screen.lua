@@ -19,8 +19,9 @@ local _, NS = ...
 -- registry's own writer, NS.CM.SetPosition, rounded to whole pixels; the coalesced apply that follows
 -- places the frame from what was stored. A drag cannot start in combat.
 --
--- THE STRIP (AuraMaster's drag strip: the display's name, a settings mark, a close mark that
--- disables the display, the help mark) shows while `locked` is false (Master controls, `/rm unlock`,
+-- THE STRIP (AuraMaster's drag strip: the display's name, then the help mark, a settings mark and a
+-- close mark that disables the display, read ? settings close from LibKa0s v1.107.0, each mark with
+-- its own tooltip, which the library opens above the strip) shows while `locked` is false (Master controls, `/rm unlock`,
 -- the launcher) on every screen container, in combat too, and, while every container shows unlocked
 -- out of combat (NS.Container.Unlocked), on every other container as well (never a per-plate
 -- instance: a `nameplates` container wears it on its stand-in). Only a container on the screen

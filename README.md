@@ -3,7 +3,7 @@
 ![WoW](https://img.shields.io/badge/WoW-Midnight_12.1.5_and_Forever_1.60.1-purple)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
-![Tests](https://img.shields.io/badge/Tests-724%2F724_passing-green)
+![Tests](https://img.shields.io/badge/Tests-725%2F725_passing-green)
 
 Supports Retail and WoW Forever. Range Master lets you build your own range displays for your
 target, your focus, your pet, whatever is under your mouse, and every enemy nameplate on screen.
@@ -48,7 +48,8 @@ that `container.` settings change, for example `/rm set container.anchor.mode cu
 
 Displays start locked. Type `/rm unlock` and every display shows, even one whose unit isn't there
 (it shows a placeholder range until combat starts) with a handle on top: its name, a gear that opens
-its settings and an X that turns it off. Drag a free-on-screen display by its handle. A display that
+its settings and an X that turns it off (Enable on the Containers page turns it back on, settings
+intact). Drag a free-on-screen display by its handle. A display that
 follows the cursor or sits on a nameplate waits at a fixed spot while unlocked, and dragging it
 picks that spot. A display on a unit frame stays on its frame; `/rm lock` locks them again, and `/rm resetposition` brings them all back near the middle. Under
 Visibility on the Containers page, a display can show only in combat or only out of it, only for enemies or only for

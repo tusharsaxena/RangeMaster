@@ -213,6 +213,44 @@ test("anchors: test_strip_marks — the strip's settings mark opens the display,
   end)
 end)
 
+test("anchors: test_strip_three_marks — the built strip carries ? settings close, each mark wired and explained", function()
+  -- The HUD header rule's drag strip (standalone-windows, *The drag strip's marks*, v2.115.0; LibKa0s
+  -- v1.107.0): all three marks on every strip, the settings mark opening this display's page, the X
+  -- disabling it with its settings kept and saying how to bring it back, each mark with its own
+  -- tooltip, and no host tooltipPlace hook (the library always opens the strip's tooltip above it).
+  H.with(function()
+    local KW = M.LibStub("LibKa0s-Widgets-1.0")
+    local realDH, seen = KW.DragHandle, nil
+    KW.DragHandle = function(parent, spec) seen = spec; return realDH(parent, spec) end
+    local realOpen, opened = NS.OpenOptionsPanel, nil
+    NS.OpenOptionsPanel = function(page) opened = page end
+    local ok, err = pcall(function()
+      local id, inst = H.container("target")
+      unlock(true)
+      local h = inst.dragHandle
+      assertTrue(h and seen ~= nil, "the strip is built through DragHandle")
+      assertTrue(seen.settings ~= false and type(seen.onClose) == "function", "settings and close are both asked for")
+      assertTrue(seen.tooltipPlace == nil, "no tooltipPlace hook: the strip's tooltip opens above it")
+      assertTrue(type(seen.settingsTooltip) == "table" and seen.settingsTooltip.body[1] == NS.L["Click to open this display's settings."],
+        "the settings mark explains itself, never the strip's description")
+      local closeBody = seen.closeTooltip and seen.closeTooltip.body[1]
+      assertTrue(type(closeBody) == "string" and closeBody:find("Containers page", 1, true) ~= nil,
+        "the X says where to bring the display back")
+      assertTrue(h.help and h.settings and h.close, "all three marks are built (their order is the library's, pinned in LibKa0s)")
+      h.settings:GetScript("OnClick")(h.settings, "LeftButton")
+      assertEqual(opened, "containers", "the gear opens the Containers page")
+      assertEqual(select(2, NS.SelectedContainer()), id, "on this display")
+      h.close:GetScript("OnClick")(h.close, "LeftButton")
+      local c = NS.CM.Get(id)
+      assertFalse(c.enabled, "the X disables the display")
+      assertEqual(c.name ~= nil, true, "and keeps its settings")
+    end)
+    KW.DragHandle, NS.OpenOptionsPanel = realDH, realOpen
+    if not ok then error(err, 0) end
+    unlock(false)
+  end)
+end)
+
 test("anchors: Reset position puts every screen container back at its default point", function()
   H.with(function()
     local a = H.container("target", { anchor = { point = "TOPLEFT", x = 300, y = 300 } })
