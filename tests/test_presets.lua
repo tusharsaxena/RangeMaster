@@ -148,8 +148,9 @@ test("presets: test_expert_shape — six containers: the four with spell chips, 
     assertEqual(enabledElements(plate), "indicator,number")
     assertEqual(plate.elements.indicator.shape, "diamond")
     assertEqual(plate.name, "Target plate")
-    -- every hostile nameplate: dot + the short number
-    local all = find("nameplates")
+    -- every hostile nameplate but the target's (the target plate container sits there; the owner,
+    -- 2026-11-19, saw the two overlap): dot + the short number. Red under unit "nameplates".
+    local all = find("nameplatesExceptTarget")
     assertEqual(all.anchor.mode, "nameplate")
     assertEqual(enabledElements(all), "indicator,number")
     assertEqual(all.elements.indicator.shape, "dot")
@@ -346,7 +347,8 @@ test("presets: test_preset_homes — each unit has one home on screen, the same 
         local spot = c.anchor.x .. "," .. c.anchor.y
         assertTrue(spots[spot] == nil, key .. ": " .. c.name .. " shares " .. spot)
         spots[spot] = true
-        local slot = (c.unit == "target" and c.anchor.mode == "nameplate") and "targetPlate" or c.unit
+        local slot = (c.unit == "target" and c.anchor.mode == "nameplate") and "targetPlate"
+          or (NS.CM.IsPlates(c.unit) and "nameplates") or c.unit
         local home = Presets.__home(slot)
         assertEqual(spot, home.x .. "," .. home.y, key .. ": " .. c.name .. " at its home")
         assertTrue(seenAt[slot] == nil or seenAt[slot] == spot, c.name .. " moves between presets")

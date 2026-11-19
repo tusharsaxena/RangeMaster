@@ -103,6 +103,7 @@ end)
 --- What the stand-in's name line says: whose plate it stands for (the Unit row's own label).
 local function nameFor(c)
     if c.unit == "nameplates" then return L["Nameplate (any enemy)"] end
+    if c.unit == "nameplatesExceptTarget" then return L["Nameplate (any enemy but the target)"] end
     local units = NS.ContainerValues and NS.ContainerValues.UNITS
     return L["Nameplate (%s)"]:format(tostring(units and units[c.unit] or c.unit))
 end

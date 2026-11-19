@@ -761,7 +761,7 @@ end
 --- shows (a preview, or unlocked), when it gets its one stand-in.
 function Container.Acquire(id)
     local c = NS.CM.Get(id)
-    if not c or (c.unit == "nameplates" and not showsAll()) then return nil end
+    if not c or (NS.CM.IsPlates(c.unit) and not showsAll()) then return nil end
     local inst = Pool.AcquireKeyed(pool, id, newInstance)
     inst.key, inst.pool = id, pool
     inst:Apply(id, c)
@@ -781,7 +781,7 @@ local function plateKey(id, token) return tostring(id) .. "|" .. token end
 --- now (a live one is re-applied). Nil for any other container or a token that is not a string.
 function Container.AcquirePlate(id, token)
     local c = NS.CM.Get(id)
-    if not (c and c.unit == "nameplates" and type(token) == "string") then return nil end
+    if not (c and NS.CM.IsPlates(c.unit) and type(token) == "string") then return nil end
     local key = plateKey(id, token)
     local inst = Pool.AcquireKeyed(platePool, key, newInstance)
     inst.key, inst.pool, inst.plateToken = key, platePool, token
@@ -811,11 +811,11 @@ function Container.ForEach(fn)
 end
 
 local function wanted(c)
-    return c ~= nil and c.enabled and (c.unit ~= "nameplates" or showsAll())
+    return c ~= nil and c.enabled and (not NS.CM.IsPlates(c.unit) or showsAll())
 end
 
 local function wantsPlates(c)
-    return c ~= nil and c.enabled and c.unit == "nameplates"
+    return c ~= nil and c.enabled and NS.CM.IsPlates(c.unit)
 end
 
 local stale = {}

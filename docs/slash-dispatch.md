@@ -22,7 +22,7 @@ settings panel in either state; `/rm options` is an alias of `config`.
 | `resetposition` | — | no | `NS.ResetPositions`: every screen container back at its new-container point; echoes how many moved |
 | `containers` | — | no | lists the containers as `n. Name (unit, anchor)`, the selected one marked `*` |
 | `select` | number or name | no | selects a container (a name matches in any case); `container.*` paths then mean it |
-| `new` | [unit] | no | creates a container (`target` when bare; `focus`, `pet`, `mouseover`, `nameplates`) and selects it; an unknown unit prints the usage line |
+| `new` | [unit] | no | creates a container (`target` when bare; `focus`, `pet`, `mouseover`, `nameplates`, `nameplatesExceptTarget`) and selects it; an unknown unit prints the usage line |
 | `delete` | number or name | no | asks first (the panel's confirmation, `NS.ConfirmDeleteContainer`), then deletes the container on Yes and selects its neighbor |
 | `pick` | — | no | starts the pick-on-screen overlay for the selected container (Enter picks, Escape cancels); a pick attaches it to that frame by name (refused in combat by the picker) |
 | `bands` | [number or name] | no | bare: lists the band sets, the selected one marked, and the selected set's ribbon; with an argument selects one (`bandSet.*` paths then mean it) |

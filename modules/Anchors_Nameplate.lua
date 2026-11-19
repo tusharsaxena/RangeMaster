@@ -13,7 +13,10 @@ local _, NS = ...
 -- TWO MODES register here. `nameplate`: a target, focus or mouseover container on its unit's own
 -- plate, at its `nameplate` point and offsets (a pet has no plate in practice, so its container is
 -- hidden). `plates`: a `nameplates` container's per-plate instance, one per tracked plate that is
--- hostile (UnitCanAttack, NS.Compat.CanAttack) or, with `nameplate.includeFriendly`, any plate.
+-- hostile (UnitCanAttack, NS.Compat.CanAttack) or, with `nameplate.includeFriendly`, any plate. A
+-- `nameplatesExceptTarget` container is a `nameplates` one that skips the target's plate (found by
+-- its frame, below), so it never overlaps a container on the target's own plate; a retarget asks
+-- every plate's eligibility again.
 --
 -- A PLATE IS IDENTIFIED BY ITS FRAME, never through UnitIsUnit (which may answer a secret). An
 -- own-plate instance remembers the plate frame it sits on; when NAME_PLATE_UNIT_REMOVED names a
@@ -146,11 +149,18 @@ function Plates.ForEachHostile(fn, includeFriendly)
 end
 
 local function isPlates(c)
-    return c ~= nil and c.enabled and c.unit == "nameplates"
+    return c ~= nil and c.enabled and NS.CM.IsPlates(c.unit)
+end
+
+--- Whether the plate behind `token` is the target's: compared by frame, never through UnitIsUnit.
+local function isTargetPlate(token)
+    local plate = tokens[token]
+    return plate ~= nil and plate == NS.Compat.NamePlateForUnit("target")
 end
 
 local function wants(c, token)
     if not tokens[token] then return false end
+    if c.unit == "nameplatesExceptTarget" and isTargetPlate(token) then return false end
     if c.nameplate and c.nameplate.includeFriendly then return true end
     return hostile(token)
 end
@@ -249,9 +259,11 @@ function Plates.Removed(token)
     plateGone(plate)
 end
 
---- A different unit behind `token` (a reaction change): its eligibility is asked again.
+--- A different unit behind `token` (a reaction change): its eligibility is asked again. A retarget
+--- moves which plate a `nameplatesExceptTarget` container skips, so every plate is asked again.
 local function tokenChanged(unit)
-    if tokens[unit] then syncToken(unit, false) end
+    if tokens[unit] then return syncToken(unit, false) end
+    if unit == "target" and not NS.IsStoodDown() then eachToken(function(token) syncToken(token, false) end) end
 end
 
 function Plates.StandDown()

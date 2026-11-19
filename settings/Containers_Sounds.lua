@@ -35,6 +35,6 @@ end
 
 NS.RegisterContainerSection(PAGE, L["Sounds"], {
     tooltip = L["Band sounds: whether this container plays them, and on which channel."],
-    hiddenFor = function(c) return c.unit == "nameplates" end,
+    hiddenFor = function(c) return NS.CM.IsPlates(c.unit) end,
     afterGroup = { [GROUP] = soundsNote },
 })

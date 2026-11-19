@@ -43,9 +43,14 @@ local L = NS.L
 --- The units a container may watch (design spec 2), and the name a new one takes from its unit.
 local UNIT_NAME = {
     target = L["Target"], focus = L["Focus"], pet = L["Pet"], mouseover = L["Mouseover"],
-    nameplates = L["Nameplates"],
+    nameplates = L["Nameplates"], nameplatesExceptTarget = L["Nameplates except target"],
 }
-CM.UNITS = { "target", "focus", "pet", "mouseover", "nameplates" }
+CM.UNITS = { "target", "focus", "pet", "mouseover", "nameplates", "nameplatesExceptTarget" }
+
+--- The per-plate units: an instance on every eligible plate (`nameplates`), or on every one but the
+--- target's (`nameplatesExceptTarget`, so it never overlaps a container on the target's own plate).
+local PLATES = { nameplates = true, nameplatesExceptTarget = true }
+function CM.IsPlates(unit) return PLATES[unit] == true end
 
 --- What CopySettings copies when no list is given: how a container looks and behaves. Never its
 --- identity (name, enabled, unit) or its placement (anchor), which are what make it this container.
