@@ -11,6 +11,7 @@ local _, NS = ...
 --   NS.BandSets.SetBandSound(id, bandIndex, sound?) -> boolean   one band's LSM sound key (nil clears)
 --   NS.BandSets.SetField(id, field, value) -> boolean    matchBy, unknown.label, unknown.color
 --   NS.BandSets.SetBand(id, bandIndex, field, value) -> boolean   to, label, frameColor, textColor, indicatorColor
+--   NS.BandSets.SetBandRule(id, bandIndex, rule?) -> boolean   one band's rule (nil: a yard band)
 --   NS.BandSets.AddBand(id) -> index, RemoveBand(id, bandIndex) -> boolean
 --   NS.BandSets.Resolve(setId, state, minYd, maxYd, unit?) -> bandIndex | "unknown" | nil (state "none")
 --   NS.BandSets.ForUnit(container, unit) -> setId
@@ -26,7 +27,7 @@ local _, NS = ...
 -- n-1's `to`), the last one open-ended, none of zero width, at least one. That is what makes Resolve
 -- total over [0, infinity) whatever the editor or a hand-edited SavedVariables file handed in. Create,
 -- Duplicate, Normalize and RestoreSnapshot normalize on write; core/Database.lua's load pass normalizes
--- every stored set. SetBandSound touches no edge, so it has nothing to normalize; SetBand, AddBand
+-- every stored set. SetBandSound and SetBandRule touch no edge, so they have nothing to normalize; SetBand, AddBand
 -- and RemoveBand, which can, normalize after the write.
 --
 -- A BAND MAY CARRY A RULE (dynamic-bands plan): `band.rule = { type = "spell", role, spells? }`,
@@ -498,6 +499,48 @@ function BandSets.SetBand(id, bandIndex, field, value)
         band[field] = copy(value)
     else
         return false
+    end
+    announce()
+    return true
+end
+
+--- The roles a spell rule names (defaults/SpellSeeds.lua's anchor lists).
+local ROLES = { melee = true, ranged = true, friendly = true }
+
+--- A spell override list SetBandRule takes: nil, or a non-empty array of whole spell IDs from 1.
+local function spellList(v)
+    if v == nil then return true end
+    if type(v) ~= "table" or #v == 0 then return false end
+    for _, id in ipairs(v) do
+        if type(id) ~= "number" or id < 1 or id % 1 ~= 0 then return false end
+    end
+    return true
+end
+
+--- Whether `rule` is one SetBandRule stores: nil (a yard band), gap, beyond, or spell(role, spells?).
+local function ruleFits(rule)
+    if rule == nil then return true end
+    if type(rule) ~= "table" or not RULE_TYPES[rule.type] then return false end
+    if rule.type ~= "spell" then return true end
+    return ROLES[rule.role] == true and spellList(rule.spells)
+end
+
+--- Store band `bandIndex`'s rule in set `id` (the Band sets page's Defined by, role and spell
+--- override): nil makes it a yard band, `{ type = "gap" }` a dead zone, `{ type = "beyond" }` the band
+--- past the last spell band, `{ type = "spell", role, spells? }` a spell band. The stored rule is a
+--- fresh copy holding only those fields, so a band's own `spells` list is never the caller's table
+--- (modules/Range.lua caches a band's list by table until the next rebuild). The yards never move.
+--- Refuses an unknown set or band and a rule ruleFits rejects.
+function BandSets.SetBandRule(id, bandIndex, rule)
+    local set = BandSets.Get(id)
+    local band = set and set.bands[bandIndex]
+    if not (band and ruleFits(rule)) then return false end
+    if rule == nil then
+        band.rule = nil
+    elseif rule.type == "spell" then
+        band.rule = { type = "spell", role = rule.role, spells = rule.spells and copy(rule.spells) or nil }
+    else
+        band.rule = { type = rule.type }
     end
     announce()
     return true

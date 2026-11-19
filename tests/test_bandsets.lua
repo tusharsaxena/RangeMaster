@@ -427,3 +427,53 @@ test("bandsets: a restore never rewinds the id counter, so a later Create mints 
     assertFalse(used[B.Create("C")] == true)
   end)
 end)
+
+-- ── the band rule writer (dynamic-bands plan D5) ─────────────────────────────────────────────
+
+test("bandsets: SetBandRule writes a band's rule as a copy, nil makes a yard band, and announces", function()
+  -- red under: no SetBandRule (the Band sets page's Defined by, role and spell override write here).
+  withFreshProfile(function()
+    local id = B.Create("Rules", { { from = 0, to = 5, label = "A" }, { from = 5, to = 30, label = "B" },
+      { from = 30, label = "C" } })
+    local spells = { 3044, 14281 }
+    assertEqual(countChanged(function()
+      assertTrue(B.SetBandRule(id, 2, { type = "spell", role = "ranged", spells = spells }))
+    end), 1, "one BANDSETS_CHANGED")
+    local rule = B.Get(id).bands[2].rule
+    assertEqual(rule.type, "spell")
+    assertEqual(rule.role, "ranged")
+    assertEqual(rule.spells[2], 14281)
+    assertTrue(rule.spells ~= spells, "the list is a copy, never the caller's table (D3's per-list cache)")
+    assertTrue(B.SetBandRule(id, 1, { type = "gap" }))
+    assertEqual(B.Get(id).bands[1].rule.type, "gap")
+    assertTrue(B.SetBandRule(id, 3, { type = "beyond" }))
+    assertEqual(B.Get(id).bands[3].rule.type, "beyond")
+    assertTrue(B.SetBandRule(id, 3, nil), "nil: a yard band")
+    assertNil(B.Get(id).bands[3].rule)
+    assertTrue(B.SetBandRule(id, 2, { type = "spell", role = "melee" }))
+    assertNil(B.Get(id).bands[2].rule.spells, "no list: the class's anchors for the role")
+    assertEqual(B.Get(id).bands[2].from, 5, "the yards never move")
+    assertEqual(B.Get(id).bands[2].to, 30)
+  end)
+end)
+
+test("bandsets: SetBandRule refuses a bad set, band, type, role or spell list, and announces nothing", function()
+  withFreshProfile(function()
+    local id = B.DefaultId()
+    local before = NS.Database.DeepCopy(B.Get(id).bands[1].rule)
+    assertEqual(countChanged(function()
+      assertFalse(B.SetBandRule(999, 1, { type = "gap" }), "an unknown set")
+      assertFalse(B.SetBandRule(id, 99, { type = "gap" }), "a band the set does not have")
+      assertFalse(B.SetBandRule(id, 1, { type = "mark" }), "an unknown type")
+      assertFalse(B.SetBandRule(id, 1, "gap"), "a rule that is not a table")
+      assertFalse(B.SetBandRule(id, 1, { type = "spell" }), "a spell rule with no role")
+      assertFalse(B.SetBandRule(id, 1, { type = "spell", role = "long" }), "a role outside the three")
+      assertFalse(B.SetBandRule(id, 1, { type = "spell", role = "melee", spells = {} }), "an empty list")
+      assertFalse(B.SetBandRule(id, 1, { type = "spell", role = "melee", spells = { 0 } }), "an ID under 1")
+      assertFalse(B.SetBandRule(id, 1, { type = "spell", role = "melee", spells = { 1.5 } }), "a fraction")
+      assertFalse(B.SetBandRule(id, 1, { type = "spell", role = "melee", spells = { "x" } }), "not a number")
+    end), 0, "a refusal announces nothing")
+    local after = B.Get(id).bands[1].rule
+    assertEqual(after and after.type, before and before.type, "and leaves the rule as it was")
+  end)
+end)

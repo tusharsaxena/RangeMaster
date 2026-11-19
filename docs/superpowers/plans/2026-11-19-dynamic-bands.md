@@ -225,6 +225,31 @@ D4 decisions (taken in the build):
   **Fallback (yards)**. Band headers show the rule. Locale strings, refreshers (options-ui-§ refresh rule).
 - Tests: each control writes its field, the read-out per resolution state.
 
+D5 decisions (taken in the build):
+
+- One new writer, `NS.BandSets.SetBandRule(id, i, rule?)`: nil makes a yard band; gap, beyond and
+  spell(role, spells?) are validated (role one of the three; a list is non-empty whole IDs from 1) and
+  stored as a fresh copy holding only those fields, so a band's `spells` is never the caller's table
+  (D3's per-list cache). It touches no edge, so it normalizes nothing.
+- One new read, `NS.Range.AnchorFor(role, spells?)`: the band's own list's first known spell, else the
+  role's anchor. `RoleInRange` now goes through it, so the read-out names exactly what a tick asks.
+- Defined by on a band switching to Spell takes melee for the first band and ranged elsewhere, and keeps
+  the role and list of a band that is already a spell band. A role change keeps the override list.
+- The spell override is one edit box of comma-separated IDs (empty: the class's anchors). A part that
+  is not a whole ID refuses the whole entry aloud and keeps the stored list. No icon/name preview: the
+  read-out already names the spell in use.
+- The read-out (a note row, spell bands only): "Now: Arcane Shot (3044), 8-41 yd", "melee range" for a
+  reported max of 0, "range not reported" for none, "spell N" when the client gives no name, and
+  "Not learned: using 5-30 yd" (the band's fallback span) when nothing resolves, which also covers a
+  druid out of Cat and Bear. `source = "reported"` is not stored: the read-out reads the resolver.
+- The slider reads **Fallback (yards)** only on a band with a rule; a yard band keeps **Up to (yards)**,
+  because its yards are its definition there, not a fallback.
+- Headings: "Band 2: 5-40 yd CAST (Spell: Ranged)", "(Dead zone)", "(Beyond the last spell band)"; a yard
+  band's heading is unchanged. The Containers page's band spans are not touched (not in the plan).
+- Refresh: the page subscribes to `ANCHORS_CHANGED` beside `BANDSETS_CHANGED` (both redraw on the next
+  frame), so the read-out follows a talent, form or level change. The message register row in
+  docs/ARCHITECTURE.md names the new subscriber. docs/settings-panel.md is left to D7, as the plan says.
+
 ## D6, D7
 
 As the previous plan's review and wrap-up: parallel reviewers (correctness, standard conformance, tests and

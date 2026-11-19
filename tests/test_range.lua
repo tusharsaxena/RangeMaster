@@ -1015,3 +1015,21 @@ test("rules: a malformed rule reads as a yard band", function()
     assertEqual(resolve(setId, spec), 3, "AUTO by its yards")
   end)
 end)
+
+test("anchors: AnchorFor names the anchor a band asks, its own list's or the role's (the editor's read-out)", function()
+  -- red under: no AnchorFor (the Band sets page's read-out names what RoleInRange would ask).
+  withAnchors({
+    anchors = { ranged = { 75 } },
+    known = { [75] = true, [3044] = true },
+    info = { [75] = { "Auto Shot", 75, 8, 41 }, [3044] = { "Arcane Shot", 3044, 8, 41 },
+      [2973] = { "Raptor Strike", 2973 } },
+  }, function()
+    local a = NS.Range.AnchorFor("ranged")
+    assertEqual(a and a.id, 75, "no list: the role's anchor")
+    a = NS.Range.AnchorFor("ranged", { 2973, 3044 })
+    assertEqual(a and a.id, 3044, "a list: its first known spell")
+    assertEqual(a and a.name, "Arcane Shot")
+    assertNil(NS.Range.AnchorFor("ranged", { 2973 }), "a list with nothing known is unresolved")
+    assertNil(NS.Range.AnchorFor("melee"), "and so is a role with nothing known")
+  end)
+end)

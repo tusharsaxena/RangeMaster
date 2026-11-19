@@ -12,6 +12,8 @@ local _, NS = ...
 --   NS.Range.Anchor(role)              -> { id, name, minRange, maxRange } | nil: the anchor spell a
 --                                         band rule of `role` ("melee", "ranged", "friendly") asks,
 --                                         as the last rebuild resolved it (see THE ANCHORS below)
+--   NS.Range.AnchorFor(role, spells?)  -> the anchor a band rule asks: its own `spells` list's, or
+--                                         the role's (Anchor); what the Band sets page names
 --   NS.Range.RoleInRange(role, unit, spells?) -> true | false | nil: that anchor's answer for `unit`
 --                                         (a band's own `spells` list in place of the class's),
 --                                         through the per-tick memo the chips share (THE RULES below)
@@ -357,6 +359,17 @@ local function overrideAnchor(list)
     return a or nil
 end
 
+--- The anchor a band rule of `role` asks: its own `spells` list's first known spell (at its learned
+--- rank) when it has one, else the role's anchor (Range.Anchor), or nil when unresolved. What
+--- RoleInRange asks, and what the Band sets page's read-out names. Read it, never write it.
+--- @param role string "melee" | "ranged" | "friendly"
+--- @param spells table|nil a band's own spell IDs
+--- @return table|nil
+function Range.AnchorFor(role, spells)
+    if spells ~= nil then return overrideAnchor(spells) end
+    return Range.Anchor(role)
+end
+
 --- Whether a melee true on `unit` is voided: the player is no hunter and the bracket's near bound
 --- is MELEE_GUARD_YD or more.
 local function meleeVoided(unit)
@@ -374,8 +387,7 @@ end
 --- @return boolean|nil
 function Range.RoleInRange(role, unit, spells)
     if type(unit) ~= "string" then return nil end
-    local a
-    if spells ~= nil then a = overrideAnchor(spells) else a = Range.Anchor(role) end
+    local a = Range.AnchorFor(role, spells)
     if not a then return nil end
     local v
     if source then
