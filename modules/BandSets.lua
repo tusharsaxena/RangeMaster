@@ -14,6 +14,7 @@ local _, NS = ...
 --   NS.BandSets.AddBand(id) -> index, RemoveBand(id, bandIndex) -> boolean
 --   NS.BandSets.Resolve(setId, state, minYd, maxYd, unit?) -> bandIndex | "unknown" | nil (state "none")
 --   NS.BandSets.ForUnit(container, unit) -> setId
+--   NS.BandSets.ConvertSet(set, friendly?) -> set       the v1 -> v2 step's band rules (core/Database.lua)
 --   NS.BandSets.Snapshot() -> snap, RestoreSnapshot(snap) -> boolean   the registry whole, for an Undo
 --
 -- THE DEFAULT SET IS THE FIRST ONE IN bandSetOrder. The first-run seed puts the class default there
@@ -42,7 +43,9 @@ local _, NS = ...
 -- and asks no spell.
 --
 -- Two of the registry's helpers are the load pass's too (architecture-§5): the seed routine (Seed)
--- and the per-set repair (NormalizeSet), both called from core/Database.lua's PrepareProfile.
+-- and the per-set repair (NormalizeSet), both called from core/Database.lua's PrepareProfile. A third,
+-- ConvertSet, is the v1 -> v2 migration step's (core/Database.lua): it gives each band of a stored set
+-- the rule its yards suggest.
 
 NS.BandSets = NS.BandSets or {}
 local BandSets = NS.BandSets
@@ -132,6 +135,37 @@ function BandSets.NormalizeSet(set)
     if type(set.name) ~= "string" then set.name = tostring(set.name) end
     if type(set.unknown.label) ~= "string" then set.unknown.label = NS.Constants.UNKNOWN_LABEL end
     set.bands = BandSets.NormalizeBands(set.bands)
+    return set
+end
+
+--- The rule schema v2 gives band `i` of a normalized set from its yards (ConvertSet), or nil (yards).
+--- `ranged` is the index of the outermost band whose far edge is 20 to 45 yd: only that one asks the
+--- ranged anchor, because the first band that holds wins and a nearer one would take every true.
+local function suggestedRule(bands, i, ranged, friendly)
+    local b = bands[i]
+    if i == #bands and b.to == nil then return { type = "beyond" } end
+    if i == 1 and b.to and b.to <= 5 then return { type = "spell", role = "melee" } end
+    if i > 1 and b.from == 5 and b.to == 8 and bands[i + 1] then return { type = "gap" } end
+    if i == ranged then return { type = "spell", role = friendly and "friendly" or "ranged" } end
+    return nil
+end
+
+--- Convert one stored set to rule bands, in place (core/Database.lua's step to v2; the plan's D4):
+--- the last, open-ended band is `beyond`; a first band ending at 5 yd or less is `spell(melee)`; a
+--- 5 to 8 yd band with a band after it is `gap`; the outermost band whose far edge is 20 to 45 yd is
+--- `spell(ranged)`, or `spell(friendly)` when `friendly` (a set used only as a friendly override, or
+--- named Healer); any other band stays a yard band. The set is normalized first; no yard moves. A
+--- band that already carries a rule table keeps it, so a second run changes nothing.
+function BandSets.ConvertSet(set, friendly)
+    BandSets.NormalizeSet(set)
+    local bands, ranged = set.bands, nil
+    for i = 1, #bands do
+        local to = bands[i].to
+        if to and to >= 20 and to <= 45 then ranged = i end
+    end
+    for i = 1, #bands do
+        if type(bands[i].rule) ~= "table" then bands[i].rule = suggestedRule(bands, i, ranged, friendly) end
+    end
     return set
 end
 

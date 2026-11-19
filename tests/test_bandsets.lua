@@ -44,6 +44,16 @@ local function labels(bands)
   return table.concat(out, ",")
 end
 
+--- A preset's rules, one word a band: yards, melee, ranged, friendly, gap or beyond.
+local function rules(bands)
+  local out = {}
+  for i, b in ipairs(bands) do
+    local r = b.rule
+    out[i] = r == nil and "yards" or (r.type == "spell" and r.role or r.type)
+  end
+  return table.concat(out, ",")
+end
+
 --- Count BANDSETS_CHANGED sends while `fn` runs.
 local function countChanged(fn)
   local target, n = NS.NewBusTarget(), 0
@@ -353,18 +363,32 @@ test("bandsets: test_hunter_preset_per_client — Forever has the 5-8 dead zone,
   for _, b in ipairs(byClient.retail.bands) do assertTrue(b.label ~= "DEAD", "retail has no dead zone") end
   assertEqual(byClient.retail.bands[2].to, 40)
   assertTrue(P.hunter == byClient[NS.Compat.ClientKey()], "the hunter preset is the running client's")
+  -- The rules (plan 2026-11-19-dynamic-bands, D4); the yards above are each band's fallback.
+  assertEqual(rules(byClient.forever.bands), "melee,gap,ranged,beyond", "MELEE, DEAD, AUTO, OOR")
+  assertEqual(rules(byClient.retail.bands), "melee,ranged,beyond", "MELEE, RANGED, OOR")
 end)
 
 test("bandsets: the four presets have the spec's shape, every one well formed", function()
   assertEqual(labels(P.melee_ranged.bands), "MELEE,CLOSE,MID,LONG,OOR")
+  assertEqual(rules(P.melee_ranged.bands), "melee,yards,yards,ranged,beyond")
+  assertEqual(labels(P.caster40.bands), "CLOSE,CAST,OOR", "a caster: a yard first band, CAST, OOR")
+  assertEqual(rules(P.caster40.bands), "yards,ranged,beyond")
+  assertEqual(P.caster40.bands[1].to, 8)
+  assertEqual(P.caster40.bands[2].to, 40)
   assertEqual(labels(P.healer.bands), "NEAR,FAR,OOR")
+  assertEqual(rules(P.healer.bands), "yards,friendly,beyond")
   assertEqual(P.healer.bands[1].to, 30)
   withFreshProfile(function()
     for _, key in ipairs(P.ORDER) do
       local preset = P[key]
       assertEqual(type(preset.name), "string", key)
       assertEqual(preset.matchBy, "max", key)
-      assertWellFormed(B.Create(preset.name, key))
+      local id = B.Create(preset.name, key)
+      assertWellFormed(id)
+      assertEqual(rules(B.Get(id).bands), rules(preset.bands), key .. ": the stored copy carries the rules")
+      for i, b in ipairs(B.Get(id).bands) do
+        assertTrue(b.rule == nil or b.rule ~= preset.bands[i].rule, key .. ": a rule is copied, never shared")
+      end
     end
   end)
 end)

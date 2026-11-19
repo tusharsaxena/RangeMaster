@@ -983,7 +983,7 @@ test("rules: one range call per spell per unit per tick, shared by the bands and
     NS.Range.BeginTick()
     NS.Range.RoleInRange("ranged", "target")
     assertEqual(asked() - before, 3, "a new tick asks again")
-    local yards = B.Create("Yards only", "melee_ranged")
+    local yards = B.Create("Yards only", { { from = 0, to = 5, label = "NEAR" }, { from = 5, label = "FAR" } })
     NS.Range.BeginTick()
     B.Resolve(yards, "known", 20, 25, "target")
     B.Delete(yards)

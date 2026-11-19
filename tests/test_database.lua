@@ -14,12 +14,13 @@ test("database: the account-wide schemaVersion default is 0 (savedvariables-§1)
   assertEqual(NS.defaults.global.schemaVersion, 0)
 end)
 
-test("database: the ladder holds one step, v0 -> v1 (the frame defaults), and a fresh install is stamped 1", function()
-  -- Red under the v0.1.0 ladder, which was empty with a target of 0.
-  assertEqual(#NS.__migrationSteps, 1, "one step")
-  assertEqual(NS.__migrationSteps[1].to, 1, "the step climbs to v1")
-  assertEqual(NS.SCHEMA_VERSION, 1, "the runner's target is the highest step's `to`")
-  assertEqual(NS.db.global.schemaVersion, 1, "a fresh install is stamped at the target")
+test("database: the ladder holds two steps, v0 -> v1 (the frame defaults) and v1 -> v2 (band rules), and a fresh install is stamped 2", function()
+  -- Red under the v0.1.0 ladder, which was empty with a target of 0, and under the one-step ladder.
+  assertEqual(#NS.__migrationSteps, 2, "two steps")
+  assertEqual(NS.__migrationSteps[1].to, 1, "the first step climbs to v1")
+  assertEqual(NS.__migrationSteps[2].to, 2, "the second step climbs to v2")
+  assertEqual(NS.SCHEMA_VERSION, 2, "the runner's target is the highest step's `to`")
+  assertEqual(NS.db.global.schemaVersion, 2, "a fresh install is stamped at the target")
 end)
 
 test("database: RunMigrations is a safe no-op when the DB is absent", function()
@@ -32,7 +33,7 @@ end)
 
 test("database: the runner climbs every step, stamps each, and is idempotent", function()
   local steps, ran = NS.__migrationSteps, {}
-  local real = steps[1]
+  local real, real2 = steps[1], steps[2]
   steps[1] = { to = 1, apply = function() ran[#ran + 1] = 1 end }
   steps[2] = { to = 2, apply = function() ran[#ran + 1] = 2 end }
   local g = NS.db.global
@@ -40,7 +41,7 @@ test("database: the runner climbs every step, stamps each, and is idempotent", f
   local ok, err = pcall(NS.RunMigrations, NS)
   local stamp = g.schemaVersion
   NS:RunMigrations()
-  steps[1], steps[2] = real, nil
+  steps[1], steps[2] = real, real2
   g.schemaVersion = NS.SCHEMA_VERSION
   assertTrue(ok, tostring(err))
   assertEqual(table.concat(ran, ","), "1,2", "each step ran once, in order")
@@ -242,7 +243,7 @@ test("database: step 1 writes border opacity 100% and the plain dot onto every s
   raid.containers[4] = kept
   -- The kit's AceDB shape: every profile under db.sv.profiles, the active one also as db.profile.
   migrate({ profile = active, sv = { profiles = { Default = active, Raid = raid, Junk = "junk" } } }, function(db)
-    assertEqual(db.global.schemaVersion, 1, "stamped v1")
+    assertEqual(db.global.schemaVersion, NS.SCHEMA_VERSION, "stamped at the target")
   end)
   assertEqual(active.containers[1].frame.border.alpha, 1, "the active profile's container keeps a full border")
   assertEqual(active.containers[1].elements.indicator.style, "plain", "and its plain dot")
@@ -270,7 +271,7 @@ test("database: step 1 runs once, and a container made after it takes the new de
     p.containers[2] = oldContainer()
     NS:RunMigrations()
   end)
-  assertEqual(db.global.schemaVersion, 1)
+  assertEqual(db.global.schemaVersion, NS.SCHEMA_VERSION)
   assertEqual(p.containers[1].frame.border.alpha, 1, "migrated")
   assertEqual(p.containers[2].frame.border.alpha, 0.25, "a container stored after the stamp gets the default")
   assertEqual(p.containers[2].elements.indicator.style, "matte", "and the matte dot")
@@ -298,7 +299,7 @@ test("database: step 1 through the real InitDB, against a stored v0 RangeMasterD
   local sv = _G.RangeMasterDB
   local ok, err = pcall(function()
     NS:InitDB()
-    assertEqual(sv.global.schemaVersion, 1, "the stamp is written into the SavedVariables' global")
+    assertEqual(sv.global.schemaVersion, NS.SCHEMA_VERSION, "the stamp is written into the SavedVariables' global")
     local p = NS.db.profile
     assertTrue(p.containers[1] == v0, "the active profile is the stored one")
     assertEqual(v0.frame.border.alpha, 1, "a stored container keeps a full border")
@@ -310,7 +311,7 @@ test("database: step 1 through the real InitDB, against a stored v0 RangeMasterD
     assertEqual(inactive.frame.border.alpha, 1, "a profile not in use is migrated as it is stored")
     assertEqual(inactive.elements.indicator.style, "plain")
     NS:RunMigrations()
-    assertEqual(sv.global.schemaVersion, 1, "a second load climbs nothing")
+    assertEqual(sv.global.schemaVersion, NS.SCHEMA_VERSION, "a second load climbs nothing")
   end)
   NS.db, _G.RangeMasterDB = savedDb, savedSV
   NS.CM.__reset()
@@ -323,4 +324,137 @@ test("database: a new container's frame defaults are a 25% border and a backgrou
   assertEqual(c.frame.border.alpha, 0.25, "border opacity 25%")
   assertTrue(c.frame.border.enabled, "border on")
   assertTrue(c.frame.background.enabled, "background on")
+end)
+
+-- ---------------------------------------------------------------------------
+-- Migration step 2: band rules (plan 2026-11-19-dynamic-bands, D4). Every stored band set, custom ones
+-- included, in every profile, gets the rule its yards suggest; the yards stay, as the fallback.
+-- ---------------------------------------------------------------------------
+
+--- A band set as v1 stored it: no band carries a rule. `spec` is { { from, to, label }, ... }.
+local function v1Set(name, spec)
+  local bands = {}
+  for i, b in ipairs(spec) do bands[i] = { from = b[1], to = b[2], label = b[3] } end
+  return { name = name, matchBy = "max", bands = bands }
+end
+
+--- A set's rules, one word a band: yards, melee, ranged, friendly, gap or beyond.
+local function rulesOf(set)
+  local out = {}
+  for i, b in ipairs(set.bands) do
+    local r = b.rule
+    out[i] = r == nil and "yards" or (r.type == "spell" and r.role or r.type)
+  end
+  return table.concat(out, ",")
+end
+
+--- A set's yards, "from-to" a band ("+" for open-ended).
+local function yardsOf(set)
+  local out = {}
+  for i, b in ipairs(set.bands) do out[i] = b.from .. "-" .. (b.to or "+") end
+  return table.concat(out, ",")
+end
+
+local function step2()
+  for _, step in ipairs(NS.__migrationSteps) do
+    if step.to == 2 then return step end
+  end
+end
+
+local V1_FOREVER_HUNTER = { { 0, 5, "MELEE" }, { 5, 8, "DEAD" }, { 8, 35, "AUTO" }, { 35, nil, "OOR" } }
+local V1_RETAIL_HUNTER = { { 0, 5, "MELEE" }, { 5, 40, "RANGED" }, { 40, nil, "OOR" } }
+local V1_MELEE_RANGED = { { 0, 5, "MELEE" }, { 5, 20, "CLOSE" }, { 20, 30, "MID" }, { 30, 40, "LONG" },
+  { 40, nil, "OOR" } }
+local V1_CASTER40 = { { 0, 8, "CLOSE" }, { 8, 30, "MID" }, { 30, 40, "LONG" }, { 40, nil, "OOR" } }
+local V1_HEALER = { { 0, 30, "NEAR" }, { 30, 40, "FAR" }, { 40, nil, "OOR" } }
+
+test("database: step 2 turns each v1 preset shape into rule bands and keeps its yards", function()
+  -- Red under the one-step ladder: there is no step 2, and no stored band carries a rule.
+  local step = step2()
+  assertTrue(step ~= nil, "a step climbs to v2")
+  local p = {
+    bandSets = {
+      [1] = v1Set("Hunter", V1_FOREVER_HUNTER), [2] = v1Set("Hunter 2", V1_RETAIL_HUNTER),
+      [3] = v1Set("Melee / Ranged", V1_MELEE_RANGED), [4] = v1Set("Caster 40", V1_CASTER40),
+      [5] = v1Set("Healer", V1_HEALER),
+    },
+    bandSetOrder = { 1, 2, 3, 4, 5 }, nextBandSetId = 6, containers = {},
+  }
+  step.apply({ profile = p })
+  local s = p.bandSets
+  assertEqual(rulesOf(s[1]), "melee,gap,ranged,beyond", "Forever Hunter: MELEE, DEAD, AUTO, OOR")
+  assertEqual(rulesOf(s[2]), "melee,ranged,beyond", "Retail Hunter: MELEE, RANGED, OOR")
+  assertEqual(rulesOf(s[3]), "melee,yards,yards,ranged,beyond",
+    "Melee / Ranged: only the outermost 20 to 45 yd band asks the ranged anchor")
+  assertEqual(rulesOf(s[4]), "yards,yards,ranged,beyond", "Caster 40: its first band (0-8) stays yards")
+  assertEqual(rulesOf(s[5]), "yards,friendly,beyond", "a set named Healer asks the friendly anchor")
+  assertEqual(yardsOf(s[1]), "0-5,5-8,8-35,35-+", "the yards are untouched: they are the fallback")
+  assertEqual(yardsOf(s[3]), "0-5,5-20,20-30,30-40,40-+")
+  assertNil(s[1].bands[3].rule.spells, "a converted rule names the role, not a spell")
+  assertEqual(s[1].bands[3].label, "AUTO", "the label is kept")
+
+  -- The owner's case through the converted set: a 35-40 bracket with the ranged anchor in range is AUTO.
+  local savedDb, realRole = NS.db, NS.Range.RoleInRange
+  NS.db = { profile = p, global = savedDb.global }
+  NS.Range.RoleInRange = function(role) if role == "ranged" then return true end return false end
+  local ok, got = pcall(NS.BandSets.Resolve, 1, "known", 35, 40, "target")
+  NS.db, NS.Range.RoleInRange = savedDb, realRole
+  assertTrue(ok, tostring(got))
+  assertEqual(got, 3, "AUTO, not OOR")
+end)
+
+test("database: step 2 converts a custom set, and reads a friendly-only set as friendly, in every profile", function()
+  local step = step2()
+  local custom = v1Set("Mine", { { 0, 3, "A" }, { 3, 12, "B" }, { 12, 25, "C" }, { 25, 60, "D" }, { 60, nil, "E" } })
+  local heals, mixed = v1Set("Heals", V1_HEALER), v1Set("Mixed", V1_HEALER)
+  local raid = {
+    bandSets = { [1] = custom, [2] = heals, [3] = mixed }, bandSetOrder = { 1, 2, 3 },
+    containers = {
+      [1] = { bandSet = 1, bandSetFriendly = 2 },
+      [2] = { bandSet = 3, bandSetFriendly = 3 },
+    },
+  }
+  local unordered = v1Set("Loose", { { 30, 10, "X" }, { 0, 4, "Y" }, { 30, nil, "Z" } })
+  local active = { bandSets = { [9] = unordered }, bandSetOrder = { 9 } }
+  step.apply({ profile = active, profiles = { Raid = raid, Junk = "junk", Bare = {} } })
+  assertEqual(rulesOf(custom), "melee,yards,ranged,yards,beyond",
+    "a custom set: a first band within 5 yd is melee, the 20 to 45 yd band ranged, the last beyond")
+  assertEqual(yardsOf(custom), "0-3,3-12,12-25,25-60,60-+")
+  assertEqual(rulesOf(heals), "yards,friendly,beyond", "a set used only as a friendly override is friendly")
+  assertEqual(rulesOf(mixed), "yards,ranged,beyond", "a set some container also uses as its own is ranged")
+  assertEqual(yardsOf(unordered), "0-4,4-30,30-+", "a hand-edited set is normalized before it is read")
+  assertEqual(rulesOf(unordered), "melee,ranged,beyond")
+end)
+
+test("database: step 2 is idempotent and keeps a rule a band already carries", function()
+  local step = step2()
+  local set = v1Set("Kept", { { 0, 5, "A" }, { 5, 30, "B" }, { 30, nil, "C" } })
+  set.bands[2].rule = { type = "spell", role = "friendly", spells = { 2061 } }
+  set.bands[1].rule = "junk"
+  local p = { bandSets = { [1] = set }, bandSetOrder = { 1 } }
+  local db = { profile = p }
+  step.apply(db)
+  local once, onceYards = rulesOf(set), yardsOf(set)
+  local spells = set.bands[2].rule.spells
+  step.apply(db)
+  assertEqual(once, "melee,friendly,beyond", "a rule already stored is kept; a junk one is replaced")
+  assertEqual(rulesOf(set), once, "a second run changes no rule")
+  assertEqual(yardsOf(set), onceYards, "nor any yard")
+  assertEqual(#set.bands[2].rule.spells, 1, "the band's own spell list survives")
+  assertEqual(set.bands[2].rule.spells[1], 2061)
+  assertEqual(spells[1], 2061)
+end)
+
+test("database: step 2 on a fresh profile changes nothing, and the load pass then seeds rule presets", function()
+  local p = {}
+  step2().apply({ profile = p })
+  assertNil(p.bandSets, "the step makes no band set")
+  withProfile(p, function()
+    D.PrepareProfile(p)
+    for _, id in ipairs(p.bandSetOrder) do
+      local set = p.bandSets[id]
+      assertEqual(set.bands[#set.bands].rule and set.bands[#set.bands].rule.type, "beyond",
+        set.name .. ": its last band is beyond")
+    end
+  end, "HUNTER")
 end)

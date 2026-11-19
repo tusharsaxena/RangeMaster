@@ -186,6 +186,37 @@ D3 decisions (taken in the build):
   OOR beyond; Healer: friendly). docs/schema.md.
 - Tests: the conversion of each preset shape and of a custom set, idempotence, a fresh profile.
 
+D4 decisions (taken in the build):
+
+- Only the OUTERMOST band whose far edge is 20 to 45 yd gets `spell(ranged)` (or `spell(friendly)`).
+  Read literally, the rule gives Melee / Ranged's CLOSE, MID and LONG all `spell(ranged)`. Because the
+  first band that holds wins (D3), CLOSE would then take every true and MID and LONG could never
+  show. The nearer bands stay yard bands and still win by their yards, in band order.
+- "A band from 5 to 8 yd directly before an 8 yd band" is read as a band from exactly 5 to exactly 8
+  that is not the first and has a band after it (the chain makes the next band start at 8).
+- "Used only as a friendly override" means at least one container's `bandSetFriendly` names the set
+  and no container's own `bandSet` does. A container with no `bandSet` counts as using the default
+  set. "Named Healer" is compared trimmed and case-blind, against "Healer" and the running locale's
+  `L["Healer"]`.
+- The step normalizes each set first (`BandSets.NormalizeSet`), so a hand-edited set is read in band
+  order. The conversion lives in `modules/BandSets.lua` as `BandSets.ConvertSet`, next to the other
+  load-pass helpers. `core/Database.lua`'s step only walks the profiles and works out which sets are
+  friendly. A band whose `rule` is not a table (junk) is converted, and a rule table is kept as it is.
+  Normalizing copies each band, so a band's own `spells` list is a new table after the step (D3's
+  per-list cache is wiped at rebuild anyway).
+- Presets: Melee / Ranged gets rules too (MELEE spell(melee), LONG spell(ranged), OOR beyond), the same
+  set the step makes from its v1 shape. Healer keeps its shape (NEAR yards, FAR spell(friendly), OOR
+  beyond). The caster set follows the plan literally: 0-8 CLOSE (yards), 8-40 CAST spell(ranged), 40+
+  OOR beyond, with the new locale string `CAST`. It loses its 8-30 / 30-40 split. A stored v1 Caster 40
+  set keeps its four bands (CLOSE, MID yards; LONG spell(ranged); OOR beyond).
+- "Rule-based class presets" is read as these four presets carrying rules, picked per class by
+  `DefaultFor`, as before. No new per-class preset sets are added, which follows the "one class preset
+  per class per client" ruling.
+- The test "a set with no rule asks no spell" (tests/test_range.lua) built its yard set from the
+  Melee / Ranged preset, which now carries rules. It now builds a set from a bands array that has no
+  rules.
+- `docs/test-cases.md` is not regenerated (left to D7, as in D3).
+
 ## D5. Band editor
 
 - `settings/BandSets.lua`: per band a **Defined by** dropdown (Yards / Spell / Dead zone / Beyond the last

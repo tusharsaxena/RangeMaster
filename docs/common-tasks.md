@@ -82,12 +82,14 @@ Recipes for the changes made most often here. Each names the real files; run the
 
 ## Change a preset band set
 
-- Edit `defaults/BandSetPresets.lua`: bands are `band(from, to, label, rampColor)`, `to` nil for
-  open-ended, colors from `NS.Constants.BAND_RAMP`. A per-client difference goes in two lists, as
+- Edit `defaults/BandSetPresets.lua`: bands are `band(from, to, label, rampColor, rule)`, `to` nil for
+  open-ended, colors from `NS.Constants.BAND_RAMP`, `rule` nil for a yard band or one of `spell(role)`,
+  `gap()`, `beyond()` (the yards are then the band's fallback). A per-client difference goes in two lists, as
   `HUNTER_BY_CLIENT` does (clients-§5). A new preset key joins `ORDER`, its name and labels join
   `locales/enUS.lua`, and the table in `docs/schema.md` follows. Presets are copied into a profile
   only on a fresh profile (the seed) or by `NS.BandSets.Create(name, key)`; a stored set is the
-  player's and is never rewritten. `tests/test_bandsets.lua` holds the shapes.
+  player's and is never rewritten (the one exception is the v1 -> v2 step, which gave every stored
+  band the rule its yards suggest, `docs/schema.md`). `tests/test_bandsets.lua` holds the shapes.
 
 ## Add a locale string
 

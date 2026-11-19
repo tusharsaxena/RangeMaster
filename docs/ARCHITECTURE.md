@@ -108,7 +108,8 @@ set when its `bandSet` names none, and sets `seeded` to `false` when absent.
 - **Band sets**: `bandSets`, `bandSetOrder`, `nextBandSetId`. Runtime writer `modules/BandSets.lua`
   (`Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`, `SetBandSound`, `RestoreSnapshot`); its
   seed routine `BandSets.Seed` and its
-  per-set repair `BandSets.NormalizeSet` are shared with the load pass. `Delete` also moves the
+  per-set repair `BandSets.NormalizeSet` are shared with the load pass, and its v1 -> v2 conversion
+  `BandSets.ConvertSet` with the migration ladder (`docs/schema.md`). `Delete` also moves the
   `bandSet` / `bandSetFriendly` references of the containers that used the deleted set, through the
   container registry's writer `NS.CM.SetField` (architecture-§5). The Band
   sets page writes through `SetField` (match rule, unknown label and color), `SetBand` (an edge, a

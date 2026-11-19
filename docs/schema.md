@@ -37,7 +37,7 @@ addresses them, and an AceDB default with no row is a setting nobody can reach (
 
 | Key | Fresh profile | Writer | Notes |
 |---|---|---|---|
-| `bandSets` | the four presets | `modules/BandSets.lua` | `[id] = NS.BANDSET_TEMPLATE` shape: `name`, `matchBy` (`"max"`/`"min"`), `unknown = { label = "?", color }`, `bands = { { from, to, label, frameColor, textColor, indicatorColor, sound }, ... }` |
+| `bandSets` | the four presets | `modules/BandSets.lua` | `[id] = NS.BANDSET_TEMPLATE` shape: `name`, `matchBy` (`"max"`/`"min"`), `unknown = { label = "?", color }`, `bands = { { from, to, label, frameColor, textColor, indicatorColor, sound, rule }, ... }` (`rule`: below) |
 | `bandSetOrder` | `{ 1, 2, 3, 4 }` | `modules/BandSets.lua` | the first id is the **default set**; the seed puts the class default first |
 | `nextBandSetId` | `5` | `modules/BandSets.lua` | the id counter, bumped past the highest stored id on load |
 | `containers` | `{}` | `modules/ContainerManager.lua` (`NS.CM`) | `[id] = NS.CONTAINER_TEMPLATE` shape (design spec 5.2) |
@@ -45,14 +45,24 @@ addresses them, and an AceDB default with no row is a setting nobody can reach (
 | `nextContainerId` | `1` | likewise | |
 | `seeded` | `false` | `NS.CM.MarkSeeded` (reached through `NS.Presets.MarkPickerSeen`) | whether the first-run preset picker has shown on this profile (set as it shows, and by any preset applied) |
 
-The preset band sets (`defaults/BandSetPresets.lua`), each `matchBy = "max"`:
+**A band's rule (schema v2).** `band.rule` is nil (a yard band), `{ type = "spell", role, spells }`,
+`{ type = "gap" }` or `{ type = "beyond" }`. `role` is `"melee"`, `"ranged"` or `"friendly"`. `spells`
+is nil (the class's anchors for the role, `defaults/SpellSeeds.lua`) or a list of spell IDs that
+overrides them. A rule names a role, not a spell, so one set serves every class in a shared profile.
+`from`/`to` stay finite yards: they are the band's fallback, used when its anchor is not learned,
+unusable or gives no answer, and for labels. How a set with rules is read is in `modules/BandSets.lua`'s
+header (`Resolve`). The load pass keeps the rule as stored. A rule it cannot read (another type, a spell
+rule with no role) makes the band a yard band.
+
+The preset band sets (`defaults/BandSetPresets.lua`), each `matchBy = "max"`. Each band is shown as
+yards, then its rule in brackets; a band with no bracket is a yard band:
 
 | Key | Bands |
 |---|---|
-| `melee_ranged` | 0-5 MELEE, 5-20 CLOSE, 20-30 MID, 30-40 LONG, 40+ OOR |
-| `caster40` | 0-8 CLOSE, 8-30 MID, 30-40 LONG, 40+ OOR |
-| `healer` | 0-30 NEAR, 30-40 FAR, 40+ OOR (meant as a friendly override) |
-| `hunter` | WoW Forever: 0-5 MELEE, 5-8 DEAD, 8-35 AUTO, 35+ OOR. Retail: 0-5 MELEE, 5-40 RANGED, 40+ OOR |
+| `melee_ranged` | 0-5 MELEE [spell(melee)], 5-20 CLOSE, 20-30 MID, 30-40 LONG [spell(ranged)], 40+ OOR [beyond] |
+| `caster40` | 0-8 CLOSE, 8-40 CAST [spell(ranged)], 40+ OOR [beyond] |
+| `healer` | 0-30 NEAR, 30-40 FAR [spell(friendly)], 40+ OOR [beyond] (meant as a friendly override) |
+| `hunter` | WoW Forever: 0-5 MELEE [spell(melee)], 5-8 DEAD [gap], 8-35 AUTO [spell(ranged)], 35+ OOR [beyond]. Retail: 0-5 MELEE [spell(melee)], 5-40 RANGED [spell(ranged)], 40+ OOR [beyond] |
 
 Class defaults (`NS.BandSetPresets.DefaultFor`): Hunter → `hunter`; Mage, Warlock, Priest, Evoker →
 `caster40`; every other class, or an unreadable one → `melee_ranged`.
@@ -112,13 +122,32 @@ border; an unknown value reads as inside top (`NS.Container.CaptionSide`).
 
 ## Migrations
 
-`core/Database.lua`'s ladder has one step, so `NS.SCHEMA_VERSION` is 1 (the declared default stays 0).
+`core/Database.lua`'s ladder has two steps, so `NS.SCHEMA_VERSION` is 2 (the declared default stays 0).
 **v0 -> v1, the frame defaults:** a new container draws its border at 25% (`frame.border.alpha`, new)
 over a background (`frame.background.enabled` now true) with a matte dot; so that an existing one keeps
 its look, the step writes `frame.border.alpha = 1`, `frame.background.enabled = false` and
 `elements.indicator.style = "plain"`, where unset, onto every container already stored (making a
 section a hand-edited container lacks, so the load pass cannot fill it from the new template), in every profile (`db.profiles`, `db.sv.profiles` and the
-active profile). A fresh install climbs it against a profile with no container. The runner climbs from `db.global.schemaVersion`, advances the stamp
+active profile). A fresh install climbs it against a profile with no container.
+
+**v1 -> v2, band rules** (plan 2026-11-19-dynamic-bands, D4): every stored band set, custom ones
+included, in every profile, is normalized and then converted to rule bands by
+`NS.BandSets.ConvertSet`. In band order:
+
+- the last, open-ended band gets `beyond`;
+- a first band ending at 5 yd or less gets `spell(melee)`;
+- a band from 5 to 8 yd with a band after it gets `gap`;
+- the outermost band whose far edge is 20 to 45 yd gets `spell(ranged)`. It gets `spell(friendly)`
+  instead in a set that is used only as a friendly override (some container's `bandSetFriendly`, and
+  no container's own `bandSet`) or is named Healer. Only the outermost such band gets the rule,
+  because the first band that holds wins and a nearer spell band would take every true;
+- any other band stays a yard band.
+
+No yard moves, because the yards are the fallback. A band that already carries a rule table keeps it,
+so the step is idempotent. A fresh install climbs it against a profile with no band set, and the load
+pass then seeds the presets, which carry their rules.
+
+The runner climbs from `db.global.schemaVersion`, advances the stamp
 only past a step that returned, and on a raising step prints one line and leaves the stamp where it
 was. After the ladder, the active profile is backfilled from the defaults with `== nil` tests, so a
 stored `false` survives (savedvariables-§5), and the registries' load pass runs (above).
