@@ -10,12 +10,14 @@ local _, NS = ...
 --                        open-ended ("40+")
 --   NS.Range.InSpellRange(id, unit)    -> true | false | nil (nil: not known, no unit, no answer)
 --   NS.Range.Anchor(role)              -> { id, name, minRange, maxRange } | nil: the anchor spell a
---                                         band rule of `role` ("melee", "ranged", "friendly") asks,
---                                         as the last rebuild resolved it (see THE ANCHORS below)
+--                                         band rule of `role` ("melee", "ranged", "friendly") asks
+--                                         first right now, of the candidates the last rebuild
+--                                         resolved (see THE ANCHORS below)
 --   NS.Range.AnchorFor(role, spells?)  -> the anchor a band rule asks: its own `spells` list's, or
 --                                         the role's (Anchor); what the Band sets page names
---   NS.Range.RoleInRange(role, unit, spells?) -> true | false | nil: that anchor's answer for `unit`
---                                         (a band's own `spells` list in place of the class's),
+--   NS.Range.RoleInRange(role, unit, spells?) -> true | false | nil, anchor: the first candidate's
+--                                         answer that can vouch for `unit` (a band's own `spells`
+--                                         list in place of the class's), and the anchor that gave it,
 --                                         through the per-tick memo the chips share (THE RULES below)
 --   NS.Range.Near(unit, state, maxYd)  -> boolean: a check shorter than the ranged anchor's reach
 --                                         puts `unit` inside that anchor's min range (a dead zone)
@@ -52,10 +54,15 @@ local _, NS = ...
 -- Each token's entry is one reused table, so a tick allocates nothing once every token is seen.
 --
 -- THE ANCHORS (dynamic-bands plan D2). A band rule names a ROLE; the class's ordered anchor lists
--- (defaults/SpellSeeds.lua) name the spells. Each rebuild takes, per role, the first seed the player
+-- (defaults/SpellSeeds.lua) name the spells. Each rebuild takes, per role, every seed the player
 -- knows once NS.Compat.CurrentSpellID has resolved it to the learned rank and a known override (a
 -- Forever seed is rank 1, and the rank-1 ID may not read as known once a higher rank is learned),
 -- with the name and the min and max range the client reports for that ID, a secret read as none.
+-- These are the role's candidates: a ranged or friendly list longest reported reach first (the
+-- client reports the talented range, so Shadow Reach's 36 yd Mind Blast goes before a 30 yd Smite),
+-- seed order among equals; a melee list in seed order, without a seed reported past MELEE_REACH_YD
+-- (Improved Disrupt's 10 yd). A read asks the candidates in order and takes the first answer: an
+-- unusable one (Charge in combat) passes to the next. The cross-validation round, 2026-11-19.
 -- A role the class has no list for, or none of whose seeds is known, is unresolved (nil), and its
 -- band falls back to its yards. A druid's melee list is keyed by form: every form's anchor is
 -- resolved at rebuild and the one in use is picked on each read from the current form, so a shift
@@ -66,11 +73,13 @@ local _, NS = ...
 -- the client once per spell per unit per tick: the spell memo, keyed by unit token then spell ID,
 -- holds it until BeginTick. modules/BandSets.lua's Resolve asks RoleInRange per rule band and Near
 -- for a dead-zone band. A nil (no anchor, not usable, not applicable, a secret) is never read as
--- false. A melee true is voided (nil) for every class but the hunter when the bracket's near bound
--- is MELEE_GUARD_YD or more: a melee spell unusable in the form can answer true from anywhere
--- (docs/midnight-quirks.md), and the estimator's bracket is the shorter, verified check. A band's own
--- `spells` list is resolved as a role's list is (the first known, at its learned rank), once per
--- list until the next rebuild.
+-- false. A melee true is voided (nil), for every class, when the bracket's near bound is
+-- MELEE_REACH_YD or more, when a ranged anchor with a min range says true (the unit is past that
+-- min), or when the anchor or its live override (Aspect of the Eagle, Ascendance) reaches past
+-- MELEE_REACH_YD: a melee spell can answer true from anywhere (docs/midnight-quirks.md; a Forever
+-- hunter's Raptor Strike read MELEE at 45-100 yd, the owner, 2026-11-19). A band's own `spells`
+-- list is resolved as a role's list is, once per list until the next rebuild. A preview's fake
+-- source asks only the anchor it names (Range.AnchorFor).
 --
 -- THE FAKE SOURCE. Test mode and Sim mode draw through the real render path (design spec 5.5): the
 -- ticker, the memo, RANGE_UPDATED and the renderer are the live ones, and only the answer comes from

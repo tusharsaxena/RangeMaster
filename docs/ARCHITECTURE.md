@@ -279,11 +279,24 @@ never a real plate, and nothing measures it.
 - Harmful anchors give no answer on a friendly unit, so a friendly container reads its yards unless
   its set has a friendly spell band. Melee reach is the client's own, so against a large boss or a
   player the melee band follows the spell, not 5 yd.
-- `beyond` holds whenever no spell band's anchor says true and the farthest one says false (a nearer
-  band with no answer, a class with no melee spell, does not stop it), even while the bracket is short of the
-  beyond band's fallback edge (the owner's ruling, 2026-11-19: a Forever caster's 30 yd spell out of
-  range reads OOR at 30-40, not unknown). The one exception is a bracket that still reaches into a gap
-  band's yards: an unconfirmed dead zone reads *unknown*, never out of range on a guess.
+- `beyond` holds whenever no spell band's anchor says true and the farthest one says false past its
+  reach (a nearer band with no answer, a class with no melee spell, does not stop it), even while the
+  bracket is short of the beyond band's fallback edge, and it beats a yard band whose yards match too
+  (the owner's rulings, 2026-11-19: a Forever caster's 30 yd spell out of range reads OOR at 30-40,
+  and an Evoker's 25-30 yd friend is not NEAR). Two exceptions read *unknown* instead, never out of
+  range on a guess: a bracket that still reaches into a gap band's yards (an unconfirmed dead zone),
+  and a min-range anchor's false with no bracket at its min (Auto Shot, Throw or Charge may only be
+  saying "too close").
+- For a friendly unit in combat LibRangeCheck answers from spells only, and a Retail Priest, Paladin
+  or Druid has none under 40 yd, so the Healer set reads FAR from 0 to 40 there (NEAR needs the
+  out-of-combat checks); a class with no friendly spell (Warrior, Hunter, Death Knight, Demon Hunter;
+  Forever Warrior, Hunter, Rogue) reads *unknown* on a friend in combat. LibRangeCheck's own
+  restriction (the cross-validation review, 2026-11-19).
+- A role's candidates are ordered at rebuild by the range the client reports; a buff that stretches a
+  ranged spell for a few seconds (Spatial Paradox, Sniper Shot) is read through that spell's own
+  in-range answer, but does not reorder the candidates until the next rebuild.
+- The class default band set is picked by class at the first-run seed, and by spec only for
+  Devourer (Caster 40); a later spec change does not swap the default.
 
 ## Documentation map
 

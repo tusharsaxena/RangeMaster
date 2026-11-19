@@ -37,11 +37,15 @@ local _, NS = ...
 --   spell(role) holds on its anchor's true (NS.Range.RoleInRange); on a nil it is a yard band;
 --   gap holds when the ranged anchor says false, the melee anchor does not say true and a shorter
 --     check confirms the unit is near (NS.Range.Near);
---   beyond holds when no spell band's anchor said true, the farthest one said false (a nearer one
---     with no answer, a class with no melee spell, does not stop it) and no gap holds, whatever its fallback
---     yards say (the owner, 2026-11-19: a 30 yd spell out of range reads OOR, not unknown), unless the
---     bracket still reaches into a gap band's yards (its near bound under that band's `to`): a dead
---     zone the shorter check could not confirm is never called out of range on a guess.
+--   beyond holds when no spell band's anchor said true, the farthest one said false past its reach
+--     (a min-range anchor's false counts only once the bracket's near bound is at its min: inside it,
+--     "false" may mean too close), a nearer one with no answer (a class with no melee spell) does not
+--     stop it, and no gap holds, whatever its fallback yards say (the owner, 2026-11-19: a 30 yd spell
+--     out of range reads OOR, not unknown), unless the bracket still reaches into a gap band's yards
+--     (its near bound under that band's `to`): a dead zone the shorter check could not confirm is
+--     never called out of range on a guess. Beyond is asked BEFORE the walk: when it holds it wins
+--     over a yard band whose yards match too (the owner, 2026-11-19: an Evoker's 25-30 yd friend is
+--     not NEAR when Living Flame cannot reach).
 -- When none holds, the band the yards pick is taken unless that band's own anchor contradicts it
 -- (a spell band whose anchor said false, a gap band while an anchor says true): then, as with no
 -- bracket, the answer is "unknown", never out of range. A set with no rule reads its yards alone
