@@ -232,7 +232,7 @@ local function readout(b)
     if ruleType(b) ~= "spell" then return nil end
     local a = NS.Range.AnchorFor(b.rule.role, b.rule.spells)
     if not a then return L["Not learned: using %s yd"]:format(spanText(b)) end
-    local name = a.name and ("%s (%d)"):format(a.name, a.id) or L["spell %d"]:format(a.id)
+    local name = a.name and L["%s (%d)"]:format(a.name, a.id) or L["spell %d"]:format(a.id)
     local range
     if type(a.maxRange) ~= "number" then
         range = L["range not reported"]

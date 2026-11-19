@@ -100,8 +100,17 @@ The band carries the band-set picker (the default set marked) and **New band set
 Name, Match band by, and the Unknown range subsection (Unknown label, Unknown color, a palette swatch
 with no class companion), then the containers using the set and **Duplicate band set** / **Delete
 band set…** (confirmed; its containers move to the default set; the last set is never deleted).
-**Bands** (a host editor, with no band ribbon above it): per band Up to (yards), Label, Frame / Text /
-Dot color and Sound on enter, Remove band, and **Add band** at the foot. The bands are ordered
+**Bands** (a host editor, with no band ribbon above it): per band **Defined by** first (Yards, Spell,
+Dead zone, Beyond the last spell band; written through `NS.BandSets.SetBandRule`), then the yard slider,
+Label, Frame / Text / Dot color and Sound on enter, Remove band, and **Add band** at the foot. A spell
+band adds **Role** (Melee, Ranged, Friendly), **Spell IDs** (comma-separated, empty for the class's
+anchors; a part that is not a whole ID refuses the entry aloud) and a read-out note naming the spell a
+tick asks (`NS.Range.AnchorFor`) and the range the client reports ("Now: Arcane Shot (3044), 8-41 yd",
+"melee range", "range not reported"), or "Not learned: using 5-30 yd" when nothing resolves. On a band
+with a rule the slider reads **Fallback (yards)**; a yard band keeps **Up to (yards)**. A band's heading
+carries its rule ("(Spell: Ranged)", "(Dead zone)", "(Beyond the last spell band)"). The page redraws on
+`BANDSETS_CHANGED` and on `ANCHORS_CHANGED` (a talent, form, level or spell change, a band's own Spell IDs
+list included), coalesced to the next frame. The bands are ordered
 by their edges (`modules/BandSets.lua` normalizes every write), so a band moves by moving its edge and
 there is no reorder control (options-ui-§18 binds a list whose order is the setting; this one's is
 derived). The band colors are palette swatches (options-ui-§17's one exemption): each identifies a

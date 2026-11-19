@@ -714,6 +714,37 @@ test("anchors: a rebuild announces only when a resolved anchor or its range move
   end)
 end)
 
+test("anchors: a rebuild announces when a band's own spell list resolves to another spell (review D6)", function()
+  -- red under: a change test that reads the class's roles alone (the read-out of an override band goes stale).
+  local list = { 3044, 19434 }
+  local spec = {
+    anchors = { ranged = { 75 } },
+    known = { [75] = true, [3044] = true },
+    info = { [75] = { "Auto Shot", 75, 8, 41 }, [3044] = { "Arcane Shot", 3044, 8, 41 },
+      [19434] = { "Aimed Shot", 19434, 8, 41 } },
+  }
+  withAnchors(spec, function()
+    local a = NS.Range.AnchorFor("ranged", list)
+    assertEqual(a and a.id, 3044, "the list's first known spell")
+    countAnnouncements(function(n)
+      NS.Range.__rebuildNow()
+      assertEqual(n(), 0, "nothing moved: no announcement")
+      spec.known[3044] = false
+      spec.known[19434] = true
+      NS.Range.__rebuildNow()
+      assertEqual(n(), 1, "the list's spell in use moved: one announcement")
+      a = NS.Range.AnchorFor("ranged", list)
+      assertEqual(a and a.id, 19434)
+      spec.known[19434] = false
+      NS.Range.__rebuildNow()
+      assertEqual(n(), 2, "nothing in the list known any more: one more")
+      assertNil(NS.Range.AnchorFor("ranged", list))
+      NS.Range.__rebuildNow()
+      assertEqual(n(), 2, "and none again while it stays")
+    end)
+  end)
+end)
+
 -- ── the rebuild triggers (dynamic-bands plan D2) ─────────────────────────────────────────────
 
 --- Count NS.Range.Rebuild calls for the length of `body`.
@@ -884,7 +915,11 @@ test("rules: the dead zone holds only when a shorter check confirms the target i
     spec.interact[3] = false
     assertEqual(resolve(setId, spec), 4, "nothing confirms near, every anchor out: OOR")
     spec.bracket = { 5, 10 }
-    assertEqual(resolve(setId, spec), 4, "a bracket reaching past the min confirms nothing")
+    assertEqual(resolve(setId, spec), "unknown",
+      "a bracket reaching past the min confirms nothing, and a bracket short of beyond's yards is never OOR")
+    spec.bracket = { 30, 40 }
+    assertEqual(resolve(setId, spec), 4, "a bracket reaching into beyond's yards: OOR")
+    spec.bracket = { 5, 10 }
     spec.interact[3], spec.inRange[75] = true, true
     assertEqual(resolve(setId, spec), 3, "the ranged anchor in range is never the dead zone")
   end)
@@ -967,6 +1002,44 @@ test("rules: a druid's melee band follows the form, and reads its yards out of C
     form = 0
     assertNil(NS.Range.RoleInRange("melee", "target"), "caster form: no melee anchor")
     assertEqual(resolve(setId, spec), 1, "and the melee band reads its yards")
+  end)
+end)
+
+test("rules: a friendly spell band reads its anchor's answer on a friendly unit (review D6)", function()
+  -- red under: a friendly role read through the hostile anchors, or never asked.
+  local spec = {
+    class = "PRIEST",
+    anchors = { friendly = { 2061 } },
+    known = { [2061] = true },
+    info = { [2061] = { "Flash Heal", 2061, 0, 40 } },
+    bracket = { 20, 30 },
+    inRange = { [2061] = true },
+    bands = {
+      { from = 0, to = 30, label = "NEAR" },
+      { from = 30, to = 40, label = "FAR", rule = { type = "spell", role = "friendly" } },
+      { from = 40, label = "OOR", rule = { type = "beyond" } },
+    },
+  }
+  withRules(spec, function(setId)
+    assertEqual(NS.Range.RoleInRange("friendly", "target"), true, "the friendly anchor answers")
+    assertEqual(resolve(setId, spec), 1, "NEAR by its yards, first in band order")
+    spec.bracket = { 35, 45 }
+    assertEqual(resolve(setId, spec), 2, "FAR on the heal's true, past FAR's yards")
+    spec.inRange[2061] = false
+    assertEqual(resolve(setId, spec), 3, "out of the heal's range: OOR")
+  end)
+end)
+
+test("rules: a ranged anchor with no min range has no dead zone, so a gap band never holds by rule (review D6)", function()
+  -- red under: a Near that confirms near on the bracket alone (every Retail gap band would read DEAD).
+  local spec = hunter({
+    info = { [2973] = { "Raptor Strike", 2973, 0, 5 }, [75] = { "Auto Shot", 75, 0, 40 } },
+    bracket = { 5, 8 }, inRange = { [2973] = false, [75] = false }, interact = { [3] = true },
+  })
+  withRules(spec, function(setId)
+    assertEqual(NS.Range.Near("target", "known", 8), false, "no min range: nothing is near")
+    spec.bracket = {}
+    assertEqual(resolve(setId, spec), 4, "the interact distance says near, yet no gap holds: beyond")
   end)
 end)
 

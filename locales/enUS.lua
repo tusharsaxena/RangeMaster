@@ -515,6 +515,7 @@ L["Spells this band asks in place of your class's, by ID, separated by commas; t
 L["Spell IDs are whole numbers, separated by commas."] = "Spell IDs are whole numbers, separated by commas."
 L["Now: %s, %s"] = "Now: %s, %s"
 L["spell %d"] = "spell %d"
+L["%s (%d)"] = "%s (%d)"
 L["range not reported"] = "range not reported"
 L["melee range"] = "melee range"
 L["Not learned: using %s yd"] = "Not learned: using %s yd"

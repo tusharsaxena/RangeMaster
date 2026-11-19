@@ -244,7 +244,8 @@ local function isHealerName(name)
 end
 
 --- The sets of one profile used only as a friendly override: some container's bandSetFriendly, no
---- container's own bandSet (a container with none reads the default set, the first in the order).
+--- container's own bandSet (a container with none reads the default set, the first in the order; with
+--- no usable order, as in a hand-edited profile the load pass has not repaired yet, it counts for none).
 local function friendlyOnlySets(p)
     local own, friendly = {}, {}
     local default
@@ -256,7 +257,9 @@ local function friendlyOnlySets(p)
     end
     for _, c in pairs(type(p.containers) == "table" and p.containers or {}) do
         if type(c) == "table" then
-            own[c.bandSet == nil and default or c.bandSet] = true
+            local key = c.bandSet
+            if key == nil then key = default end
+            if key ~= nil then own[key] = true end
             if c.bandSetFriendly ~= nil then friendly[c.bandSetFriendly] = true end
         end
     end

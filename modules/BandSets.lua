@@ -37,7 +37,8 @@ local _, NS = ...
 --   spell(role) holds on its anchor's true (NS.Range.RoleInRange); on a nil it is a yard band;
 --   gap holds when the ranged anchor says false, the melee anchor does not say true and a shorter
 --     check confirms the unit is near (NS.Range.Near);
---   beyond holds when every spell band's anchor said false and no gap holds.
+--   beyond holds when every spell band's anchor said false and no gap holds, unless the bracket lies
+--     wholly short of its fallback yards (its far bound under the band's `from`).
 -- When none holds, the band the yards pick is taken unless that band's own anchor contradicts it
 -- (a spell band whose anchor said false, a gap band while an anchor says true): then, as with no
 -- bracket, the answer is "unknown", never out of range. A set with no rule reads its yards alone
@@ -260,7 +261,17 @@ local function gapHolds()
     return cur.gap
 end
 
-local function beyondHolds()
+--- Whether the bracket lies wholly short of band `i`'s fallback yards (its far bound under the band's
+--- `from`; a bracket ending at `from` may still reach it): the yards then rule the band out, whatever
+--- the spells say.
+local function shortOf(i)
+    local from = cur.bands[i].from
+    return cur.state == "known" and type(cur.maxYd) == "number" and type(from) == "number" and cur.maxYd < from
+end
+
+--- Whether the beyond band at index `at` holds.
+local function beyondHolds(at)
+    if shortOf(at) then return false end
     local bands, any = cur.bands, false
     for i = 1, #bands do
         local r = ruleOf(bands[i])
@@ -295,7 +306,7 @@ local function holds(i, pick)
     elseif r and r.type == "gap" then
         return gapHolds()
     elseif r then
-        return beyondHolds()
+        return beyondHolds(i)
     end
     return pick == i
 end

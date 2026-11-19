@@ -250,6 +250,26 @@ D5 decisions (taken in the build):
   frame), so the read-out follows a talent, form or level change. The message register row in
   docs/ARCHITECTURE.md names the new subscriber. docs/settings-panel.md is left to D7, as the plan says.
 
+## D6. Review fixes
+
+Twelve confirmed findings (three of them the same migration bug), fixed in one pass.
+
+D6 decisions (taken in the fix pass):
+
+- `beyond` is ruled out by the yards when the bracket's far bound is UNDER the beyond band's fallback
+  `from` (a bracket ending exactly at `from` may still reach it, so the boundary keeps OOR). That is
+  looser than the review's suggestion (the near bound at or past `from`), on purpose: spells still beat
+  yards wherever the yards leave beyond possible (the owner's 35-40 case with every anchor false still
+  reads OOR on a 35+ beyond band). A ruled-out beyond falls to the yard pick and its contradiction test,
+  so the review's 5-10 yd case reads "unknown". This refines research part 2's "an unconfirmed gap falls
+  to beyond", which did not cover yards that contradict it.
+- Sim reads an anchor's reported max range of 0 or less as a 5 yd melee reach (the client's combat
+  range), not as no answer, so Sim's MELEE band shows on every melee anchor.
+- A rebuild re-resolves at once every band spell list a read has asked since the last one and folds
+  the change into ANCHORS_CHANGED's test, so the cache is no longer only wiped at rebuild (D3).
+- docs/settings-panel.md's Bands paragraph is brought up to D5's editor here (a review finding); D7's
+  doc pass still owns the rest.
+
 ## D6, D7
 
 As the previous plan's review and wrap-up: parallel reviewers (correctness, standard conformance, tests and

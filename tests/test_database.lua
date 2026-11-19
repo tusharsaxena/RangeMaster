@@ -445,6 +445,20 @@ test("database: step 2 is idempotent and keeps a rule a band already carries", f
   assertEqual(spells[1], 2061)
 end)
 
+test("database: step 2 runs on a profile with no usable order and a container with no set (review D6)", function()
+  -- red under: a default-set key read as nil ("table index is nil"), which stops the climb at v1.
+  local step = step2()
+  local set = v1Set("Loose", V1_RETAIL_HUNTER)
+  local p = { bandSets = { [1] = set }, containers = { [1] = {} } }
+  local ok, err = pcall(step.apply, { profile = p })
+  assertTrue(ok, tostring(err))
+  assertEqual(rulesOf(set), "melee,ranged,beyond", "the set is still converted")
+  local stale = v1Set("Stale", V1_RETAIL_HUNTER)
+  ok, err = pcall(step.apply, { profile = { bandSets = { [2] = stale }, bandSetOrder = { 7 }, containers = { {} } } })
+  assertTrue(ok, tostring(err))
+  assertEqual(rulesOf(stale), "melee,ranged,beyond", "an order naming no stored set: converted too")
+end)
+
 test("database: step 2 on a fresh profile changes nothing, and the load pass then seeds rule presets", function()
   local p = {}
   step2().apply({ profile = p })

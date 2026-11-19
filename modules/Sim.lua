@@ -48,6 +48,8 @@ local Lib = LibStub and LibStub("LibKa0s-Sim-1.0", true)
 local session, seam
 local distance = 0
 local chatty = false
+-- The reach a melee anchor stands for in the fake world (the client's 5 yd combat range).
+local MELEE_REACH_YD = 5
 
 -- ---------------------------------------------------------------------------
 -- The fake range
@@ -65,10 +67,13 @@ local function inSpell(id)
     return distance >= (tonumber(minRange) or 0) and distance <= maxRange
 end
 
---- A band rule's answer: the distance inside the anchor's reported range, or nil with no max.
+--- A band rule's answer: the distance inside the anchor's reported range, or nil with no max. A
+--- reported max of 0 or less is a melee spell's (the client gives no number for melee reach), read as
+--- MELEE_REACH_YD.
 local function inRole(anchor)
     local maxRange = anchor and anchor.maxRange
     if type(maxRange) ~= "number" then return nil end
+    if maxRange <= 0 then maxRange = MELEE_REACH_YD end
     return distance >= (tonumber(anchor.minRange) or 0) and distance <= maxRange
 end
 

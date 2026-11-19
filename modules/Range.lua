@@ -447,14 +447,24 @@ end
 
 --- The rebuild itself: the known-spell cache is taken again from the client, and the ladder is
 --- dropped, to be built again on the first Forever walk (currentLadder). Retail never walks one, so
---- it never builds one. The anchors are resolved again, and ANCHORS_CHANGED goes out when they moved.
+--- it never builds one. The anchors are resolved again (with every band's own list a read has asked),
+-- and ANCHORS_CHANGED goes out when they moved.
 local function rebuildNow()
     rebuildTimer = nil
     rebuildOwed = false
     ladder = nil
     for id in pairs(known) do known[id] = nil end
-    for list in pairs(overrides) do overrides[list] = nil end
+    local was = {}
+    for list, a in pairs(overrides) do
+        was[list] = sigOf(a)
+        overrides[list] = nil
+    end
     local moved = resolveAnchors()
+    -- A band's own list a read has asked is resolved again now, so a spell it learned or lost is a
+    -- change too (the Band sets page's read-out follows it).
+    for list, sig in pairs(was) do
+        if sigOf(overrideAnchor(list)) ~= sig then moved = true end
+    end
     Range.BeginTick()
     rebuilds = rebuilds + 1
     if moved and NS.bus then NS.bus:SendMessage(NS.MSG.ANCHORS_CHANGED) end

@@ -643,6 +643,34 @@ test("modes: Sim mode answers band rules from its distance and the anchors' repo
   off()
 end)
 
+test("modes: Sim reads a melee anchor reported at 0 yd as melee reach, and walks through the dead zone (review D6)", function()
+  -- red under: a reported max of 0 read as a real reach (MELEE false past 0 yd, DEAD from 1 to 7 yd).
+  off()
+  local realAnchor, realStep = NS.Range.Anchor, NS.Sim.STEP_YD
+  local A = { melee = { id = 2973, minRange = 0, maxRange = 0 }, ranged = { id = 75, minRange = 8, maxRange = 41 } }
+  NS.Range.Anchor = function(role) return A[role] end
+  NS.Sim.STEP_YD = 1
+  local ok, err = pcall(withEnv, function()
+    local setId = NS.BandSets.Create("Sim melee 0", RULE_BANDS)
+    local _, inst = H.container("target", { bandSet = setId })
+    assertTrue(NS.SetSimMode(true, "test"))
+    local session = NS.Sim.Session()
+    local byYd = { [0] = inst.bandIndex }
+    for yd = 1, 44 do
+      session:Step()
+      byYd[yd] = inst.bandIndex
+    end
+    local got = {}
+    for yd = 0, 44 do got[#got + 1] = byYd[yd] end
+    assertEqual(table.concat(got, ","), "1,1,1,1,1,1,2,2" .. string.rep(",3", 34) .. ",4,4,4",
+      "MELEE to 5 yd, DEAD at 6-7, AUTO 8-41, OOR past it")
+    NS.SetSimMode(false, "test")
+  end)
+  NS.Range.Anchor, NS.Sim.STEP_YD = realAnchor, realStep
+  off()
+  if not ok then error(err, 0) end
+end)
+
 test("modes: Test mode draws its placeholder band on a set of band rules", function()
   -- red under: a Test-mode rule read through its every-spell-in-range chip answer (MELEE at 20-25).
   off()

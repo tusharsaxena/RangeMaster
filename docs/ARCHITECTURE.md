@@ -30,7 +30,7 @@ change. A secret or failed answer reads as *unknown*, never as out of range.
 | Component | Files | What it does |
 |---|---|---|
 | Range engine | `modules/Range.lua` (`NS.Range`), `modules/Ticker.lua` (`NS.Ticker`), `core/Compat.lua` | A guarded, memoized bracket per unit token per tick; one adaptive ticker that sends `RANGE_UPDATED` on change |
-| Band sets | `modules/BandSets.lua` (`NS.BandSets`), `defaults/BandSetPresets.lua` | Named, shared, normalized yard bands; `Resolve` turns a bracket into a band, `ForUnit` picks the friendly override |
+| Band sets | `modules/BandSets.lua` (`NS.BandSets`), `defaults/BandSetPresets.lua` | Named, shared, normalized bands of yards, each of which may carry a spell, dead-zone or beyond rule (its yards then the fallback); `Resolve` turns a bracket into a band, `ForUnit` picks the friendly override |
 | Containers and presets | `modules/ContainerManager.lua` (`NS.CM`), `modules/Presets.lua` (`NS.Presets`) | The container registry's one writer and its coalesced, combat-held apply; Simple, Intermediate (Range Text), Intermediate (Range Numbers), Advanced and Expert, with a one-level Undo |
 | Rendering | `modules/Container.lua` (`NS.Container`), `modules/Style.lua`, `modules/Elements_*.lua` | One pooled instance per enabled container (one per plate for `nameplates`), repainted only on a band or text change |
 | Anchors | `modules/Anchors.lua` (`NS.Anchors`), `modules/Anchors_*.lua`, `modules/FrameProviders.lua`, `modules/FramePicker.lua` | Free on screen, on a unit frame, on a nameplate (own plate or every plate), at the cursor |
@@ -106,7 +106,7 @@ band set, seeds the four preset band sets on a profile with none, points a conta
 set when its `bandSet` names none, and sets `seeded` to `false` when absent.
 
 - **Band sets**: `bandSets`, `bandSetOrder`, `nextBandSetId`. Runtime writer `modules/BandSets.lua`
-  (`Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`, `SetBandSound`, `RestoreSnapshot`); its
+  (`Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`, `SetBandSound`, `SetBandRule`, `RestoreSnapshot`); its
   seed routine `BandSets.Seed` and its
   per-set repair `BandSets.NormalizeSet` are shared with the load pass, and its v1 -> v2 conversion
   `BandSets.ConvertSet` with the migration ladder (`docs/schema.md`). `Delete` also moves the
@@ -114,7 +114,8 @@ set when its `bandSet` names none, and sets `seeded` to `false` when absent.
   container registry's writer `NS.CM.SetField` (architecture-§5). The Band
   sets page writes through `SetField` (match rule, unknown label and color), `SetBand` (an edge, a
   label, a color; an edge that would leave a band without width is refused), `AddBand` and
-  `RemoveBand`, each normalizing after the write.
+  `RemoveBand`, each normalizing after the write, and `SetBandRule` (a band's rule: Defined by, Role,
+  Spell IDs), which touches no edge and so normalizes nothing.
 - **Containers**: `containers`, `containerOrder`, `nextContainerId`, and the first-run sentinel
   `seeded`. Runtime writer `modules/ContainerManager.lua` (`NS.CM`: `Create`, `Delete`, `Duplicate`,
   `Rename`, `CopySettings`, `Clear`, `RestoreSnapshot`, `SetField` for one dotted field, which
@@ -142,7 +143,7 @@ stand-down takes every subscription down and a stand-up replays it.
 |---|---|---|---|---|
 | `RANGE_UPDATED` | `Ka0s_RangeMaster_RangeUpdated` | `modules/Ticker.lua` | `unit, state, minYd, maxYd` | `modules/Container.lua`: the instances watching that unit |
 | `CONTAINERS_CHANGED` | `Ka0s_RangeMaster_ContainersChanged` | `modules/ContainerManager.lua` (`FlushPending`, coalesced to the next frame, held in combat) | none | the renderer (`NS.Container.Sync`) |
-| `BANDSETS_CHANGED` | `Ka0s_RangeMaster_BandSetsChanged` | `modules/BandSets.lua` (every writer: `Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`, `SetField`, `SetBand`, `AddBand`, `RemoveBand`, `SetBandSound`, `RestoreSnapshot`; never the load pass) | none | the renderer (`Repaint`) and `settings/BandSets.lua` (a redraw of the pages, coalesced to the next frame) |
+| `BANDSETS_CHANGED` | `Ka0s_RangeMaster_BandSetsChanged` | `modules/BandSets.lua` (every writer: `Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`, `SetField`, `SetBand`, `AddBand`, `RemoveBand`, `SetBandSound`, `SetBandRule`, `RestoreSnapshot`; never the load pass) | none | the renderer (`Repaint`) and `settings/BandSets.lua` (a redraw of the pages, coalesced to the next frame) |
 | `ANCHORS_CHANGED` | `Ka0s_RangeMaster_AnchorsChanged` | `modules/Range.lua` (the debounced rebuild, only when a band rule's resolved anchor spell, its reported range, or the anchor a druid's form puts in use moved) | none | the renderer (`Repaint`); the Band sets page (`settings/BandSets.lua`, a redraw for the spell bands' read-out) |
 | `MODE_CHANGED` | `Ka0s_RangeMaster_ModeChanged` | `core/RangeMaster.lua` (`NS.SetTestMode`, `NS.SetSimMode`) | `mode` (`"test"` or `"sim"`), `on`, `why` | `modules/Preview.lua` (what the displays draw) and `modules/Sim.lua` (starts or stops the sweep) |
 
@@ -241,7 +242,7 @@ never a real plate, and nothing measures it.
   so an alt of another class on the shared Default profile sees its own spells) and the icon
   indicator's spell (`elements.indicator.spellID`, nil = the first chip). They keep their stored
   values and are copied by Duplicate and Copy settings from.
-- A band's own fields (its edge, label, three colors and sound) and Add band / Remove band are the
+- A band's own fields (its edge, label, three colors, sound and rule) and Add band / Remove band are the
   Band sets page's Bands editor only: a band is one of a list the player grows, which no schema path
   can name, so `/rm get|set` reaches a band set's name, match rule and unknown label and color, not
   its bands (design spec 5.6 records this).
