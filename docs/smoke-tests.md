@@ -26,7 +26,7 @@ unless a check names one. The anchors are run as a matrix, one result per mode a
 | CONT-1..10 | Containers page | New container (no band preview), the rail, Position, Duplicate / Delete / Copy settings from, Defaults, Color from, the Dot tab and its Style tiles, Border opacity, the caption's positions, the caption's styling |
 | BANDS-1..11 | Band sets page | the picker, the Bands editor (no band ribbon), shared sets, the friendly override, the unknown label; spell bands: the rule controls, the read-out, the owner's Hawk Eye case, the dead zone, the v1 -> v2 conversion, the band rail |
 | PRESET-1..4 | Presets | the first-run picker, Apply on an empty profile, Apply over containers with Undo, what each of the five shows |
-| ANCHOR-1..9 | Anchors | every mode on both clients: screen, unit frames (Blizzard, EllesmereUI, custom, missing), own nameplate, all nameplates, cursor, the picker, all nameplates except target |
+| ANCHOR-1..10 | Anchors | every mode on both clients: screen, unit frames (Blizzard, EllesmereUI, custom, missing), own nameplate, all nameplates, cursor, the picker, all nameplates except target, the drag strip's marks |
 | VIS-1..3 | Visibility | combat and reaction rules, out-of-combat opacity, the master rows |
 | SOUND-1..2 | Sounds | the debounced band sound, none on nameplates |
 
@@ -445,7 +445,7 @@ it), or from chat with `/rm set container.anchor.mode frame` (`screen`, `frame`,
 - **ANCHOR-1. Free on screen.** With no focus and no mouseover, `/rm unlock` → every container shows
   (focus and mouseover on the placeholder range, a `nameplates` one through its stand-in, no amber
   strip); entering combat puts each back on its own visibility rules, leaving combat shows them again,
-  `/rm lock` hides the ones with no unit. A drag strip (name, gear, X, ?) shows above every
+  `/rm lock` hides the ones with no unit. A drag strip (name, then ?, gear, X) shows above every
   container: the gear opens it on the Containers page, the X disables it with one chat line. Drag a
   free-on-screen one, then `/reload` → it is where it was dropped. With the Expert preset and its
   mouseover container set to Cursor, the mouseover (cursor) and target-plate containers sit still at their screen points while unlocked,
@@ -495,6 +495,16 @@ it), or from chat with `/rm set container.anchor.mode frame` (`screen`, `frame`,
   stack on one plate; retargeting moves the gap to the new target's plate at once, the old target's
   plate gets its copy back, and clearing the target puts a copy on every hostile plate. Expert's
   every-plate container uses this unit.
+- **ANCHOR-10. The drag strip's marks (LibKa0s v1.107.0).** `/rm unlock` → each container's drag
+  strip reads, left to right at its right end, `?`, gear, X, packed close together; at rest the three
+  take the tint of the settings window's title-bar marks, and under the pointer the `?` and the gear
+  light the header's hover color and the X lights red, as the settings window's close does. Hovering
+  the strip, the `?`, the gear or the X opens its tooltip centered above the strip (below it only
+  near the top of the screen), never beside it: the gear's says it opens this display's settings, the
+  X's says it disables the display, keeps its settings and names Enable on the Containers page.
+  Click the gear → the settings panel opens on Containers with that display selected. Click the X →
+  that display disappears with one chat line; on Containers its Enable is off and every other
+  setting is as it was; turning Enable back on brings it back where it was, looking the same.
 
 | Check | Mode | Retail result | WoW Forever result |
 |---|---|---|---|
@@ -507,6 +517,7 @@ it), or from chat with `/rm set container.anchor.mode frame` (`screen`, `frame`,
 | ANCHOR-7 | `cursor` | | |
 | ANCHOR-8 | the frame picker (`frame`, custom) | | |
 | ANCHOR-9 | All nameplates except target | | |
+| ANCHOR-10 | the drag strip's marks (`screen`) | | |
 
 ## Visibility
 
@@ -541,4 +552,5 @@ Set the rules on Containers → Visibility.
 | INSTALL-4, CONT-2, CONT-7..8, PRESET-1, PRESET-3..4 | the five presets and dot styles (plan 2026-11-19-presets-and-dot-styles), 2026-11-19 | the Dot tab, the style art, Border opacity, the v0 -> v1 migration and the five presets have not been seen in a client yet |
 | INSTALL-4, CONT-1, CONT-7, CONT-9..10, BANDS-2 | the Label tab, the removed band previews and the art fill (the same plan, M7-M9), 2026-11-19 | the caption, the settings without their band previews and the redrawn halo-free art have not been seen in a client yet |
 | CONT-9, PRESET-4 | the outside caption positions and the preset defaults (the same plan, M11-M12), 2026-11-19 | the outside captions, the lifted strips, the faint preset frames and the plate containers out of combat have not been seen in a client yet |
+| ANCHOR-10 | the LibKa0s v1.107.0 re-vendor and the strip wiring (Ka0sAddonsCommonTasks 2026-11-19-ADOPTION_FEEDBACK, AF-RV-RM and AF-STRIP-RM), 2026-11-19 | the strip's new mark order, pitch, tints and the tooltip above the strip have not been seen in a client yet |
 | RANGE-6..11, BANDS-6..10 | the spell-driven dynamic bands (plan 2026-11-19-dynamic-bands, D1-D7), 2026-11-19 | whether the client reports talented ranges and answers by rank ID, which event a talent point fires, the rule controls, the owner's Hawk Eye case and the v1 -> v2 conversion have not been seen in a client yet |

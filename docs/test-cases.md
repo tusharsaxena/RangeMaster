@@ -219,7 +219,7 @@ Total.
 - render: test_caption_fixed_size — a fixed-size container keeps its box, the caption inside it
 - render: test_caption_color_modes — band, fixed and class, as the elements
 
-### test_anchors_screen.lua (13)
+### test_anchors_screen.lua (14)
 
 - anchors: a screen container sits at its stored point on UIParent
 - anchors: a stored point the client does not know falls back to CENTER
@@ -231,6 +231,7 @@ Total.
 - anchors: test_unlock_strip_on_every_container — a frame container wears a muted strip it cannot drag by
 - anchors: test_tagged_handle_is_the_marker — while the tagged drag strip shows, the TestStrip hides
 - anchors: test_strip_marks — the strip's settings mark opens the display, its close mark disables it
+- anchors: test_strip_three_marks — the built strip carries ? settings close, each mark wired and explained
 - anchors: Reset position puts every screen container back at its default point
 - anchors: switching a container's mode detaches the old anchor
 - anchors: a container leaving the screen anchor is no longer clamped to the screen
@@ -929,7 +930,7 @@ Total.
 | test_presets.lua | 13 |
 | test_number_format.lua | 5 |
 | test_container_render.lua | 53 |
-| test_anchors_screen.lua | 13 |
+| test_anchors_screen.lua | 14 |
 | test_anchors_frame.lua | 17 |
 | test_anchors_nameplate.lua | 20 |
 | test_anchors_cursor.lua | 7 |
@@ -977,4 +978,4 @@ Total.
 | test_skin_switch.lua | 6 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **743** |
+| **Total** | **744** |
