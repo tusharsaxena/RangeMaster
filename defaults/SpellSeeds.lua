@@ -45,13 +45,15 @@ NS.SpellSeeds = {
                                     ranged = { 185358, 56641, 75, 193455 } } },
         ROGUE       = { chips = { 185565, 36554, 1766 },      ladder = { 185565, 36554 },
                         anchors = { melee = { 193315, 1766 }, ranged = { 185763, 114014, 185565 } } },
+        -- Holy Fire 14914 stands in for Shadow Word: Pain on Holy (12.0); Shadow's Smite resolves to Mind Flay.
         PRIEST      = { chips = { 585, 589, 2061 },           ladder = { 585, 2061 },
-                        anchors = { ranged = { 585, 589, 8092, 47540 }, friendly = { 2061 } } },
+                        anchors = { ranged = { 585, 589, 8092, 47540, 14914 }, friendly = { 2061 } } },
         DEATHKNIGHT = { chips = { 49576, 47541, 47528 },      ladder = { 49576, 47528 },
                         anchors = { melee = { 49998, 206930 }, ranged = { 47541, 49184, 49576 } } },
+        -- Restoration has Healing Wave 77472 in place of Healing Surge (12.0).
         SHAMAN      = { chips = { 188196, 57994, 8004 },      ladder = { 188196, 57994 },
                         anchors = { melee = { 73899, 17364, 60103 }, ranged = { 188196, 188389, 57994 },
-                                    friendly = { 8004 } } },
+                                    friendly = { 8004, 77472 } } },
         MAGE        = { chips = { 116, 118, 2139 },           ladder = { 116, 118 },
                         anchors = { ranged = { 116, 133, 30451, 108853 } } },
         WARLOCK     = { chips = { 686, 5782, 172 },           ladder = { 686, 5782 },
@@ -63,22 +65,27 @@ NS.SpellSeeds = {
                         anchors = { melee = { cat = { 5221, 1822 }, bear = { 33917, 6807 } },
                                     ranged = { 5176, 190984, 8921 }, friendly = { 8936 } } },
         -- Disrupt 183752 is Combat Range 0-5 in 12.1.5, not the 20 yd LibRangeCheck still labels
-        -- it: a melee anchor and a chip, never a ladder rung.
+        -- it: a chip, never a ladder rung, and the last melee anchor (Improved Disrupt makes it 10 yd,
+        -- Guile 25, and a melee anchor reported past 8 yd is skipped). Vengeance's own strikes
+        -- (Fracture 263642, Shear 203782, Soul Cleave 228477) come first; Devourer's 25 yd Consume
+        -- 473662 and Reap 1226019 close the ranged list.
         DEMONHUNTER = { chips = { 185123, 185245, 183752 },   ladder = { 185123, 185245 },
-                        anchors = { melee = { 162243, 162794, 183752 }, ranged = { 185123, 185245 } } },
+                        anchors = { melee = { 162243, 162794, 263642, 203782, 228477, 183752 },
+                                    ranged = { 185123, 185245, 473662, 1226019 } } },
         EVOKER      = { chips = { 362969, 361469, 351338 },   ladder = { 362969, 351338 },
                         anchors = { ranged = { 362969, 361469, 356995 }, friendly = { 361469 } } },
     },
     forever = {
         WARRIOR = { chips = { 100, 2764, 20252 },  ladder = { 2764 },
-                    anchors = { melee = { 78, 772, 1715 }, ranged = { 100, 20252, 2764, 2480, 7918 } } },
-        -- No baseline melee strike: the seal-and-judge spell 20271 is 0-10 yd, too far for a melee band.
+                    anchors = { melee = { 78, 772, 1715 }, ranged = { 100, 20252, 2764, 2480, 7918, 7919 } } },
+        -- Holy Strike 679 (L6, 0-5; WoW Forever's own trainer strike, absent from Classic Era) is the
+        -- melee anchor; the seal-and-judge spell 20271 is 0-10 yd, too far for a melee band.
         PALADIN = { chips = { 20271, 853, 635 },   ladder = { 20271, 635 },
-                    anchors = { ranged = { 879, 24275 }, friendly = { 635, 19750 } } },
+                    anchors = { melee = { 679 }, ranged = { 879, 24275 }, friendly = { 635, 19750 } } },
         HUNTER  = { chips = { 75, 3044, 1130 },    ladder = { 1130 },
                     anchors = { melee = { 2973, 2974 }, ranged = { 75, 3044, 1978 } } },
         ROGUE   = { chips = { 2764, 1766, 1752 },  ladder = { 2764 },
-                    anchors = { melee = { 1752, 1776, 1766 }, ranged = { 2764, 2480, 7918, 1725 } } },
+                    anchors = { melee = { 1752, 1776, 1766 }, ranged = { 2764, 2480, 7918, 7919, 1725 } } },
         PRIEST  = { chips = { 585, 589, 2050 },    ladder = { 585, 2050 },
                     anchors = { ranged = { 585, 8092, 589 }, friendly = { 2050, 2061 } } },
         SHAMAN  = { chips = { 403, 8042, 331 },    ladder = { 403, 8042 },

@@ -107,8 +107,11 @@ local spellAns = {}        -- [unit] = { [spellID] = answer | NO_ANSWER }: the s
 local NO_ANSWER = {}       -- a memoized nil (a nil cannot sit in a table)
 local overrides = setmetatable({}, { __mode = "k" })   -- [a band's spells list] = anchor | false
 
--- A non-hunter's melee true is voided at this near bound or past it (THE RULES above).
-local MELEE_GUARD_YD = 20
+-- A melee anchor reaching past this is no melee spell: a talented Disrupt (10 or 25 yd), or a buff's
+-- override (Aspect of the Eagle's 40 yd Raptor Strike, Ascendance's 30 yd Windstrike). A melee true is
+-- also voided, for every class, at a bracket near bound this far or past it (THE RULES above): a
+-- Forever hunter's Raptor Strike answered true from 45-100 yd (the owner, 2026-11-19).
+local MELEE_REACH_YD = 8
 -- The interact distance a dead zone's "near" may be confirmed by: 3, the duel distance (10 yd).
 local NEAR_INTERACT = 3
 
@@ -264,31 +267,54 @@ local function plainRange(v)
     return v
 end
 
---- The first seed in `list` the player knows, as its current rank and override, or nil.
-local function firstKnown(list)
-    for _, seed in ipairs(list) do
-        local id = Compat.CurrentSpellID(seed)
-        if id and Compat.IsSpellKnown(id) then
-            local name, _, _, minRange, maxRange = Compat.GetSpellInfo(id)
-            if Compat.IsSecret(name) or type(name) ~= "string" then name = nil end
-            return { id = id, name = name, minRange = plainRange(minRange), maxRange = plainRange(maxRange) }
-        end
-    end
-    return nil
+local function anchorOf(id, order)
+    local name, _, _, minRange, maxRange = Compat.GetSpellInfo(id)
+    if Compat.IsSecret(name) or type(name) ~= "string" then name = nil end
+    return { id = id, name = name, minRange = plainRange(minRange), maxRange = plainRange(maxRange),
+        order = order }
 end
 
---- One role's resolution: an anchor, a form map of anchors, or nil.
-local function resolveRole(list)
+local function reachesPast(range, yd)
+    return type(range) == "number" and range > yd
+end
+
+local function longerFirst(x, y)
+    local rx, ry = x.maxRange or -1, y.maxRange or -1
+    if rx ~= ry then return rx > ry end
+    return x.order < y.order
+end
+
+--- Every seed in `list` the player knows, at its current rank and override, as a candidate list:
+--- a ranged or friendly list longest reach first (the client reports the talented range, so a talent
+--- stretching a later seed puts it first), seed order among equals; a melee list in seed order,
+--- without a spell reaching past MELEE_REACH_YD. Nil when the player knows none.
+local function knownList(list, role)
+    local out, seen = {}, {}
+    for i, seed in ipairs(list) do
+        local id = Compat.CurrentSpellID(seed)
+        if id and not seen[id] and Compat.IsSpellKnown(id) then
+            seen[id] = true
+            local a = anchorOf(id, i)
+            if role ~= "melee" or not reachesPast(a.maxRange, MELEE_REACH_YD) then out[#out + 1] = a end
+        end
+    end
+    if #out == 0 then return nil end
+    if role ~= "melee" then table.sort(out, longerFirst) end
+    return out
+end
+
+--- One role's resolution: a candidate list, a form map of candidate lists, or nil.
+local function resolveRole(list, role)
     if type(list) ~= "table" then return nil end
-    if #list > 0 then return firstKnown(list) end
+    if #list > 0 then return knownList(list, role) end
     local forms = {}
     for key, ids in pairs(list) do
-        if type(key) == "string" and type(ids) == "table" then forms[key] = firstKnown(ids) end
+        if type(key) == "string" and type(ids) == "table" then forms[key] = knownList(ids, role) end
     end
     return { forms = forms }
 end
 
---- The anchor of a resolved slot in use right now: a form map picks by the current form.
+--- The candidate list of a resolved slot in use right now: a form map picks by the current form.
 local function inUse(slot)
     if slot and slot.forms then
         local key = FORM_KEY[Compat.ShapeshiftFormID() or 0]
@@ -297,9 +323,22 @@ local function inUse(slot)
     return slot
 end
 
-local function sigOf(a)
-    if not a then return "-" end
-    return tostring(a.id) .. ":" .. tostring(a.minRange) .. ":" .. tostring(a.maxRange)
+--- The candidate a read asks first: the first one usable right now, else the first.
+local function pick(list)
+    if not list then return nil end
+    for _, a in ipairs(list) do
+        if Compat.IsSpellUsable(a.id) then return a end
+    end
+    return list[1]
+end
+
+local function sigOf(list)
+    if not list then return "-" end
+    local parts = {}
+    for i, a in ipairs(list) do
+        parts[i] = tostring(a.id) .. ":" .. tostring(a.minRange) .. ":" .. tostring(a.maxRange)
+    end
+    return table.concat(parts, ",")
 end
 
 --- Everything a band reads of the anchors, as one string: each role's anchor (each form's, for a
@@ -325,7 +364,7 @@ local function resolveAnchors()
     local byClass = NS.SpellSeeds and NS.SpellSeeds[Compat.ClientKey() or "retail"]
     local seed = byClass and byClass[Compat.PlayerClass() or ""]
     local lists = seed and seed.anchors or {}
-    for _, role in ipairs(ROLES) do anchors[role] = resolveRole(lists[role]) end
+    for _, role in ipairs(ROLES) do anchors[role] = resolveRole(lists[role], role) end
     anchorsResolved = true
     local sig = signature()
     local moved = sig ~= anchorSig
@@ -333,72 +372,112 @@ local function resolveAnchors()
     return moved
 end
 
---- The anchor spell a band rule of `role` asks, as the last rebuild resolved it:
---- `{ id, name, minRange, maxRange }` (name and the ranges nil when the client will not say), or nil
---- when the role is unresolved. A druid's melee anchor follows the current form. Resolved on the
---- first read when no rebuild has run yet. The table is the resolver's own: read it, never write it.
+local function candidates(role)
+    if not anchorsResolved then resolveAnchors() end
+    return inUse(anchors[role])
+end
+
+--- The anchor spell a band rule of `role` asks first right now, of the candidates the last rebuild
+--- resolved (see THE ANCHORS): `{ id, name, minRange, maxRange }` (name and the ranges nil when the
+--- client will not say), or nil when the role is unresolved. A druid's melee anchor follows the
+--- current form. Resolved on the first read when no rebuild has run yet. The table is the
+--- resolver's own: read it, never write it.
 --- @param role string "melee" | "ranged" | "friendly"
 --- @return table|nil
 function Range.Anchor(role)
-    if not anchorsResolved then resolveAnchors() end
-    return inUse(anchors[role])
+    return pick(candidates(role))
 end
 
 -- ---------------------------------------------------------------------------
 -- The rules (dynamic-bands plan D3)
 -- ---------------------------------------------------------------------------
 
---- A band's own spell list as an anchor (its first known spell, at its learned rank), or nil.
-local function overrideAnchor(list)
+--- A band's own spell list as a candidate list for `role` (its known spells, at their learned rank,
+--- ordered as a role's list is), or nil. Cached per list until the next rebuild.
+local function overrideList(list, role)
     if type(list) ~= "table" then return nil end
-    local a = overrides[list]
-    if a == nil then
-        a = firstKnown(list) or false
-        overrides[list] = a
+    local e = overrides[list]
+    if e == nil or e.role ~= role then
+        e = { role = role, list = knownList(list, role) }
+        overrides[list] = e
     end
-    return a or nil
+    return e.list
 end
 
---- The anchor a band rule of `role` asks: its own `spells` list's first known spell (at its learned
---- rank) when it has one, else the role's anchor (Range.Anchor), or nil when unresolved. What
---- RoleInRange asks, and what the Band sets page's read-out names. Read it, never write it.
+local function candidatesFor(role, spells)
+    if spells ~= nil then return overrideList(spells, role) end
+    return candidates(role)
+end
+
+--- The anchor a band rule of `role` asks first: of its own `spells` list when it has one, else of
+--- the role's (Range.Anchor), or nil when unresolved. What the Band sets page's read-out names.
+--- Read it, never write it.
 --- @param role string "melee" | "ranged" | "friendly"
 --- @param spells table|nil a band's own spell IDs
 --- @return table|nil
 function Range.AnchorFor(role, spells)
-    if spells ~= nil then return overrideAnchor(spells) end
+    if spells ~= nil then return pick(overrideList(spells, role)) end
     return Range.Anchor(role)
 end
 
---- Whether a melee true on `unit` is voided: the player is no hunter and the bracket's near bound
---- is MELEE_GUARD_YD or more.
-local function meleeVoided(unit)
-    if Compat.PlayerClass() == "HUNTER" then return false end
-    local state, lo = Range.Get(unit)
-    return state == "known" and type(lo) == "number" and lo >= MELEE_GUARD_YD
+local function spellReach(id)
+    if not id then return nil end
+    return plainRange(select(5, Compat.GetSpellInfo(id)))
 end
 
---- Whether `unit` is within the anchor's range for a band rule of `role`: true, false, or nil when
---- the role is unresolved here (or `spells`, a band's own list, holds no known spell), the anchor
---- cannot vouch (NS.Compat.AnchorInRange), the unit does not exist, or a melee true is voided (see
---- THE RULES in the header). A preview's fake source answers through its InRole.
+local roleAnswer   -- Range.RoleInRange, below
+
+--- Whether a melee true on `unit` from anchor `a` is voided: the anchor (or what stands in for it
+--- now, a buff's override) reaches past MELEE_REACH_YD; the bracket's near bound is MELEE_REACH_YD
+--- or more; or a ranged anchor with a min range says true (the unit is past that min, out of melee).
+local function meleeVoided(unit, a)
+    if reachesPast(spellReach(a.id), MELEE_REACH_YD) then return true end
+    local ov = Compat.OverrideSpell(a.id)
+    if ov and ov ~= a.id and reachesPast(spellReach(ov), MELEE_REACH_YD) then return true end
+    local state, lo = Range.Get(unit)
+    if state == "known" and type(lo) == "number" and lo >= MELEE_REACH_YD then return true end
+    local v, r = roleAnswer("ranged", unit)
+    return v == true and r ~= nil and type(r.minRange) == "number" and r.minRange > 0
+end
+
+local function askOne(role, unit, a)
+    if source then
+        local v = source.InRole and source.InRole(role, unit, a)
+        if v == true or v == false then return v end
+        return nil
+    end
+    return memoSpell(a.id, unit, Compat.AnchorInRange)
+end
+
+--- Whether `unit` is within range for a band rule of `role`, and the anchor that answered: the
+--- first candidate (see THE ANCHORS) that can vouch gives the answer, true or false; nil when the
+--- role is unresolved here (or `spells`, a band's own list, holds no known spell), no candidate can
+--- vouch (NS.Compat.AnchorInRange: an unusable one passes to the next), the unit does not exist, or
+--- a melee true is voided (see THE RULES in the header). A preview's fake source answers through
+--- its InRole.
 --- @param role string "melee" | "ranged" | "friendly"
 --- @param spells table|nil a band's own spell IDs, in place of the class's anchors for `role`
---- @return boolean|nil
+--- @return boolean|nil, table|nil
 function Range.RoleInRange(role, unit, spells)
     if type(unit) ~= "string" then return nil end
-    local a = Range.AnchorFor(role, spells)
-    if not a then return nil end
-    local v
+    -- A preview asks the one anchor it would name (Range.AnchorFor): its answer comes from the
+    -- anchor's reported range, so a second candidate adds nothing.
+    local list = candidatesFor(role, spells)
     if source then
-        if source.InRole then v = source.InRole(role, unit, a) end
-        if v ~= true and v ~= false then v = nil end
-    elseif UnitExists(unit) then
-        v = memoSpell(a.id, unit, Compat.AnchorInRange)
+        local a = Range.AnchorFor(role, spells)
+        list = a and { a } or nil
     end
-    if v == true and role == "melee" and meleeVoided(unit) then return nil end
-    return v
+    if not list or (not source and not UnitExists(unit)) then return nil end
+    for _, a in ipairs(list) do
+        local v = askOne(role, unit, a)
+        if v ~= nil then
+            if v == true and role == "melee" and meleeVoided(unit, a) then return nil, a end
+            return v, a
+        end
+    end
+    return nil
 end
+roleAnswer = Range.RoleInRange
 
 --- Whether a check shorter than the ranged anchor's reach puts `unit` inside that anchor's min
 --- range: the bracket's far bound at or under the min, or the duel interact distance in range (not
@@ -455,15 +534,15 @@ local function rebuildNow()
     ladder = nil
     for id in pairs(known) do known[id] = nil end
     local was = {}
-    for list, a in pairs(overrides) do
-        was[list] = sigOf(a)
+    for list, e in pairs(overrides) do
+        was[list] = { role = e.role, sig = sigOf(e.list) }
         overrides[list] = nil
     end
     local moved = resolveAnchors()
     -- A band's own list a read has asked is resolved again now, so a spell it learned or lost is a
     -- change too (the Band sets page's read-out follows it).
-    for list, sig in pairs(was) do
-        if sigOf(overrideAnchor(list)) ~= sig then moved = true end
+    for list, w in pairs(was) do
+        if sigOf(overrideList(list, w.role)) ~= w.sig then moved = true end
     end
     Range.BeginTick()
     rebuilds = rebuilds + 1

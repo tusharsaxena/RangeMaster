@@ -99,10 +99,14 @@ local CLASS_DEFAULT = {
     MAGE = "caster40", WARLOCK = "caster40", PRIEST = "caster40", EVOKER = "caster40",
 }
 
---- The preset key the first-run seed makes the default for `classFile`.
+-- A spec that plays unlike its class: Devourer, the Demon Hunter's 25 yd Intellect spec (the owner,
+-- 2026-11-19), reads as a caster.
+local SPEC_DEFAULT = { [1480] = "caster40" }
+
+--- The preset key the first-run seed makes the default for `classFile` (and `specID`, when known).
 --- @return string
-function Presets.DefaultFor(classFile)
-    return CLASS_DEFAULT[classFile] or "melee_ranged"
+function Presets.DefaultFor(classFile, specID)
+    return SPEC_DEFAULT[specID or 0] or CLASS_DEFAULT[classFile] or "melee_ranged"
 end
 
 NS.BandSetPresets = Presets

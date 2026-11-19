@@ -186,12 +186,18 @@ function Compat.CurrentSpellID(id)
     local name = Compat.GetSpellInfo(id)
     if name == nil or Compat.IsSecret(name) then return nil end
     local cur = plainId(select(6, Compat.GetSpellInfo(name))) or id
-    if C_Spell and C_Spell.GetOverrideSpell then
-        local ok, ov = pcall(C_Spell.GetOverrideSpell, cur)
-        ov = ok and plainId(ov) or nil
-        if ov and ov ~= cur and Compat.IsSpellKnown(ov) then cur = ov end
-    end
+    local ov = Compat.OverrideSpell(cur)
+    if ov and ov ~= cur and Compat.IsSpellKnown(ov) then cur = ov end
     return cur
+end
+
+--- The spell that stands in for `id` right now (a talent's or a buff's override, such as Aspect of
+--- the Eagle's Raptor Strike or Ascendance's Windstrike), or nil when none or the client will not say.
+--- @return number|nil
+function Compat.OverrideSpell(id)
+    if type(id) ~= "number" or not (C_Spell and C_Spell.GetOverrideSpell) then return nil end
+    local ok, ov = pcall(C_Spell.GetOverrideSpell, id)
+    return ok and plainId(ov) or nil
 end
 
 --- Whether `unit` is within the anchor spell `id`'s range: true, false, or nil when the anchor
@@ -213,6 +219,18 @@ function Compat.ShapeshiftFormID()
     local ok, v = pcall(GetShapeshiftFormID)
     if not ok then return nil end
     return plainId(v)
+end
+
+--- The player's specialization ID (1480 Devourer, ...), or nil where the client has none to give
+--- (WoW Forever, a partial install, a secret). Through LibKa0s-Compat's spec readers.
+--- @return number|nil
+function Compat.PlayerSpecID()
+    if not (CompatLib and CompatLib.GetSpecialization and CompatLib.GetSpecializationInfo) then return nil end
+    local ok, index = pcall(CompatLib.GetSpecialization)
+    index = ok and plainId(index) or nil
+    if not index then return nil end
+    local ok2, id = pcall(CompatLib.GetSpecializationInfo, index)
+    return ok2 and plainId(id) or nil
 end
 
 --- Whether `unit` is within the item `id`'s use range: true, false, or nil. The client refuses

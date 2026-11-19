@@ -577,7 +577,7 @@ local function withAnchors(spec, body)
   local known, info, override = spec.known or {}, spec.info or {}, spec.override or {}
   seeds[class] = { chips = {}, ladder = {}, anchors = spec.anchors }
   book.IsSpellKnown = function(id) return known[id] == true end
-  spell.IsSpellUsable = function() return true, false end
+  spell.IsSpellUsable = function(id) return not (spec.usable and spec.usable[id] == false), false end
   spell.GetSpellInfo = function(id)
     local r = info[id]
     if r then
@@ -603,7 +603,7 @@ test("anchors: a role resolves to its first KNOWN anchor, with the client's name
   withAnchors({
     anchors = { ranged = { 116, 133, 30451 } },
     known = { [133] = true, [30451] = true },
-    info = { [116] = { "Frostbolt", 116 }, [133] = { "Fireball", 133, 0, 35 }, [30451] = { "Arcane Blast", 30451 },
+    info = { [116] = { "Frostbolt", 116 }, [133] = { "Fireball", 133, 0, 35 }, [30451] = { "Arcane Blast", 30451, 0, 30 },
       Fireball = { "Fireball", 133, 0, 35 } },
   }, function()
     local a = NS.Range.Anchor("ranged")
@@ -688,7 +688,7 @@ test("anchors: a rebuild announces only when a resolved anchor or its range move
   local spec = {
     anchors = { ranged = { 75, 3044 }, melee = { cat = { 1082 } } },
     known = { [75] = true },
-    info = { [75] = { "Auto Shot", 75, 8, 35 }, [3044] = { "Arcane Shot", 3044 }, [1082] = { "Claw", 1082 } },
+    info = { [75] = { "Auto Shot", 75, 8, 35 }, [3044] = { "Arcane Shot", 3044 }, [1082] = { "Claw", 1082, 0, 5 } },
     form = 0,
   }
   withAnchors(spec, function()
@@ -900,7 +900,10 @@ test("rules: the owner's case: a 35-40 bracket with Auto Shot in range reads AUT
     spec.inRange[75] = false
     assertEqual(resolve(setId, spec), 4, "out of every anchor's range: OOR")
     spec.inRange[2973] = true
-    assertEqual(resolve(setId, spec), 1, "in melee wins, in band order")
+    assertEqual(resolve(setId, spec), 4,
+      "Raptor Strike's true at 35-40 is the Forever quirk (owner, 2026-11-19: MELEE at 45-100): voided, OOR")
+    spec.bracket = { 0, 5 }
+    assertEqual(resolve(setId, spec), 1, "in melee, close by: MELEE")
   end)
 end)
 
@@ -913,7 +916,8 @@ test("rules: the dead zone holds only when a shorter check confirms the target i
     spec.interact[3] = true
     assertEqual(resolve(setId, spec), 2, "no bracket, the interact distance says near: DEAD")
     spec.interact[3] = false
-    assertEqual(resolve(setId, spec), 4, "nothing confirms near, every anchor out: OOR")
+    assertEqual(resolve(setId, spec), "unknown",
+      "no bracket, nothing confirms near: Auto Shot's false may be its 8 yd min, so unknown, never OOR")
     spec.bracket = { 5, 10 }
     assertEqual(resolve(setId, spec), "unknown",
       "a bracket reaching into the dead zone's yards confirms nothing: unknown, never OOR")
@@ -1000,19 +1004,34 @@ test("rules: yards that contradict a band's own anchor never paint that band", f
   end)
 end)
 
-test("rules: a non-hunter's melee true is voided when the bracket puts the unit 20 yd or more away", function()
-  -- red under: no guard (a melee spell unusable in the form can answer true from anywhere).
+test("rules: a melee true is voided, for every class, when the bracket puts the unit 8 yd or more away", function()
+  -- red under: no guard (a melee spell can answer true from anywhere), or a hunter exempt from it
+  -- (the owner, 2026-11-19: a Forever hunter read MELEE at 41-45 and 45-100).
   local spec = hunter({ class = "WARRIOR", bracket = { 25, 30 }, inRange = { [2973] = true, [75] = true } })
   withRules(spec, function(setId)
     assertNil(NS.Range.RoleInRange("melee", "target"), "a warrior's melee true at 25 yd is voided")
     assertEqual(resolve(setId, spec), 3, "and the next band's anchor decides")
-    spec.bracket = { 0, 5 }
+    spec.bracket, spec.inRange[75] = { 0, 5 }, false
     NS.Range.BeginTick()
     assertEqual(NS.Range.RoleInRange("melee", "target"), true, "close by, the true stands")
   end)
-  spec = hunter({ bracket = { 25, 30 }, inRange = { [2973] = true } })
+  spec = hunter({ bracket = { 45, 100 }, inRange = { [2973] = true } })
   withRules(spec, function()
-    assertEqual(NS.Range.RoleInRange("melee", "target"), true, "a hunter's melee is not guarded")
+    assertNil(NS.Range.RoleInRange("melee", "target"), "a hunter's melee true at 45-100 is voided too")
+    spec.bracket = { 8, 10 }
+    NS.Range.BeginTick()
+    assertNil(NS.Range.RoleInRange("melee", "target"), "and at 8-10")
+  end)
+end)
+
+test("rules: a melee true is voided while a min-range ranged anchor says true, with no bracket", function()
+  -- red under: a guard that reads the bracket alone (no bracket: Raptor Strike's quirk read MELEE).
+  local spec = hunter({ bracket = {}, inRange = { [2973] = true, [75] = true } })
+  withRules(spec, function()
+    assertNil(NS.Range.RoleInRange("melee", "target"), "Auto Shot in range means past 8 yd: no melee")
+    spec.inRange[75] = false
+    NS.Range.BeginTick()
+    assertEqual(NS.Range.RoleInRange("melee", "target"), true, "Auto Shot out (too close): the true stands")
   end)
 end)
 
@@ -1141,5 +1160,95 @@ test("anchors: AnchorFor names the anchor a band asks, its own list's or the rol
     assertEqual(a and a.name, "Arcane Shot")
     assertNil(NS.Range.AnchorFor("ranged", { 2973 }), "a list with nothing known is unresolved")
     assertNil(NS.Range.AnchorFor("melee"), "and so is a role with nothing known")
+  end)
+end)
+
+-- ---------------------------------------------------------------------------
+-- The cross-validation round (2026-11-19): longest usable anchor, melee reach, min range, yard bands
+-- ---------------------------------------------------------------------------
+
+test("anchors: a talented later seed reaching farther is asked first (Shadow Reach Mind Blast over Smite)", function()
+  -- red under: the first known seed alone (a Forever shadow priest read OOR from 30 with Mind Blast at 36).
+  withAnchors({
+    anchors = { ranged = { 585, 8092 } },
+    known = { [585] = true, [8092] = true },
+    info = { [585] = { "Smite", 585, 0, 30 }, [8092] = { "Mind Blast", 8092, 0, 36 } },
+  }, function()
+    assertEqual(NS.Range.Anchor("ranged").id, 8092, "the 36 yd Mind Blast")
+  end)
+end)
+
+test("rules: an unusable anchor passes to the next (Charge in combat, Throw answers)", function()
+  -- red under: the first known anchor alone (Charge unusable left the ranged role silent: LONG by yards).
+  local bands = {
+    { from = 0, to = 5, label = "MELEE", rule = { type = "spell", role = "melee" } },
+    { from = 5, to = 30, label = "MID" },
+    { from = 30, to = 40, label = "LONG", rule = { type = "spell", role = "ranged" } },
+    { from = 40, label = "OOR", rule = { type = "beyond" } },
+  }
+  local spec = { bands = bands, class = "WARRIOR", anchors = { melee = { 78 }, ranged = { 100, 2764 } },
+    known = { [78] = true, [100] = true, [2764] = true },
+    info = { [78] = { "Heroic Strike", 78, 0, 5 }, [100] = { "Charge", 100, 8, 30 }, [2764] = { "Throw", 2764, 8, 30 } },
+    usable = { [100] = false }, bracket = { 30, 35 }, inRange = { [78] = false, [100] = true, [2764] = false } }
+  withRules(spec, function(setId)
+    local v, a = NS.Range.RoleInRange("ranged", "target")
+    assertEqual(v, false, "Throw's answer")
+    assertEqual(a and a.id, 2764, "Throw answered, not the unusable Charge")
+    assertEqual(resolve(setId, spec), 4, "every usable spell out: OOR")
+  end)
+end)
+
+test("anchors: a melee seed reported past 8 yd is no melee anchor (Improved Disrupt)", function()
+  withAnchors({
+    anchors = { melee = { 183752, 263642 } },
+    known = { [183752] = true, [263642] = true },
+    info = { [183752] = { "Disrupt", 183752, 0, 10 }, [263642] = { "Fracture", 263642, 0, 5 } },
+  }, function()
+    assertEqual(NS.Range.Anchor("melee").id, 263642, "Disrupt at 10 yd is skipped: Fracture")
+  end)
+end)
+
+test("rules: a melee true is voided while a buff's override reaches past 8 yd (Aspect of the Eagle)", function()
+  local spec = hunter({ bracket = { 0, 5 }, inRange = { [2973] = true, [75] = false },
+    override = { [2973] = 265189 } })
+  spec.known = { [2973] = true, [75] = true }
+  spec.info = { [2973] = { "Raptor Strike", 2973, 0, 5 }, [75] = { "Auto Shot", 75, 8, 41 },
+    [265189] = { "Raptor Strike", 265189, 0, 40 } }
+  withRules(spec, function()
+    assertNil(NS.Range.RoleInRange("melee", "target"), "the 40 yd override: no melee true")
+  end)
+end)
+
+test("rules: a min-range anchor's false inside its min is not OOR (a 5-8 bracket, no gap band)", function()
+  -- red under: a beyond trusting any false (a Forever rogue's Throw read OOR at 6 yd).
+  local bands = {
+    { from = 0, to = 5, label = "MELEE", rule = { type = "spell", role = "melee" } },
+    { from = 5, to = 30, label = "RANGED", rule = { type = "spell", role = "ranged" } },
+    { from = 30, label = "OOR", rule = { type = "beyond" } },
+  }
+  local spec = { bands = bands, class = "ROGUE", anchors = { melee = { 1752 }, ranged = { 2764 } },
+    known = { [1752] = true, [2764] = true },
+    info = { [1752] = { "Sinister Strike", 1752, 0, 5 }, [2764] = { "Throw", 2764, 8, 30 } },
+    bracket = { 5, 8 }, inRange = { [1752] = false, [2764] = false } }
+  withRules(spec, function(setId)
+    assertEqual(resolve(setId, spec), "unknown", "inside Throw's 8 yd min: never OOR")
+    spec.bracket = { 30, 35 }
+    assertEqual(resolve(setId, spec), 3, "past it: OOR")
+  end)
+end)
+
+test("rules: every spell out of range beats a yard band's yards (owner, 2026-11-19: Evoker healer NEAR)", function()
+  -- red under: band order kept for yard bands (a 25-30 yd friend read NEAR with Living Flame out).
+  local bands = {
+    { from = 0, to = 30, label = "NEAR" },
+    { from = 30, to = 40, label = "FAR", rule = { type = "spell", role = "friendly" } },
+    { from = 40, label = "OOR", rule = { type = "beyond" } },
+  }
+  local spec = { bands = bands, class = "EVOKER", anchors = { friendly = { 361469 } }, known = { [361469] = true },
+    info = { [361469] = { "Living Flame", 361469, 0, 25 } }, bracket = { 25, 30 }, inRange = { [361469] = false } }
+  withRules(spec, function(setId)
+    assertEqual(resolve(setId, spec), 3, "Living Flame out at 25-30: OOR, not NEAR")
+    spec.inRange[361469] = true
+    assertEqual(resolve(setId, spec), 1, "in range: the yards' NEAR")
   end)
 end)

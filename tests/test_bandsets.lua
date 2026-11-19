@@ -398,6 +398,10 @@ test("bandsets: DefaultFor picks a class's preset, and an unknown class gets Mel
   assertEqual(P.DefaultFor("MAGE"), "caster40")
   assertEqual(P.DefaultFor("WARRIOR"), "melee_ranged")
   assertEqual(P.DefaultFor(nil), "melee_ranged")
+  -- red under: a class-only pick (Devourer, a 25 yd Intellect spec, got Melee / Ranged; owner 2026-11-19).
+  assertEqual(P.DefaultFor("DEMONHUNTER", 1480), "caster40", "Devourer reads as a caster")
+  assertEqual(P.DefaultFor("DEMONHUNTER", 577), "melee_ranged", "Havoc keeps its class's set")
+  assertEqual(P.DefaultFor("DEMONHUNTER"), "melee_ranged", "no spec answer: the class's set")
   assertEqual(P.DefaultFor("NOT_A_CLASS"), "melee_ranged")
 end)
 

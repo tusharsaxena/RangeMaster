@@ -241,14 +241,16 @@ end
 -- One Resolve's reading, reused (Resolve never re-enters): each spell band's answer, NONE for nil.
 local NONE = {}
 local answers = {}
+local answeredBy = {}   -- [i] = the anchor that gave band i's answer (its min range matters)
 local cur = { bands = nil, unit = nil, state = nil, minYd = nil, maxYd = nil, gap = nil }
 
 local function answerOf(i, rule)
     local v = answers[i]
     if v == nil then
-        v = NS.Range.RoleInRange(rule.role, cur.unit, rule.spells)
+        local a
+        v, a = NS.Range.RoleInRange(rule.role, cur.unit, rule.spells)
         if v == nil then v = NONE end
-        answers[i] = v
+        answers[i], answeredBy[i] = v, a or false
     end
     if v == NONE then return nil end
     return v
@@ -277,23 +279,33 @@ local function inGapYards()
     return false
 end
 
+--- Whether band `i`'s false means beyond its anchor's reach, not inside its min range: an anchor with
+--- no min range, or a bracket whose near bound is at that min or past it. Without a bracket a min-range
+--- spell's false (Auto Shot, Throw, Charge at 6 yd) may only mean "too close".
+local function outPastReach(i)
+    local a = answeredBy[i]
+    local min = a and a.minRange
+    if type(min) ~= "number" or min <= 0 then return true end
+    return cur.state == "known" and type(cur.minYd) == "number" and cur.minYd >= min
+end
+
 --- Whether the beyond band holds (see the header): no spell band in range, the farthest spell band's
---- anchor out of range (a nearer one with no answer, such as a class with no melee spell, does not
---- stop it), no gap holding, and no dead-zone yards in reach.
+--- anchor out of range past its reach (a nearer one with no answer, such as a class with no melee
+--- spell, does not stop it), no gap holding, and no dead-zone yards in reach.
 local function beyondHolds()
     if inGapYards() then return false end
-    local bands, last = cur.bands, nil
+    local bands, last, lastAt = cur.bands, nil, nil
     for i = 1, #bands do
         local r = ruleOf(bands[i])
         if r and r.type == "spell" then
             local v = answerOf(i, r)
             if v == true then return false end
-            last = v
+            last, lastAt = v, i
         elseif r and r.type == "gap" and gapHolds() then
             return false
         end
     end
-    return last == false
+    return last == false and outPastReach(lastAt)
 end
 
 --- Whether band `i`'s own rule says the unit is not in it, so its yards may not be taken.
@@ -322,11 +334,22 @@ local function holds(i, pick)
     return pick == i
 end
 
-local function resolveRules(bands, pick, state, minYd, maxYd, unit)
-    for i = 1, #bands do answers[i] = nil end
-    cur.bands, cur.unit, cur.state, cur.minYd, cur.maxYd, cur.gap = bands, unit, state, minYd, maxYd, nil
-    local out = "unknown"
+--- The beyond band's index when it holds, before any band is walked: every spell out of range is
+--- out of range, whatever a yard band's yards say (the owner, 2026-11-19: an Evoker's 25-30 yd friend
+--- is not NEAR when Living Flame cannot reach).
+local function beyondFirst(bands)
     for i = 1, #bands do
+        local r = ruleOf(bands[i])
+        if r and r.type == "beyond" then return beyondHolds() and i or nil end
+    end
+    return nil
+end
+
+local function resolveRules(bands, pick, state, minYd, maxYd, unit)
+    for i = 1, #bands do answers[i], answeredBy[i] = nil, nil end
+    cur.bands, cur.unit, cur.state, cur.minYd, cur.maxYd, cur.gap = bands, unit, state, minYd, maxYd, nil
+    local out = beyondFirst(bands) or "unknown"
+    for i = 1, out == "unknown" and #bands or 0 do
         if holds(i, pick) then
             out = i
             break
@@ -637,7 +660,7 @@ end
 --- @return number  how many sets were seeded
 function BandSets.Seed(p)
     if defaultIdOf(p) then return 0 end
-    local first = NS.BandSetPresets.DefaultFor(NS.Compat.PlayerClass())
+    local first = NS.BandSetPresets.DefaultFor(NS.Compat.PlayerClass(), NS.Compat.PlayerSpecID())
     local n = 0
     local keys = { first }
     for _, key in ipairs(NS.BandSetPresets.ORDER) do
