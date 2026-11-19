@@ -255,13 +255,25 @@ test("bandsets: the Bands tab draws the rule controls, Fallback on rule bands, a
     ctx.activeTab = "Bands"
     withAnchorFor(function() return nil end, function() NS.__renderBandSetsPage(ctx) end)
     local labels = E.labels(ctx)
-    for _, label in ipairs({ "Defined by", "Role", "Spell IDs", "Fallback (yards)", "Up to (yards)",
+    assertTrue(labels["Defined by"] and labels["Up to (yards)"], "Bands shows the yard band's controls")
+    NS.__selectBand(select(2, NS.SelectedBandSet()), 2)
+    withAnchorFor(function() return nil end, function() NS.__renderBandSetsPage(ctx) end)
+    labels = E.labels(ctx)
+    for _, label in ipairs({ "Defined by", "Role", "Spell IDs", "Fallback (yards)",
         "Not learned: using 5\226\128\14740 yd" }) do
       assertTrue(labels[label], "Bands shows " .. label)
     end
+    NS.__selectBand(select(2, NS.SelectedBandSet()), 1)
+    withAnchorFor(function() return nil end, function() NS.__renderBandSetsPage(ctx) end)
+    labels = E.labels(ctx)
     assertTrue(labels["Band 1: 0\226\128\1475 yd NEAR"], "a yard band's heading names no rule")
-    assertTrue(labels["Band 2: 5\226\128\14740 yd CAST (Spell: Ranged)"], "a spell band's names its role")
-    assertTrue(labels["Band 3: 40+ yd OOR (Beyond the last spell band)"], "and beyond is named")
+    local function headingsWith(i)
+      NS.__selectBand(select(2, NS.SelectedBandSet()), i)
+      withAnchorFor(function() return nil end, function() NS.__renderBandSetsPage(ctx) end)
+      return E.labels(ctx)
+    end
+    assertTrue(headingsWith(2)["Band 2: 5\226\128\14740 yd CAST (Spell: Ranged)"], "a spell band's names its role")
+    assertTrue(headingsWith(3)["Band 3: 40+ yd OOR (Beyond the last spell band)"], "and beyond is named")
   end)
 end)
 
@@ -273,5 +285,121 @@ test("bandsets: a rebuild that moves an anchor redraws the page (the read-out)",
     NS.RequestPanelRefresh = real
     if not ok then error(err, 0) end
     assertTrue(n >= 1, "ANCHORS_CHANGED asks for a redraw")
+  end)
+end)
+
+-- ── the band rail (plan 2026-11-19 bandsets-rail) ───────────────────────────────────────────
+
+--- The Bands tab of the selected set, drawn; answers the ctx and the labels it drew.
+local function drawBands(ctx)
+  ctx = ctx or E.page("bandsets", "Band sets")
+  ctx.activeTab = "Bands"
+  withAnchorFor(function() return nil end, function() NS.__renderBandSetsPage(ctx) end)
+  return ctx, E.labels(ctx)
+end
+
+--- The rail's entry texts as drawn, the color chip stripped.
+local function railTexts()
+  local out = {}
+  for i, b in ipairs(NS.__bandRail() or {}) do
+    out[i] = (tostring(b.__ka0sNavText):gsub("^|T.-|t ", ""))
+  end
+  return out
+end
+
+--- The drawn widget whose text is `text` in `ctx`'s scroll, or nil.
+local function widgetWithText(ctx, text)
+  local function walk(w)
+    for _, child in ipairs(w.children or {}) do
+      if child.text == text then return child end
+      local hit = walk(child)
+      if hit then return hit end
+    end
+  end
+  return walk(ctx.scroll)
+end
+
+test("bandsets: the Bands tab lists every band on a rail and draws only the selected band", function()
+  -- red under: the long list, every band's controls under its own heading (the layout before the rail).
+  E.with(function()
+    ruleSet()
+    local _, labels = drawBands()
+    local texts = railTexts()
+    assertEqual(#texts, 3, "one rail entry per band")
+    assertEqual(texts[1], "1 NEAR \194\183 0\226\128\1475 yd")
+    assertEqual(texts[2], "2 CAST \194\183 5\226\128\14740 yd")
+    assertEqual(texts[3], "3 OOR \194\183 40+ yd")
+    assertTrue(tostring(NS.__bandRail()[1].__ka0sNavText):find("|T", 1, true) ~= nil,
+      "an entry leads with its band's color chip")
+    assertTrue(labels["Band 1: 0\226\128\1475 yd NEAR"], "band 1 is selected first")
+    assertNil(labels["Band 2: 5\226\128\14740 yd CAST (Spell: Ranged)"], "and the others are not drawn")
+    assertNil(labels["Role"], "nor their controls (band 1 is a yard band)")
+    assertTrue(labels["Add band"], "Add band sits under the rail")
+    assertTrue(labels["Remove band"], "the selected band keeps Remove band")
+  end)
+end)
+
+test("bandsets: a rail click selects its band, and the selection survives a redraw", function()
+  E.with(function()
+    ruleSet()
+    local ctx = drawBands()
+    NS.__bandRail()[2]:__fire("OnClick")
+    local _, labels = drawBands(ctx)
+    assertTrue(labels["Band 2: 5\226\128\14740 yd CAST (Spell: Ranged)"], "the click shows band 2")
+    assertNil(labels["Band 1: 0\226\128\1475 yd NEAR"], "and only band 2")
+    assertTrue(labels["Role"], "with its spell controls")
+    _, labels = drawBands(ctx)
+    assertTrue(labels["Band 2: 5\226\128\14740 yd CAST (Spell: Ranged)"], "a redraw keeps the selection")
+  end)
+end)
+
+test("bandsets: removing a band selects its neighbor, and Add band selects the new band", function()
+  E.with(function()
+    local id = B.Create("Four", { { from = 0, to = 5, label = "A" }, { from = 5, to = 10, label = "B" },
+      { from = 10, to = 20, label = "C" }, { from = 20, label = "D" } })
+    NS.SelectBandSet(id)
+    local ctx = drawBands()
+    NS.__selectBand(id, 2)
+    NS.__removeBand(id, 2)
+    assertEqual(NS.__selectedBand(id, B.Get(id)), 2, "the band after it takes the selection")
+    assertEqual(B.Get(id).bands[2].label, "C")
+    NS.__selectBand(id, 3)
+    NS.__removeBand(id, 3)
+    assertEqual(NS.__selectedBand(id, B.Get(id)), 2, "removing the last band selects the one before it")
+    local _, labels = drawBands(ctx)
+    assertTrue(labels["Band 2: 5+ yd C"], "and the page draws it")
+    widgetWithText(ctx, "Add band"):__fire("OnClick")
+    assertEqual(#B.Get(id).bands, 3)
+    assertEqual(NS.__selectedBand(id, B.Get(id)), 2, "the new band, split off the open-ended last one, is selected")
+    assertEqual(B.Get(id).bands[2].from, 5, "it is the new band")
+    assertEqual(B.Get(id).bands[2].to, 10)
+  end)
+end)
+
+test("bandsets: an edge change keeps the selected band, and a band the set lost is clamped", function()
+  E.with(function()
+    local id = ruleSet()
+    local ctx = drawBands()
+    NS.__selectBand(id, 2)
+    itemLabeled(NS.__bandItems(id, B.Get(id), 2), "Fallback (yards)").set(30)
+    assertEqual(NS.__selectedBand(id, B.Get(id)), 2, "the band keeps the selection")
+    drawBands(ctx)
+    assertEqual(railTexts()[2], "2 CAST \194\183 5\226\128\14730 yd", "its entry follows the edge")
+    assertEqual(railTexts()[3], "3 OOR \194\183 30+ yd", "and so does the next band's")
+    NS.__selectBand(id, 3)
+    B.RemoveBand(id, 3)
+    assertEqual(NS.__selectedBand(id, B.Get(id)), 2, "a band gone from under the selection clamps to the last")
+  end)
+end)
+
+test("bandsets: switching band set resets the band selection to band 1", function()
+  E.with(function()
+    local id = ruleSet()
+    local other = B.DefaultId()
+    NS.__selectBand(id, 3)
+    NS.ShowBandSet(other)
+    assertEqual(NS.__selectedBand(other, B.Get(other)), 1, "another set opens on band 1")
+    NS.ShowBandSet(id)
+    assertEqual(NS.__selectedBand(id, B.Get(id)), 1, "and so does coming back")
   end)
 end)

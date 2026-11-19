@@ -5,12 +5,24 @@ local _, NS = ...
 --     strip  [ General ][ Bands ]
 --     General  [Name] [Match band by] / -- Unknown range -- [Unknown label] [Unknown color]
 --              Used by: Target, Pet            [Duplicate band set] [Delete band set…]
---     Bands    -- Band 1: 0–5 yd MELEE (Spell: Melee) --
---                  [Defined by] [Role] / [Spell IDs] [Fallback (yards)] /
---                  Now: Raptor Strike (2973), melee range   (the read-out; a spell band only)
---                  [Label] [Frame color] / [Text color] [Dot color] / [Sound on enter] [Remove band]
---              -- Band 2: 5–8 yd DEAD (Dead zone) --  [Defined by] [Fallback (yards)] / [Label] ...
---              ...                      [Add band]
+--     Bands    +------------------+  -- Band 1: 0–5 yd MELEE (Spell: Melee) --
+--              | # 1 MELEE · 0–5 yd |  [Defined by] [Role] / [Spell IDs] [Fallback (yards)] /
+--              | # 2 DEAD · 5–8 yd  |  Now: Raptor Strike (2973), melee range   (a spell band only)
+--              | # 3 CAST · 8–40 yd |  [Label] [Frame color] / [Text color] [Dot color] /
+--              | # 4 OOR · 40+ yd   |  [Sound on enter] [Remove band]
+--              +------------------+
+--              [Add band]
+--              Sounds play on entering a band, ...   (the note, dim)
+--
+-- THE BANDS TAB IS A SIDE-TAB GROUP (O.SideTabs, the library's rail look inside the content): one
+-- entry per band, "<place> <label> · <span> yd" led by a chip of its frame color (#), and beside it
+-- only the selected band's heading and controls. The rail is the second level under the page's one
+-- strip (options-ui-§13: one tab divided by like subjects, in the scroll; no third level). The band
+-- selected is session state, NS.State.selectedBand = { set, index }, never persisted: it survives a
+-- redraw, Add band selects the new band, Remove band its neighbor (the next, else the one before),
+-- an index the set no longer has clamps to the last band, and another band set opens on band 1. An
+-- edge cannot re-sort the bands from here (its slider stops short of both neighbors), so an edge
+-- change keeps the band selected by its place.
 --
 -- The General tab's rows are selection-relative, `bandSet.<field>` (settings/Schema.lua), so `/rm
 -- get|set bandSet.matchBy` edits the band set the banner shows, through NS.BandSets.SetField. The
@@ -191,14 +203,46 @@ local function colorItem(id, i, field, label, tooltip)
     }
 end
 
+-- ── the band selected (session state; see the header) ────────────────────────────────────────
+
+--- Select band `index` of set `id` on the Bands tab.
+local function selectBand(id, index)
+    NS.State.selectedBand = { set = id, index = index }
+end
+
+--- The band of `set` (id `id`) the Bands tab shows: the one selected while it is this set's and the
+--- set still has it, clamped to the last band, and band 1 for a set just switched to.
+local function selectedBand(id, set)
+    local sel = NS.State.selectedBand
+    if not (type(sel) == "table" and sel.set == id and type(sel.index) == "number") then
+        selectBand(id, 1)
+        return 1
+    end
+    local n = #set.bands
+    local index = math.max(1, math.min(sel.index, n))
+    if index ~= sel.index then selectBand(id, index) end
+    return index
+end
+
+--- Remove band `i` of set `id`; its neighbor takes the selection (the band after it, which now has
+--- its place, else the one before it).
+local function removeBand(id, i)
+    if not NS.BandSets.RemoveBand(id, i) then return print(L["A band set keeps at least one band."]) end
+    selectBand(id, math.min(i, #NS.BandSets.Get(id).bands))
+end
+
+--- Add a band to set `id` and select it.
+local function addBand(id)
+    local index = NS.BandSets.AddBand(id)
+    if index then selectBand(id, index) end
+end
+
 local function removeItem(id, i)
     return { make = function(_, parent, rel)
         local w = NS.AceGUI:Create("Button")
         w:SetText(L["Remove band"])
         w:SetRelativeWidth(rel or 0.5)
-        w:SetCallback("OnClick", function()
-            if not NS.BandSets.RemoveBand(id, i) then print(L["A band set keeps at least one band."]) end
-        end)
+        w:SetCallback("OnClick", function() removeBand(id, i) end)
         parent:AddChild(w)
         return w
     end }
@@ -357,16 +401,46 @@ local function bandHeading(i, b)
     return L["%s (%s)"]:format(text, rule)
 end
 
+-- ── the rail ─────────────────────────────────────────────────────────────────────────────────
+
+-- Wide enough for "12 OUT OF RANGE · 40+ yd" (a label holds 12 letters) beside its chip.
+local RAIL_WIDTH = 170
+local CHIP = "|TInterface\\Buttons\\WHITE8X8:10:10:0:0:8:8:0:8:0:8:%d:%d:%d|t "
+
+--- A chip of color `c` ({ r, g, b }), as a texture escape: it keeps the entry's own gold and white,
+--- so the selection still reads the way every rail's does.
+local function chip(c)
+    if type(c) ~= "table" then return "" end
+    local function byte(v) return math.floor(math.max(0, math.min(1, tonumber(v) or 1)) * 255 + 0.5) end
+    return CHIP:format(byte(c.r), byte(c.g), byte(c.b))
+end
+
+--- Band `i`'s rail entry: "1 MELEE · 0–5 yd", led by its frame color, and its heading as the tooltip.
+local function railEntry(i, b)
+    local text = b.label ~= "" and L["%d %s \194\183 %s yd"]:format(i, b.label, spanText(b))
+        or L["%d \194\183 %s yd"]:format(i, spanText(b))
+    return { key = i, label = chip(b.frameColor) .. text, tooltip = bandHeading(i, b) }
+end
+
+local railButtons   -- the entries the last draw made (a test seam)
+
 local function renderBands(ctx)
     local set, id = NS.SelectedBandSet()
     if not set then return H.TextRow(ctx, L["No band set exists yet."]) end
-    for i, b in ipairs(set.bands) do
-        H.Section(ctx, bandHeading(i, b))
-        H.RenderGrid(ctx, bandItems(id, set, i))
-    end
+    local entries = {}
+    for i, b in ipairs(set.bands) do entries[i] = railEntry(i, b) end
+    railButtons = H.SideTabs(ctx, {
+        entries = entries, value = selectedBand(id, set), width = RAIL_WIDTH,
+        onSelect = function(i) selectBand(id, i) end,
+        render = function(c, i)
+            local b = NS.BandSets.Get(id).bands[i]
+            H.Section(c, bandHeading(i, b))
+            H.RenderGrid(c, bandItems(id, NS.BandSets.Get(id), i))
+        end,
+    })
     H.InlineButtonPair(ctx, {
-        text = L["Add band"], tooltip = L["Split a new band off the front of the open-ended last band."],
-        onClick = function() NS.BandSets.AddBand(id) end,
+        text = L["Add band"], tooltip = L["Split a new band off the front of the open-ended last band, and select it."],
+        onClick = function() addBand(id) end,
     }, nil)
     H.TextRow(ctx, L["Sounds play on entering a band, after it has held for 0.2 seconds, at most once a second, and never on the first band after the unit changes."],
         { fontObject = "GameFontDisableSmall" })
@@ -416,6 +490,9 @@ function render(ctx)
 end
 NS.__renderBandSetsPage = function(ctx) return render(ctx) end
 NS.__bandItems = bandItems
+NS.__bandRail = function() return railButtons end
+NS.__selectBand, NS.__selectedBand = selectBand, selectedBand
+NS.__removeBand = removeBand
 
 -- A band-set write from anywhere (this page, a preset, `/rm set bandSet.*`) redraws the pages on the
 -- next frame: the band headings and the Containers page's band-set pickers all read it.

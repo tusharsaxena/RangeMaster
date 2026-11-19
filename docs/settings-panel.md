@@ -100,9 +100,18 @@ The band carries the band-set picker (the default set marked) and **New band set
 Name, Match band by, and the Unknown range subsection (Unknown label, Unknown color, a palette swatch
 with no class companion), then the containers using the set and **Duplicate band set** / **Delete
 band set…** (confirmed; its containers move to the default set; the last set is never deleted).
-**Bands** (a host editor, with no band ribbon above it): per band **Defined by** first (Yards, Spell,
-Dead zone, Beyond the last spell band; written through `NS.BandSets.SetBandRule`), then the yard slider,
-Label, Frame / Text / Dot color and Sound on enter, Remove band, and **Add band** at the foot. A spell
+**Bands** (a host editor, with no band ribbon above it) is a side-tab group (`O.SideTabs`, the nav
+rail's look drawn inside the content, 170 px wide): a rail on the left with one entry per band,
+`1 MELEE · 0–5 yd` (place, label, span) led by a chip of the band's frame color and with the band's
+heading as its tooltip, and beside it only the selected band's heading and controls; **Add band**
+sits under the rail, then the sounds note. The rail is the tab's second level, in the scroll
+(options-ui-§13: one tab divided by like subjects; no third level). The band selected is session
+state (`NS.State.selectedBand`, never persisted): it survives a redraw, **Add band** selects the new
+band, **Remove band** selects its neighbor (the band after it, else the one before), an index the set
+no longer has clamps to the last band, and another band set opens on band 1. A rail click is refused
+in combat by the library. The selected band's controls: **Defined by** first (Yards, Spell, Dead zone,
+Beyond the last spell band; written through `NS.BandSets.SetBandRule`), then the yard slider, Label,
+Frame / Text / Dot color and Sound on enter, and Remove band. A spell
 band adds **Role** (Melee, Ranged, Friendly), **Spell IDs** (comma-separated, empty for the class's
 anchors; a part that is not a whole ID refuses the entry aloud) and a read-out note naming the spell a
 tick asks (`NS.Range.AnchorFor`) and the range the client reports ("Now: Arcane Shot (3044), 8-41 yd",
