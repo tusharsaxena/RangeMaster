@@ -36,6 +36,10 @@ Loader.loadAll(ADDON_FILES, NS, mocks)
 -- launcher), then OnEnable at PLAYER_LOGIN (the latch, the events, the settings panel).
 NS.addon:OnInitialize()
 NS.addon:OnEnable()
+-- The boot profile is fresh, so OnEnable shows the first-run preset picker, which previews Simple on
+-- an empty profile (settings/Presets.lua). Close it unanswered, as a player's Escape would: no suite
+-- starts with a preview's containers on screen (their units would stay watched on the ticker).
+if NS.HidePresetPicker then NS.HidePresetPicker() end
 
 -- The live halves the degradation stubs are compared against: INSTANCES where the host mirrors an
 -- instance, library tables where it wires members one by one.
@@ -127,6 +131,7 @@ Kit.run{
     "test_anchors_frame",
     "test_anchors_nameplate",
     "test_anchors_cursor",
+    "test_anchors_mockplate",
     "test_visibility",
     "test_sounds",
     "test_compat",

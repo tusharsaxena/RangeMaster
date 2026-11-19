@@ -18,7 +18,7 @@ settings panel in either state; `/rm options` is an alias of `config`.
 | `reset` | path | yes | one setting back to its default |
 | `resetall` | — | yes | every setting back to defaults (a profile reset) |
 | `profile` | [name] | yes | lists profiles, or switches to an existing one |
-| `lock` / `unlock` | — | no | writes `locked` and echoes it |
+| `lock` / `unlock` | — | no | writes `locked` and echoes it; `unlock` on a profile with no containers adds a line pointing at `/rm preset` |
 | `resetposition` | — | no | `NS.ResetPositions`: every screen container back at its new-container point; echoes how many moved |
 | `containers` | — | no | lists the containers as `n. Name (unit, anchor)`, the selected one marked `*` |
 | `select` | number or name | no | selects a container (a name matches in any case); `container.*` paths then mean it |

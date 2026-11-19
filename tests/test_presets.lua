@@ -23,6 +23,7 @@ local function withFreshProfile(body, classToken)
     NS.Database.PrepareProfile(p)
     body(p)
   end)
+  NS.Container.__reset()   -- instances a flush built here would leave their units watched
   CM.__reset()
   Presets.__reset()
   NS.db = savedDb
@@ -275,4 +276,30 @@ test("presets: Advanced puts the OOR sound on through the band-set writer, which
     local bands = B.Get(B.DefaultId()).bands
     assertEqual(bands[#bands].sound, Presets.OOR_SOUND)
   end)
+end)
+
+test("presets: test_preset_homes — each unit has one home on screen, the same in every preset, none shared", function()
+  -- red under: per-preset coordinates (Simple's block narrower than two drag strips, Advanced's two
+  -- nameplate containers on one spot, the mouseover waiting wherever the template put it).
+  local seenAt = {}
+  for _, key in ipairs(Presets.ORDER) do
+    withFreshProfile(function()
+      Presets.Apply(key)
+      local spots = {}
+      for _, c in ipairs(containers()) do
+        local spot = c.anchor.x .. "," .. c.anchor.y
+        assertTrue(spots[spot] == nil, key .. ": " .. c.name .. " shares " .. spot)
+        spots[spot] = true
+        local slot = (c.unit == "target" and c.anchor.mode == "nameplate") and "targetPlate" or c.unit
+        local home = Presets.__home(slot)
+        assertEqual(spot, home.x .. "," .. home.y, key .. ": " .. c.name .. " at its home")
+        assertTrue(seenAt[slot] == nil or seenAt[slot] == spot, c.name .. " moves between presets")
+        seenAt[slot] = spot
+      end
+    end)
+  end
+  local t, f = Presets.__home("target"), Presets.__home("focus")
+  assertTrue(f.x - t.x >= 260, "two drag strips side by side clear each other")
+  local pet, plate = Presets.__home("pet"), Presets.__home("targetPlate")
+  assertTrue(pet.y - plate.y >= 80, "a row holds a preview nameplate over a nameplate container")
 end)

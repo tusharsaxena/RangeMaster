@@ -128,7 +128,7 @@ Total.
 - cm: MarkSeeded is the first-run sentinel's one runtime writer
 - cm: spell chips follow the character until a list is stored (a shared profile, two classes)
 
-### test_presets.lua (11)
+### test_presets.lua (12)
 
 - presets: test_simple_four_free_containers — target, focus, pet, mouseover free on screen
 - presets: test_intermediate_shape — unit frames, cursor mouseover, friendly sets, hidden with no unit
@@ -141,6 +141,7 @@ Total.
 - presets: an apply announces CONTAINERS_CHANGED once, on the next frame
 - presets: a profile switch, copy or reset drops the Undo slot, so no other profile is overwritten
 - presets: Advanced puts the OOR sound on through the band-set writer, which announces it
+- presets: test_preset_homes — each unit has one home on screen, the same in every preset, none shared
 
 ### test_number_format.lua (5)
 
@@ -249,6 +250,14 @@ Total.
 - cursor: a container leaving the cursor mode, or deleted, drops out of the follow
 - cursor: the stand-down leaves the follow disarmed, and the stand-up arms it again
 - cursor: a new cursor container sits at the cursor default offset, whatever its id or screen point
+
+### test_anchors_mockplate.lua (5)
+
+- mockplate: test_unlock_draws_preview_plate — an own-plate container sits beside a stand-in plate while unlocked
+- mockplate: test_preview_plate_follows_settings — a nameplate point or offset written while unlocked re-places it
+- mockplate: test_strip_clears_preview_plate — the drag strip is lifted over a plate above the container
+- mockplate: test_nameplates_stand_in — an All nameplates container's stand-in sits beside a stand-in plate
+- mockplate: test_combat_ends_preview_plate — combat puts the container back on its plate
 
 ### test_visibility.lua (11)
 
@@ -501,7 +510,7 @@ Total.
 - modes: test_unlock_shows_all — unlocked shows every container out of combat, the absent ones on the placeholder
 - modes: test_test_strip_on_late_instances — a container or plate that appears during Test mode wears the strip
 - modes: test_strip_clears_drag_handle — a strip built while locked docks beyond the handle an unlock builds
-- modes: test_strip_on_a_plate — a display on a nameplate wears a strip nothing measures
+- modes: test_strip_on_a_plate — a display on a nameplate wears its docked strip, and nothing raises
 - modes: test_sim_strip_and_pinned_panel — Sim mode wears the cyan strip, and its step panel cannot be closed
 - modes: Test mode keeps the ticker reading the placeholder while it is on
 - modes: test_sim_sweeps_bands — Sim mode walks 0 to 50 to 0 yd through every band, with sounds
@@ -540,7 +549,7 @@ Total.
 - the General page draws Master controls first, then Presets, and the Skin tab last
 - the General page is covered in combat on the sidebar path, and the window stays open (options-ui-§2)
 
-### test_settings_containers.lua (17)
+### test_settings_containers.lua (18)
 
 - settings: surface parity — every Containers and Band sets row answers /rm get and /rm set, through its registry's writer
 - settings: surface parity — every Containers row is drawn on its rail entry's tab
@@ -559,6 +568,7 @@ Total.
 - settings: the Display entry's Layout tab draws the element order as a drag list, and a drop writes through the writer
 - settings: test_element_tick — the tick turns an element on at the end of the drawn ones, the cross off at the head of the rest
 - settings: the element order list is canceled before the next render draws anything (options-ui-§18)
+- settings: test_position_rows — each attach mode reads as AuraMaster's: its anchor point, this container's, then X and Y
 
 ### test_settings_bandsets.lua (6)
 
@@ -569,19 +579,21 @@ Total.
 - bandsets: deleting the selected band set selects its neighbor and moves its containers to the default
 - bandsets: the Band sets page draws General and Bands, and the editor's controls reach the writers
 
-### test_settings_presets.lua (11)
+### test_settings_presets.lua (13)
 
 - presets: test_preset_apply_confirms — Apply asks first when there is something to replace, and Undo puts it back
 - presets: an empty profile applies at once, with nothing to confirm
 - presets: test_first_run_picker_once — the picker shows once per profile, marks it seen as it shows, and waits out combat
 - presets: the picker opens unlocked in test mode, a pick previews, and Not now restores
 - presets: the picker's Apply asks over the player's containers, keeps the pick and locks
+- presets: test_picker_previews_on_empty_profile — a new profile's picker puts Simple on screen as it opens
 - presets: Apply over an empty profile keeps the pick at once; with no pick it keeps what is there
 - presets: taking the picker down offers no skin picker and restores; a replaced profile is not restored
 - presets: Escape is the player's close; the settings mark closes it and opens General > Presets
 - presets: combat starting restores a preview, and a pick in combat is refused
 - presets: a profile change while the picker is up shows only the new profile's preset picker
 - presets: the Presets tab draws the three cards with Apply and the Undo button
+- presets: test_unlock_with_nothing_says_so — /rm unlock on an empty profile points at /rm preset; with containers it shows them
 
 ### test_skinsetup.lua (12)
 
@@ -810,13 +822,14 @@ Total.
 | test_database.lua | 14 |
 | test_bandsets.lua | 22 |
 | test_container_manager.lua | 17 |
-| test_presets.lua | 11 |
+| test_presets.lua | 12 |
 | test_number_format.lua | 5 |
 | test_container_render.lua | 35 |
 | test_anchors_screen.lua | 12 |
 | test_anchors_frame.lua | 17 |
 | test_anchors_nameplate.lua | 14 |
 | test_anchors_cursor.lua | 7 |
+| test_anchors_mockplate.lua | 5 |
 | test_visibility.lua | 11 |
 | test_sounds.lua | 12 |
 | test_compat.lua | 6 |
@@ -836,9 +849,9 @@ Total.
 | test_modes.lua | 20 |
 | test_optionssetup.lua | 16 |
 | test_realpages.lua | 7 |
-| test_settings_containers.lua | 17 |
+| test_settings_containers.lua | 18 |
 | test_settings_bandsets.lua | 6 |
-| test_settings_presets.lua | 11 |
+| test_settings_presets.lua | 13 |
 | test_skinsetup.lua | 12 |
 | test_skin_picker.lua | 16 |
 | test_skin_picker_preview.lua | 9 |
@@ -860,4 +873,4 @@ Total.
 | test_skin_switch.lua | 6 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **630** |
+| **Total** | **639** |

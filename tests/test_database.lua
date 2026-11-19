@@ -92,6 +92,9 @@ test("database: a profile reset re-reads the latch and traces once", function()
   assertTrue(NS.IsStoodDown(), "precondition: down")
   db:ResetProfile()
   assertFalse(NS.IsStoodDown(), "the reset profile is enabled, and the addon came back up")
+  -- The reset profile is fresh, so the first-run picker came up and previews Simple on it; close it
+  -- unanswered, so the shared profile carries no preview into the suites after this one.
+  NS.HidePresetPicker()
 end)
 
 -- ---------------------------------------------------------------------------

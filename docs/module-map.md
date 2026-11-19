@@ -58,6 +58,7 @@ runner's load list to the TOC.
 | `modules/Anchors_Frame.lua` | The `frame` mode (`NS.Anchors.Frame`): a unit frame from the providers, a missing one hidden and retried, a write held through combat, mouseover to the cursor |
 | `modules/Anchors_Nameplate.lua` | `NS.Plates`, the plate registry (`Get`, `ForEachHostile`, `Added`, `Removed`, `SyncAll`, the one-frame re-check), and the `nameplate` (own plate) and `plates` (per-plate instance) modes |
 | `modules/Anchors_Cursor.lua` | The `cursor` mode (`NS.Anchors.Cursor`): one shared OnUpdate for every cursor container, armed only while one is shown |
+| `modules/Anchors_Mockplate.lua` | The `mockplate` mode (`NS.Anchors.Mockplate`): unlocked out of combat, a container on a nameplate waits at its screen point beside a stand-in plate placed by its `nameplate` point and offsets (`Rect`, `Relaid`, `PLATE`) |
 | `modules/FramePicker.lua` | `NS.FramePicker`: the pick-on-screen overlay, Enter picks and Escape cancels (`Start`, `Stop`, `Cancel`, `IsActive`, `NamedAncestor`), refused in and ended by combat |
 | `modules/Visibility.lua` | `NS.Visibility`: `Evaluate(container, unit, state?) -> shown, alpha` (General visibility, the combat, no-unit and reaction rules, Master opacity times `oocAlpha`), the combat edge's flag (`SetCombat`, `InCombat`) |
 | `modules/Sounds.lua` | `NS.Sounds`: `OnBand(inst, band, now)` (the 0.2 s settle, the 1 s gap, the silent first band, per-instance state), `Reset`, `Wants` (never a `nameplates` container), `BUILTIN` (the out-of-range chime, registered with LibSharedMedia at load) |

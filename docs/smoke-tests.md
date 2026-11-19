@@ -68,7 +68,8 @@ starts with a cyan `[RM]`. Most checks need a container: apply a preset (General
 - **SLASH-7. Band-set verbs.** `/rm bands` → the band sets, the selected one marked, then the
   selected set's ribbon; `/rm bands 2` selects the second; `/rm set bandSet.unknown.label ??` changes
   its unknown label; `/rm bands nosuchset` → `No band set 'nosuchset'`. Result:
-- **SLASH-8. Preset, pick and position verbs.** `/rm preset` opens the preset picker.
+- **SLASH-8. Preset, pick and position verbs.** `/rm preset` opens the preset picker. On a profile
+  with no containers, `/rm unlock` prints a line pointing at `/rm preset`.
   `/rm preset simple` on a profile with containers →
   the same confirm as the Presets tab; `/rm preset undo` puts them back; `/rm preset nope` → the usage
   line. `/rm pick` starts the frame picker for the selected container (ANCHOR-8). `/rm resetposition`
@@ -266,9 +267,12 @@ RANGE-1 to RANGE-4 are run through a target container. RANGE-5 needs only the ch
 ## Presets
 
 - **PRESET-1. First-run picker.** On a new profile the **Choose a preset** window opens above the
-  center, the containers unlocked and test mode on (its two toggles say so). Pick **Advanced** in the
-  dropdown → six displays appear on screen with placeholder ranges and the status line shows; pick
-  **Simple** → four. **Not now** → your own displays are back, test mode off, the lock as it was,
+  center, the containers unlocked and test mode on (its two toggles say so), and Simple's four
+  displays already on screen with the status line showing, no pick needed. Pick **Advanced** in the
+  dropdown → six displays; pick **Simple** → four. In every preset each unit sits at the same home:
+  target and focus side by side below the center, pet and mouseover under them, the two nameplate
+  containers (each beside its preview nameplate) in a third row; no two drag strips overlap, and a
+  unit-frame container sits on its frame instead. **Not now** → your own displays are back, test mode off, the lock as it was,
   then the skin picker opens. On another new profile pick **Intermediate** and **Apply** → kept with
   no confirm on an empty profile, displays locked, test mode off. The window does not return after a
   `/reload`; `/rm preset` opens it again. Entering combat while a pick is previewed puts your own
@@ -298,8 +302,11 @@ it), or from chat with `/rm set container.anchor.mode frame` (`screen`, `frame`,
   container: the gear opens it on the Containers page, the X disables it with one chat line. Drag a
   free-on-screen one, then `/reload` → it is where it was dropped. With the Advanced preset, the
   mouseover (cursor) and target-plate containers sit still at their screen points while unlocked,
-  not on the cursor or a plate, and drag; a container on a unit frame stays on it with its name
-  grayed and does not drag; the `nameplates` stand-in wears one strip, a real plate's instance none.
+  not on the cursor or a plate, and drag; each container on a nameplate (and the `nameplates`
+  stand-in) sits beside a red preview nameplate named for whose plate it stands for, its drag strip
+  above the plate, and dragging the strip moves both; a container on a unit frame stays on it with
+  its name grayed and does not drag (its Position tab reads Unit frame anchor point, This container
+  anchor point, X offset, Y offset, and each moves it on the frame); the `nameplates` stand-in wears one strip, a real plate's instance none.
   With Test mode on, each drag strip ends in TEST and no amber strip shows beside it; `/rm lock`
   brings the amber strip back on each display (Sim mode: SIM, the cyan strip). Entering combat
   puts the cursor container back on the cursor and drops the strips of the non-screen ones.
@@ -318,7 +325,11 @@ it), or from chat with `/rm set container.anchor.mode frame` (`screen`, `frame`,
   late → no `ADDON_ACTION_BLOCKED`; it attaches after combat. Changing a unit-frame container's
   offset in combat moves it after combat, not during.
 - **ANCHOR-5. Own nameplate.** A target container on Nameplate sits under the target's plate, follows
-  a retarget, hides when the plate leaves the screen, and comes back with it.
+  a retarget, hides when the plate leaves the screen, and comes back with it. Unlocked, it sits
+  under its preview nameplate instead; changing Nameplate anchor point, This container anchor point
+  or the offsets moves it against the preview at once, and `/rm lock` with a target puts it on the
+  real plate in the same place. In Test mode, locked, the container on the target's plate wears the
+  amber strip on its top edge and BugSack shows no *Can't measure restricted regions* error.
 - **ANCHOR-6. All nameplates.** An All nameplates container draws on every hostile plate in a pack
   and on none of the friendly ones; with Friendly nameplates too on, friendly plates too. Pulling a
   pack and killing it (plates recycling fast) raises no error. In an instance, friendly plates

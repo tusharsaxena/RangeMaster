@@ -9,6 +9,8 @@ local _, NS = ...
 --                                       placed or parked: its drag strip follows (modules/Anchors.lua)
 --   NS.Anchors.Screen.Tagged(inst) -> boolean   its drag strip shows, carrying the preview's tag:
 --                                       the display's preview marker (modules/Container.lua)
+--   NS.Anchors.Screen.SetLift(inst, px) the strip sits `px` higher over the root's top edge, clear
+--                                       of a stand-in nameplate (modules/Anchors_Mockplate.lua)
 --
 -- THE POSITION IS THE REGISTRY'S. A drag ends in StopMovingOrSizing, then the frame's first point is
 -- read back (the client re-anchors a moved frame to the screen) and written through the container
@@ -44,8 +46,8 @@ local function unlocked()
     return NS.GetSetting("locked") == false
 end
 
---- Whether `inst` drags: placed on the screen anchor.
-local function draggable(inst) return inst.anchorMode == "screen" end
+--- Whether `inst` drags: placed on the screen anchor (beside a stand-in nameplate too).
+local function draggable(inst) return inst.anchorMode == "screen" or inst.anchorMode == "mockplate" end
 
 function Screen.Place(inst, c)
     local a, root = c.anchor, inst.frame
@@ -93,7 +95,7 @@ end
 
 local MODE_LINE = {
     cursor    = L["Follows the cursor once the displays are locked. Drag to choose where it waits while unlocked."],
-    nameplate = L["Sits on its unit's nameplate once the displays are locked. Drag to choose where it waits while unlocked."],
+    nameplate = L["Sits on a nameplate once the displays are locked, where it sits on the preview nameplate now. Drag to move both; set how it attaches in its settings."],
     frame     = L["Sits on its unit frame, so it cannot be dragged. Set its offsets in its settings."],
 }
 
@@ -103,6 +105,7 @@ local function howTo(inst)
     local mode = c and c.anchor and c.anchor.mode
     if mode == "frame" and NS.Anchors.Frame.UsesCursor(c) then mode = "cursor" end
     if inst.anchorMode == "frame" then mode = "frame" end
+    if inst.anchorMode == "mockplate" then mode = "nameplate" end
     return MODE_LINE[mode] or L["Drag to move. Lock the displays to hide this strip."]
 end
 
@@ -143,8 +146,23 @@ local function buildHandle(inst)
     })
     if not h then return nil end
     h:ClearAllPoints()
-    h:SetPoint("BOTTOM", inst.frame, "TOP", 0, 2)
+    h:SetPoint("BOTTOM", inst.frame, "TOP", 0, 2 + (inst.handleLift or 0))
     return h
+end
+
+function Screen.SetLift(inst, px)
+    px = math.floor((tonumber(px) or 0) + 0.5)
+    if (inst.handleLift or 0) == px then return end
+    inst.handleLift = px
+    local h = inst.dragHandle
+    if not h then return end
+    h:ClearAllPoints()
+    h:SetPoint("BOTTOM", inst.frame, "TOP", 0, 2 + px)
+    if h:IsShown() and inst.strips then
+        for _, s in pairs(inst.strips) do
+            if s and s.Place then pcall(s.Place, s) end
+        end
+    end
 end
 
 local function dragFrameItself(inst, on)

@@ -145,8 +145,9 @@ NS.PRESETS_TAB = {
 --     -- Change it later on General > Presets. --  <- the footer
 --
 -- OPENING records the lock, unlocks the containers and turns test mode on, so a pick is seen where
--- it lands. A PICK previews the preset on the real screen (NS.Presets.BeginPreview); nothing is
--- previewed until one is made. APPLY keeps the pick behind the confirm when the player has
+-- it lands. A PICK previews the preset on the real screen (NS.Presets.BeginPreview). On a profile
+-- with no containers of its own (a new one) the window previews Simple, its selection, as it opens,
+-- so the screen is never empty under it; one with containers keeps them on screen until a pick. APPLY keeps the pick behind the confirm when the player has
 -- containers of their own (the window stays up under it), then locks and turns test mode off; with
 -- nothing picked it keeps what is there. NOT NOW, the close mark and Escape restore the player's set
 -- and put back the lock the window found. Every close the player makes offers the skin picker next,
@@ -562,11 +563,14 @@ end
 --- unlocked and test mode on. The skin picker goes down first, unmarked; it comes back after the close.
 local function show()
     local f = Picker.frame or build()
-    if not f:IsShown() then
+    local fresh = not f:IsShown()
+    if fresh then
         state.sel, state.picked, state.open = "simple", false, true
         place(f)
         openUnlocked()
     end
+    -- A profile with nothing of its own previews the selection at once (the header).
+    if fresh and Presets.OwnContainerCount() == 0 and not InCombatLockdown() then pick(state.sel) end
     if NS.HideSkinPicker then NS.HideSkinPicker() end
     f:Show()
     refresh()

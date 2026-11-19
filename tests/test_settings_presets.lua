@@ -147,6 +147,19 @@ test("presets: the picker's Apply asks over the player's containers, keeps the p
   end)
 end)
 
+test("presets: test_picker_previews_on_empty_profile — a new profile's picker puts Simple on screen as it opens", function()
+  -- red under: a picker that previews nothing until a pick (an empty screen under the window).
+  withPicker(function(_, C)
+    NS.MaybeShowPresetPicker()
+    assertEqual(units(), "target,focus,pet,mouseover", "Simple, the selection, is on screen")
+    assertEqual(Presets.Previewed(), "simple")
+    C.pick("advanced")
+    assertEqual(#CM.List(), 6, "a pick swaps it as before")
+    E.capture(function() C.dismiss() end)
+    assertEqual(#CM.List(), 0, "Not now leaves the profile empty again")
+  end)
+end)
+
 test("presets: Apply over an empty profile keeps the pick at once; with no pick it keeps what is there", function()
   withPicker(function(_, C)
     local shown = E.spyPopups()
@@ -255,5 +268,24 @@ test("presets: the Presets tab draws the three cards with Apply and the Undo but
     end
     ctx.activeTab = "Master controls"
     NS.Helpers.RefreshPanel(ctx, true)
+  end)
+end)
+
+test("presets: test_unlock_with_nothing_says_so — /rm unlock on an empty profile points at /rm preset; with containers it shows them", function()
+  -- red under: an unlock that shows nothing and says nothing on a profile with no containers.
+  E.with(function()
+    local out = E.capture(function() NS.Slash:OnSlash("unlock") end)
+    assertTrue(table.concat(out, "\n"):find("/rm preset", 1, true) ~= nil, "an empty profile is told how to get some")
+    NS.SetByPath("locked", true)
+    Presets.Apply("simple")
+    CM.FlushPending()
+    out = E.capture(function() NS.Slash:OnSlash("unlock") end)
+    assertTrue(table.concat(out, "\n"):find("/rm preset", 1, true) == nil, "no hint once it has containers")
+    for _, id in ipairs(CM.List()) do
+      local inst = NS.Container.Get(id)
+      assertTrue(inst ~= nil and inst.frame:IsShown(), CM.Get(id).name .. " shows unlocked")
+      assertTrue(inst.dragHandle ~= nil and inst.dragHandle:IsShown(), CM.Get(id).name .. " wears its drag strip")
+    end
+    NS.SetByPath("locked", true)
   end)
 end)

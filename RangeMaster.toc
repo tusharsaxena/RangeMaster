@@ -123,12 +123,13 @@ modules\Container.lua
 modules\Anchors.lua
 # Conventional: the unit-frame providers' names; reached by modules\Anchors_Frame.lua at call time.
 modules\FrameProviders.lua
-# Conventional: the four anchor modes, each registering on NS.Anchors at load; the registry, the
+# Conventional: the five anchor modes, each registering on NS.Anchors at load; the registry, the
 # providers and the plates are reached at call time.
 modules\Anchors_Screen.lua
 modules\Anchors_Frame.lua
 modules\Anchors_Nameplate.lua
 modules\Anchors_Cursor.lua
+modules\Anchors_Mockplate.lua
 # Conventional: the click-to-pick overlay, built on first use; captures NS.Style (modules\Style.lua).
 modules\FramePicker.lua
 # Conventional: the behavior rules, reached by modules\Container.lua at call time: visibility, and the

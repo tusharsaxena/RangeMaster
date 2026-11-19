@@ -410,3 +410,32 @@ test("settings: the element order list is canceled before the next render draws 
     assertTrue(ctx.rmOrderList == nil, "another tab leaves no live controller")
   end)
 end)
+
+test("settings: test_position_rows — each attach mode reads as AuraMaster's: its anchor point, this container's, then X and Y", function()
+  -- red under: the old single-word "Anchor point" / "Relative point" rows, this container's point first.
+  local L = NS.L
+  local byPath = {}
+  for _, row in ipairs(NS.Schema) do byPath[row.path] = row end
+  local function pair(first, second, firstLabel)
+    local a, b = byPath[first], byPath[second]
+    assertTrue(a ~= nil and b ~= nil, first .. " and " .. second .. " are rows")
+    assertEqual(a.label, firstLabel, first)
+    assertTrue(a.startsLine == true and not b.startsLine, first .. " opens the line, " .. second .. " beside it")
+    assertTrue(a.order < b.order, first .. " first")
+    assertEqual(a.subgroup, b.subgroup, "one subsection")
+  end
+  local THIS = L["This container anchor point"]
+  pair("container.anchor.frame.relPoint", "container.anchor.frame.point", L["Unit frame anchor point"])
+  assertEqual(byPath["container.anchor.frame.point"].label, THIS)
+  pair("container.anchor.frame.x", "container.anchor.frame.y", L["X offset"])
+  pair("container.nameplate.relPoint", "container.nameplate.point", L["Nameplate anchor point"])
+  assertEqual(byPath["container.nameplate.point"].label, THIS)
+  pair("container.nameplate.x", "container.nameplate.y", L["X offset"])
+  pair("container.anchor.relPoint", "container.anchor.point", L["Screen anchor point"])
+  pair("container.anchor.x", "container.anchor.y", L["X position"])
+  pair("container.anchor.cursor.x", "container.anchor.cursor.y", L["X offset"])
+  assertEqual(byPath["container.anchor.cursor.point"].label, THIS)
+  local strata = byPath["container.anchor.strata"]
+  assertNil(strata.shownWhen, "Frame strata applies in every mode, so every mode draws it")
+  assertEqual(strata.subgroup, byPath["container.anchor.mode"].subgroup, "under Attach to")
+end)

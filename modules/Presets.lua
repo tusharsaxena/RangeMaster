@@ -31,6 +31,12 @@ local _, NS = ...
 -- whole, so core/RangeMaster.lua's adoptProfile calls ForgetUndo: an Undo there would otherwise put
 -- the old profile's containers and band sets over the new one's.
 --
+-- EVERY UNIT HAS ONE HOME ON SCREEN, the same in every preset (HOME, below): a grid of two columns
+-- below the screen's center, wide enough that two drag strips side by side never overlap and tall
+-- enough for a preview nameplate over a nameplate container. A screen container sits at its home; a
+-- cursor or nameplate container waits there while the displays are unlocked; a unit-frame container
+-- sits on its frame and keeps its home as the screen point it falls back to.
+--
 -- What each preset holds (the spec's text, where the mockup's Simple card shows three containers,
 -- the spec and the plan name four):
 --   Simple        Target, Focus, Pet, Mouseover, free on screen; number + band-colored border.
@@ -59,12 +65,31 @@ local preview        -- the picker's preview while one is up: { key, origin = th
 -- The presets, as (unit, opts) lists for NS.CM.Create
 -- ---------------------------------------------------------------------------
 
---- Simple: the four units, free on screen in a two-by-two block below the center.
+-- The homes (EVERY UNIT HAS ONE HOME ON SCREEN): columns COL_X either side of the center line, rows
+-- from ROW_Y down by ROW_STEP. Target and focus share the first row, pet and mouseover the second,
+-- the two nameplate containers the third.
+local COL_X, ROW_Y, ROW_STEP = 135, -100, 90
+local HOME = {
+    target = { -1, 0 }, focus = { 1, 0 }, pet = { -1, 1 }, mouseover = { 1, 1 },
+    targetPlate = { -1, 2 }, nameplates = { 1, 2 },
+}
+Presets.HOME = HOME
+
+--- `anchor` (a preset's anchor table) given the screen point of home `slot`; answers it.
+local function home(anchor, slot)
+    local h = HOME[slot]
+    anchor.point, anchor.relPoint = "CENTER", "CENTER"
+    anchor.x, anchor.y = h[1] * COL_X, ROW_Y - h[2] * ROW_STEP
+    return anchor
+end
+Presets.__home = function(slot) return home({}, slot) end
+
+--- Simple: the four units, free on screen at their homes.
 local function simple()
-    local function at(unit, x, y)
-        return { unit = unit, opts = { anchor = { mode = "screen", x = x, y = y } } }
+    local function at(unit)
+        return { unit = unit, opts = { anchor = home({ mode = "screen" }, unit) } }
     end
-    return { at("target", -70, -140), at("focus", 70, -140), at("pet", -70, -180), at("mouseover", 70, -180) }
+    return { at("target"), at("focus"), at("pet"), at("mouseover") }
 end
 
 --- The Healer band set's id: the stored set named so, else a new one from the healer preset.
@@ -84,21 +109,23 @@ local function shown(unit, anchor, friendly)
     } }
 end
 
-local function onFrame() return { mode = "frame", frame = { provider = "blizzard", name = "" } } end
+local function onFrame(unit)
+    return home({ mode = "frame", frame = { provider = "blizzard", name = "" } }, unit)
+end
 
 local function intermediate()
     local healer = healerSet()
     return {
-        shown("target", onFrame(), healer), shown("focus", onFrame(), healer), shown("pet", onFrame()),
-        shown("mouseover", { mode = "cursor" }, healer),
+        shown("target", onFrame("target"), healer), shown("focus", onFrame("focus"), healer),
+        shown("pet", onFrame("pet")), shown("mouseover", home({ mode = "cursor" }, "mouseover"), healer),
     }
 end
 
 --- One nameplate container: indicator `shape` + number in `format`, shown in combat only; `extra`'s
 --- keys (a name, a section) replace the opts' own.
-local function plate(unit, shape, format, extra)
+local function plate(unit, slot, shape, format, extra)
     local opts = {
-        anchor = { mode = "nameplate" },
+        anchor = home({ mode = "nameplate" }, slot),
         elements = { indicator = { enabled = true, shape = shape }, number = { format = format } },
         visibility = { combat = "in", hideNoUnit = true },
     }
@@ -110,8 +137,8 @@ local function advanced()
     local list = intermediate()
     list[1].opts.sounds = { enabled = true }
     list[2].opts.elements.spells = { enabled = true }
-    list[#list + 1] = plate("target", "diamond", "range", { name = L["Target plate"] })
-    list[#list + 1] = plate("nameplates", "dot", "max", {
+    list[#list + 1] = plate("target", "targetPlate", "diamond", "range", { name = L["Target plate"] })
+    list[#list + 1] = plate("nameplates", "nameplates", "dot", "max", {
         visibility = { combat = "in", reaction = "hostile", hideNoUnit = true },
         nameplate = { includeFriendly = false },
     })

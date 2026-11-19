@@ -164,6 +164,10 @@ function runLock(locked)
     local ok, err = NS.SetByPath("locked", locked)
     if ok == false then return print(err) end
     echo("locked", locked and L["Range displays locked"] or L["Range displays unlocked \226\128\148 drag one by its handle"])
+    -- Unlocking a profile with no containers shows nothing at all; say why, and what puts some there.
+    if not locked and #NS.CM.List() == 0 then
+        print(L["You have no range displays yet. /rm preset puts a set on screen; the Containers page adds one."])
+    end
 end
 
 local ON_OFF = { on = true, off = false }

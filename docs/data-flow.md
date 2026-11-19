@@ -274,6 +274,13 @@ is missing (`inst:SetAnchorHidden`), and the renderer tells the anchors each sho
   a cursor container is shown, places each at `GetCursorPosition()` over `UIParent`'s effective
   scale plus the container's own `anchor.cursor` offset (below and right of the cursor by default,
   never the screen point) (bucket `cursor.follow`).
+- **mockplate** (`modules/Anchors_Mockplate.lua`), unlocked out of combat only: an own-plate
+  container and a `nameplates` container's stand-in sit at their screen point (and drag, as a screen
+  container does) beside a stand-in nameplate, a child of the root hung off it by the inverse of
+  the container's `nameplate` point and offsets, so the pair reads as the container will sit on a
+  real plate. A write to those rows re-places it at once. The drag strip is lifted over the stand-in
+  (`NS.Anchors.Screen.SetLift`), worked out from the stored points and the laid-out size alone.
+  Locking or combat puts the container back on `nameplate` (or its per-plate instances).
 
 `NS.FramePicker.Start(onPick)` (`modules/FramePicker.lua`) is the custom provider's pick on screen: an
 overlay outlines the nearest named ancestor of the frame under the cursor; Enter picks it and Escape
@@ -314,9 +321,9 @@ keyboard only (frame-layering-§4 retired the full-screen click catcher). It is 
   "hud"`, amber `TEST`, cyan `SIM`), including an instance acquired while the preview runs (a
   container created or enabled, a plate added, a pooled frame coming back). The strip stacks beyond
   the screen anchor's drag handle: one built before the first unlock is docked again when the handle
-  is built (`inst:DockStrips`). Its dock target is the instance's strip host, never the root; a
-  container on a nameplate wears an undocked strip on its top edge instead, since the client will not
-  measure a region anchored on a plate (ARCHITECTURE.md, *Taint Notes*). While a display's drag
+  is built (`inst:DockStrips`). Its dock target is the root, a root on a nameplate included: the
+  library's dock answers a refused measurement as "no flip" (LibKa0s v1.106.0; ARCHITECTURE.md,
+  *Taint Notes*). While a display's drag
   strip shows, its label ends in the TEST or SIM tag and the TestStrip is hidden: the tagged drag
   strip is that display's marker (preview-mode, *Where the strip sits*, v2.114.0;
   `NS.Anchors.Screen.Tagged`), and the TestStrip returns when the drag strip hides. The ticker, the memo, `RANGE_UPDATED` and the render are the live

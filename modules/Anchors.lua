@@ -18,6 +18,7 @@ local _, NS = ...
 --   nameplate   modules/Anchors_Nameplate.lua  on the container's unit's own nameplate
 --   plates      modules/Anchors_Nameplate.lua  a `nameplates` container's per-plate instance
 --   cursor      modules/Anchors_Cursor.lua     following the cursor
+--   mockplate   modules/Anchors_Mockplate.lua  unlocked: a plate container beside a stand-in plate
 -- An impl is `{ Apply(inst, c), Detach(inst)?, ShownChanged(inst)?, UnitChanged(unit)? }`.
 --
 -- WHICH MODE. A per-plate instance is always `plates`, whatever its container's stored mode. A
@@ -27,9 +28,11 @@ local _, NS = ...
 -- membership, its wait for a missing frame).
 --
 -- UNLOCKED, A DISPLAY THAT MOVES WAITS STILL. While every container shows unlocked out of combat
--- (NS.Container.Unlocked), a cursor container (a frame-mode mouseover one included) and an own-plate
--- container are placed on the screen anchor instead, at their stored screen point, so each can be
--- found and its drag strip held; locking or combat puts each back on its own mode. Every container
+-- (NS.Container.Unlocked), a cursor container (a frame-mode mouseover one included) is placed on the
+-- screen anchor instead, at its stored screen point, so it can be found and its drag strip held. An
+-- own-plate container and a `nameplates` container's stand-in are placed there too, beside a
+-- stand-in nameplate that shows how they attach to a real one (`mockplate`). Locking or combat puts
+-- each back on its own mode. Every container
 -- instance but a per-plate one wears the drag strip while unlocked (modules/Anchors_Screen.lua).
 
 NS.Anchors = NS.Anchors or {}
@@ -46,7 +49,10 @@ local function modeFor(inst, c)
     if inst.plateToken then return "plates" end
     local m = c.anchor and c.anchor.mode
     if m == "frame" and modes.frame and modes.frame.UsesCursor(c) then m = "cursor" end
-    if (m == "cursor" or m == "nameplate") and NS.Container.Unlocked() then return "screen" end
+    if NS.Container.Unlocked() then
+        if m == "cursor" then return "screen" end
+        if (m == "nameplate" or c.unit == "nameplates") and modes.mockplate then return "mockplate" end
+    end
     if modes[m] then return m end
     return "screen"
 end

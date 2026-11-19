@@ -42,7 +42,7 @@ How each one works, its seams and its edge cases: `docs/data-flow.md`, *Componen
 ### Libraries
 
 Everything is vendored under `libs/`: LibStub and CallbackHandler, the Ace3 stack, LibSharedMedia,
-LibDataBroker and LibDBIcon (the launcher), LibKa0s v1.105.0 (whole, its icons and sounds pruned to
+LibDataBroker and LibDBIcon (the launcher), LibKa0s v1.106.0 (whole, its icons and sounds pruned to
 `CLAUDE.md`'s declarations) and LibRangeCheck-3.0 MINOR 39 (commit and source in root
 `DEPENDENCIES.md`). Which LibKa0s modules are wired, one setup file each: `docs/module-map.md`.
 
@@ -217,13 +217,13 @@ addon's own frames (never a `SetPoint`); the preview modes' stand-ins and screen
 placed out of combat, because both modes are refused in it and ended at its start.
 
 A region anchored to a nameplate cannot be measured: the client raises *Can't measure restricted
-regions* on `GetTop` and its kin. Nothing in this addon measures a container root, but
-LibKa0s-Widgets' HUD-docked TestStrip does, from `OnShow` / `OnSizeChanged` hooks on its target
-that no `pcall` here covers. So the dock's target is `inst.stripHost`, a child laid over the root
-and parked on `UIParent`'s center while the root sits on a plate, and a container on a plate wears
-an undocked strip anchored on its top edge instead (`modules/Container.lua`). The nameplate anchors
-clear a root's points when it leaves its plate, so `inst.anchorPlate` always says whether the root's
-points name one.
+regions* on `GetTop` and its kin. Nothing in this addon measures a container root. LibKa0s-Widgets'
+HUD-docked TestStrip measures its target to flip near the screen's top, and from Widgets minor 28
+(LibKa0s v1.106.0, RangeMaster#17) every such read is guarded, so a strip docked on a root riding a
+plate sits on its top edge, unflipped, and raises nothing. The nameplate anchors clear a root's
+points when it leaves its plate, so `inst.anchorPlate` always says whether the root's points name
+one. The unlocked preview nameplate (`modules/Anchors_Mockplate.lua`) is this addon's own frame,
+never a real plate, and nothing measures it.
 
 ## Known Limitations
 
