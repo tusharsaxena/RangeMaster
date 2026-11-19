@@ -45,7 +45,7 @@ How each one works, its seams and its edge cases: `docs/data-flow.md`, *Componen
 ### Libraries
 
 Everything is vendored under `libs/`: LibStub and CallbackHandler, the Ace3 stack, LibSharedMedia,
-LibDataBroker and LibDBIcon (the launcher), LibKa0s v1.106.0 (whole, its icons and sounds pruned to
+LibDataBroker and LibDBIcon (the launcher), LibKa0s v1.107.0 (whole, its icons and sounds pruned to
 `CLAUDE.md`'s declarations) and LibRangeCheck-3.0 MINOR 39 (commit and source in root
 `DEPENDENCIES.md`). Which LibKa0s modules are wired, one setup file each: `docs/module-map.md`.
 

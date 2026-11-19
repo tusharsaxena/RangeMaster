@@ -2,7 +2,7 @@
 
 This file has two parts: the collection's client-quirks catalog, vendored whole from the Ka0s WoW Addon Standard between the markers below and never edited here, and then this addon's own quirks under `## RangeMaster-specific quirks`.
 
-<!-- BEGIN VENDORED: quirks catalog v2.113.0 (source: WowAddonStandards) -->
+<!-- BEGIN VENDORED: quirks catalog v2.115.0 (source: WowAddonStandards) -->
 > Part of the **[Ka0s WoW Addon Standard](https://github.com/tusharsaxena/WowAddonStandards/blob/master/standards/STANDARDS.md)** — the split standard. This section is vendored whole into every addon's `docs/midnight-quirks.md` (§1), so its links are absolute. Cross-references use the `filename-§N` form (see the index's section map).
 
 ## Client quirks
@@ -104,7 +104,7 @@ GUID; seven repos (Q7).
 secret stays secret after combat ends, and the client writes a secret to SavedVariables as `nil` — or,
 where it was a key, loses the entry. *Measured:* a reload probe, 2026-10-25. *Cost:* silent data loss on
 the next reload. *Do:* store a plain value or nothing; never store a captured secret to read later.
-*Source:* DpsRace `docs/known-limitations.md`, the reload probe; three repos (Q21).
+*Source:* Combat Trail `docs/known-limitations.md`, the reload probe its race mode carries; three repos (Q21).
 
 **A frame handed a secret has secret geometry, and so does everything anchored to it.** After
 `StatusBar:SetValue(secret)` (or `SetAlphaFromBoolean`, or anchoring to an aura engine container) the
@@ -134,7 +134,7 @@ path takes the event's plain value; do not inherit `CastingBarFrameTemplate` for
 player. *Source:* KickCD `docs/midnight-quirks.md`, "split the gate in two"; two repos (Q13).
 
 **`InChatMessagingLockdown` can answer a secret.** *Do:* read it through a guard and treat a secret as
-locked. *Source:* DropWatcher and QuickComms `core/Compat.lua` (byte-identical), DpsRace; three repos (Q27).
+locked. *Source:* DropWatcher and QuickComms `core/Compat.lua` (byte-identical), Combat Trail; three repos (Q27).
 
 ### 3. Events
 
