@@ -289,7 +289,9 @@ is missing (`inst:SetAnchorHidden`), and the renderer tells the anchors each sho
   plate coming or going; pet has no plate in practice, so it is hidden.
 - **plates**: a `nameplates` container's per-plate instance, on its plate. `NS.Plates` tracks every
   plate token from `NAME_PLATE_UNIT_ADDED` / `_REMOVED`; a plate is hostile through
-  `NS.Compat.CanAttack`, and a container with `nameplate.includeFriendly` takes every plate. A plate
+  `NS.Compat.CanAttack`, and a container with `nameplate.includeFriendly` takes every plate. A
+  `nameplatesExceptTarget` container is the same but skips the target's plate (compared by frame
+  with `NS.Compat.NamePlateForUnit("target")`), and a retarget asks every plate again. A plate
   is identified by its frame, never through `UnitIsUnit`: a removed token's plate is compared with
   the frame an own-plate container sits on, which is hidden at once, and looked for again a frame
   later. Every `ADDED` is re-checked one frame later (WoW Forever can announce a plate before it is

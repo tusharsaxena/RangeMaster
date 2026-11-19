@@ -255,7 +255,7 @@ Total.
 - picker: refused in combat with one gray line, and combat during a pick cancels it
 - picker: Escape cancels
 
-### test_anchors_nameplate.lua (15)
+### test_anchors_nameplate.lua (20)
 
 - plates: test_nameplate_own_plate_follows_target_change — the target container moves to the new target's plate
 - plates: test_expert_plates_out_of_combat — Expert's plate containers show out of combat
@@ -272,6 +272,11 @@ Total.
 - plates: ForEachHostile walks the hostile plates, and every plate with includeFriendly
 - plates: deleting the nameplates container releases every plate instance
 - plates: the stand-down releases every plate instance and leaves no re-check armed; the stand-up rescans
+- plates: test_except_target_skips_the_target_plate — no instance on the target's plate, one on every other
+- plates: test_except_target_follows_retarget — a retarget moves the gap to the new target's plate
+- plates: test_except_target_plate_arriving — the target's plate coming into view gets no instance
+- plates: test_all_nameplates_keeps_the_target_plate — plain All nameplates still draws on the target's plate
+- plates: test_except_target_is_a_plates_unit — no sound, no single instance, the plate rows
 
 ### test_anchors_cursor.lua (7)
 
@@ -912,7 +917,7 @@ Total.
 | test_container_render.lua | 53 |
 | test_anchors_screen.lua | 13 |
 | test_anchors_frame.lua | 17 |
-| test_anchors_nameplate.lua | 15 |
+| test_anchors_nameplate.lua | 20 |
 | test_anchors_cursor.lua | 7 |
 | test_anchors_mockplate.lua | 5 |
 | test_visibility.lua | 11 |
@@ -958,4 +963,4 @@ Total.
 | test_skin_switch.lua | 6 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **724** |
+| **Total** | **729** |

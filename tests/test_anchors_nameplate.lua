@@ -64,15 +64,20 @@ test("plates: test_expert_plates_out_of_combat — Expert's plate containers sho
   -- combat, saw neither; plan 2026-11-19 M12).
   H.with(function()
     local a = H.plate("nameplate1", true)
+    H.plate("nameplate2", true)
     M.__plates.target = a
     H.added("nameplate1")
+    H.added("nameplate2")
     NS.Presets.Apply("expert")
     NS.CM.FlushPending()
     local plateInst, eachInst
     for _, id in ipairs(NS.CM.List()) do
       local c = NS.CM.Get(id)
       if c.unit == "target" and c.anchor.mode == "nameplate" then plateInst = Container.Get(id) end
-      if c.unit == "nameplates" then eachInst = platesOf(id).nameplate1 end
+      if NS.CM.IsPlates(c.unit) then
+        eachInst = platesOf(id).nameplate2
+        assertNil(platesOf(id).nameplate1, "Expert's every-plate container leaves the target's plate to the target one")
+      end
     end
     assertTrue(plateInst ~= nil and plateInst.anchorPlate == a, "the target plate container sits on its plate")
     assertFalse(NS.Visibility.InCombat(), "out of combat")
@@ -287,5 +292,80 @@ test("plates: the stand-down releases every plate instance and leaves no re-chec
     NS.SyncEnabledHold()
     NS.CM.FlushPending()
     assertEqual(count(platesOf(id)), 1, "the plate still shown is found again")
+  end)
+end)
+
+-- ---------------------------------------------------------------------------
+-- All nameplates except the target's (the owner, 2026-11-19: a target-plate container and an every-
+-- plate one overlapped on the target's plate)
+-- ---------------------------------------------------------------------------
+
+local function allButTarget()
+  return H.container("nameplatesExceptTarget", { nameplate = { includeFriendly = false } })
+end
+
+test("plates: test_except_target_skips_the_target_plate — no instance on the target's plate, one on every other", function()
+  -- red under: no nameplatesExceptTarget unit (CM.Create answers nil).
+  H.with(function()
+    local a, b = H.plate("nameplate1", true), H.plate("nameplate2", true)
+    M.__plates.target = a
+    H.added("nameplate1")
+    H.added("nameplate2")
+    local id = allButTarget()
+    assertTrue(id ~= nil, "the unit exists")
+    local by = platesOf(id)
+    assertNil(by.nameplate1, "none on the target's plate")
+    assertTrue(by.nameplate2 ~= nil and by.nameplate2.anchorPlate == b, "one on the other plate")
+  end)
+end)
+
+test("plates: test_except_target_follows_retarget — a retarget moves the gap to the new target's plate", function()
+  H.with(function()
+    local a, b = H.plate("nameplate1", true), H.plate("nameplate2", true)
+    M.__plates.target = a
+    H.added("nameplate1")
+    H.added("nameplate2")
+    local id = allButTarget()
+    M.__plates.target = b
+    M.__fireEvent("PLAYER_TARGET_CHANGED")
+    local by = platesOf(id)
+    assertTrue(by.nameplate1 ~= nil and by.nameplate1.anchorPlate == a, "the old target's plate gets one back")
+    assertNil(by.nameplate2, "the new target's plate loses its")
+    M.__plates.target = nil
+    M.__fireEvent("PLAYER_TARGET_CHANGED")
+    assertEqual(count(platesOf(id)), 2, "no target: every hostile plate")
+  end)
+end)
+
+test("plates: test_except_target_plate_arriving — the target's plate coming into view gets no instance", function()
+  H.with(function()
+    local id = allButTarget()
+    local a = H.plate("nameplate3", true)
+    M.__plates.target = a
+    H.added("nameplate3")
+    M.__fireTimers()
+    assertNil(platesOf(id).nameplate3, "the target's plate, though it arrived after the container")
+  end)
+end)
+
+test("plates: test_all_nameplates_keeps_the_target_plate — plain All nameplates still draws on the target's plate", function()
+  H.with(function()
+    local a = H.plate("nameplate1", true)
+    M.__plates.target = a
+    H.added("nameplate1")
+    local id = allPlates()
+    assertTrue(platesOf(id).nameplate1 ~= nil)
+  end)
+end)
+
+test("plates: test_except_target_is_a_plates_unit — no sound, no single instance, the plate rows", function()
+  H.with(function()
+    local id = allButTarget()
+    assertTrue(NS.CM.IsPlates("nameplatesExceptTarget") and NS.CM.IsPlates("nameplates"))
+    assertFalse(NS.CM.IsPlates("target"))
+    assertNil(Container.Get(id), "locked: per-plate instances only")
+    assertEqual(NS.ContainerValues.UNITS.nameplatesExceptTarget, "All nameplates except target")
+    local sorted = table.concat(NS.ContainerValues.UNITS_SORT, ",")
+    assertEqual(sorted, "target,focus,pet,mouseover,nameplates,nameplatesExceptTarget")
   end)
 end)

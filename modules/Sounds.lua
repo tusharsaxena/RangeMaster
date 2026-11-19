@@ -46,7 +46,7 @@ local CHANNELS = { Master = true, SFX = true, Music = true, Ambience = true, Dia
 function Sounds.Wants(inst)
     local c = inst and inst.container
     local s = c and c.sounds
-    return s ~= nil and s.enabled == true and c.unit ~= "nameplates" and inst.plateToken == nil
+    return s ~= nil and s.enabled == true and not NS.CM.IsPlates(c.unit) and inst.plateToken == nil
 end
 
 function Sounds.Reset(inst)

@@ -26,7 +26,7 @@ unless a check names one. The anchors are run as a matrix, one result per mode a
 | CONT-1..10 | Containers page | New container (no band preview), the rail, Position, Duplicate / Delete / Copy settings from, Defaults, Color from, the Dot tab and its Style tiles, Border opacity, the caption's positions, the caption's styling |
 | BANDS-1..10 | Band sets page | the picker, the Bands editor (no band ribbon), shared sets, the friendly override, the unknown label; spell bands: the rule controls, the read-out, the owner's Hawk Eye case, the dead zone, the v1 -> v2 conversion |
 | PRESET-1..4 | Presets | the first-run picker, Apply on an empty profile, Apply over containers with Undo, what each of the five shows |
-| ANCHOR-1..8 | Anchors | every mode on both clients: screen, unit frames (Blizzard, EllesmereUI, custom, missing), own nameplate, all nameplates, cursor, the picker |
+| ANCHOR-1..9 | Anchors | every mode on both clients: screen, unit frames (Blizzard, EllesmereUI, custom, missing), own nameplate, all nameplates, cursor, the picker, all nameplates except target |
 | VIS-1..3 | Visibility | combat and reaction rules, out-of-combat opacity, the master rows |
 | SOUND-1..2 | Sounds | the debounced band sound, none on nameplates |
 
@@ -397,7 +397,7 @@ a training dummy for each. The spell IDs are the anchors in `defaults/SpellSeeds
   band's name (MELEE, LONG, ...); Intermediate (Range Numbers) the range number; Advanced dot, number
   and name; Expert all three with spell chips, plus the two nameplate containers (shown out of
   combat too: target a hostile mob out of combat → the target-plate container shows under its plate,
-  and every hostile plate wears a dot; no caption on either),
+  and every hostile plate but the target's wears a dot; no caption on either),
   the out-of-range chime on target and the Healer set as the friendly override on target, focus and
   mouseover. `/rm preset text`, `/rm preset numbers` and `/rm preset expert` reach the same; `/rm
   preset intermediate` prints the usage line. Result:
@@ -456,6 +456,11 @@ it), or from chat with `/rm set container.anchor.mode frame` (`screen`, `frame`,
   Unit frames from set to Custom frame (by name); Escape cancels; a mouse click during a pick reaches
   only the game (it neither picks nor cancels); entering combat ends it with no error; starting it in
   combat prints one gray line.
+- **ANCHOR-9. All nameplates except target.** Beside a container on the target's own plate, an All
+  nameplates except target container draws on every hostile plate but the target's, so the two never
+  stack on one plate; retargeting moves the gap to the new target's plate at once, the old target's
+  plate gets its copy back, and clearing the target puts a copy on every hostile plate. Expert's
+  every-plate container uses this unit.
 
 | Check | Mode | Retail result | WoW Forever result |
 |---|---|---|---|
@@ -467,6 +472,7 @@ it), or from chat with `/rm set container.anchor.mode frame` (`screen`, `frame`,
 | ANCHOR-6 | All nameplates (per-plate) | | |
 | ANCHOR-7 | `cursor` | | |
 | ANCHOR-8 | the frame picker (`frame`, custom) | | |
+| ANCHOR-9 | All nameplates except target | | |
 
 ## Visibility
 

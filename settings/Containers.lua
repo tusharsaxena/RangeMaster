@@ -44,10 +44,12 @@ NS.ContainerValues = V
 
 V.UNITS = {
     target = L["Target"], focus = L["Focus"], pet = L["Pet"], mouseover = L["Mouseover"],
-    nameplates = L["All nameplates"],
+    nameplates = L["All nameplates"], nameplatesExceptTarget = L["All nameplates except target"],
 }
-V.UNITS_SORT = { "target", "focus", "pet", "mouseover", "nameplates" }
--- The units with one frame of their own; `nameplates` has an instance per plate instead.
+V.UNITS_SORT = { "target", "focus", "pet", "mouseover", "nameplates", "nameplatesExceptTarget" }
+-- The per-plate units (NS.CM.IsPlates): an instance per plate, not one frame.
+V.PLATE_UNITS = { "nameplates", "nameplatesExceptTarget" }
+-- The units with one frame of their own; the plate units have an instance per plate instead.
 V.SINGLE_UNITS = { "target", "focus", "pet", "mouseover" }
 
 V.MODES = { screen = L["Free on screen"], frame = L["Unit frame"], nameplate = L["Nameplate"],
@@ -161,7 +163,7 @@ local ROWS = {
       desc = L["Draw this container. A disabled container keeps its settings."] },
     { path = "container.unit", page = PAGE, group = GENERAL, subgroup = S_TRACKS, order = 30,
       type = "string", values = V.UNITS, sorting = V.UNITS_SORT, label = L["Unit"],
-      desc = L["Whose range this container shows. All nameplates draws one copy on every hostile nameplate."],
+      desc = L["Whose range this container shows. All nameplates draws one copy on every hostile nameplate; All nameplates except target skips the target's, so it never overlaps a container on the target's own plate."],
       onChange = function() NS.RequestPanelRefresh() end },
     { path = "container.bandSet", page = PAGE, group = GENERAL, subgroup = S_TRACKS, order = 40,
       type = "number", min = 0, max = 1000000, nilAs = 0, default = 0,
@@ -208,7 +210,7 @@ local THIS_POINT = L["This container anchor point"]
 local MY_POINT = L["The point of this container that is pinned to the anchor point beside it."]
 local X_NUDGE = L["Horizontal offset from the attachment point, in pixels."]
 local Y_NUDGE = L["Vertical offset from the attachment point, in pixels."]
-local ON_PLATE = { any = { whenMode("nameplate"), { path = "container.unit", equals = "nameplates" } } }
+local ON_PLATE = { any = { whenMode("nameplate"), { path = "container.unit", equals = V.PLATE_UNITS } } }
 
 local POSITION_ROWS = {
     { path = "container.anchor.mode", page = PAGE, group = POSITION, subgroup = S_ANCHOR, order = 10,
@@ -253,7 +255,7 @@ local POSITION_ROWS = {
     offsetRow("container.nameplate.x", 180, S_PLATE, ON_PLATE, L["X offset"], X_NUDGE, true),
     offsetRow("container.nameplate.y", 190, S_PLATE, ON_PLATE, L["Y offset"], Y_NUDGE),
     { path = "container.nameplate.includeFriendly", page = PAGE, group = POSITION, subgroup = S_PLATE,
-      order = 200, type = "bool", shownWhen = { path = "container.unit", equals = "nameplates" },
+      order = 200, type = "bool", shownWhen = { path = "container.unit", equals = V.PLATE_UNITS },
       label = L["Friendly nameplates too"],
       desc = L["Draw this container on friendly nameplates as well as hostile ones."] },
 }

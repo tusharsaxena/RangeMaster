@@ -51,7 +51,7 @@ local function modeFor(inst, c)
     if m == "frame" and modes.frame and modes.frame.UsesCursor(c) then m = "cursor" end
     if NS.Container.Unlocked() then
         if m == "cursor" then return "screen" end
-        if (m == "nameplate" or c.unit == "nameplates") and modes.mockplate then return "mockplate" end
+        if (m == "nameplate" or NS.CM.IsPlates(c.unit)) and modes.mockplate then return "mockplate" end
     end
     if modes[m] then return m end
     return "screen"

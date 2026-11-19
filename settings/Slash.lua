@@ -68,7 +68,7 @@ NS.COMMANDS = {
         function() runContainers() end},
     {"select",        L["Select a range display by number or name \226\128\148 /rm select 2"],
         function(rest) runSelect(rest) end},
-    {"new",           L["Create a range display \226\128\148 /rm new [target|focus|pet|mouseover|nameplates]"],
+    {"new",           L["Create a range display \226\128\148 /rm new [target|focus|pet|mouseover|nameplates|nameplatesExceptTarget]"],
         function(rest) runNew(rest) end},
     {"delete",        L["Delete a range display by number or name \226\128\148 /rm delete 2"],
         function(rest) runDelete(rest) end},
@@ -265,7 +265,7 @@ function runNew(rest)
     local unit = firstWord(rest)
     if unit == "" then unit = "target" end
     local id = NS.NewContainer(unit)
-    if not id then return print(L["Usage: /rm new [target|focus|pet|mouseover|nameplates]"]) end
+    if not id then return print(L["Usage: /rm new [target|focus|pet|mouseover|nameplates|nameplatesExceptTarget]"]) end
     printf(L["Created '%s' and selected it."], containerName(id))
 end
 

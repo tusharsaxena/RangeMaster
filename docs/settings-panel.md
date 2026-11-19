@@ -79,7 +79,7 @@ A pick lands through `NS.WriteSkinChoice` and the write seam.
 The band carries the page's only picker and **New container** (`O.PageBanner` with `action`). The nav
 rail picks which part of the selected container is shown; each entry is its own page key, so the
 header **Defaults** restores every tab of the entry on screen, for the container in the band. The
-**Sounds** entry is not listed for a `nameplates` container, and the rail heals to General when the
+**Sounds** entry is not listed for a `nameplates` or `nameplatesExceptTarget` container, and the rail heals to General when the
 selection moves to one. No page draws a band preview: General's Preview section and the Band sets
 page's band ribbon were removed (plan 2026-11-19 M8); `/rm bands` keeps its chat ribbon
 (`NS.BandRibbon`, which only that verb calls now).

@@ -146,7 +146,7 @@ local function expert()
     end
     list[1].opts.sounds = { enabled = true }
     list[#list + 1] = plate("target", "targetPlate", "diamond", "range", { name = L["Target plate"] })
-    list[#list + 1] = plate("nameplates", "nameplates", "dot", "max", {
+    list[#list + 1] = plate("nameplatesExceptTarget", "nameplates", "dot", "max", {
         visibility = { combat = "any", reaction = "hostile", hideNoUnit = true },
         nameplate = { includeFriendly = false },
     })
