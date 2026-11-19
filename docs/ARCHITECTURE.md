@@ -16,8 +16,11 @@ addon shares (the Ace3 addon object, AceDB with its migration runner, the LibKa0
 slash surface, the launcher, the stand-down latch and the diagnostics report), and on it the range
 engine, the band sets, the container registry and its presets, the renderer, the four anchor modes,
 the visibility and sound rules, Test mode and Sim mode, and the settings pages (General with its
-Presets tab, Containers, Band sets, Profiles). The addon has not been run in a client yet: every
-in-game check in `docs/smoke-tests.md` is still owed.
+Presets tab, Containers, Band sets, Profiles). On top of it the spell-driven dynamic bands
+(`docs/superpowers/plans/2026-11-19-dynamic-bands.md`): a band may carry a spell rule decided each
+tick by the class's anchor spells, with its yards as the fallback, and schema v2 converts every
+stored set. The addon has not been run in a client yet: every in-game check in
+`docs/smoke-tests.md` is still owed.
 
 **The design is dictated by one client fact.** The game answers "is this unit within reach of
 spell or item X", never "how far". The range engine asks LibRangeCheck-3.0 (vendored,
@@ -29,7 +32,7 @@ change. A secret or failed answer reads as *unknown*, never as out of range.
 
 | Component | Files | What it does |
 |---|---|---|
-| Range engine | `modules/Range.lua` (`NS.Range`), `modules/Ticker.lua` (`NS.Ticker`), `core/Compat.lua` | A guarded, memoized bracket per unit token per tick; one adaptive ticker that sends `RANGE_UPDATED` on change |
+| Range engine | `modules/Range.lua` (`NS.Range`), `modules/Ticker.lua` (`NS.Ticker`), `core/Compat.lua` | A guarded, memoized bracket per unit token per tick; the per-class anchor spells resolved at rebuild and asked once per spell per unit per tick (shared with the chips); one adaptive ticker that sends `RANGE_UPDATED` on change |
 | Band sets | `modules/BandSets.lua` (`NS.BandSets`), `defaults/BandSetPresets.lua` | Named, shared, normalized bands of yards, each of which may carry a spell, dead-zone or beyond rule (its yards then the fallback); `Resolve` turns a bracket into a band, `ForUnit` picks the friendly override |
 | Containers and presets | `modules/ContainerManager.lua` (`NS.CM`), `modules/Presets.lua` (`NS.Presets`) | The container registry's one writer and its coalesced, combat-held apply; Simple, Intermediate (Range Text), Intermediate (Range Numbers), Advanced and Expert, with a one-level Undo |
 | Rendering | `modules/Container.lua` (`NS.Container`), `modules/Style.lua`, `modules/Elements_*.lua` | One pooled instance per enabled container (one per plate for `nameplates`), repainted only on a band or text change |
@@ -263,6 +266,21 @@ never a real plate, and nothing measures it.
 - Forever's interact rungs (duel 10 yd, follow 28 yd, race-adjusted) and both clients' seed spell IDs
   (`defaults/SpellSeeds.lua`) are not yet confirmed in a client; `docs/smoke-tests.md` carries the
   checks.
+- A spell band trusts the anchor's own answer, and whether `C_Spell.IsSpellInRange` follows range
+  talents, and whether `C_Spell.GetSpellInfo` reports the talented range, are undocumented on both
+  clients. If the reported range is the base one, the Bands page read-out and Sim show the base
+  number while the band still follows the spell (`docs/midnight-quirks.md`; smoke checks RANGE-6,
+  RANGE-7, RANGE-10).
+- A dead-zone (gap) band holds by rule only where the ranged anchor reports a minimum range (the
+  WoW Forever hunter's 8 yd); on Retail no ranged anchor has one, so a gap band there falls to its
+  yards. In combat on a unit the player cannot attack the interact check is refused, so the dead
+  zone is confirmed by LibRangeCheck's bracket alone.
+- Harmful anchors give no answer on a friendly unit, so a friendly container reads its yards unless
+  its set has a friendly spell band. Melee reach is the client's own, so against a large boss or a
+  player the melee band follows the spell, not 5 yd.
+- `beyond` gives way to the yards when the bracket ends short of the beyond band's fallback edge (the
+  D6 review fix): a known near bracket with every anchor saying false can read *unknown*, not out of
+  range. Whether beyond should ever yield to the yards is the owner's call (the plan, D6).
 
 ## Documentation map
 

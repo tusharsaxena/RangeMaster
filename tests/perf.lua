@@ -10,7 +10,9 @@
 -- (modules/Range.lua, `range.get`), the range ticker's tick (modules/Ticker.lua, `ticker.tick`),
 -- the last measured at the design spec's load: ten containers over four units plus twenty plates,
 -- the renderer's fan-out over those ten containers and over a nameplates container's twenty
--- per-plate instances (modules/Container.lua, `container.render`), and the cursor follow's one
+-- per-plate instances (modules/Container.lua, `container.render`), the same twenty plates on a rule
+-- band set whose bands the anchors' spell answers decide (modules/BandSets.lua's Resolve through
+-- modules/Range.lua's memo), and the cursor follow's one
 -- OnUpdate over three cursor containers (modules/Anchors_Cursor.lua, `cursor.follow`).
 --
 -- Its scenarios are not counted in docs/test-cases.md or the README's [tests] badge.
@@ -224,6 +226,70 @@ measure("render.plates", BURST, function(i)
 end)
 NS.CM.Delete(platesId)
 NS.CM.FlushPending()
+
+-- The same twenty plates on a rule band set (dynamic-bands plan D7): the Forever hunter shape
+-- (MELEE melee, DEAD gap, AUTO ranged, OOR beyond) on a hunter whose anchors are known, so every
+-- instance's band is decided by the anchors' C_Spell.IsSpellInRange answers through the Range memo.
+-- A quiet tick re-resolves each shown instance's band (the steady read), asking each anchor once per
+-- plate per tick; a moving one flips Auto Shot with the bracket, so every plate swaps AUTO for OOR.
+do
+  local client, savedClass = NS.Compat.ClientKey(), mocks.__context.classToken
+  local seeds = NS.SpellSeeds[client]
+  local realSeed = seeds.HUNTER
+  local book, spell = mocks.C_SpellBook, mocks.C_Spell
+  local real = { book.IsSpellKnown, spell.IsSpellUsable, spell.GetSpellInfo, spell.IsSpellInRange }
+  local INFO = {
+    [2973] = { name = "Raptor Strike", iconID = 1, castTime = 0, spellID = 2973, minRange = 0, maxRange = 5 },
+    [75]   = { name = "Auto Shot", iconID = 1, castTime = 0, spellID = 75, minRange = 8, maxRange = 41 },
+  }
+  INFO["Raptor Strike"], INFO["Auto Shot"] = INFO[2973], INFO[75]
+  local asked = 0
+  mocks.__context.classToken = "HUNTER"
+  seeds.HUNTER = { chips = {}, ladder = {}, anchors = { melee = { 2973 }, ranged = { 75 } } }
+  book.IsSpellKnown = function(id) return INFO[id] ~= nil end
+  spell.IsSpellUsable = function() return true, false end
+  spell.GetSpellInfo = function(id) return INFO[id] end
+  spell.IsSpellInRange = function(id)
+    asked = asked + 1
+    if id == 75 then return not farther end
+    return false
+  end
+  NS.Range.__rebuildNow()
+  local ruleSet = NS.BandSets.Create("Perf rules", {
+    { from = 0, to = 5, label = "MELEE", rule = { type = "spell", role = "melee" } },
+    { from = 5, to = 8, label = "DEAD", rule = { type = "gap" } },
+    { from = 8, to = 35, label = "AUTO", rule = { type = "spell", role = "ranged" } },
+    { from = 35, label = "OOR", rule = { type = "beyond" } },
+  })
+  local rulesId = NS.CM.Create("nameplates", { bandSet = ruleSet })
+  NS.CM.FlushPending()
+  _, plateCount = NS.Container.__plateCounts()
+  assert_(plateCount == 20, ("a rule-band nameplates container holds %d instances"):format(plateCount))
+  farther = false
+  tickFn = NS.Ticker.__handle().fn
+  for i = #mocks.__timers, 1, -1 do mocks.__timers[i] = nil end
+  asked = 0
+  tickFn()
+  assert_(asked > 0, "a tick over rule bands asked no anchor; the scenario measures the yard path")
+  assert_(asked <= 20 * 2, ("a tick over 20 rule-band plates made %d range calls; the memo allows one per anchor per plate")
+    :format(asked))
+  local rulesQuiet = measure("render.plates.rules.quiet", BURST, function() tickFn() end)
+  assert_(rulesQuiet.bytesPerIter < 64,
+    ("a quiet tick over 20 rule-band plates allocates %.1f bytes; the rule path must not allocate")
+      :format(rulesQuiet.bytesPerIter))
+  measure("render.plates.rules", BURST, function(i)
+    farther = i % 2 == 0
+    tickFn()
+  end)
+  NS.CM.Delete(rulesId)
+  NS.CM.FlushPending()
+  NS.BandSets.Delete(ruleSet)
+  seeds.HUNTER = realSeed
+  book.IsSpellKnown, spell.IsSpellUsable, spell.GetSpellInfo, spell.IsSpellInRange = real[1], real[2], real[3], real[4]
+  mocks.__context.classToken = savedClass
+  NS.Range.__rebuildNow()
+  farther = false
+end
 for i = 1, 20 do
   NS.Plates.Removed("nameplate" .. i)
   mocks.__plates["nameplate" .. i] = nil
@@ -283,9 +349,9 @@ assert_(probeOff.bytesPerIter <= probeOn.bytesPerIter + 1,
 
 print(("Ka0s Range Master \226\128\148 offline perf  (v%s, label '%s')"):format(NS.version, opts.label))
 print()
-print(("%-20s %10s %12s %12s %12s"):format("scenario", "iters", "ms/iter", "total-ms", "bytes/iter"))
+print(("%-26s %10s %12s %12s %12s"):format("scenario", "iters", "ms/iter", "total-ms", "bytes/iter"))
 for _, r in ipairs(results) do
-  print(("%-20s %10d %12.5f %12.3f %12.1f"):format(r.name, r.iterations, r.msPerIter, r.totalMs, r.bytesPerIter))
+  print(("%-26s %10d %12.5f %12.3f %12.1f"):format(r.name, r.iterations, r.msPerIter, r.totalMs, r.bytesPerIter))
 end
 print()
 print("timings are for orientation only \226\128\148 compare scenarios within a run, never across machines")

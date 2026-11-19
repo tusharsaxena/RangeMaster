@@ -270,6 +270,27 @@ D6 decisions (taken in the fix pass):
 - docs/settings-panel.md's Bands paragraph is brought up to D5's editor here (a review finding); D7's
   doc pass still owns the rest.
 
+## D7. Docs, probes, perf, test list
+
+D7 decisions:
+
+- The in-game probes are smoke checks RANGE-6 to RANGE-11 (reported range under Hawk Eye, Auto Shot at
+  38 yd with Hawk Eye 0/3 and 3/3, rank IDs, which event a talent point fires, Retail Wrath with Astral
+  Influence, and the override-known and unarmed Auto Shot questions from D1 and research part 2), and
+  the band checks BANDS-6 to BANDS-10 (the rule controls, the read-out, the owner's Hawk Eye case at
+  35-41 yd, the dead zone, the v1 -> v2 conversion). All are listed under Pending sign-off.
+- The talent-event probe is a one-line `/run` frame (under the chat's 255 characters), since the
+  rebuild logs nothing to the debug console.
+- The three undocumented client behaviors (talented reported ranges, rank-1 IDs, the talent event) are
+  recorded in docs/midnight-quirks.md as unmeasured quirks; the Retail nameplate secrecy in restricted
+  content stays a research open question, not a quirk, as no code depends on it beyond the nil path.
+- The perf scenario is `render.plates.rules.quiet` / `render.plates.rules` in tests/perf.lua (outside
+  the gate): twenty plates on the Forever hunter rule set. A quiet tick is near-free (a few bytes) and asks at
+  most one range call per anchor per plate; a moving tick's allocation equals a yard set's for the
+  same AUTO <-> OOR swap (measured with the rules stripped), so the rule path adds time, not garbage.
+- New Known Limitations rows in docs/ARCHITECTURE.md: undocumented talented ranges, the Retail gap
+  band, friendly units and melee reach, and D6's beyond-yields-to-yards behavior left for the owner.
+
 ## D6, D7
 
 As the previous plan's review and wrap-up: parallel reviewers (correctness, standard conformance, tests and

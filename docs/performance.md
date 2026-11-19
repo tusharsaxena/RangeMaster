@@ -47,6 +47,11 @@ plus twenty plates, 24 units: `ticker.tick` with nothing moving, asserted near-f
 (`render.quiet`, a tick with nothing moving, asserted near-free, and `container.render`, every
 instance changing band every tick, the worst case), a `nameplates` container over twenty hostile
 plates (`render.plates.quiet`, asserted near-free, and `render.plates`, all twenty changing band),
+the same twenty plates on a rule band set (the Forever hunter shape, MELEE / DEAD / AUTO / OOR, on a
+hunter whose anchors are known: `render.plates.rules.quiet`, every shown instance re-resolving its
+band from the anchors' answers through the Range memo, asserted near-free and to ask at most one
+range call per anchor per plate per tick, and `render.plates.rules`, Auto Shot flipping with the
+bracket so all twenty swap AUTO for OOR),
 the cursor follow over three cursor containers (`cursor.follow`, asserted not to allocate), and the
 zero-overhead scenario that proves a
 dormant bracket costs nothing an armed one does not. LibRangeCheck's own `GetRange` answers a fixed
@@ -54,6 +59,11 @@ bracket there: its cost is the library's. Offline numbers are never cited as in-
 store.
 
 ## What it cannot resolve
+
+On the host the rule path is near-free in allocation on a quiet tick (a few bytes) and costs about three times the yard
+path's time over the same twenty plates (the anchors asked and the rules walked per instance); a
+moving tick allocates what the same band swap costs on a yard set (AUTO to OOR paints the same either
+way). Orientation only, like every offline number.
 
 The harness measures this addon's Lua time and allocations. It cannot attribute the client's own
 cost of the range checks LibRangeCheck makes, and it cannot see frame-time differences under 0.1 ms
