@@ -66,6 +66,7 @@ test("plates: test_expert_plates_out_of_combat — Expert's plate containers sho
     local a = H.plate("nameplate1", true)
     H.plate("nameplate2", true)
     M.__plates.target = a
+    M.__hostile.target = true   -- a hostile target: Expert's plates are hostile only (2026-11-20)
     H.added("nameplate1")
     H.added("nameplate2")
     NS.Presets.Apply("expert")
@@ -84,6 +85,7 @@ test("plates: test_expert_plates_out_of_combat — Expert's plate containers sho
     assertTrue(plateInst.frame:IsShown(), "and shows")
     assertTrue(eachInst ~= nil and eachInst.frame:IsShown(), "the hostile plate's instance shows too")
     NS.Presets.__reset()
+    M.__hostile.target = nil
   end)
 end)
 

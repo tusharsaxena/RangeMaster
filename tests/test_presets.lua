@@ -244,7 +244,7 @@ test("presets: Describe answers each preset's name, container count and bullet i
   local L = NS.L
   local onScreen, oneSet = L["Target, Focus, Pet, Mouseover: free on screen, each named above it"],
     L["One band set (class default)"]
-  local noSounds = L["No sounds, always visible when the unit exists"]
+  local noSounds = L["No sounds; hostile units only (the pet: always)"]
   local want = {
     simple = { onScreen, L["A dot colored by band"], oneSet, noSounds },
     text = { onScreen, L["The band's label as text"], oneSet, noSounds },
@@ -255,7 +255,7 @@ test("presets: Describe answers each preset's name, container count and bullet i
       L["Healer band set for friendly target, focus and mouseover"],
       L["Target on its own nameplate + dot on all hostile plates"],
       L["Band-change sound on target (out-of-range warning)"],
-      L["Visibility rules: hostile nameplates only"],
+      L["Visibility rules: hostile only, but the friendly-set displays and the pet"],
     },
   }
   for key, items in pairs(want) do
@@ -360,4 +360,26 @@ test("presets: test_preset_homes — each unit has one home on screen, the same 
   assertTrue(f.x - t.x >= 260, "two drag strips side by side clear each other")
   local pet, plate = Presets.__home("pet"), Presets.__home("targetPlate")
   assertTrue(pet.y - plate.y >= 80, "a row holds a preview nameplate over a nameplate container")
+end)
+
+test("presets: test_hostile_only — every preset shows hostile units only, but the pet and the Healer-set displays", function()
+  -- red under: presets that show for any reaction (the owner, 2026-11-20).
+  for _, key in ipairs({ "simple", "text", "numbers", "advanced" }) do
+    withFreshProfile(function()
+      Presets.Apply(key)
+      for _, c in ipairs(containers()) do
+        local want = c.unit == "pet" and "any" or "hostile"
+        assertEqual(c.visibility.reaction, want, key .. ": " .. c.name)
+      end
+    end)
+  end
+  withFreshProfile(function()
+    Presets.Apply("expert")
+    for _, c in ipairs(containers()) do
+      local want = "hostile"
+      if c.unit == "pet" or (c.bandSetFriendly ~= nil and c.anchor.mode == "screen") then want = "any" end
+      assertEqual(c.visibility.reaction, want, "expert: " .. c.name)
+    end
+    assertEqual(find("target", "nameplate").visibility.reaction, "hostile", "the target plate: hostile")
+  end)
 end)

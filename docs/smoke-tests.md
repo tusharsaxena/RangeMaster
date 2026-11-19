@@ -430,7 +430,9 @@ a training dummy for each. The spell IDs are the anchors in `defaults/SpellSeeds
   naming the preset and how many displays it replaces; **Cancel** changes nothing; **Apply** leaves
   six containers (target, focus, pet and mouseover free on screen, target on its own plate, one on
   every hostile plate). **Undo last preset** puts the earlier ones back. Result:
-- **PRESET-4. What each preset shows.** Apply each in turn from General → Presets; every one puts
+- **PRESET-4. What each preset shows.** (Since 2026-11-20 every preset container shows for hostile
+  units only: a friendly target hides it; the pet always shows, and in Expert target, focus and
+  mouseover show friends too, on the Healer set.) Apply each in turn from General → Presets; every one puts
   target, focus, pet and mouseover free on screen at their homes, each with its name (Target, Focus,
   Pet, Mouseover) as a caption above its border, on a faint band-tinted background with a faint
   border, and differs only in what they show: Simple a matte dot; Intermediate (Range Text) the

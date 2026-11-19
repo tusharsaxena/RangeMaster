@@ -140,7 +140,7 @@ Total.
 - cm: MarkSeeded is the first-run sentinel's one runtime writer
 - cm: spell chips follow the character until a list is stored (a shared profile, two classes)
 
-### test_presets.lua (13)
+### test_presets.lua (14)
 
 - presets: test_five_presets — the picker's five, in order, each with its own elements on the same four homes
 - presets: test_simple_to_advanced_plain — the four lighter presets hold four containers, no sound, no friendly set
@@ -155,6 +155,7 @@ Total.
 - presets: a profile switch, copy or reset drops the Undo slot, so no other profile is overwritten
 - presets: Expert puts the OOR sound on through the band-set writer, which announces it
 - presets: test_preset_homes — each unit has one home on screen, the same in every preset, none shared
+- presets: test_hostile_only — every preset shows hostile units only, but the pet and the Healer-set displays
 
 ### test_number_format.lua (5)
 
@@ -949,7 +950,7 @@ Total.
 | test_database.lua | 24 |
 | test_bandsets.lua | 24 |
 | test_container_manager.lua | 17 |
-| test_presets.lua | 13 |
+| test_presets.lua | 14 |
 | test_number_format.lua | 5 |
 | test_container_render.lua | 60 |
 | test_anchors_screen.lua | 14 |
@@ -1000,4 +1001,4 @@ Total.
 | test_skin_switch.lua | 6 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **766** |
+| **Total** | **767** |
