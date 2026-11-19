@@ -1,8 +1,8 @@
 local _, NS = ...
 -- settings/Containers_Display.lua — the Containers page's Display entry: how the selected container is
--- laid out and framed, and the elements it draws: its number, text, dot and spell chips.
+-- laid out and framed, the elements it draws (its number, text, dot and spell chips), and its caption.
 --
---     [ Layout ][ Frame ][ Number ][ Text ][ Dot ][ Spell chips ]
+--     [ Layout ][ Frame ][ Number ][ Text ][ Label ][ Dot ][ Spell chips ]
 --
 --     Layout   [Direction] [Spacing (px)] / [Padding (px)] / [Container scale] [Container opacity]
 --              [Size] / [Width (px)] [Height (px)]  (grayed while Size fits the content)
@@ -14,6 +14,8 @@ local _, NS = ...
 --                                [Band tint opacity]
 --     Number   [Show number] [Format]  -- Font --  the composed Font block
 --     Text     [Show text label] [Uppercase]  -- Font --  the composed Font block
+--     Label    [Show label] [Label text] / [Position] [Align] / [Gap (px)]  -- Font --  the composed
+--              Font block (Align is drawn only for Top and Bottom)
 --     Dot      [Show dot] [Shape] / [Size (px)] / [Dot color] [Color from]
 --              -- Style --  a tile per style, each drawn in the stored shape (grayed while the
 --                           shape is Bar or Spell icon, which take no style)
@@ -23,6 +25,10 @@ local _, NS = ...
 -- the CLI keep that word, so stored settings and /rm set reach it as before; the panel calls it Dot.
 -- Which spells the chips show is the logged-in character's class seeds for this client until a list
 -- is stored (NS.CM.SpellChips, modules/ContainerManager.lua).
+--
+-- The Label tab is the CAPTION naming the display (`container.label.*`, modules/Container.lua): no
+-- element, so it is not in the element order. Its Label text row is an EditBox that applies on Enter;
+-- left empty, the caption reads the container's name (the General tab's Name row), and follows a rename.
 --
 -- THE BLOCKS ARE COMPOSED (options-ui-§16, anti-pattern #73): H.FontGroup and H.BorderGroup emit the
 -- canonical rows and their order; `keys` maps each canonical leaf onto the field the container
@@ -53,7 +59,7 @@ local H = NS.Helpers
 local V = NS.ContainerValues
 
 local PAGE = "containers_display"
-local LAYOUT, FRAME, NUMBER, TEXT = L["Layout"], L["Frame"], L["Number"], L["Text"]
+local LAYOUT, FRAME, NUMBER, TEXT, LABEL = L["Layout"], L["Frame"], L["Number"], L["Text"], L["Label"]
 local DOT, SPELLS, S_STYLE = L["Dot"], L["Spell chips"], L["Style"]
 
 local UNIT_CLASS = { source = "unit" }
@@ -174,6 +180,33 @@ add({
       label = L["Uppercase"], desc = L["Draw the band's label in capitals."] },
 })
 add(fontBlock("container.elements.text.", TEXT, 100))
+
+-- ── Label ───────────────────────────────────────────────────────────────────────────────────
+
+local CAPTION_SIDES = { top = L["Top"], bottom = L["Bottom"], left = L["Left"], right = L["Right"] }
+local CAPTION_SIDES_SORT = { "top", "bottom", "left", "right" }
+local CAPTION_ALIGNS = { left = L["Left"], center = L["Center"], right = L["Right"] }
+local CAPTION_ALIGNS_SORT = { "left", "center", "right" }
+
+add({
+    { path = "container.label.enabled", page = PAGE, group = LABEL, order = 10, type = "bool",
+      startsLine = true, label = L["Show label"], desc = L["Draw a caption naming this container."] },
+    { path = "container.label.text", page = PAGE, group = LABEL, order = 20, type = "string",
+      dialogControl = "EditBox", maxLetters = 40, label = L["Label text"],
+      desc = L["What the caption reads. Leave it empty to show the container's name. Press Enter to apply."],
+      validate = function(v) return type(v) == "string" end },
+    { path = "container.label.position", page = PAGE, group = LABEL, order = 30, type = "string",
+      startsLine = true, values = CAPTION_SIDES, sorting = CAPTION_SIDES_SORT, label = L["Position"],
+      desc = L["Which side of the elements the caption sits on, inside the container."] },
+    { path = "container.label.align", page = PAGE, group = LABEL, order = 40, type = "string",
+      values = CAPTION_ALIGNS, sorting = CAPTION_ALIGNS_SORT, label = L["Align"],
+      shownWhen = { path = "container.label.position", equals = { "top", "bottom" } },
+      desc = L["Where the caption sits along the container's top or bottom."] },
+    { path = "container.label.gap", page = PAGE, group = LABEL, order = 50, type = "number",
+      startsLine = true, min = 0, max = 40, step = 1, label = L["Gap (px)"],
+      desc = L["The space between the caption and the elements, in pixels."] },
+})
+add(fontBlock("container.label.", LABEL, 100))
 
 -- ── Dot and Spell chips ─────────────────────────────────────────────────────────────────────
 
@@ -689,7 +722,7 @@ local function renderStyleTiles(ctx, group)
 end
 
 NS.RegisterContainerSection(PAGE, L["Display"], {
-    tooltip = L["How this container is laid out and framed, and the elements it draws: its number, text, dot and spell chips."],
+    tooltip = L["How this container is laid out and framed, the elements it draws (its number, text, dot and spell chips), and its caption."],
     afterGroup = { [LAYOUT] = renderOrder },
     afterSubgroup = { [S_STYLE] = renderStyleTiles },
 })

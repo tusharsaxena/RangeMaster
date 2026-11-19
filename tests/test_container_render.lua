@@ -851,3 +851,141 @@ test("render: a container with no stored chip list draws the logged-in character
     assertEqual(asked[1], seeds[1], "and the priest's spells are the ones asked")
   end, "MAGE")
 end)
+
+-- ---------------------------------------------------------------------------
+-- The caption (`label`, plan 2026-11-19 M7): no element, laid out beside the elements inside the root
+-- ---------------------------------------------------------------------------
+
+--- Store `fields` onto container `id`'s label and apply now.
+local function relabel(id, fields)
+  local lab = CM.Get(id).label
+  for k, v in pairs(fields) do lab[k] = v end
+  CM.RequestApply()
+  CM.FlushPending()
+end
+
+--- The caption's one anchor: point, relative frame, relative point, x, y.
+local function capPoint(inst)
+  local fs = inst.caption.fs
+  assertEqual(fs:GetNumPoints(), 1, "the caption is anchored once")
+  return fs:GetPoint(1)
+end
+
+test("render: test_caption_text — the caption reads the container's name until it has its own, and follows a rename", function()
+  -- red under: a renderer with no caption (inst.caption nil), and under a caption whose name is read
+  -- once at build (the rename would need a /reload).
+  withRenderer(function()
+    local id, _, inst = newContainer({ label = { enabled = true } })
+    assertTrue(inst.caption ~= nil, "an enabled label builds the caption")
+    assertEqual(inst.caption.fs:GetText(), CM.Get(id).name, "empty text: the container's name")
+    assertTrue(inst.caption.fs:IsShown())
+    CM.Rename(id, "Boss")
+    CM.FlushPending()
+    assertEqual(inst.caption.fs:GetText(), "Boss", "a rename shows on the next apply")
+    relabel(id, { text = "Focus me" })
+    assertEqual(inst.caption.fs:GetText(), "Focus me", "its own text wins over the name")
+    relabel(id, { text = "   " })
+    assertEqual(inst.caption.fs:GetText(), "Boss", "blank text reads as unset")
+    local names = {}
+    for i, cell in ipairs(inst.layout) do names[i] = cell.name end
+    assertEqual(table.concat(names, ","), "number", "the caption is no element of the order")
+  end)
+end)
+
+test("render: test_caption_hidden — off by default and while disabled, the root sized as before", function()
+  -- red under: a caption drawn or measured while label.enabled is off.
+  withRenderer(function()
+    local id, _, inst = newContainer()
+    assertNil(inst.caption, "no caption is built while the label is off")
+    local w0, h0 = inst.width, inst.height
+    relabel(id, { enabled = true })
+    assertTrue(inst.height > h0, "the caption grows the root")
+    relabel(id, { enabled = false })
+    assertFalse(inst.caption.fs:IsShown(), "turned off, it hides")
+    assertEqual(inst.width .. "x" .. inst.height, w0 .. "x" .. h0, "and the root shrinks back")
+  end)
+end)
+
+test("render: test_caption_positions — top, bottom, left and right, inside the padding, the root grown to hold it", function()
+  -- red under: a Layout that sizes the root to the elements alone (a caption outside the root would
+  -- sit under the drag strip and the preview strips docked on its top edge).
+  withRenderer(function()
+    local id, _, inst = newContainer({ layout = { padding = 4 }, label = { enabled = true, gap = 3 } })
+    relabel(id, { enabled = false })
+    local w0, h0 = inst.width, inst.height
+    local num = inst.elements.number
+    local bw, bh = num.w, num.h
+    relabel(id, { enabled = true })
+    local cap = inst.caption
+    local cw, chh = cap.w, cap.h
+    assertTrue(cw > 0 and chh > 0, "the caption measured")
+
+    -- Top, centered (the default): above the elements, the elements below it by the gap.
+    local cwide = math.max(cw, bw)
+    assertEqual(inst.height, h0 + chh + 3, "top: the root grows by the caption and the gap")
+    assertEqual(inst.width, cwide + 8, "and is as wide as the wider of the caption and the elements")
+    local p, rel, rp, x, y = capPoint(inst)
+    assertEqual(p, "TOP"); assertTrue(rel == inst.frame); assertEqual(rp, "TOPLEFT")
+    assertEqual(x, 4 + cwide / 2, "centered across the content")
+    assertEqual(y, -4, "at the padding")
+    assertEqual(inst.layout[1].y, 4 + chh + 3, "the number sits under it by the gap")
+
+    relabel(id, { align = "left" })
+    p, _, _, x = capPoint(inst)
+    assertEqual(p .. " " .. x, "TOPLEFT 4", "left aligned: from the padding")
+    relabel(id, { align = "right" })
+    p, _, _, x = capPoint(inst)
+    assertEqual(p .. " " .. x, "TOPRIGHT " .. (4 + cwide), "right aligned: to the content's right edge")
+
+    relabel(id, { position = "bottom", align = "center" })
+    _, _, _, _, y = capPoint(inst)
+    assertEqual(inst.height, h0 + chh + 3, "bottom: the same growth")
+    assertEqual(y, -(4 + bh + 3), "under the elements by the gap")
+    assertEqual(inst.layout[1].y, 4, "the number stays at the padding")
+
+    relabel(id, { position = "left" })
+    p, _, _, x, y = capPoint(inst)
+    assertEqual(inst.width, w0 + cw + 3, "left: the root grows across")
+    assertEqual(inst.height, math.max(chh, bh) + 8)
+    assertEqual(y, -(4 + (math.max(chh, bh) - chh) / 2), "centered down beside the elements")
+    assertEqual(p .. " " .. x, "TOPRIGHT " .. (4 + cw), "its right edge before the elements")
+    assertEqual(inst.layout[1].x, 4 + cw + 3, "the number after it by the gap")
+
+    relabel(id, { position = "right" })
+    p, _, _, x = capPoint(inst)
+    assertEqual(inst.width, w0 + cw + 3, "right: the same growth")
+    assertEqual(p .. " " .. x, "TOPLEFT " .. (4 + bw + 3), "after the elements by the gap")
+    assertEqual(inst.layout[1].x, 4, "the number stays at the padding")
+  end)
+end)
+
+test("render: test_caption_fixed_size — a fixed-size container keeps its box, the caption inside it", function()
+  -- red under: a Layout that grows a fixed box by the caption.
+  withRenderer(function()
+    local id, _, inst = newContainer({ layout = { sizing = "fixed", width = 200, height = 80, padding = 4 },
+      label = { enabled = true, gap = 2 } })
+    assertEqual(inst.width .. "x" .. inst.height, "200x80", "the stored box")
+    local cap, num = inst.caption, inst.elements.number
+    local cwide = math.max(cap.w, num.w)
+    local contentH = cap.h + 2 + num.h + 8
+    local _, _, _, x, y = capPoint(inst)
+    assertEqual(x, 4 + cwide / 2 + (200 - (cwide + 8)) / 2, "centered across the box")
+    assertEqual(y, -(4 + (80 - contentH) / 2), "the caption and the elements centered down it together")
+    assertTrue(id ~= nil)
+  end)
+end)
+
+test("render: test_caption_color_modes — band, fixed and class, as the elements", function()
+  -- red under: a caption painted once at build, or in the number's color.
+  withRenderer(function()
+    local fixed = { r = 0.2, g = 0.4, b = 0.6, a = 1 }
+    local _, setId, inst = newContainer({ label = { enabled = true, colorMode = "band" } })
+    assertColor(color3({ inst.caption.fs:GetTextColor() }), band(setId, 3).textColor, "band: the band's text color")
+    local _, _, inst2 = newContainer({ label = { enabled = true, colorMode = "fixed", color = fixed } })
+    assertColor(color3({ inst2.caption.fs:GetTextColor() }), fixed, "fixed: the swatch")
+    local _, _, inst3 = newContainer({ label = { enabled = true, colorMode = "class", color = fixed } })
+    assertColor(color3({ inst3.caption.fs:GetTextColor() }), M.RAID_CLASS_COLORS.MAGE, "class: the unit's class")
+    local _, _, inst4 = newContainer({ label = { enabled = true } })
+    assertColor(color3({ inst4.caption.fs:GetTextColor() }), { 1, 1, 1 }, "the default: fixed white")
+  end, "MAGE")
+end)

@@ -465,7 +465,7 @@ local function displayRows()
   return out
 end
 
-test("settings: test_display_tabs — Display carries Layout, Frame, Number, Text, Dot and Spell chips; the rail has no Indicator", function()
+test("settings: test_display_tabs — Display carries Layout, Frame, Number, Text, Label, Dot and Spell chips; the rail has no Indicator", function()
   -- red under: the v0.1.0 rail, whose Indicator entry held the dot and the spell chips.
   local L = NS.L
   local groups, seen = {}, {}
@@ -473,7 +473,7 @@ test("settings: test_display_tabs — Display carries Layout, Frame, Number, Tex
     if not seen[row.group] then seen[row.group] = true; groups[#groups + 1] = row.group end
   end
   assertEqual(table.concat(groups, ","), table.concat({ L["Layout"], L["Frame"], L["Number"], L["Text"],
-    L["Dot"], L["Spell chips"] }, ","), "the tabs, in order")
+    L["Label"], L["Dot"], L["Spell chips"] }, ","), "the tabs, in order")
   for _, row in ipairs(NS.Schema) do
     assertTrue(row.page ~= "containers_indicator", tostring(row.path) .. " still names the Indicator entry")
   end
@@ -500,6 +500,40 @@ test("settings: test_display_tabs — Display carries Layout, Frame, Number, Tex
     local ctx = E.page("containers", "Containers")
     NS.__renderContainersPage(ctx)
     assertEqual(table.concat(E.railLabels(ctx), ","), "General,Display,Visibility,Sounds")
+  end)
+end)
+
+test("settings: test_label_tab — the Label tab's rows, in order: show, text, position, align, gap, the Font block", function()
+  -- red under: no container.label rows (the caption reachable only by a raw store).
+  local L = NS.L
+  local got = {}
+  for _, row in ipairs(NS.SchemaForPage("containers_display")) do
+    if row.group == L["Label"] then got[#got + 1] = row.path:match("^container%.label%.(.+)$") or row.path end
+  end
+  assertEqual(table.concat(got, ","), "enabled,text,position,align,gap,font,size,color,colorMode,outline,shadow",
+    "every Label row is a container.label field, the Font block's color pair included")
+  local rows = displayRows()
+  local text = rows["container.label.text"]
+  assertEqual(text.dialogControl, "EditBox", "the text is typed, and applies on Enter")
+  assertEqual(text.default, "", "empty by default: the container's name")
+  assertEqual(table.concat(rows["container.label.position"].sorting, ","), "top,bottom,left,right")
+  assertEqual(table.concat(rows["container.label.align"].sorting, ","), "left,center,right")
+  assertEqual(rows["container.label.align"].shownWhen.path, "container.label.position",
+    "Align is drawn for Top and Bottom only")
+  assertEqual(table.concat(rows["container.label.colorMode"].sorting or {}, ","), "band,fixed,class",
+    "the color mode is the elements' three")
+  E.with(function()
+    local id = CM.Create("target")
+    NS.SelectContainer(id)
+    slash("set container.label.enabled true")
+    slash("set container.label.position left")
+    slash("set container.label.text Healer")
+    local c = CM.Get(id)
+    assertTrue(c.label.enabled, "/rm set reaches the label")
+    assertEqual(c.label.position, "left")
+    assertEqual(c.label.text, "Healer")
+    slash("reset container.label.text")
+    assertEqual(c.label.text, "", "a reset gives the name back")
   end)
 end)
 

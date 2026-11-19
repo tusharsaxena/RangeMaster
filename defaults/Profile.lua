@@ -82,6 +82,12 @@ NS.CONTAINER_TEMPLATE = {
         border = { enabled = true, texture = "", size = 1, colorMode = "band", color = white(), alpha = 0.25 },
         background = { enabled = true, colorMode = "band", color = C.HexColor("000000", 0.5), bandAlpha = 0.15 },
     },
+    -- The caption naming the display (modules/Container.lua, Instance:Layout): no element of
+    -- `elements.order`, laid out beside the elements inside the root. `text` "" draws the container's
+    -- name; position: top|bottom|left|right; align (top and bottom): left|center|right; `gap` the px
+    -- between the caption and the elements. Off by default, so a stored container draws as before.
+    label = { enabled = false, text = "", position = "top", align = "center", gap = 2,
+              font = "", size = 12, outline = "OUTLINE", shadow = false, colorMode = "fixed", color = white() },
     elements = {
         -- An ARRAY: the load pass never backfills it index by index; it appends a missing name once.
         order = { "indicator", "number", "text", "spells" },

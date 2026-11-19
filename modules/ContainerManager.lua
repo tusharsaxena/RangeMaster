@@ -49,8 +49,9 @@ CM.UNITS = { "target", "focus", "pet", "mouseover", "nameplates" }
 
 --- What CopySettings copies when no list is given: how a container looks and behaves. Never its
 --- identity (name, enabled, unit) or its placement (anchor), which are what make it this container.
-CM.COPY_SECTIONS = { "bandSet", "bandSetFriendly", "layout", "frame", "elements", "visibility", "sounds",
-    "nameplate" }
+--- The caption (`label`) is copied whole: an empty text still reads each container's own name.
+CM.COPY_SECTIONS = { "bandSet", "bandSetFriendly", "layout", "frame", "label", "elements", "visibility",
+    "sounds", "nameplate" }
 local COPYABLE = {}
 for _, key in ipairs(CM.COPY_SECTIONS) do COPYABLE[key] = true end
 
