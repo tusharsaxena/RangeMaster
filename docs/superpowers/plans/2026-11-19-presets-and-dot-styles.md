@@ -31,7 +31,7 @@ The owner's rulings for this run (2026-11-19):
 | # | Milestone | Status | Commit |
 |---|---|---|---|
 | M0 | Pending work committed (#17 re-vendor; preview nameplate, position rows, preset homes) | done | `9ef8147`, `54c086b` |
-| M1 | Indicator art and styles | pending | |
+| M1 | Indicator art and styles | done | `d3a76e2` |
 | M2 | Frame defaults: border opacity, background on, migration step 1 | pending | |
 | M3 | Display tabs: Dot and Spell chips moved, Indicator entry removed | pending | |
 | M4 | The five presets | pending | |
