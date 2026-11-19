@@ -1,6 +1,7 @@
--- tests/test_presets.lua — the container presets (modules/Presets.lua): Simple, Intermediate and
--- Advanced, applied through the container registry's writer (NS.CM), with a one-level Undo. The
--- v0.1.0 plan, Task 4; design spec section 5.2 ("Container presets").
+-- tests/test_presets.lua — the container presets (modules/Presets.lua): Simple, Intermediate (Range
+-- Text), Intermediate (Range Numbers), Advanced and Expert, applied through the container registry's
+-- writer (NS.CM), with a one-level Undo. The v0.1.0 plan, Task 4; design spec section 5.2 ("Container
+-- presets"); the five-preset plan of 2026-11-19, M4.
 --
 -- Every case runs on a FRESH profile with the apply queue and the Undo slot emptied before and after;
 -- the real db, the class and the friendly read are put back whether or not the case raised.
@@ -61,97 +62,82 @@ local function setNamed(name)
   end
 end
 
-test("presets: test_simple_four_free_containers — target, focus, pet, mouseover free on screen", function()
-  withFreshProfile(function()
-    CM.Create("nameplates")
-    Presets.Apply("simple")
-    local list = containers()
-    assertEqual(#list, 4, "the profile's containers are replaced")
-    local units = {}
-    for i, c in ipairs(list) do units[i] = c.unit end
-    assertEqual(table.concat(units, ","), "target,focus,pet,mouseover")
-    local spots = {}
-    for _, c in ipairs(list) do
-      assertEqual(c.anchor.mode, "screen", c.name)
-      assertEqual(enabledElements(c), "number", c.name .. ": only the number")
-      assertTrue(c.frame.border.enabled, c.name .. ": a border")
-      assertEqual(c.frame.border.colorMode, "band", c.name .. ": colored by band")
-      assertEqual(c.bandSet, B.DefaultId(), c.name .. ": the class default set")
-      assertNil(c.bandSetFriendly)
-      assertFalse(c.sounds.enabled)
-      local spot = c.anchor.x .. "," .. c.anchor.y
-      assertNil(spots[spot], c.name .. " is not stacked on another")
-      spots[spot] = true
-    end
-    assertEqual(list[1].name, "Target")
-    assertEqual(list[4].name, "Mouseover")
-  end)
+--- Assert the four unit containers of `key` are free on screen at their homes, showing `elements`,
+--- on the template's frame (background and border on, the border at its 25% opacity) and matte dot.
+local function assertFourOnScreen(key, elements)
+  local units = {}
+  for _, unit in ipairs({ "target", "focus", "pet", "mouseover" }) do
+    local c = find(unit, "screen")
+    assertTrue(c ~= nil, key .. ": " .. unit .. " free on screen")
+    units[#units + 1] = c.unit
+    local home = Presets.__home(unit)
+    assertEqual(c.anchor.x .. "," .. c.anchor.y, home.x .. "," .. home.y, key .. ": " .. unit .. " at its home")
+    assertEqual(enabledElements(c), elements, key .. ": " .. unit .. "'s elements")
+    assertTrue(c.frame.background.enabled, key .. ": a background")
+    assertTrue(c.frame.border.enabled, key .. ": a border")
+    assertEqual(c.frame.border.alpha, 0.25, key .. ": the border at its default opacity")
+    assertEqual(c.frame.border.colorMode, "band", key .. ": colored by band")
+    assertEqual(c.elements.indicator.shape, "dot", key)
+    assertEqual(c.elements.indicator.style, "matte", key .. ": the matte dot")
+    assertEqual(c.bandSet, B.DefaultId(), key .. ": the class default set")
+  end
+  assertEqual(table.concat(units, ","), "target,focus,pet,mouseover")
+end
+
+test("presets: test_five_presets — the picker's five, in order, each with its own elements on the same four homes", function()
+  -- red under: the three presets (Simple number-only, Intermediate on unit frames, Advanced).
+  assertEqual(table.concat(Presets.ORDER, ","), "simple,text,numbers,advanced,expert")
+  local want = { simple = "indicator", text = "text", numbers = "number",
+    advanced = "indicator,number,text", expert = "indicator,number,spells,text" }
+  for _, key in ipairs(Presets.ORDER) do
+    withFreshProfile(function()
+      CM.Create("nameplates")
+      Presets.Apply(key)
+      assertEqual(#containers(), Presets.Describe(key).count, key .. ": the card's count")
+      assertFourOnScreen(key, want[key])
+    end)
+  end
 end)
 
-test("presets: test_intermediate_shape — unit frames, cursor mouseover, friendly sets, hidden with no unit", function()
-  withFreshProfile(function()
-    Presets.Apply("intermediate")
-    local list = containers()
-    assertEqual(#list, 4)
-    local healer = setNamed("Healer")
-    assertTrue(healer ~= nil, "the Healer set exists")
-    for _, unit in ipairs({ "target", "focus", "pet" }) do
-      local c = find(unit)
-      assertEqual(c.anchor.mode, "frame", unit)
-      assertEqual(c.anchor.frame.provider, "blizzard", unit)
-      local f = c.anchor.frame
-      assertEqual(f.point .. " " .. f.relPoint .. " " .. f.x .. " " .. f.y, "BOTTOM TOP 0 2",
-        unit .. " sits above its unit frame, whatever its id's screen stagger")
-    end
-    assertEqual(find("mouseover").anchor.mode, "cursor")
-    local cur = find("mouseover").anchor.cursor
-    assertEqual(cur.point .. " " .. cur.x .. " " .. cur.y, "CENTER 12 -40", "below and right of the cursor")
-    for _, c in ipairs(list) do
-      assertEqual(enabledElements(c), "indicator,number,text", c.name)
-      assertEqual(c.elements.indicator.shape, "dot", c.name)
-      assertTrue(c.visibility.hideNoUnit, c.name)
-      assertEqual(c.bandSet, B.DefaultId(), c.name)
-    end
-    for _, unit in ipairs({ "target", "focus", "mouseover" }) do
-      assertEqual(find(unit).bandSetFriendly, healer, unit .. " reads the Healer set on a friendly unit")
-    end
-    assertNil(find("pet").bandSetFriendly, "a pet is always friendly: one set")
-  end)
+test("presets: test_simple_to_advanced_plain — the four lighter presets hold four containers, no sound, no friendly set", function()
+  for _, key in ipairs({ "simple", "text", "numbers", "advanced" }) do
+    withFreshProfile(function()
+      Presets.Apply(key)
+      local list = containers()
+      assertEqual(#list, 4, key)
+      for _, c in ipairs(list) do
+        assertNil(c.bandSetFriendly, key .. ": " .. c.name)
+        assertFalse(c.sounds.enabled, key .. ": " .. c.name)
+      end
+      assertEqual(list[1].name, "Target")
+      assertEqual(list[4].name, "Mouseover")
+    end)
+  end
 end)
 
-test("presets: Intermediate creates the Healer set when the profile has none, and reuses one it has", function()
+test("presets: test_expert_shape — six containers: the four with spell chips, both plates, the sound and the Healer set", function()
+  -- red under: no Expert preset (Advanced held the extras, on unit frames).
   withFreshProfile(function()
-    local healer = setNamed("Healer")
-    B.Delete(healer)
-    assertNil(setNamed("Healer"))
-    Presets.Apply("intermediate")
-    local made = setNamed("Healer")
-    assertTrue(made ~= nil, "created")
-    local n = #B.List()
-    Presets.Apply("intermediate")
-    assertEqual(#B.List(), n, "a second apply reuses it")
-    assertEqual(find("target").bandSetFriendly, made)
-  end)
-end)
-
-test("presets: test_advanced_shape — six containers with plates, spell chips, a sound and rules", function()
-  withFreshProfile(function()
-    Presets.Apply("advanced")
+    Presets.Apply("expert")
     local list = containers()
     assertEqual(#list, 6)
-    -- Intermediate's four, the focus with its spell chips
-    assertEqual(find("target", "frame").anchor.frame.provider, "blizzard")
-    assertEqual(find("pet", "frame").anchor.frame.provider, "blizzard")
-    assertEqual(find("mouseover", "cursor").unit, "mouseover")
-    local focus = find("focus", "frame")
-    assertTrue(focus.elements.spells.enabled, "focus shows spell chips")
     local seeds = NS.SpellSeeds[NS.Compat.ClientKey()][NS.Compat.PlayerClass()]
-    assertEqual(#NS.CM.SpellChips(focus), #seeds.chips, "showing the class's chips")
-    assertEqual(NS.CM.SpellChips(focus)[1], seeds.chips[1])
+    for _, unit in ipairs({ "target", "focus", "pet", "mouseover" }) do
+      local c = find(unit, "screen")
+      assertTrue(c.elements.spells.enabled, unit .. " shows spell chips")
+      assertEqual(#NS.CM.SpellChips(c), #seeds.chips, unit .. ": the class's chips")
+    end
+    local healer = setNamed("Healer")
+    assertTrue(healer ~= nil, "the Healer set exists")
+    for _, unit in ipairs({ "target", "focus", "mouseover" }) do
+      assertEqual(find(unit, "screen").bandSetFriendly, healer, unit .. " reads the Healer set on a friendly unit")
+    end
+    assertNil(find("pet").bandSetFriendly, "a pet is always friendly: one set")
     -- the target's own nameplate: diamond + number
     local plate = find("target", "nameplate")
     assertEqual(enabledElements(plate), "indicator,number")
     assertEqual(plate.elements.indicator.shape, "diamond")
+    assertEqual(plate.name, "Target plate")
     -- every hostile nameplate: dot + the short number
     local all = find("nameplates")
     assertEqual(all.anchor.mode, "nameplate")
@@ -161,22 +147,38 @@ test("presets: test_advanced_shape — six containers with plates, spell chips, 
     assertEqual(all.visibility.reaction, "hostile")
     assertFalse(all.nameplate.includeFriendly)
     assertFalse(all.sounds.enabled, "never a sound on every plate")
-    -- the OOR sound on the target
-    local target = find("target", "frame")
+    assertEqual(plate.visibility.combat, "in")
+    assertEqual(all.visibility.combat, "in")
+    -- the OOR sound on the target, and on no other
+    local target = find("target", "screen")
     assertTrue(target.sounds.enabled, "the target sounds")
     local bands = B.Get(target.bandSet).bands
     assertEqual(bands[#bands].sound, Presets.OOR_SOUND, "on its set's out-of-range band")
-    -- the visibility rules
-    assertEqual(plate.visibility.combat, "in")
-    assertEqual(all.visibility.combat, "in")
+    for _, unit in ipairs({ "focus", "pet", "mouseover" }) do
+      assertFalse(find(unit, "screen").sounds.enabled, unit)
+    end
   end)
 end)
 
-test("presets: Advanced keeps a sound the player already put on the out-of-range band", function()
+test("presets: Expert creates the Healer set when the profile has none, and reuses one it has", function()
+  withFreshProfile(function()
+    B.Delete(setNamed("Healer"))
+    assertNil(setNamed("Healer"))
+    Presets.Apply("expert")
+    local made = setNamed("Healer")
+    assertTrue(made ~= nil, "created")
+    local n = #B.List()
+    Presets.Apply("expert")
+    assertEqual(#B.List(), n, "a second apply reuses it")
+    assertEqual(find("target", "screen").bandSetFriendly, made)
+  end)
+end)
+
+test("presets: Expert keeps a sound the player already put on the out-of-range band", function()
   withFreshProfile(function()
     local bands = B.Get(B.DefaultId()).bands
     bands[#bands].sound = "Mine"
-    Presets.Apply("advanced")
+    Presets.Apply("expert")
     assertEqual(bands[#bands].sound, "Mine")
   end)
 end)
@@ -186,7 +188,7 @@ test("presets: test_preset_undo_restores — Undo puts back the containers and b
     local mine = CM.Create("focus", { name = "Mine" })
     B.Delete(setNamed("Healer"))
     local setsBefore = #B.List()
-    local before = Presets.Apply("advanced")
+    local before = Presets.Apply("expert")
     assertEqual(type(before), "table", "Apply answers the snapshot taken before it")
     assertEqual(before.containerOrder[1], mine)
     assertEqual(#containers(), 6)
@@ -195,7 +197,7 @@ test("presets: test_preset_undo_restores — Undo puts back the containers and b
     assertEqual(#p.containerOrder, 1)
     assertEqual(p.containerOrder[1], mine)
     assertEqual(CM.Get(mine).name, "Mine")
-    assertEqual(#B.List(), setsBefore, "the Healer set Intermediate's half created is gone again")
+    assertEqual(#B.List(), setsBefore, "the Healer set Expert created is gone again")
     local bands = B.Get(B.DefaultId()).bands
     assertNil(bands[#bands].sound, "the OOR sound is gone again")
     assertFalse(Presets.CanUndo(), "one level")
@@ -207,22 +209,23 @@ test("presets: an unknown key applies nothing and keeps the Undo slot", function
   withFreshProfile(function()
     CM.Create("target")
     Presets.Apply("simple")
-    assertNil(Presets.Apply("expert"))
+    assertNil(Presets.Apply("bogus"))
     assertEqual(#containers(), 4)
     assertTrue(Presets.CanUndo())
   end)
 end)
 
 test("presets: Describe answers each preset's name, container count and bullet items", function()
-  for key, count in pairs({ simple = 4, intermediate = 4, advanced = 6 }) do
+  local names = { simple = "Simple", text = "Intermediate (Range Text)", numbers = "Intermediate (Range Numbers)",
+    advanced = "Advanced", expert = "Expert" }
+  for key, count in pairs({ simple = 4, text = 4, numbers = 4, advanced = 4, expert = 6 }) do
     local d = Presets.Describe(key)
-    assertEqual(type(d.name), "string", key)
+    assertEqual(d.name, names[key], key)
     assertEqual(d.count, count, key)
     assertTrue(#d.items >= 3, key .. " has items")
   end
-  assertEqual(Presets.Describe("simple").name, "Simple")
-  assertNil(Presets.Describe("expert"))
-  assertEqual(table.concat(Presets.ORDER, ","), "simple,intermediate,advanced")
+  assertNil(Presets.Describe("intermediate"), "the old keys are gone")
+  assertNil(Presets.Describe("bogus"))
 end)
 
 test("presets: an apply announces CONTAINERS_CHANGED once, on the next frame", function()
@@ -230,7 +233,7 @@ test("presets: an apply announces CONTAINERS_CHANGED once, on the next frame", f
     local target, n = NS.NewBusTarget(), 0
     target:RegisterMessage(NS.MSG.CONTAINERS_CHANGED, function() n = n + 1 end)
     CM.Create("target")
-    Presets.Apply("advanced")
+    Presets.Apply("expert")
     local t = CM.__flushTimer()
     if t then t.fn() end
     target:UnregisterMessage(NS.MSG.CONTAINERS_CHANGED)
@@ -260,14 +263,14 @@ test("presets: a profile switch, copy or reset drops the Undo slot, so no other 
   end)
 end)
 
-test("presets: Advanced puts the OOR sound on through the band-set writer, which announces it", function()
+test("presets: Expert puts the OOR sound on through the band-set writer, which announces it", function()
   withFreshProfile(function()
     local target, n = NS.NewBusTarget(), 0
     target:RegisterMessage(NS.MSG.BANDSETS_CHANGED, function() n = n + 1 end)
     local saved = B.SetBandSound
     local calls = 0
     B.SetBandSound = function(...) calls = calls + 1 return saved(...) end
-    local ok, err = pcall(Presets.Apply, "advanced")
+    local ok, err = pcall(Presets.Apply, "expert")
     B.SetBandSound = saved
     target:UnregisterMessage(NS.MSG.BANDSETS_CHANGED)
     if not ok then error(err, 0) end
@@ -279,7 +282,7 @@ test("presets: Advanced puts the OOR sound on through the band-set writer, which
 end)
 
 test("presets: test_preset_homes — each unit has one home on screen, the same in every preset, none shared", function()
-  -- red under: per-preset coordinates (Simple's block narrower than two drag strips, Advanced's two
+  -- red under: per-preset coordinates (Simple's block narrower than two drag strips, Expert's two
   -- nameplate containers on one spot, the mouseover waiting wherever the template put it).
   local seenAt = {}
   for _, key in ipairs(Presets.ORDER) do

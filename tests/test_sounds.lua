@@ -239,6 +239,6 @@ test("sounds: a hidden container plays nothing", function()
   end)
 end)
 
-test("sounds: the out-of-range key the Advanced preset uses is built in", function()
+test("sounds: the out-of-range key the Expert preset uses is built in", function()
   assertTrue(type(S.BUILTIN[NS.Presets.OOR_SOUND]) == "number", "a game sound file id")
 end)
