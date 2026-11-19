@@ -64,7 +64,7 @@ overrides part 1 where they disagree).
 | D4 | Schema v2: band rules, convert-everything migration, rule-based class presets | done | `03c5676` |
 | D5 | Band editor: Defined by, role, spell override, read-out, Fallback (yards) | done | `80ea9e7` |
 | D6 | Review: parallel reviewers, adversarially verified, fixes | done | `4d4c4a6` |
-| D7 | Docs, in-game probes in smoke tests, perf scenario, test-case list, badge, push | todo | |
+| D7 | Docs, in-game probes in smoke tests, perf scenario, test-case list, badge, push | done | `5c2ff2a` |
 
 ## D1. Compat anchor shim and seeds
 
