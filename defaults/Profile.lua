@@ -74,8 +74,10 @@ NS.CONTAINER_TEMPLATE = {
     },
     -- sizing: "fit" sizes the container to its elements; "fixed" holds it at width x height (px),
     -- the elements centered in it (modules/Container.lua, Instance:Layout).
+    -- joinText: the number and the band's label as one line (modules/Elements_Number.lua, Joins);
+    -- align: left|center|right, the content inside its box (the owner, 2026-11-20).
     layout = { direction = "row", spacing = 4, padding = 4, scale = 1, alpha = 1,
-               sizing = "fit", width = 120, height = 28 },
+               sizing = "fit", width = 120, height = 28, joinText = true, align = "center" },
     -- border.alpha multiplies the border color's own alpha in every color mode (modules/Container.lua
     -- Paint). A container stored before schemaVersion 1 was given 1 by that step (core/Database.lua).
     frame = {

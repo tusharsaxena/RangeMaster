@@ -7,6 +7,20 @@ local _, NS = ...
 --       midpoint), suffix "25 yd"; an open-ended bracket (40, nil) reads "40+" in EVERY format;
 --       unknown reads `unknownLabel` (the band set's, "?" when none is given); no unit reads "".
 --
+--   NS.Elements.Number.BandSpan(ctx) -> string|nil
+--       format "band": the span of the band being drawn rather than the bracket, its reach as the
+--       spell answering it reports (AUTO "8–41" with Hawk Eye; MELEE "0–5"), a gap or yard band's own
+--       yards, beyond from the reach before it ("41+"). Nil with no band (unknown, none): the caller
+--       writes the bracket's format instead.
+--   NS.Elements.Number.Joins(c) -> boolean
+--       whether container `c` writes its number and its band's label as ONE line (`layout.joinText`,
+--       on by default; the owner, 2026-11-20: two cells of different widths read as slots). The text
+--       element then draws nothing itself: this element writes "28+ OOR", the label in the text
+--       element's color and case, in the order elements.order gives them.
+--
+-- ALIGNMENT (`layout.align`: left, center, right) places the line inside its cell, which keeps a
+-- reserved width so the display does not grow and shrink as the figure moves.
+--
 -- HONEST BRACKETS. The engine answers a bracket, never a distance (modules/Range.lua), so a format
 -- only chooses which bound to write. An open-ended bracket has no far bound, and no format invents
 -- one: "max" on (40, nil) is "40+", not 40 and not 45.
@@ -53,7 +67,69 @@ end
 
 -- The widest a format usually writes, so a cell does not shrink and grow as the figure moves.
 local SAMPLE = { range = "40" .. DASH .. "45", max = "45", min = "40", under = "<45", approx = "~45",
-                 suffix = "45 yd" }
+                 suffix = "45 yd", band = "40" .. DASH .. "45" }
+-- What a joined line reserves past the figure: a space and a five-letter label ("MELEE").
+local JOIN_RESERVE = 6
+
+local ALIGN = { left = "LEFT", center = "CENTER", right = "RIGHT" }
+
+--- The reach a spell band's answering anchor reports, as (lo, hi) inside the band, or nil.
+local function spellReach(b, r)
+    local R = NS.Range
+    local a = R and R.AnchorFor and R.AnchorFor(r.role, r.spells)
+    local hi = a and a.maxRange
+    if type(hi) ~= "number" or hi <= 0 then return nil end
+    local lo = b.from or 0
+    if r.role ~= "melee" and type(a.minRange) == "number" and a.minRange > lo then lo = a.minRange end
+    return lo, hi
+end
+
+--- Band `i` of `set` as the span it covers: (lo, hi), hi nil when open-ended.
+local function spanOf(set, i)
+    local b = set.bands[i]
+    local r = type(b.rule) == "table" and b.rule or nil
+    local lo, hi = b.from or 0, b.to
+    if r and r.type == "spell" then
+        local slo, shi = spellReach(b, r)
+        if slo then lo, hi = slo, shi end
+    elseif r and r.type == "beyond" then
+        for j = i - 1, 1, -1 do
+            local rj = set.bands[j].rule
+            if type(rj) == "table" and rj.type == "spell" then
+                local _, h = spanOf(set, j)
+                if h then lo = h end
+                break
+            end
+        end
+        hi = nil
+    end
+    return lo, hi
+end
+
+function Number.BandSpan(ctx)
+    if ctx.state ~= "known" or type(ctx.band) ~= "number" or not (ctx.set and ctx.set.bands[ctx.band]) then
+        return nil
+    end
+    local lo, hi = spanOf(ctx.set, ctx.band)
+    if type(hi) ~= "number" then return yd(lo) .. "+" end
+    return yd(lo) .. DASH .. yd(hi)
+end
+
+function Number.Joins(c)
+    local e = c and c.elements
+    return c ~= nil and c.layout ~= nil and c.layout.joinText == true and type(e) == "table"
+        and type(e.number) == "table" and e.number.enabled == true
+        and type(e.text) == "table" and e.text.enabled == true
+end
+
+--- Whether the text element comes before the number in `c`'s element order.
+local function textFirst(c)
+    for _, name in ipairs(c.elements.order or {}) do
+        if name == "text" then return true end
+        if name == "number" then return false end
+    end
+    return false
+end
 
 function Number.Build(inst)
     local frame = CreateFrame("Frame", nil, inst.overlay)
@@ -62,10 +138,18 @@ function Number.Build(inst)
     return { frame = frame, fs = fs, w = 0, h = 0 }
 end
 
-function Number.Style(el, cfg)
+function Number.Style(el, cfg, c)
     el.size = Style.Font(el.fs, cfg)
-    el.minW = math.ceil(#(SAMPLE[cfg.format] or SAMPLE.range) * el.size * 0.6)
-    el.w, el.h, el.text = el.minW, el.size, nil
+    el.join = Number.Joins(c)
+    el.textCfg = el.join and c.elements.text or nil
+    el.textFirst = el.join and textFirst(c) or false
+    local point = ALIGN[c and c.layout and c.layout.align] or "CENTER"
+    el.fs:ClearAllPoints()
+    el.fs:SetPoint(point, el.frame, point, 0, 0)
+    el.fs:SetJustifyH(point)
+    local chars = #(SAMPLE[cfg.format] or SAMPLE.range) + (el.join and JOIN_RESERVE or 0)
+    el.minW = math.ceil(chars * el.size * 0.6)
+    el.w, el.h, el.text, el.num, el.row = el.minW, el.size, nil, nil, nil
 end
 
 function Number.Paint(el, cfg, ctx)
@@ -73,8 +157,31 @@ function Number.Paint(el, cfg, ctx)
     return false
 end
 
+--- The joined line: the figure and the band's label, the label in the text element's color and case.
+local function joined(el, num, ctx)
+    local label = NS.Elements.Text.Label(ctx)
+    if el.textCfg.upper then label = label:upper() end
+    if label == "" then return num end
+    if num == "" then num = nil end
+    local r, g, b = Style.Color(el.textCfg.colorMode, el.textCfg.color, ctx, "textColor")
+    local part = ("|cff%02x%02x%02x%s|r"):format(math.floor((r or 1) * 255 + 0.5),
+        math.floor((g or 1) * 255 + 0.5), math.floor((b or 1) * 255 + 0.5), label)
+    if not num then return part end
+    if el.textFirst then return part .. " " .. num end
+    return num .. " " .. part
+end
+
 function Number.Update(el, cfg, ctx)
-    local text = Number.Format(cfg.format, ctx.state, ctx.lo, ctx.hi, ctx.unknownLabel)
+    local num = cfg.format == "band" and Number.BandSpan(ctx)
+        or Number.Format(cfg.format, ctx.state, ctx.lo, ctx.hi, ctx.unknownLabel)
+    local text = num
+    if el.join then
+        -- Composed again only when the figure, the band or the set moved (a render inside one band
+        -- with the same figure writes nothing).
+        if num == el.num and ctx.row == el.row and ctx.set == el.set and ctx.state == el.st then return false end
+        el.num, el.row, el.set, el.st = num, ctx.row, ctx.set, ctx.state
+        text = joined(el, num, ctx)
+    end
     if text == el.text then return false end
     el.text = text
     el.fs:SetText(text)

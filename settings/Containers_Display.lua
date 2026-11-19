@@ -79,8 +79,12 @@ end
 local FORMATS = {
     range = L["Range (20\226\128\14725)"], max = L["Farthest (25)"], min = L["Nearest (20)"],
     under = L["Under (<25)"], approx = L["About (~22)"], suffix = L["With yards (25 yd)"],
+    band = L["Band span (8\226\128\14741)"],
 }
-local FORMATS_SORT = { "range", "max", "min", "under", "approx", "suffix" }
+local FORMATS_SORT = { "range", "max", "min", "under", "approx", "suffix", "band" }
+
+local ALIGNS = { left = L["Left"], center = L["Center"], right = L["Right"] }
+local ALIGNS_SORT = { "left", "center", "right" }
 
 local MASTER_SCALE = L["Multiplied by Master scale on the General page > Master controls."]
 local MASTER_OPACITY = L["Multiplied by Master opacity on the General page > Master controls."]
@@ -100,6 +104,12 @@ local rows = {
     { path = "container.layout.alpha", page = PAGE, group = LAYOUT, order = 50, type = "number",
       min = 0, max = 1, step = 0.05, isPercent = true, label = L["Container opacity"],
       desc = L["How opaque this container is."] .. " " .. MASTER_OPACITY },
+    { path = "container.layout.joinText", page = PAGE, group = LAYOUT, order = 46, type = "bool",
+      startsLine = true, label = L["Number and text on one line"],
+      desc = L["Write the range number and the band's name as one line (28+ OOR), instead of two elements side by side. Needs both Number and Text shown; the text keeps its own color and case."] },
+    { path = "container.layout.align", page = PAGE, group = LAYOUT, order = 48, type = "string",
+      values = ALIGNS, sorting = ALIGNS_SORT, label = L["Align"],
+      desc = L["Where the content sits in the container: left, center or right. Shows when the container is wider than its content (Fixed size, a wider caption, or a short reading)."] },
     { path = "container.layout.sizing", page = PAGE, group = LAYOUT, order = 52, type = "string",
       startsLine = true, values = SIZINGS, sorting = SIZINGS_SORT, label = L["Size"],
       desc = L["Fit its content: the container grows and shrinks with what it shows, so a longer number or label widens it. Fixed size: it keeps the width and height below, the elements centered in it."] },

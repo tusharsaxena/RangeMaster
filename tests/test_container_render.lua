@@ -47,6 +47,9 @@ local function newContainer(opts)
   local setId = B.Create("Test bands", "melee_ranged")
   opts = opts or {}
   opts.bandSet = opts.bandSet or setId
+  -- These cases pin the two-element layout; the one-line join has its own (below).
+  opts.layout = opts.layout or {}
+  if opts.layout.joinText == nil then opts.layout.joinText = false end
   local id = CM.Create(opts.unit or "target", opts)
   CM.FlushPending()
   return id, setId, Container.Get(id)
@@ -1214,4 +1217,126 @@ test("render: test_caption_color_modes — band, fixed and class, as the element
     local _, _, inst4 = newContainer({ label = { enabled = true } })
     assertColor(color3({ inst4.caption.fs:GetTextColor() }), { 1, 1, 1 }, "the default: fixed white")
   end, "MAGE")
+end)
+
+-- ---------------------------------------------------------------------------
+-- One line, alignment and the band span (the owner, 2026-11-20)
+-- ---------------------------------------------------------------------------
+
+--- A target container at the template's own layout (joinText on), on a fresh Melee / Ranged set.
+local function joinedContainer(opts)
+  local setId = B.Create("Join bands", "melee_ranged")
+  opts = opts or {}
+  opts.bandSet = setId
+  local id = CM.Create("target", opts)
+  CM.FlushPending()
+  return id, setId, Container.Get(id)
+end
+
+test("render: test_join_default — number and text are one line by default, the label in its own color", function()
+  -- red under: two cells of different widths (the owner: "28+    OOR" read as slots).
+  withRenderer(function()
+    local _, setId, inst = joinedContainer({ elements = { text = { enabled = true } } })
+    local text = inst.elements.number.fs:GetText()
+    local hex = text:match("^20\226\128\14725 |cff(%x%x%x%x%x%x)MID|r$")
+    assertTrue(hex ~= nil, "one line, figure then label: " .. tostring(text))
+    local c = band(setId, 3).textColor
+    assertEqual(hex, ("%02x%02x%02x"):format(math.floor(c.r * 255 + 0.5), math.floor(c.g * 255 + 0.5),
+      math.floor(c.b * 255 + 0.5)), "the label wears the band's text color")
+    assertFalse(inst.elements.text.on, "the text element takes no cell")
+    assertEqual(#inst.layout, 1, "one cell")
+  end)
+end)
+
+test("render: test_join_order_and_off — text first follows the order; off draws two cells again", function()
+  withRenderer(function()
+    local id, _, inst = joinedContainer({ elements = { text = { enabled = true },
+      order = { "text", "number", "indicator", "spells" } } })
+    assertTrue(inst.elements.number.fs:GetText():match("^|cff%x+MID|r 20\226\128\14725$") ~= nil, "label first")
+    local c = CM.Get(id)
+    c.layout.joinText = false
+    CM.RequestApply()
+    CM.FlushPending()
+    inst:Render("known", 20, 25)
+    assertEqual(inst.elements.number.fs:GetText(), "20\226\128\14725", "off: the number alone")
+    assertEqual(inst.elements.text.fs:GetText(), "MID", "and the text in its own cell")
+    assertEqual(#inst.layout, 2)
+  end)
+end)
+
+test("render: test_join_needs_both — with the text hidden the number reads as before", function()
+  withRenderer(function()
+    local _, _, inst = joinedContainer()
+    assertEqual(inst.elements.number.fs:GetText(), "20\226\128\14725")
+  end)
+end)
+
+test("render: test_align — left, center and right place the line in its cell and the block in a fixed box", function()
+  withRenderer(function()
+    local id, _, inst = joinedContainer({ layout = { sizing = "fixed", width = 300, height = 40, align = "left" } })
+    local f = inst.elements.number.frame
+    assertEqual(inst.elements.number.fs:GetJustifyH(), "LEFT")
+    local placed
+    rawset(f, "SetPoint", function(_, ...) placed = { ... } end)
+    inst:Layout()
+    assertEqual(placed[4], 4, "left: at the padding")
+    local c = CM.Get(id)
+    c.layout.align = "right"
+    CM.RequestApply()
+    CM.FlushPending()
+    inst:Layout()
+    rawset(f, "SetPoint", nil)
+    assertEqual(inst.elements.number.fs:GetJustifyH(), "RIGHT")
+    assertEqual(placed[4], 300 - 4 - inst.elements.number.w, "right: against the far padding")
+  end)
+end)
+
+test("render: test_band_span — the Band span format writes the band's reach, not the bracket", function()
+  -- red under: only the bracket's formats (the owner's 5 yd steps did not match the bands).
+  withRenderer(function()
+    local _, _, inst = joinedContainer({ elements = { number = { format = "band" } } })
+    assertEqual(inst.elements.number.fs:GetText(), "20\226\128\14730", "MID's yards, 20 to 30")
+    inst:Render("known", 40, nil)
+    assertEqual(inst.elements.number.fs:GetText(), "40+", "beyond: from the reach before it")
+    inst:Render("unknown")
+    assertEqual(inst.elements.number.fs:GetText(), "?", "no band: the bracket's unknown label")
+  end)
+end)
+
+test("render: test_band_span_spell — a spell band's span is its anchor's reported reach (Hawk Eye 8-41)", function()
+  local N = NS.Elements.Number
+  local set = { bands = {
+    { from = 0, to = 5, rule = { type = "spell", role = "melee" } },
+    { from = 5, to = 8, rule = { type = "gap" } },
+    { from = 8, to = 35, rule = { type = "spell", role = "ranged" } },
+    { from = 35, rule = { type = "beyond" } },
+  } }
+  local real = NS.Range.AnchorFor
+  NS.Range.AnchorFor = function(role)
+    if role == "ranged" then return { id = 75, minRange = 8, maxRange = 41 } end
+    return { id = 2973, minRange = 0, maxRange = 0 }
+  end
+  local ok, err = pcall(function()
+    local ctx = { state = "known", set = set }
+    ctx.band = 1; assertEqual(N.BandSpan(ctx), "0\226\128\1475", "melee reported 0: its yards")
+    ctx.band = 2; assertEqual(N.BandSpan(ctx), "5\226\128\1478", "the dead zone's yards")
+    ctx.band = 3; assertEqual(N.BandSpan(ctx), "8\226\128\14741", "Auto Shot's talented reach")
+    ctx.band = 4; assertEqual(N.BandSpan(ctx), "41+", "beyond starts where Auto Shot stops")
+  end)
+  NS.Range.AnchorFor = real
+  if not ok then error(err, 0) end
+end)
+
+test("render: test_align_with_caption — the elements follow the container's Align, not the caption's", function()
+  -- red under: the block offset read from the caption's own alignment.
+  withRenderer(function()
+    local _, _, inst = joinedContainer({ name = "A very long caption for this one",
+      label = { enabled = true, position = "top", align = "center" }, layout = { align = "left" } })
+    local f = inst.elements.number.frame
+    local placed
+    rawset(f, "SetPoint", function(_, ...) placed = { ... } end)
+    inst:Layout()
+    rawset(f, "SetPoint", nil)
+    assertEqual(placed[4], 4, "left under a wider centered caption: at the padding")
+  end)
 end)

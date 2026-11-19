@@ -163,7 +163,7 @@ Total.
 - number: no unit reads nothing, and an unknown format reads as range
 - number: a known state with no far bound and no near bound reads unknown, not 0
 
-### test_container_render.lua (53)
+### test_container_render.lua (60)
 
 - render: an enabled container gets one pooled instance, watching its unit, drawn at once
 - render: Release returns the frame to the pool cleanly, and the next Acquire reuses it
@@ -218,6 +218,13 @@ Total.
 - render: test_caption_outside_lift — an outside-top caption lifts the drag strip and the preview strips over it
 - render: test_caption_fixed_size — a fixed-size container keeps its box, the caption inside it
 - render: test_caption_color_modes — band, fixed and class, as the elements
+- render: test_join_default — number and text are one line by default, the label in its own color
+- render: test_join_order_and_off — text first follows the order; off draws two cells again
+- render: test_join_needs_both — with the text hidden the number reads as before
+- render: test_align — left, center and right place the line in its cell and the block in a fixed box
+- render: test_band_span — the Band span format writes the band's reach, not the bracket
+- render: test_band_span_spell — a spell band's span is its anchor's reported reach (Hawk Eye 8-41)
+- render: test_align_with_caption — the elements follow the container's Align, not the caption's
 
 ### test_anchors_screen.lua (14)
 
@@ -929,7 +936,7 @@ Total.
 | test_container_manager.lua | 17 |
 | test_presets.lua | 13 |
 | test_number_format.lua | 5 |
-| test_container_render.lua | 53 |
+| test_container_render.lua | 60 |
 | test_anchors_screen.lua | 14 |
 | test_anchors_frame.lua | 17 |
 | test_anchors_nameplate.lua | 20 |
@@ -978,4 +985,4 @@ Total.
 | test_skin_switch.lua | 6 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **744** |
+| **Total** | **751** |
