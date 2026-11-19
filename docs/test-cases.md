@@ -140,7 +140,7 @@ Total.
 - cm: MarkSeeded is the first-run sentinel's one runtime writer
 - cm: spell chips follow the character until a list is stored (a shared profile, two classes)
 
-### test_presets.lua (13)
+### test_presets.lua (14)
 
 - presets: test_five_presets — the picker's five, in order, each with its own elements on the same four homes
 - presets: test_simple_to_advanced_plain — the four lighter presets hold four containers, no sound, no friendly set
@@ -155,6 +155,7 @@ Total.
 - presets: a profile switch, copy or reset drops the Undo slot, so no other profile is overwritten
 - presets: Expert puts the OOR sound on through the band-set writer, which announces it
 - presets: test_preset_homes — each unit has one home on screen, the same in every preset, none shared
+- presets: test_hostile_only — every preset shows hostile units only, but the pet and the Healer-set displays
 
 ### test_number_format.lua (5)
 
@@ -295,8 +296,8 @@ Total.
 - plates: test_castbar_falls_back_to_the_plate — no cast bar, or one refusing the anchor, leaves it on the plate
 - plates: test_castbar_found_a_frame_later — EllesmereUI building its plate after ADDED moves the container onto its cast bar on the re-check
 - plates: test_attach_part_three_choices — Nameplate, Cast bar, and Cast bar while casting (the plate between casts)
-- plates: test_cast_start_stop_flips_the_part — the cast events move a while-casting container onto the cast bar and back, per-plate and own-plate
-- plates: test_cast_mid_cast_plate_and_no_cast_read — a plate shown mid-cast starts on its bar; without the client's cast read the events and the bar decide
+- plates: test_cast_event_before_the_bar — the owner's order: the event first, the bar shown or hidden after
+- plates: test_cast_bar_already_shown — a plate placed mid-cast starts on its shown bar; an event re-reads it
 - plates: test_cast_with_no_cast_bar — while casting, a plate with no cast bar keeps the container on the plate
 - plates: test_cast_events_registered_ifvalid — every cast event is in the lifecycle list, ifValid, on one handler
 
@@ -949,7 +950,7 @@ Total.
 | test_database.lua | 24 |
 | test_bandsets.lua | 24 |
 | test_container_manager.lua | 17 |
-| test_presets.lua | 13 |
+| test_presets.lua | 14 |
 | test_number_format.lua | 5 |
 | test_container_render.lua | 60 |
 | test_anchors_screen.lua | 14 |
@@ -1000,4 +1001,4 @@ Total.
 | test_skin_switch.lua | 6 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **766** |
+| **Total** | **767** |

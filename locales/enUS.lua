@@ -89,9 +89,9 @@ L["Healer band set for friendly target, focus and mouseover"] = "Healer band set
 L["Band-change sound on target (out-of-range warning)"] = "Band-change sound on target (out-of-range warning)"
 L["Target, Focus, Pet, Mouseover: free on screen, each named above it"] = "Target, Focus, Pet, Mouseover: free on screen, each named above it"
 L["One band set (class default)"] = "One band set (class default)"
-L["No sounds, always visible when the unit exists"] = "No sounds, always visible when the unit exists"
+L["No sounds; hostile units only (the pet: always)"] = "No sounds; hostile units only (the pet: always)"
 L["Target on its own nameplate + dot on all hostile plates"] = "Target on its own nameplate + dot on all hostile plates"
-L["Visibility rules: hostile nameplates only"] = "Visibility rules: hostile nameplates only"
+L["Visibility rules: hostile only, but the friendly-set displays and the pet"] = "Visibility rules: hostile only, but the friendly-set displays and the pet"
 
 -- modules/Elements_Number.lua
 L["%s yd"] = "%s yd"

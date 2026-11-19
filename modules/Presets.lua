@@ -97,9 +97,11 @@ end
 
 --- One of the four unit containers, free on screen at its home, showing the elements `show` names
 --- (`dot`, `number`, `text`, `spells`) and no other, named by its caption at Outside top (the caption
---- reads the container's name: Target, Focus, Pet, Mouseover).
+--- reads the container's name: Target, Focus, Pet, Mouseover). Shown for hostile units only (the
+--- owner, 2026-11-20), but the pet, which is always friendly and would never show.
 local function onScreen(unit, show)
     return { unit = unit, opts = {
+        visibility = { reaction = unit == "pet" and "any" or "hostile" },
         anchor = home({ mode = "screen" }, unit),
         frame = faintFrame(),
         label = { enabled = true, text = "", position = "outsideTop", align = "center" },
@@ -142,10 +144,16 @@ local function expert()
     local list = four({ dot = true, number = true, text = true, spells = true })
     local healer = healerSet()
     for i = 1, #list do
-        if list[i].unit ~= "pet" then list[i].opts.bandSetFriendly = healer end   -- a pet is always friendly
+        -- A pet is always friendly. A display with the Healer set for friends shows them too: hostile
+        -- only would leave that set nothing to read (the owner's "except healer", 2026-11-20).
+        if list[i].unit ~= "pet" then
+            list[i].opts.bandSetFriendly = healer
+            list[i].opts.visibility.reaction = "any"
+        end
     end
     list[1].opts.sounds = { enabled = true }
-    list[#list + 1] = plate("target", "targetPlate", "diamond", "range", { name = L["Target plate"] })
+    list[#list + 1] = plate("target", "targetPlate", "diamond", "range", { name = L["Target plate"],
+        visibility = { combat = "any", reaction = "hostile", hideNoUnit = true } })
     list[#list + 1] = plate("nameplatesExceptTarget", "nameplates", "dot", "max", {
         visibility = { combat = "any", reaction = "hostile", hideNoUnit = true },
         nameplate = { includeFriendly = false },
@@ -306,7 +314,7 @@ function Presets.__reset() lastSnapshot, preview = nil, nil end
 
 local ON_SCREEN = L["Target, Focus, Pet, Mouseover: free on screen, each named above it"]
 local ONE_SET = L["One band set (class default)"]
-local NO_SOUNDS = L["No sounds, always visible when the unit exists"]
+local NO_SOUNDS = L["No sounds; hostile units only (the pet: always)"]
 
 local DESCRIBE = {
     simple = { name = L["Simple"], count = 4, items = {
@@ -326,7 +334,7 @@ local DESCRIBE = {
         L["Healer band set for friendly target, focus and mouseover"],
         L["Target on its own nameplate + dot on all hostile plates"],
         L["Band-change sound on target (out-of-range warning)"],
-        L["Visibility rules: hostile nameplates only"],
+        L["Visibility rules: hostile only, but the friendly-set displays and the pet"],
     } },
 }
 
