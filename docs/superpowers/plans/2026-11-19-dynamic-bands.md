@@ -60,7 +60,7 @@ overrides part 1 where they disagree).
 | D0 | Research doc, this plan | done | `6a76078`, this commit |
 | D1 | Compat anchor shim and per-class anchor seeds, both clients | done | `6ef1336` |
 | D2 | Anchor resolver and the rebuild triggers | done | `133062e` |
-| D3 | Rule evaluation in the range memo; Resolve's rule path; Sim | todo | |
+| D3 | Rule evaluation in the range memo; Resolve's rule path; Sim | done | `1c407b6` |
 | D4 | Schema v2: band rules, convert-everything migration, rule-based class presets | todo | |
 | D5 | Band editor: Defined by, role, spell override, read-out, Fallback (yards) | todo | |
 | D6 | Review: parallel reviewers, adversarially verified, fixes | todo | |
