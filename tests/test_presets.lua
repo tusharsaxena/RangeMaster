@@ -401,14 +401,18 @@ test("presets: test_plate_containers_cast_bar_flush — every preset container o
   end
 end)
 
-test("presets: test_ka0s_shape — the owner's Ka0s profile: five containers, number + text, hostile only", function()
+test("presets: test_ka0s_shape — the owner's Ka0s profile: five containers, number + text, hostile only but the pet", function()
   withFreshProfile(function()
     Presets.Apply("ka0s")
     local list = containers()
     assertEqual(#list, 5)
     local healer = setNamed("Healer")
+    local key = NS.BandSetPresets.DefaultFor(NS.Compat.PlayerClass(), NS.Compat.PlayerSpecID())
+    local own = setNamed(NS.BandSetPresets[key].name)
     for _, c in ipairs(list) do
-      assertEqual(c.visibility.reaction, "hostile", c.name .. ": hostile only, the pet included (as the owner set it)")
+      local want = c.unit == "pet" and "any" or "hostile"
+      assertEqual(c.visibility.reaction, want, c.name .. ": hostile only, but the always-friendly pet")
+      assertEqual(c.bandSet, own, c.name .. ": the class's own band set")
     end
     for _, unit in ipairs({ "target", "focus", "mouseover" }) do
       assertEqual(find(unit, "screen").bandSetFriendly, healer, unit .. " reads the Healer set on a friend")
@@ -422,5 +426,18 @@ test("presets: test_ka0s_shape — the owner's Ka0s profile: five containers, nu
     assertEqual(plate.nameplate.attachTo, "castbarWhenCasting")
     assertEqual(plate.nameplate.x .. "," .. plate.nameplate.y, "0,0")
     assertNil(find("nameplatesExceptTarget"), "no every-plate container")
+  end)
+end)
+
+test("presets: test_ka0s_class_set — Ka0s finds the class's own set by name, whichever set is the default", function()
+  -- red under: the profile's default set (a profile whose first set is not the class's).
+  withFreshProfile(function()
+    local key = NS.BandSetPresets.DefaultFor(NS.Compat.PlayerClass(), NS.Compat.PlayerSpecID())
+    local own = setNamed(NS.BandSetPresets[key].name)
+    local other = B.Create("Somebody else's", "healer")
+    NS.db.profile.bandSetOrder = { other, own }
+    Presets.Apply("ka0s")
+    assertTrue(B.DefaultId() == other, "the default is another set")
+    assertEqual(find("target", "screen").bandSet, own, "yet Ka0s reads the class's own")
   end)
 end)

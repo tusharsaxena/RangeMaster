@@ -434,7 +434,8 @@ a training dummy for each. The spell IDs are the anchors in `defaults/SpellSeeds
   units only: a friendly target hides it; the pet always shows, and in Expert target, focus and
   mouseover show friends too, on the Healer set. Every preset container on a nameplate attaches to
   the cast bar while casting, at offsets 0.) Ka0s: five containers, target, focus, pet and mouseover
-  with the number and band name on one line, every one hostile only (the pet too), the Healer set on
+  with the number and band name on one line on the class's own band set (Hunter on a hunter, even
+  when another set is the default), hostile only but the pet (always shown), the Healer set on
   friends for target, focus and mouseover, the sound on target, and the target plate showing the
   number alone. Apply each in turn from General → Presets; every one puts
   target, focus, pet and mouseover free on screen at their homes, each with its name (Target, Focus,

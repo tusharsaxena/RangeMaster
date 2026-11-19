@@ -140,7 +140,7 @@ Total.
 - cm: MarkSeeded is the first-run sentinel's one runtime writer
 - cm: spell chips follow the character until a list is stored (a shared profile, two classes)
 
-### test_presets.lua (16)
+### test_presets.lua (17)
 
 - presets: test_six_presets — the picker's six, in order, each with its own elements on the same four homes
 - presets: test_simple_to_advanced_plain — the four lighter presets hold four containers, no sound, no friendly set
@@ -157,7 +157,8 @@ Total.
 - presets: test_preset_homes — each unit has one home on screen, the same in every preset, none shared
 - presets: test_hostile_only — every preset shows hostile units only, but the pet and the Healer-set displays
 - presets: test_plate_containers_cast_bar_flush — every preset container on a nameplate: cast bar while casting, offsets 0
-- presets: test_ka0s_shape — the owner's Ka0s profile: five containers, number + text, hostile only
+- presets: test_ka0s_shape — the owner's Ka0s profile: five containers, number + text, hostile only but the pet
+- presets: test_ka0s_class_set — Ka0s finds the class's own set by name, whichever set is the default
 
 ### test_number_format.lua (5)
 
@@ -952,7 +953,7 @@ Total.
 | test_database.lua | 24 |
 | test_bandsets.lua | 24 |
 | test_container_manager.lua | 17 |
-| test_presets.lua | 16 |
+| test_presets.lua | 17 |
 | test_number_format.lua | 5 |
 | test_container_render.lua | 60 |
 | test_anchors_screen.lua | 14 |
@@ -1003,4 +1004,4 @@ Total.
 | test_skin_switch.lua | 6 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **769** |
+| **Total** | **770** |

@@ -170,22 +170,36 @@ local function expert()
     return list
 end
 
+--- The band set of this character's class (and spec) default preset (defaults/BandSetPresets.lua
+--- DefaultFor): the stored set named so, else a new one, whichever set is the profile's default.
+local function classSet()
+    local key = NS.BandSetPresets.DefaultFor(NS.Compat.PlayerClass(), NS.Compat.PlayerSpecID())
+    local preset = NS.BandSetPresets[key]
+    local name = type(preset) == "table" and preset.name
+    for _, id in ipairs(NS.BandSets.List()) do
+        if NS.BandSets.Get(id).name == name then return id end
+    end
+    return NS.BandSets.Create(nil, key)
+end
+Presets.__classSet = classSet
+
 --- The owner's own setup (the "Ka0s" profile on WoW Forever, 2026-11-20): the four on screen with the
---- range number and the band's label (one line), every one hostile only, the pet included as the
---- owner set it; the Healer set on friends for target, focus and mouseover; the out-of-range sound on
---- target; the target's own plate with the number alone (the owner turned its dot off). No
---- every-plate container. The class default band set, as every preset.
+--- range number and the band's label (one line), hostile only but the pet (always friendly, so it
+--- would never show); the class's own band set (Hunter on a hunter), the Healer set on friends for
+--- target, focus and mouseover; the out-of-range sound on target; the target's own plate with the
+--- number alone (the owner turned its dot off). No every-plate container.
 local function ka0s()
     local list = four({ number = true, text = true })
-    local healer = healerSet()
+    local healer, own = healerSet(), classSet()
     for i = 1, #list do
-        list[i].opts.visibility.reaction = "hostile"
+        list[i].opts.bandSet = own
         if list[i].unit ~= "pet" then list[i].opts.bandSetFriendly = healer end
     end
     list[1].opts.sounds = { enabled = true }
     local tp = plate("target", "targetPlate", "diamond", "range", { name = L["Target plate"],
         visibility = { combat = "any", reaction = "hostile", hideNoUnit = true } })
     tp.opts.elements.indicator.enabled = false
+    tp.opts.bandSet = own
     list[#list + 1] = tp
     return list
 end
@@ -371,7 +385,7 @@ local DESCRIBE = {
         L["Healer band set for friendly target, focus and mouseover"],
         L["Target on its own nameplate: the range number, on the cast bar while casting"],
         L["Band-change sound on target (out-of-range warning)"],
-        L["Hostile units only, the pet included"],
+        L["Hostile units only (the pet: always), on the class's own band set"],
     } },
 }
 
