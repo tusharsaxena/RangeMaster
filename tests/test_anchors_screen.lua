@@ -224,9 +224,23 @@ test("anchors: test_strip_three_marks — the built strip carries ? settings clo
     KW.DragHandle = function(parent, spec) seen = spec; return realDH(parent, spec) end
     local realOpen, opened = NS.OpenOptionsPanel, nil
     NS.OpenOptionsPanel = function(page) opened = page end
+    -- every Button the build makes records the frame its first SetPoint is relative to
+    local realCF = M.CreateFrame
+    M.CreateFrame = function(kind, ...)
+      local f = realCF(kind, ...)
+      if kind == "Button" and f then
+        local realSP = f.SetPoint
+        rawset(f, "SetPoint", function(self, a, rel, ...)
+          if rawget(self, "__anchoredTo") == nil then rawset(self, "__anchoredTo", rel) end
+          if realSP then return realSP(self, a, rel, ...) end
+        end)
+      end
+      return f
+    end
     local ok, err = pcall(function()
       local id, inst = H.container("target")
       unlock(true)
+      M.CreateFrame = realCF
       local h = inst.dragHandle
       assertTrue(h and seen ~= nil, "the strip is built through DragHandle")
       assertTrue(seen.settings ~= false and type(seen.onClose) == "function", "settings and close are both asked for")
@@ -236,16 +250,33 @@ test("anchors: test_strip_three_marks — the built strip carries ? settings clo
       local closeBody = seen.closeTooltip and seen.closeTooltip.body[1]
       assertTrue(type(closeBody) == "string" and closeBody:find("Containers page", 1, true) ~= nil,
         "the X says where to bring the display back")
-      assertTrue(h.help and h.settings and h.close, "all three marks are built (their order is the library's, pinned in LibKa0s)")
+      assertTrue(h.help and h.settings and h.close, "all three marks are built")
+      -- [?][settings][close] left to right (LibKa0s v1.107.0): the X in the strip's corner, the gear
+      -- against the X's left, the "?" against the gear's. v1.106.0 put the "?" in the corner.
+      local function beside(mark) return mark.__anchoredTo end
+      assertTrue(beside(h.close) == h, "the X sits in the strip's right corner")
+      assertTrue(beside(h.settings) == h.close, "the gear sits left of the X")
+      assertTrue(beside(h.help) == h.settings, "the ? sits left of the gear")
       h.settings:GetScript("OnClick")(h.settings, "LeftButton")
       assertEqual(opened, "containers", "the gear opens the Containers page")
       assertEqual(select(2, NS.SelectedContainer()), id, "on this display")
+      local function snapshot(t)
+        local keys, out = {}, {}
+        for k in pairs(t) do if k ~= "enabled" then keys[#keys + 1] = tostring(k) end end
+        table.sort(keys)
+        for _, k in ipairs(keys) do
+          local v = t[k]
+          out[#out + 1] = k .. "=" .. (type(v) == "table" and "{" .. snapshot(v) .. "}" or tostring(v))
+        end
+        return table.concat(out, ",")
+      end
+      local before = snapshot(NS.CM.Get(id))
       h.close:GetScript("OnClick")(h.close, "LeftButton")
       local c = NS.CM.Get(id)
       assertFalse(c.enabled, "the X disables the display")
-      assertEqual(c.name ~= nil, true, "and keeps its settings")
+      assertEqual(snapshot(c), before, "and keeps every other setting")
     end)
-    KW.DragHandle, NS.OpenOptionsPanel = realDH, realOpen
+    KW.DragHandle, NS.OpenOptionsPanel, M.CreateFrame = realDH, realOpen, realCF
     if not ok then error(err, 0) end
     unlock(false)
   end)

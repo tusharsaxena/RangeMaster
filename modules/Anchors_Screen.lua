@@ -21,11 +21,11 @@ local _, NS = ...
 --
 -- THE STRIP (AuraMaster's drag strip: the display's name, then the help mark, a settings mark and a
 -- close mark that disables the display, read ? settings close from LibKa0s v1.107.0, each mark with
--- its own tooltip, which the library opens above the strip) shows while `locked` is false (Master controls, `/rm unlock`,
--- the launcher) on every screen container, in combat too, and, while every container shows unlocked
--- out of combat (NS.Container.Unlocked), on every other container as well (never a per-plate
--- instance: a `nameplates` container wears it on its stand-in). Only a container on the screen
--- anchor drags; one held at its screen point while unlocked (a cursor or own-plate container,
+-- its own tooltip, which the library opens above the strip) shows while `locked` is false (Master
+-- controls, `/rm unlock`, the launcher) on every screen container, in combat too, and, while every
+-- container shows unlocked out of combat (NS.Container.Unlocked), on every other container as well
+-- (never a per-plate instance: a `nameplates` container wears it on its stand-in). Only a container
+-- on the screen anchor drags; one held at its screen point while unlocked (a cursor or own-plate container,
 -- modules/Anchors.lua) is on it, and a drag moves where it waits. One on a unit frame shows its name
 -- muted and does not drag: it follows its frame. In Test mode the label ends in the TEST tag, in
 -- Sim mode in the SIM tag, and while it shows so tagged the strip is the display's preview marker:
