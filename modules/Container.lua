@@ -20,7 +20,8 @@ local _, NS = ...
 --   inst:SetAnchorHidden(hidden)         the anchor's say: hidden while its frame or plate is missing
 --   inst:DockStrips()                    dock the preview strips again, beyond a drag handle built
 --                                        after them (modules/Anchors_Screen.lua, on the first unlock)
---   inst:RefreshStrips()                 the root came onto or off a nameplate: the strips follow
+--   inst:RefreshStrips()                 the drag strip showed or hid, or the root came onto or off
+--                                        a nameplate: the preview strips follow
 --                                        (modules/Anchors_Nameplate.lua)
 --   NS.Container.SetPreview(kind|nil)    Test mode ("test") or Sim mode ("sim") draws, or neither
 --                                        (modules/Preview.lua is its one caller)
@@ -90,14 +91,10 @@ local _, NS = ...
 -- Sim mode), docked on its top edge (`dock = "hud"`), built on first use and kept with the frame. A
 -- preview never runs in combat (refused in it, ended by it), so the stand-ins are built out of combat.
 --
--- A ROOT ON A NAMEPLATE CANNOT BE MEASURED. The client refuses GetTop and its kin on a region
--- anchored to a nameplate ("Can't measure restricted regions"), and the HUD dock measures its target
--- (to flip under the display near the screen's top) on every show and resize, through hooks no
--- pcall here covers. So the dock's target is not the root but `inst.stripHost`, a child laid over
--- it and parked on UIParent's center while the root sits on a plate (`inst.anchorPlate`, which the
--- nameplate anchors keep true to the root's points). On a plate the instance wears a second strip of
--- each kind instead, undocked, anchored on the root's top edge and never measured (it does not flip).
--- `inst.strips` is the set worn where the root sits now.
+-- A ROOT ON A NAMEPLATE CANNOT BE MEASURED (the client refuses GetTop and its kin on a region
+-- anchored to a nameplate). The HUD dock measures its target to flip the strip near the screen's
+-- top, and from LibKa0s-Widgets minor 28 (v1.106.0, RangeMaster#17) a refused read answers nil, so a
+-- strip docked on a root riding a plate sits on its top edge, unflipped, and raises nothing.
 --
 -- WHILE ITS DRAG STRIP SHOWS TAGGED, a display wears no TestStrip: the drag strip's TEST or SIM tag
 -- is its preview marker (preview-mode, *Where the strip sits*, v2.114.0; NS.Anchors.Screen.Tagged).
@@ -171,12 +168,8 @@ local function newInstance()
     local bg = fill:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints(fill)
     local borderFrame = layer(root, LAYERS.LEVEL.BORDER)
-    -- The preview strips' dock target: over the root, parked while the root sits on a plate (header).
-    local host = CreateFrame("Frame", nil, root)
-    host:SetAllPoints(root)
     return setmetatable({
         frame = root, fill = fill, background = bg, overlay = layer(root, LAYERS.LEVEL.OVERLAY),
-        stripHost = host, hostParked = false,
         border = { frame = borderFrame, strips = Style.NewEdges(borderFrame, "BORDER") },
         elements = {}, layout = {}, ctx = {}, spells = {}, spellCount = 0, seen = {},
     }, InstanceMT)
@@ -385,6 +378,8 @@ function Instance:Layout()
     end
     self.width, self.height = w, h
     self.frame:SetSize(w, h)
+    -- Beside a stand-in nameplate (unlocked), the drag strip's lift over it follows the new size.
+    if self.anchorMode == "mockplate" then NS.Anchors.Mockplate.Relaid(self) end
 end
 
 -- ---------------------------------------------------------------------------
@@ -423,87 +418,47 @@ local function resolveBand(inst, state, lo, hi)
     return true
 end
 
---- The dock of this instance's docked strips: on the display's top edge (through the strip host,
---- see the header), stacked beyond its drag handle while that shows (preview-mode, *Where the strip
---- sits*).
+--- The dock of this instance's strips: on the display's top edge, stacked beyond its drag handle
+--- while that shows (preview-mode, *Where the strip sits*).
 local function dockSpec(inst)
-    return { dock = "hud", target = inst.stripHost, clear = inst.dragHandle or nil }
+    return { dock = "hud", target = inst.frame, clear = inst.dragHandle or nil }
 end
 
-local PLATE_STRIP_LEVEL = 5   -- the HUD dock's chrome band: this many levels over the display
-
---- A new preview strip of `kind`: docked, or (`onPlate`) anchored on the root's top edge by hand,
---- taking no mouse, a chrome band over the display. False without the library.
-local function newStrip(inst, kind, onPlate)
+--- A new preview strip of `kind`, docked on the display; false without the library.
+local function newStrip(inst, kind)
     if not (KW and KW.TestStrip) then return false end
-    local root = inst.frame
-    local opts = { text = kind == "sim" and L["SIM"] or L["TEST"], icon = NS.Icon("info"), kind = kind,
-                   owner = NS.name }
-    if not onPlate then opts.dock, opts.target, opts.clear = "hud", inst.stripHost, inst.dragHandle or nil end
-    local ok, s = pcall(KW.TestStrip, root, opts)
-    if not (ok and s) then return false end
-    if onPlate then
-        s:EnableMouse(false)
-        s:ClearAllPoints()
-        s:SetPoint("BOTTOMLEFT", root, "TOPLEFT", 0, 0)
-        s:SetPoint("BOTTOMRIGHT", root, "TOPRIGHT", 0, 0)
-        s:SetFrameStrata(LAYERS.STRATA.HUD)
-        local okLevel, level = pcall(root.GetFrameLevel, root)
-        if okLevel and type(level) == "number" then s:SetFrameLevel(level + PLATE_STRIP_LEVEL) end
-    end
-    return s
-end
-
---- The strip host over the root, or parked on UIParent's center while the root sits on a plate.
-local function syncHost(inst)
-    local parked = inst.anchorPlate ~= nil
-    if inst.hostParked == parked then return end
-    inst.hostParked = parked
-    local host = inst.stripHost
-    host:ClearAllPoints()
-    if parked then
-        host:SetSize(1, 1)
-        host:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-    else
-        host:SetAllPoints(inst.frame)
-    end
+    local opts = dockSpec(inst)
+    opts.text, opts.icon, opts.kind, opts.owner = kind == "sim" and L["SIM"] or L["TEST"], NS.Icon("info"),
+        kind, NS.name
+    local ok, s = pcall(KW.TestStrip, inst.frame, opts)
+    return ok and s or false
 end
 
 --- The drag handle was built after the strips were (modules/Anchors_Screen.lua builds it on the
---- first unlock): dock every docked strip again, so each stacks beyond the handle rather than over it.
+--- first unlock): dock every strip again, so each stacks beyond the handle rather than over it.
 function Instance:DockStrips()
-    local docked = self.stripSets and self.stripSets.docked
-    if not (docked and self.dragHandle and KW and KW.DockTestStrip) then return end
-    for _, s in pairs(docked) do
+    if not (self.strips and self.dragHandle and KW and KW.DockTestStrip) then return end
+    for _, s in pairs(self.strips) do
         if s then pcall(KW.DockTestStrip, s, dockSpec(self)) end
     end
 end
 
---- Show the running preview's strip of the set worn where the root sits (built on first use) and
---- hide every other strip (every strip with no preview, and every one while the drag strip shows
---- tagged: the header).
+--- Show the running preview's strip (built on first use) and hide every other strip (every strip
+--- with no preview, and every one while the drag strip shows tagged: the header).
 local function showStrips(inst)
-    syncHost(inst)
-    if not preview and not inst.stripSets then return end
+    if not preview and not inst.strips then return end
     local marker = preview ~= nil and not NS.Anchors.Screen.Tagged(inst)
-    inst.stripSets = inst.stripSets or { docked = {}, plate = {} }
-    local onPlate = inst.anchorPlate ~= nil
-    local set = onPlate and inst.stripSets.plate or inst.stripSets.docked
-    local other = onPlate and inst.stripSets.docked or inst.stripSets.plate
-    inst.strips = set
-    for _, s in pairs(other) do
-        if s then s:Hide() end
-    end
+    inst.strips = inst.strips or {}
     for _, kind in ipairs(STRIP_KINDS) do
-        local s = set[kind]
+        local s = inst.strips[kind]
         if s == nil and preview == kind then
-            s = newStrip(inst, kind, onPlate)
-            set[kind] = s
+            s = newStrip(inst, kind)
+            inst.strips[kind] = s
         end
         if s then
             local on = marker and preview == kind
             s:SetShown(on)
-            if on and not onPlate and s.Place then pcall(s.Place, s) end
+            if on and s.Place then pcall(s.Place, s) end
         end
     end
 end
@@ -597,10 +552,8 @@ local function park(inst)
     inst.key, inst.id, inst.container, inst.pool, inst.plateToken = nil, nil, nil, nil, nil
     inst.state, inst.lo, inst.hi, inst.shown, inst.anchorHidden = nil, nil, nil, nil, nil
     inst.bandIndex, inst.setId, inst.sound, inst.alpha = nil, nil, nil, nil
-    for _, set in pairs(inst.stripSets or {}) do
-        for _, s in pairs(set) do
-            if s then s:Hide() end
-        end
+    for _, s in pairs(inst.strips or {}) do
+        if s then s:Hide() end
     end
     inst.frame:ClearAllPoints()
 end

@@ -337,8 +337,8 @@ test("modes: test_strip_clears_drag_handle — a strip built while locked docks 
     NS.SetByPath("locked", false)
     local h = inst.dragHandle
     assertTrue(h and h:IsShown(), "the unlock built and showed the handle")
-    -- Geometry: the display's top at 500 (the strip host lies over it), the handle 20 above it.
-    for f, top in pairs({ [inst.stripHost] = 500, [h] = 520 }) do
+    -- Geometry: the display's top at 500, the handle 20 above it.
+    for f, top in pairs({ [inst.frame] = 500, [h] = 520 }) do
       rawset(f, "GetTop", function() return top end)
       rawset(f, "GetBottom", function() return top - 18 end)
       rawset(f, "GetEffectiveScale", function() return 1 end)
@@ -347,7 +347,7 @@ test("modes: test_strip_clears_drag_handle — a strip built while locked docks 
     local calls = H.points(strip, function() strip:Place() end)
     local point, rel, relPoint, _, y = unpack(calls[1])
     assertEqual(point, "BOTTOMLEFT")
-    assertTrue(rel == inst.stripHost and relPoint == "TOPLEFT", "on the display's top edge (its host)")
+    assertTrue(rel == inst.frame and relPoint == "TOPLEFT", "on the display's top edge")
     assertEqual(y, 20, "stacked beyond the handle, never over it")
     NS.SetByPath("locked", true)
   end)
@@ -384,9 +384,9 @@ local function reaches(f, target, seen)
   return false
 end
 
-test("modes: test_strip_on_a_plate — a display on a nameplate wears a strip nothing measures", function()
-  -- red under: the HUD dock's target being the root, which the client cannot measure on a plate
-  -- ("Can't measure restricted regions" from the dock's OnShow / OnSizeChanged hooks).
+test("modes: test_strip_on_a_plate — a display on a nameplate wears its docked strip, and nothing raises", function()
+  -- red under: LibKa0s-Widgets minor 27, whose HUD dock measured the root unguarded from its OnShow /
+  -- OnSizeChanged hooks ("Can't measure restricted regions" on a plate; RangeMaster#17).
   off()
   withEnv(function() recordingAnchors(function()
     local plate = H.plate("nameplate1", true)
@@ -406,31 +406,26 @@ test("modes: test_strip_on_a_plate — a display on a nameplate wears a strip no
       rawset(f, "GetEffectiveScale", function() return 1 end)
     end
     restrict(inst.frame)
-    restrict(inst.stripHost)
     local strip = inst.strips and inst.strips.test
     assertTrue(strip and strip:IsShown(), "it wears the test strip")
-    assertTrue(strip.__dock == nil, "an undocked one")
-    assertTrue(reaches(strip, inst.frame), "on the display's top edge")
-    assertFalse(reaches(inst.stripHost, plate), "the dock's target is parked off the plate")
-    for _, f in ipairs({ inst.frame, inst.stripHost, strip }) do
+    assertTrue(strip.__dock ~= nil and strip.__dock.target == inst.frame, "docked on the display itself")
+    assertTrue(reaches(strip, plate), "so it rides the plate too")
+    restrict(strip)
+    for _, f in ipairs({ inst.frame, strip }) do
       for _, script in ipairs({ "OnShow", "OnSizeChanged" }) do
         local ok, err = pcall(f.__fire, f, script)
-        assertTrue(ok, script .. " measured a region on the plate: " .. tostring(err))
+        assertTrue(ok, script .. " raised on the plate: " .. tostring(err))
       end
     end
-    for _, s in pairs(inst.stripSets.docked) do
-      if s then assertFalse(s:IsShown(), "the docked strip is down while on the plate") end
-    end
-    -- Off the plate (the target's plate gone, the preview places it on screen): the docked strip.
+    assertTrue(pcall(strip.Place, strip), "a re-place raises nothing either")
+    assertFalse(strip:IsFlipped(), "unflipped: the dock could not measure it")
+    -- Off the plate (the target's plate gone, the preview places it on screen): the same strip.
     M.__plates.target = nil
     H.removed("nameplate1")
     assertTrue(inst.anchorPlate == nil, "off the plate")
-    assertTrue(reaches(inst.stripHost, inst.frame), "the host lies over the display again")
-    local docked = inst.strips.test
-    assertTrue(docked and docked ~= strip and docked.__dock ~= nil, "it wears the docked strip")
-    assertTrue(docked:IsShown() and not strip:IsShown(), "and only that one")
+    assertTrue(inst.strips.test == strip and strip:IsShown(), "the same strip, still shown")
     NS.SetTestMode(false, "test")
-    assertFalse(docked:IsShown() or strip:IsShown(), "the strips go with the mode")
+    assertFalse(strip:IsShown(), "the strip goes with the mode")
   end) end)
   M.__unitExists.target = false
   off()

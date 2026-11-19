@@ -35,7 +35,7 @@ marked as such rather than listed as a requirement.
 
 | Library | Source | Version | Used for |
 |---|---|---|---|
-| LibKa0s (`libs/LibKa0s/`) and its test kit (`tests/_kit/`) | the `LibKa0s` repo, tag `v1.105.0`, by `git archive` | v1.105.0, the tag root `CLAUDE.md`'s Bundles line names | every shared subsystem: printer, console, options, slash, launcher, perf, skins, schema, bus, lifecycle, compat; `media/icons/` pruned to `CLAUDE.md`'s `LibKa0s icons:` line, `media/sounds/` pruned to none |
+| LibKa0s (`libs/LibKa0s/`) and its test kit (`tests/_kit/`) | the `LibKa0s` repo, tag `v1.106.0`, by `git archive` | v1.106.0, the tag root `CLAUDE.md`'s Bundles line names | every shared subsystem: printer, console, options, slash, launcher, perf, skins, schema, bus, lifecycle, compat; `media/icons/` pruned to `CLAUDE.md`'s `LibKa0s icons:` line, `media/sounds/` pruned to none |
 | LibRangeCheck-3.0 (`libs/LibRangeCheck-3.0/`) | <https://github.com/WeakAuras/LibRangeCheck-3.0>, branch `main`, commit `3f9e454971a011d08fc1b5c73c0a0ad4168c2f44` (2026-11-07, "Check for secret values in Forever as well") | MINOR 39 (`MINOR_VERSION` in `libs/LibRangeCheck-3.0/LibRangeCheck-3.0.lua`) | the range estimate (`GetRange`) the range engine wraps; `LibRangeCheck-3.0.lua` and its MIT `LICENSE`, byte-identical to that commit |
 | Ace3, CallbackHandler-1.0, LibStub, LibDataBroker-1.1, LibDBIcon-1.0, LibSharedMedia-3.0 | copied from the sibling Ka0s addon AuraMaster's `libs/` (library-stack-§3), so versions match the collection | as vendored there | the addon substrate, the launcher and shared media |
 
@@ -90,7 +90,7 @@ its reason**, not a pass and not a failure (testing-§11).
 
 ```sh
 git clone https://github.com/tusharsaxena/LibKa0s.git ../LibKa0s
-git -C ../LibKa0s rev-parse --short v1.105.0   # verify: prints a commit
+git -C ../LibKa0s rev-parse --short v1.106.0   # verify: prints a commit
 ```
 
 ## Release / assets
