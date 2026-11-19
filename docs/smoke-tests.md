@@ -278,7 +278,11 @@ RANGE-1 to RANGE-4 are run through a target container. RANGE-5 needs only the ch
   caption along the edge. Raise Gap (px) → the space between the caption and the elements widens.
   `/rm unlock` with the caption on Top → the drag strip sits above the border, clear of the caption.
   Turn every element off → the caption alone, with no gap. Set Layout's Size to Fixed size → the box
-  keeps its width and height, the caption inside it. Untick Show label → the caption goes and the
+  keeps its width and height, the caption inside it. Position lists Inside and Outside for each side:
+  Outside top / bottom / left / right → the caption sits beyond the border, Gap (px) off the edge, and
+  the container shrinks to its elements; Align moves an outside top or bottom caption along the edge.
+  `/rm unlock` with Outside top → the drag strip sits above the caption, not over it; `/rm test` while
+  locked → the TEST strip sits above it too. Untick Show label → the caption goes and the
   container shrinks back. Result:
 - **CONT-10. The caption's styling.** With the caption on: change the Font block's face, size,
   outline and Font shadow → the caption takes each at once and the container resizes to the new

@@ -44,6 +44,30 @@ test("anchors: a locked screen container shows no drag strip; unlocking shows it
   end)
 end)
 
+test("anchors: test_strip_clears_outside_caption — the drag strip sits over an outside-top caption", function()
+  -- red under: a strip left on the root's top edge (2 px) over the caption (plan 2026-11-19 M11), or a
+  -- lift that takes the stand-in's and the caption's sum rather than the higher of the two.
+  H.with(function()
+    local _, inst = H.container("target")
+    unlock(true)
+    local h = inst.dragHandle
+    local calls = H.points(h, function()
+      inst.captionLift = 16
+      NS.Anchors.Screen.RefreshLift(inst)
+    end)
+    local p = calls[#calls] or {}
+    assertEqual(p[1] .. " " .. p[3] .. " " .. p[5], "BOTTOM TOP 18", "lifted by the caption's reach")
+    calls = H.points(h, function() NS.Anchors.Screen.SetLift(inst, 10) end)
+    p = calls[#calls] or {}
+    assertEqual(p[5], 18, "a lower stand-in lift: the caption's still wins")
+    calls = H.points(h, function() NS.Anchors.Screen.SetLift(inst, 30) end)
+    p = calls[#calls] or {}
+    assertEqual(p[5], 32, "a higher stand-in lift wins")
+    inst.captionLift, inst.handleLift = 0, 0
+    unlock(false)
+  end)
+end)
+
 test("anchors: test_screen_drag_saves_point — a drag on the strip saves point and offsets through NS.CM", function()
   H.with(function()
     local id, inst = H.container("target")

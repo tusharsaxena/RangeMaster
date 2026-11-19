@@ -183,8 +183,15 @@ add(fontBlock("container.elements.text.", TEXT, 100))
 
 -- ── Label ───────────────────────────────────────────────────────────────────────────────────
 
-local CAPTION_SIDES = { top = L["Top"], bottom = L["Bottom"], left = L["Left"], right = L["Right"] }
-local CAPTION_SIDES_SORT = { "top", "bottom", "left", "right" }
+-- The plain sides are inside the container (what the first Label tab stored); "outside*" sit beyond its
+-- border (modules/Container.lua's CaptionSide).
+local CAPTION_SIDES = {
+    top = L["Inside top"], outsideTop = L["Outside top"], bottom = L["Inside bottom"],
+    outsideBottom = L["Outside bottom"], left = L["Inside left"], outsideLeft = L["Outside left"],
+    right = L["Inside right"], outsideRight = L["Outside right"],
+}
+local CAPTION_SIDES_SORT = { "top", "outsideTop", "bottom", "outsideBottom", "left", "outsideLeft", "right",
+    "outsideRight" }
 local CAPTION_ALIGNS = { left = L["Left"], center = L["Center"], right = L["Right"] }
 local CAPTION_ALIGNS_SORT = { "left", "center", "right" }
 
@@ -197,14 +204,14 @@ add({
       validate = function(v) return type(v) == "string" end },
     { path = "container.label.position", page = PAGE, group = LABEL, order = 30, type = "string",
       startsLine = true, values = CAPTION_SIDES, sorting = CAPTION_SIDES_SORT, label = L["Position"],
-      desc = L["Which side of the elements the caption sits on, inside the container."] },
+      desc = L["Where the caption sits: inside the container, beside the elements and within its border, or outside it, beyond the border."] },
     { path = "container.label.align", page = PAGE, group = LABEL, order = 40, type = "string",
       values = CAPTION_ALIGNS, sorting = CAPTION_ALIGNS_SORT, label = L["Align"],
-      shownWhen = { path = "container.label.position", equals = { "top", "bottom" } },
+      shownWhen = { path = "container.label.position", equals = { "top", "bottom", "outsideTop", "outsideBottom" } },
       desc = L["Where the caption sits along the container's top or bottom."] },
     { path = "container.label.gap", page = PAGE, group = LABEL, order = 50, type = "number",
       startsLine = true, min = 0, max = 40, step = 1, label = L["Gap (px)"],
-      desc = L["The space between the caption and the elements, in pixels."] },
+      desc = L["The space between the caption and the elements (inside) or the container's edge (outside), in pixels."] },
 })
 add(fontBlock("container.label.", LABEL, 100))
 

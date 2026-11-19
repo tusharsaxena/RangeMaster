@@ -156,7 +156,7 @@ Total.
 - number: no unit reads nothing, and an unknown format reads as range
 - number: a known state with no far bound and no near bound reads unknown, not 0
 
-### test_container_render.lua (49)
+### test_container_render.lua (52)
 
 - render: an enabled container gets one pooled instance, watching its unit, drawn at once
 - render: Release returns the frame to the pool cleanly, and the next Acquire reuses it
@@ -205,14 +205,18 @@ Total.
 - render: test_caption_alone — with every element off the caption is drawn with no gap
 - render: test_caption_remeasured — a caption measured short at the apply is corrected on a band change
 - render: test_caption_positions — top, bottom, left and right, inside the padding, the root grown to hold it
+- render: test_caption_outside — outside on each side: on the root's edge by the gap, the root the elements' size
+- render: test_caption_inside_sides — the stored plain sides read as inside, an unknown one as inside top
+- render: test_caption_outside_lift — an outside-top caption lifts the drag strip and the preview strips over it
 - render: test_caption_fixed_size — a fixed-size container keeps its box, the caption inside it
 - render: test_caption_color_modes — band, fixed and class, as the elements
 
-### test_anchors_screen.lua (12)
+### test_anchors_screen.lua (13)
 
 - anchors: a screen container sits at its stored point on UIParent
 - anchors: a stored point the client does not know falls back to CENTER
 - anchors: a locked screen container shows no drag strip; unlocking shows it, locking hides it
+- anchors: test_strip_clears_outside_caption — the drag strip sits over an outside-top caption
 - anchors: test_screen_drag_saves_point — a drag on the strip saves point and offsets through NS.CM
 - anchors: a drag is refused in combat, and nothing is saved
 - anchors: test_unlock_parks_cursor — unlocked, a cursor container waits at its screen point with a strip
@@ -856,8 +860,8 @@ Total.
 | test_container_manager.lua | 17 |
 | test_presets.lua | 13 |
 | test_number_format.lua | 5 |
-| test_container_render.lua | 49 |
-| test_anchors_screen.lua | 12 |
+| test_container_render.lua | 52 |
+| test_anchors_screen.lua | 13 |
 | test_anchors_frame.lua | 17 |
 | test_anchors_nameplate.lua | 14 |
 | test_anchors_cursor.lua | 7 |
@@ -905,4 +909,4 @@ Total.
 | test_skin_switch.lua | 6 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **671** |
+| **Total** | **675** |

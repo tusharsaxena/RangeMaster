@@ -1095,6 +1095,70 @@ test("render: test_caption_positions — top, bottom, left and right, inside the
   end)
 end)
 
+test("render: test_caption_outside — outside on each side: on the root's edge by the gap, the root the elements' size", function()
+  -- red under: a Layout that reads "outsideTop" ... as inside (or as top), grows the root by an outside
+  -- caption, or anchors it from the content's TOPLEFT (plan 2026-11-19 M11).
+  withRenderer(function()
+    local id, _, inst = newContainer({ layout = { padding = 4 }, label = { enabled = false, gap = 3 } })
+    local w0, h0 = inst.width, inst.height
+    local cases = {
+      { "outsideTop", "center", "BOTTOM", "TOP", 0, 3 },
+      { "outsideTop", "left", "BOTTOMLEFT", "TOPLEFT", 0, 3 },
+      { "outsideTop", "right", "BOTTOMRIGHT", "TOPRIGHT", 0, 3 },
+      { "outsideBottom", "center", "TOP", "BOTTOM", 0, -3 },
+      { "outsideBottom", "left", "TOPLEFT", "BOTTOMLEFT", 0, -3 },
+      { "outsideBottom", "right", "TOPRIGHT", "BOTTOMRIGHT", 0, -3 },
+      { "outsideLeft", "left", "RIGHT", "LEFT", -3, 0 },
+      { "outsideRight", "right", "LEFT", "RIGHT", 3, 0 },
+    }
+    for _, k in ipairs(cases) do
+      relabel(id, { enabled = true, position = k[1], align = k[2] })
+      local p, rel, rp, x, y = capPoint(inst)
+      local what = k[1] .. "/" .. k[2]
+      assertEqual(p .. " " .. rp, k[3] .. " " .. k[4], what .. ": its point on the root's edge")
+      assertTrue(rel == inst.frame, what .. ": on the root")
+      assertEqual(x .. "," .. y, k[5] .. "," .. k[6], what .. ": the gap off the edge")
+      assertEqual(inst.width .. "x" .. inst.height, w0 .. "x" .. h0, what .. ": the root keeps the elements' size")
+      assertEqual(inst.layout[1].x .. "," .. inst.layout[1].y, "4,4", what .. ": the number stays at the padding")
+      assertTrue(inst.caption.fs:IsShown(), what .. ": shown")
+    end
+  end)
+end)
+
+test("render: test_caption_inside_sides — the stored plain sides read as inside, an unknown one as inside top", function()
+  -- red under: a CaptionSide that reads "top" ... as outside, or drops an unknown stored value.
+  local side = NS.Container.CaptionSide
+  for _, s in ipairs({ "top", "bottom", "left", "right" }) do
+    local w, out = side(s)
+    assertEqual(w, s); assertFalse(out, s .. " is inside")
+  end
+  local w, out = side("outsideRight")
+  assertEqual(w, "right"); assertTrue(out)
+  w, out = side("sideways")
+  assertEqual(w, "top", "an unknown value: top"); assertFalse(out, "inside")
+  withRenderer(function()
+    local id, _, inst = newContainer({ layout = { padding = 4 }, label = { enabled = false, gap = 3 } })
+    local h0 = inst.height
+    relabel(id, { enabled = true, position = "top" })
+    assertEqual(inst.height, h0 + inst.caption.h + 3, "a stored top still grows the root (inside)")
+  end)
+end)
+
+test("render: test_caption_outside_lift — an outside-top caption lifts the drag strip and the preview strips over it", function()
+  -- red under: strips docked on the root's top edge with no lift (the strip would cover the caption).
+  withRenderer(function()
+    local id, _, inst = newContainer({ label = { enabled = true, gap = 5, position = "outsideTop" } })
+    assertEqual(inst.captionLift, inst.caption.h + 5, "the caption's height and its gap")
+    relabel(id, { position = "outsideBottom" })
+    assertEqual(inst.captionLift, 0, "below the root: nothing to clear")
+    relabel(id, { position = "top" })
+    assertEqual(inst.captionLift, 0, "inside: the root already holds it")
+    relabel(id, { position = "outsideTop" })
+    relabel(id, { enabled = false })
+    assertEqual(inst.captionLift, 0, "turned off: the lift goes")
+  end)
+end)
+
 test("render: test_caption_fixed_size — a fixed-size container keeps its box, the caption inside it", function()
   -- red under: a Layout that grows a fixed box by the caption.
   withRenderer(function()

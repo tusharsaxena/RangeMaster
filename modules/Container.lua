@@ -18,8 +18,9 @@ local _, NS = ...
 --                                        decides which plates get one), applied now
 --   NS.Container.ReleasePlate(id, token), GetPlate(id, token), ForEachPlate(fn(inst, id, token))
 --   inst:SetAnchorHidden(hidden)         the anchor's say: hidden while its frame or plate is missing
---   inst:DockStrips()                    dock the preview strips again, beyond a drag handle built
---                                        after them (modules/Anchors_Screen.lua, on the first unlock)
+--   inst:DockStrips(always?)             dock the preview strips again, beyond a drag handle built
+--                                        after them (modules/Anchors_Screen.lua, on the first unlock);
+--                                        `always`: with no handle too (the caption's lift moved)
 --   inst:RefreshStrips()                 the drag strip showed or hid, or the root came onto or off
 --                                        a nameplate: the preview strips follow
 --                                        (modules/Anchors_Nameplate.lua)
@@ -113,7 +114,11 @@ local _, NS = ...
 -- for one) shows on the next frame. Instance:Layout places it on its side of the elements' block
 -- (top, bottom, left or right, `label.gap` px off it) INSIDE the root, so the root's size includes it
 -- and the strips docked on the root's top edge clear it; a fixed-size container keeps its box and the
--- caption goes inside it with the elements. Its color is read in Paint, as an element's is.
+-- caption goes inside it with the elements. An OUTSIDE position ("outsideTop" ...) anchors it on the
+-- root's edge, `gap` px off it, beyond the border and the background, and the root keeps the elements'
+-- size; an outside-top caption lifts the drag strip and the preview strips by its height and gap
+-- (`inst.captionLift`, its laid-out size: nothing is measured, so a root on a nameplate is safe). Its
+-- color is read in Paint, as an element's is.
 --
 -- BAND SOUNDS (modules/Sounds.lua) hear every shown render's band and every steady read of a shown
 -- instance's unit; a unit change forgets the instance's sound state (UnitChanged), as does a preview
@@ -380,13 +385,53 @@ local function side(v, fallback)
     return v >= 1 and v or 1
 end
 
+--- A stored `label.position` as its side and whether the caption sits outside the root. The plain
+--- sides ("top", ...) are inside (what M7 stored, so no stored value moves); "outsideTop" ... are
+--- outside. Anything else reads as inside top.
+local OUTSIDE_SIDES = { outsideTop = "top", outsideBottom = "bottom", outsideLeft = "left", outsideRight = "right" }
+local INSIDE_SIDES = { top = true, bottom = true, left = true, right = true }
+local function captionSide(pos)
+    if OUTSIDE_SIDES[pos] then return OUTSIDE_SIDES[pos], true end
+    if INSIDE_SIDES[pos] then return pos, false end
+    return "top", false
+end
+Container.CaptionSide = captionSide
+
+-- An outside caption's anchor on the root, per side (and alignment for top / bottom): the caption's
+-- point, the root's point, and the gap's sign along x and y.
+local OUTSIDE_ANCHOR = {
+    top    = { left = { "BOTTOMLEFT", "TOPLEFT" }, center = { "BOTTOM", "TOP" },
+               right = { "BOTTOMRIGHT", "TOPRIGHT" }, dx = 0, dy = 1 },
+    bottom = { left = { "TOPLEFT", "BOTTOMLEFT" }, center = { "TOP", "BOTTOM" },
+               right = { "TOPRIGHT", "BOTTOMRIGHT" }, dx = 0, dy = -1 },
+    left   = { center = { "RIGHT", "LEFT" }, dx = -1, dy = 0 },
+    right  = { center = { "LEFT", "RIGHT" }, dx = 1, dy = 0 },
+}
+
+--- An outside caption: anchored on the root's edge, `gap` px off it, and no part of the root's size
+--- (the border and the background stay the elements'). Keeps its anchor on `cap` (`point`, `rel`,
+--- `ox`, `oy`) and how far it reaches over the root's top (`lift`: the strips docked there clear it).
+local function outsideCaption(cap, lab, where)
+    local g = math.max(tonumber(lab.gap) or 0, 0)
+    local a = OUTSIDE_ANCHOR[where]
+    local pair = (where == "top" or where == "bottom") and a[lab.align] or a.center
+    cap.outside, cap.point, cap.rel, cap.ox, cap.oy = true, pair[1], pair[2], a.dx * g, a.dy * g
+    cap.lift = where == "top" and (g + cap.h) or 0
+end
+
 --- The caption beside the cells' block (`bw` x `bh`): answers the block's offset inside the content
 --- and the content's size, and keeps the caption's own offset and anchor point on `cap`. Top and
---- bottom center the block across the wider of the two; left and right center both down.
+--- bottom center the block across the wider of the two; left and right center both down. An outside
+--- caption takes no room in the content (outsideCaption).
 local function captionBox(cap, lab, bw, bh, hasCells)
+    if cap then cap.outside, cap.lift = false, 0 end
     if not (cap and cap.on) then return 0, 0, bw, bh end
+    local where, outside = captionSide(lab.position)
+    if outside then
+        outsideCaption(cap, lab, where)
+        return 0, 0, bw, bh
+    end
     local g = hasCells and math.max(tonumber(lab.gap) or 0, 0) or 0
-    local where = lab.position
     if where == "left" or where == "right" then
         local cw, ch = cap.w + g + bw, math.max(cap.h, bh)
         cap.y = (ch - cap.h) / 2
@@ -463,10 +508,23 @@ function Instance:Layout()
     end
     if cap and cap.on then
         cap.fs:ClearAllPoints()
-        cap.fs:SetPoint(cap.point, self.frame, "TOPLEFT", pad + cap.x + dx, -(pad + cap.y + dy))
+        if cap.outside then
+            cap.fs:SetPoint(cap.point, self.frame, cap.rel, cap.ox, cap.oy)
+        else
+            cap.fs:SetPoint(cap.point, self.frame, "TOPLEFT", pad + cap.x + dx, -(pad + cap.y + dy))
+        end
     end
     self.width, self.height = w, h
     self.frame:SetSize(w, h)
+    -- An outside-top caption reaches over the root's top: the drag strip and the preview strips
+    -- docked there are lifted clear of it (no measure: the lift is the caption's own laid-out size).
+    local lift = cap and cap.on and cap.lift or 0
+    if lift ~= (self.captionLift or 0) then
+        self.captionLift = lift
+        self:DockStrips(true)
+        local S = NS.Anchors and NS.Anchors.Screen
+        if S and S.RefreshLift then S.RefreshLift(self) end
+    end
     -- Beside a stand-in nameplate (unlocked), the drag strip's lift over it follows the new size.
     if self.anchorMode == "mockplate" then NS.Anchors.Mockplate.Relaid(self) end
 end
@@ -527,7 +585,7 @@ end
 --- The dock of this instance's strips: on the display's top edge, stacked beyond its drag handle
 --- while that shows (preview-mode, *Where the strip sits*).
 local function dockSpec(inst)
-    return { dock = "hud", target = inst.frame, clear = inst.dragHandle or nil }
+    return { dock = "hud", target = inst.frame, clear = inst.dragHandle or nil, gap = inst.captionLift or 0 }
 end
 
 --- A new preview strip of `kind`, docked on the display; false without the library.
@@ -542,8 +600,9 @@ end
 
 --- The drag handle was built after the strips were (modules/Anchors_Screen.lua builds it on the
 --- first unlock): dock every strip again, so each stacks beyond the handle rather than over it.
-function Instance:DockStrips()
-    if not (self.strips and self.dragHandle and KW and KW.DockTestStrip) then return end
+--- `always` re-docks with no handle too: an outside-top caption's lift (the dock's gap) moved.
+function Instance:DockStrips(always)
+    if not (self.strips and (always or self.dragHandle) and KW and KW.DockTestStrip) then return end
     for _, s in pairs(self.strips) do
         if s then pcall(KW.DockTestStrip, s, dockSpec(self)) end
     end

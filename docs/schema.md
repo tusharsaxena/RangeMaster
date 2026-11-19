@@ -90,7 +90,10 @@ path against its template. The template gained `elements.number.shadow` and `ele
 container, plan 2026-11-19 M7): `enabled = false`, `text = ""` (the container's name), `position =
 "top"`, `align = "center"`, `gap = 2`, `font = ""`, `size = 12`, `outline = "OUTLINE"`, `shadow =
 false`, `colorMode = "fixed"`, `color` white. The load pass backfills them; the caption is off, so a
-stored container draws as before and no migration step is needed.
+stored container draws as before and no migration step is needed. `label.position` (M11) takes eight
+values: `top`, `bottom`, `left`, `right` are INSIDE the container (what M7 stored, so a stored value
+keeps its meaning) and `outsideTop`, `outsideBottom`, `outsideLeft`, `outsideRight` sit beyond its
+border; an unknown value reads as inside top (`NS.Container.CaptionSide`).
 
 ## The global store (`db.global`)
 

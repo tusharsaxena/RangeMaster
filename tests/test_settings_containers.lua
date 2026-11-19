@@ -517,7 +517,10 @@ test("settings: test_label_tab — the Label tab's rows, in order: show, text, p
   local text = rows["container.label.text"]
   assertEqual(text.dialogControl, "EditBox", "the text is typed, and applies on Enter")
   assertEqual(text.default, "", "empty by default: the container's name")
-  assertEqual(table.concat(rows["container.label.position"].sorting, ","), "top,bottom,left,right")
+  -- Plan 2026-11-19 M11: inside and outside on every side; the plain sides stay the inside ones.
+  assertEqual(table.concat(rows["container.label.position"].sorting, ","),
+    "top,outsideTop,bottom,outsideBottom,left,outsideLeft,right,outsideRight")
+  assertEqual(rows["container.label.position"].values.top, L["Inside top"], "a stored side reads as inside")
   assertEqual(table.concat(rows["container.label.align"].sorting, ","), "left,center,right")
   -- Red under an Align shownWhen that matches Left / Right, or nothing (the path alone was checked).
   local when = rows["container.label.align"].shownWhen
@@ -525,18 +528,18 @@ test("settings: test_label_tab — the Label tab's rows, in order: show, text, p
   local eq = {}
   for i, v in ipairs(type(when.equals) == "table" and when.equals or { when.equals }) do eq[i] = v end
   table.sort(eq)
-  assertEqual(table.concat(eq, ","), "bottom,top", "Align is drawn for Top and Bottom only")
+  assertEqual(table.concat(eq, ","), "bottom,outsideBottom,outsideTop,top", "Align is drawn for the tops and bottoms only")
   assertEqual(table.concat(rows["container.label.colorMode"].sorting or {}, ","), "band,fixed,class",
     "the color mode is the elements' three")
   E.with(function()
     local id = CM.Create("target")
     NS.SelectContainer(id)
     slash("set container.label.enabled true")
-    slash("set container.label.position left")
+    slash("set container.label.position outsideLeft")
     slash("set container.label.text Healer")
     local c = CM.Get(id)
     assertTrue(c.label.enabled, "/rm set reaches the label")
-    assertEqual(c.label.position, "left")
+    assertEqual(c.label.position, "outsideLeft")
     assertEqual(c.label.text, "Healer")
     slash("reset container.label.text")
     assertEqual(c.label.text, "", "a reset gives the name back")

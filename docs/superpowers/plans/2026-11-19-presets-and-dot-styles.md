@@ -41,6 +41,8 @@ The owner's rulings for this run (2026-11-19):
 | M8 | Band preview blocks removed from the settings | done | `f320b14` |
 | M9 | Halo-free styles drawn at the old art's fill | done | `66db5e5` |
 | M10 | Review of M7-M9, fixes, docs, push | done | `7454e0e`, `de2c192` |
+| M11 | Label positions inside and outside on every side | done | (this commit) |
+| M12 | Preset defaults: outside-top captions, faint frames, plate containers always shown | pending | |
 
 ## M1. Indicator art and styles
 
@@ -145,3 +147,28 @@ around it. Regenerate the tiles; the art tests follow (the border-transparency c
 ### M10. Review
 
 As M5 and M6, over M7-M9's diff.
+
+## Added 2026-11-19, after M10 (the owner's second round of in-game feedback)
+
+### M11. Label positions inside and outside
+
+The owner: "give options for inside top, outside top, inside bottom, outside bottom, etc for all the
+sides". `label.position` takes eight values in one dropdown (one field, so `/rm set` reaches it):
+`top`, `bottom`, `left`, `right` stay the INSIDE ones (what M7 stored: no migration), and
+`outsideTop`, `outsideBottom`, `outsideLeft`, `outsideRight` anchor the caption on the root's edge,
+`gap` px off it, beyond the border and the background; the root keeps the elements' size. Align applies
+to the outside top and bottom too. An outside-top caption lifts the drag strip (Screen's handle point,
+the higher of the stand-in plate's lift and the caption's) and the preview strips (the dock's `gap`)
+clear of it, from the caption's laid-out size, so nothing is measured (a root on a nameplate is safe).
+No LibKa0s change: the dock's `gap` already exists.
+
+### M12. Preset defaults
+
+(a) Every screen container of every preset shows its caption at Outside top, centered, reading the
+container's name (Target, Focus, Pet, Mouseover); a New container keeps the caption off. (b) The owner
+saw no nameplate containers: Expert's plate containers were shown in combat only (`visibility.combat =
+"in"`), so out of combat they never showed. Both now show at any time (combat `any`); All nameplates
+keeps hostile only. Stored containers are not migrated: the owner changes Containers > Visibility on
+theirs. (c) Every preset container (screen and plate) draws a faint frame: border opacity 10%
+(`frame.border.alpha = 0.1`) and the background's band tint at 10% (`frame.background.bandAlpha =
+0.1`), border and background both on.

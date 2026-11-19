@@ -11,6 +11,8 @@ local _, NS = ...
 --                                       the display's preview marker (modules/Container.lua)
 --   NS.Anchors.Screen.SetLift(inst, px) the strip sits `px` higher over the root's top edge, clear
 --                                       of a stand-in nameplate (modules/Anchors_Mockplate.lua)
+--   NS.Anchors.Screen.RefreshLift(inst) `inst.captionLift` moved (an outside-top caption,
+--                                       modules/Container.lua): the strip clears the higher of the two
 --
 -- THE POSITION IS THE REGISTRY'S. A drag ends in StopMovingOrSizing, then the frame's first point is
 -- read back (the client re-anchors a moved frame to the screen) and written through the container
@@ -129,6 +131,14 @@ local function disable(inst)
     end
 end
 
+--- The strip on the root's top edge, lifted clear of a stand-in nameplate (`handleLift`) and of an
+--- outside-top caption (`captionLift`), whichever reaches higher.
+local function placeHandle(inst, h)
+    local lift = math.max(inst.handleLift or 0, inst.captionLift or 0)
+    h:ClearAllPoints()
+    h:SetPoint("BOTTOM", inst.frame, "TOP", 0, 2 + lift)
+end
+
 --- The strip, or (without the widget library) nil: a screen frame then takes the drag itself.
 local function buildHandle(inst)
     if not (KW and KW.DragHandle) then return nil end
@@ -145,24 +155,26 @@ local function buildHandle(inst)
         level = LAYERS.LEVEL.HANDLE, ignoreParentAlpha = true,
     })
     if not h then return nil end
-    h:ClearAllPoints()
-    h:SetPoint("BOTTOM", inst.frame, "TOP", 0, 2 + (inst.handleLift or 0))
+    placeHandle(inst, h)
     return h
+end
+
+function Screen.RefreshLift(inst)
+    local h = inst.dragHandle
+    if not h then return end
+    placeHandle(inst, h)
+    if h:IsShown() and inst.strips then
+        for _, s in pairs(inst.strips) do
+            if s and s.Place then pcall(s.Place, s) end
+        end
+    end
 end
 
 function Screen.SetLift(inst, px)
     px = math.floor((tonumber(px) or 0) + 0.5)
     if (inst.handleLift or 0) == px then return end
     inst.handleLift = px
-    local h = inst.dragHandle
-    if not h then return end
-    h:ClearAllPoints()
-    h:SetPoint("BOTTOM", inst.frame, "TOP", 0, 2 + px)
-    if h:IsShown() and inst.strips then
-        for _, s in pairs(inst.strips) do
-            if s and s.Place then pcall(s.Place, s) end
-        end
-    end
+    Screen.RefreshLift(inst)
 end
 
 local function dragFrameItself(inst, on)
