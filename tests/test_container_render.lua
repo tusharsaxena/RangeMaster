@@ -356,14 +356,48 @@ test("render: the indicator shapes draw this addon's textures, recolored by band
   withRenderer(function()
     local id, setId, inst = newContainer({ elements = { indicator = { enabled = true, shape = "diamond" } } })
     local tex = inst.elements.indicator.tex
-    assertTrue(tostring(M.__paint(tex).texture):find("media\\textures\\indicators\\diamond", 1, true) ~= nil,
-      "the diamond art")
+    assertEqual(M.__paint(tex).texture, C.INDICATOR_PATH .. "diamond_matte", "the diamond art, matte by default")
     assertColor(M.__paint(tex).vertex, band(setId, 3).indicatorColor, "MID's indicator color")
     CM.Get(id).elements.indicator.shape = "square"
     CM.RequestApply()
     CM.FlushPending()
-    assertTrue(tostring(M.__paint(tex).texture):find("indicators\\square", 1, true) ~= nil, "re-shaped")
+    assertTrue(tostring(M.__paint(tex).texture):find("indicators\\square_matte", 1, true) ~= nil, "re-shaped")
   end)
+end)
+
+test("render: the indicator draws its stored shape in its stored style, unknowns falling back", function()
+  -- red under: the old path (C.INDICATOR_PATH .. shape, no style), and under a SHAPES list without
+  -- hexagon and star (they fell back to the dot).
+  withRenderer(function()
+    local id, _, inst = newContainer({ elements = { indicator = { enabled = true, shape = "hexagon",
+                                                                   style = "gem" } } })
+    local tex = inst.elements.indicator.tex
+    local function art() return M.__paint(tex).texture end
+    local function restyle(shape, style)
+      local cfg = CM.Get(id).elements.indicator
+      cfg.shape, cfg.style = shape, style
+      CM.RequestApply()
+      CM.FlushPending()
+    end
+    assertEqual(art(), C.INDICATOR_PATH .. "hexagon_gem", "the stored shape and style")
+    restyle("star", "neon")
+    assertEqual(art(), C.INDICATOR_PATH .. "star_neon", "a star, neon")
+    restyle("hexagon", "plain")
+    assertEqual(art(), C.INDICATOR_PATH .. "hexagon_plain", "plain is a style like the rest")
+    restyle("blob", "glossy")
+    assertEqual(art(), C.INDICATOR_PATH .. "dot_glossy", "an unknown shape draws the dot")
+    restyle("ring", "sparkly")
+    assertEqual(art(), C.INDICATOR_PATH .. "ring_matte", "an unknown style draws matte")
+    restyle("ring", nil)
+    assertEqual(art(), C.INDICATOR_PATH .. "ring_matte", "no style draws matte")
+    restyle("icon", "gem")
+    assertFalse(tostring(art()):find("indicators", 1, true) ~= nil, "the spell icon takes no style")
+  end)
+end)
+
+test("render: the default indicator style is matte", function()
+  -- red under: defaults/Profile.lua without elements.indicator.style.
+  assertEqual(NS.CONTAINER_TEMPLATE.elements.indicator.style, "matte")
 end)
 
 test("render: the bar indicator is LibKa0s-Widgets' data bar, fuller the nearer the band", function()
@@ -659,21 +693,32 @@ test("render: a LibSharedMedia border draws on a backdrop of its own, band-color
   end)
 end)
 
-test("render: every indicator shape ships as a white 64x64 uncompressed 32-bit TGA", function()
+test("render: every indicator shape x style ships as a white 128x128 uncompressed 32-bit TGA", function()
   -- An RLE or 24-bit TGA draws nothing and raises nothing in the client (anti-pattern #82), so the
-  -- header is the check: image type 2 (uncompressed true-color), 64 x 64, 32 bits, 8 alpha bits.
+  -- header is the check: image type 2 (uncompressed true-color), 128 x 128, 32 bits, 8 alpha bits.
+  -- tools/indicator_art.py draws them; red under the old single-file art (<shape>.tga, 64x64).
+  for _, shape in ipairs({ "dot", "ring", "square", "diamond", "triangle", "hexagon", "star" }) do
+    for _, style in ipairs({ "plain", "matte", "glossy", "glowing", "neon", "gem" }) do
+      local path = "media/textures/indicators/" .. shape .. "_" .. style .. ".tga"
+      local fh = io.open(path, "rb")
+      assertTrue(fh ~= nil, path .. " is missing")
+      local h = fh:read(18)
+      local size = fh:seek("end")
+      fh:close()
+      local w = h:byte(13) + h:byte(14) * 256
+      local ht = h:byte(15) + h:byte(16) * 256
+      assertEqual(h:byte(3), 2, path .. ": uncompressed true-color")
+      assertEqual(w .. "x" .. ht, "128x128", path)
+      assertEqual(h:byte(17), 32, path .. ": 32 bits per pixel")
+      assertEqual(h:byte(18) % 16, 8, path .. ": 8 alpha bits")
+      assertEqual(size, 18 + 128 * 128 * 4, path .. ": the whole image, nothing after it")
+    end
+  end
+  -- The old single files are gone, so nothing can still be drawing them.
   for _, shape in ipairs({ "dot", "ring", "square", "diamond", "triangle" }) do
-    local path = "media/textures/indicators/" .. shape .. ".tga"
-    local fh = io.open(path, "rb")
-    assertTrue(fh ~= nil, path .. " is missing")
-    local h = fh:read(18)
-    fh:close()
-    local w = h:byte(13) + h:byte(14) * 256
-    local ht = h:byte(15) + h:byte(16) * 256
-    assertEqual(h:byte(3), 2, path .. ": uncompressed true-color")
-    assertEqual(w .. "x" .. ht, "64x64", path)
-    assertEqual(h:byte(17), 32, path .. ": 32 bits per pixel")
-    assertEqual(h:byte(18) % 16, 8, path .. ": 8 alpha bits")
+    local fh = io.open("media/textures/indicators/" .. shape .. ".tga", "rb")
+    if fh then fh:close() end
+    assertNil(fh, shape .. ".tga is retired")
   end
 end)
 

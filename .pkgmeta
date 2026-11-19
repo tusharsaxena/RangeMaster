@@ -11,6 +11,7 @@ ignore:
   - .gitattributes   # dev-only: the repo's line-ending policy (line-endings)
   - docs             # holds docs/audits/, docs/reviews/ and docs/revendor/ too — all dev-only
   - tests
+  - tools          # dev-only: tools/indicator_art.py draws the committed indicator art
   - _dev
   - "*.bak"
   # Developer documentation. README.md and LICENSE stay, because players read those.

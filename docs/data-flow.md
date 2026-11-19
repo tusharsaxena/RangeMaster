@@ -226,7 +226,8 @@ color rows declare `classColorSource = "unit"`). The elements follow
 `elements.order` along `layout.direction`, from the padding, `spacing` apart, centered across; only
 an enabled element is ever built, and one turned off is hidden. The number writes the bracket in one
 of six formats and `40+` for an open-ended one, never an invented far bound. The indicator draws
-this addon's shape art (`media/textures/indicators/`), LibKa0s-Widgets' data bar (fuller the nearer
+this addon's shape art in the stored style (`media/textures/indicators/<shape>_<style>`, matte by
+default), LibKa0s-Widgets' data bar (fuller the nearer
 the band, empty when unknown) or a spell icon. The spell chips are an array pool per element, each
 chip colored by its own answer and repainted only when that answer moves. Placement is
 `NS.Anchors.Apply` (below). A `nameplates` container has no single instance: it owns one per eligible

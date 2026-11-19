@@ -87,8 +87,10 @@ NS.CONTAINER_TEMPLATE = {
                    shadow = false, colorMode = "band", color = white() },
         text = { enabled = false, font = "", size = 12, outline = "OUTLINE", shadow = false,
                  colorMode = "band", color = white(), upper = true },
-        indicator = { enabled = false, shape = "dot", size = 12, colorMode = "band", color = white(),
-                      spellID = nil },
+        -- shape: dot|ring|square|diamond|triangle|hexagon|star|bar|icon; style (the art's finish,
+        -- the shapes only): plain|matte|glossy|glowing|neon|gem (modules/Elements_Indicator.lua).
+        indicator = { enabled = false, shape = "dot", style = "matte", size = 12, colorMode = "band",
+                      color = white(), spellID = nil },
         -- `list` is the player's (seeded per client and class on create, Task 4); empty here, so the
         -- load pass has nothing to fill into it.
         spells = { enabled = false, list = {}, style = "chip", size = 20 },

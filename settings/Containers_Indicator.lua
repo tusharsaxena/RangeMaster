@@ -21,9 +21,9 @@ local INDICATOR, SPELLS = L["Indicator"], L["Spell chips"]
 
 local SHAPES = {
     dot = L["Dot"], ring = L["Ring"], square = L["Square"], diamond = L["Diamond"], triangle = L["Triangle"],
-    bar = L["Bar (fills toward the band's far edge)"], icon = L["Spell icon"],
+    hexagon = L["Hexagon"], star = L["Star"], bar = L["Bar (fills toward the band's far edge)"], icon = L["Spell icon"],
 }
-local SHAPES_SORT = { "dot", "ring", "square", "diamond", "triangle", "bar", "icon" }
+local SHAPES_SORT = { "dot", "ring", "square", "diamond", "triangle", "hexagon", "star", "bar", "icon" }
 
 local CHIP_STYLES = { chip = L["Chip (colored edge)"], icon = L["Icon only"] }
 local CHIP_STYLES_SORT = { "chip", "icon" }

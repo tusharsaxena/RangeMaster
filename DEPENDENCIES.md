@@ -95,10 +95,13 @@ git -C ../LibKa0s rev-parse --short v1.106.0   # verify: prints a commit
 
 ## Release / assets
 
-**One entry: Pillow**, and only for **regenerating** the logos. `media/logos/rangemaster.logo.128.tga`
-(the icon) and `media/logos/rangemaster.logo.tga` (the landing page's 300×300 logo) are committed,
-uncompressed 32-bit, beside their 2000×2000 `rangemaster.logo.png` source, so nothing is generated at
-package time and layout-§4's recipe is run by hand when the art changes. **None of this group is
+**One entry: Pillow**, and only for **regenerating** the logos and the indicator art.
+`media/logos/rangemaster.logo.128.tga` (the icon) and `media/logos/rangemaster.logo.tga` (the landing
+page's 300×300 logo) are committed, uncompressed 32-bit, beside their 2000×2000 `rangemaster.logo.png`
+source, and layout-§4's recipe is run by hand when the art changes. The indicator tiles
+(`media/textures/indicators/<shape>_<style>.tga`) are committed too and redrawn by
+`python3 tools/indicator_art.py` from the repo root (deterministic; `--sheet <png>` also writes a
+contact sheet). Nothing is generated at package time. **None of this group is
 required to build, run or test the addon.**
 
 ```sh
