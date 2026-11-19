@@ -1,10 +1,10 @@
 # Compat layer — Ka0s Range Master
 
-`core/Compat.lua` is the whole compat family (compat) and publishes **21** shims on `NS.Compat`,
+`core/Compat.lua` is the whole compat family (compat) and publishes **24** shims on `NS.Compat`,
 counted with the command documentation-§3 fixes:
 
 ```sh
-cat core/Compat*.lua | grep -cE '^\s*function\s+[A-Za-z_][A-Za-z0-9_]*\.'    # 21
+cat core/Compat*.lua | grep -cE '^\s*function\s+[A-Za-z_][A-Za-z0-9_]*\.'    # 24
 ```
 
 Four of them (`IsForever`, `IsRetail`, `ClientKey`, `ForClient`) only route `LibKa0s-Compat-1.0`'s
@@ -12,7 +12,7 @@ answer to "which client is this" (clients-§3), each with a library-absent stand
 Retail. The secret guards (`IsSecret`, `CanAccess`, `IsSafeKey`) and the spell-info reader
 (`GetSpellInfo`) are the library's members handed over by reference, with the one-rung bodies the
 library's degradation rule asks for; they are LibKa0s's and are not documented again here. The
-seventeen below are this addon's own.
+twenty below are this addon's own.
 
 ## The range reads and the ladder
 
@@ -55,6 +55,8 @@ and 19 joined this table in the cross-validation round (2026-11-19), after the f
 A nameplate can be forbidden (a friendly plate in an instance on 12.x), and any method call on one
 raises. Each read below asks `IsForbidden` first, under `pcall`; a raise or a secret answer counts as
 forbidden, and a forbidden plate is answered as `nil`, so no caller ever touches one.
+Shim 20, the cast read, joined this table with the plate cast bar part (2026-11-20); it reads a unit,
+not a frame.
 
 | # | Shim | Wraps | Absent or refused | Why it exists | Called from |
 |---|---|---|---|---|---|
@@ -62,6 +64,7 @@ forbidden, and a forbidden plate is answered as `nil`, so no caller ever touches
 | 15 | `PlateToken(plate)` | the plate's `namePlateUnitToken` (pcall, forbidden- and secret-checked) | `nil` | The token a scanned plate serves | shim 16 |
 | 16 | `NamePlates()` | `C_NamePlate.GetNamePlates` (pcall), shim 15 per plate | `{}` | The stand-up's rescan: a stood-down addon heard no `NAME_PLATE_UNIT_ADDED` for the plates shown | `modules/Anchors_Nameplate.lua` (`StandUp`) |
 | 17 | `GetMouseFocus()` | `GetMouseFoci()[1]` (pcall) | `nil` | The frame picker's frame under the cursor; both clients carry `GetMouseFoci` | `modules/FramePicker.lua` |
+| 20 | `IsCasting(unit)` | `UnitCastingInfo`, then `UnitChannelInfo` (each presence-tested, pcall; only `type()` of the answer is read, which a secret allows) | `nil` when neither read exists (WoW Forever) or both raised | A nameplate container's *Cast bar while casting* part: whether a plate's unit casts when no cast event has spoken for it yet, and after a stop-kind event (a channel can follow a cast) | `modules/Anchors_Nameplate.lua` |
 
 The unit-frame names the `ellesmere` provider reads (`modules/FrameProviders.lua`) are no client
 read and live there, not here: `EllesmereUIUnitFrames_Target`, `EllesmereUIUnitFrames_Focus` and
@@ -70,6 +73,19 @@ frames under (`ns.Engine.SpawnUnitFrame`), verified identical in the installed R
 Forever (9.8.8) builds on 2026-11-18. It spawns a unit's frame only when that unit's source is
 EllesmereUI, at `PLAYER_LOGIN`, which is why the frame anchor looks again on `PLAYER_ENTERING_WORLD`
 and `ADDON_LOADED`. `EllesmereUIDB` is never read.
+
+A nameplate's cast bar (`NS.FrameProviders.PlateCastBar`, a nameplate container's Attach to part) is
+no client read either and lives beside them: EllesmereUINameplates publishes its namespace as the
+global `EllesmereNameplates_NS` (`EllesmereUINameplates.lua`), whose `plates[token]` is its own plate
+for a plate token (`EUI_Nameplates_Events.lua` fills it at `NAME_PLATE_UNIT_ADDED` and clears it at
+`_REMOVED`), with `.nameplate` the client plate it sits on (`EUI_Nameplates_Plate.lua`'s `SetUnit`)
+and `.cast` its cast bar StatusBar (`EUI_Nameplates_PlatePool.lua`). Otherwise the client plate's own
+`UnitFrame.castBar` (CompactUnitFrame's key; EllesmereUINameplates' own fallback reads it on both
+clients), else `UnitFrame.CastBar`. Verified identical in the installed Retail (9.8.6) and WoW Forever
+(9.9) builds of EllesmereUINameplates on 2026-11-20. Every read is a table index under `pcall`, and
+a forbidden frame answers nil. With Casts In Front of Nameplates on, EllesmereUI reparents that same
+`cast` frame to a `UIParent` frame at `HIGH` (`EllesmereUINameplates_CastOverlay.lua`), so the
+anchor holds either way.
 
 ## `RangeLadder()`: what each client gets
 

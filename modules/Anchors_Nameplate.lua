@@ -30,6 +30,25 @@ local _, NS = ...
 -- plate is read again, its instances placed on it and its eligibility asked again. The re-check runs
 -- on both clients: it is cheap, and a client-specific branch would sit outside the Compat layer.
 --
+-- ON THE PLATE, OR ON ITS CAST BAR. `nameplate.attachTo` picks what the container is pinned to, in
+-- both modes, at the same `nameplate` point and offsets: "plate" (the default), "castbar" (always
+-- the plate's cast bar) or "castbarWhenCasting" (the cast bar while the plate's unit casts or
+-- channels, else the plate). The cast bar is NS.FrameProviders.PlateCastBar's (EllesmereUI's for
+-- that token, else the client's own), and with none (or one refusing the anchor) the container stays
+-- on the plate. `inst.anchorPlate` is
+-- always the plate, so a removed plate is still told apart by its frame; `inst.anchorPart` is what
+-- the root is pinned to. The part is asked again on every placing, the one-frame re-check after ADDED
+-- included, so EllesmereUI building its plate after this addon heard ADDED moves the container onto
+-- its cast bar a frame later. A hidden cast bar keeps its place, so nothing moves between casts.
+--
+-- WHILE CASTING IS EVENT-DRIVEN, never polled. The UNIT_SPELLCAST_* events (core/RangeMaster.lua,
+-- each ifValid) reach Plates.CastChanged for a tracked plate token only: a start marks the token
+-- casting, any other kind asks NS.Compat.IsCasting again (a channel can follow a cast), and the
+-- "castbarWhenCasting" instances on that plate, per-plate and own-plate, are placed again. A token no
+-- event has spoken for (a plate shown mid-cast) asks NS.Compat.IsCasting, and where the client has no
+-- cast read (WoW Forever has no UnitCastingInfo), whether the cast bar is shown. Our frames are no
+-- secure frames, so this re-anchors in combat as the rest of this file does.
+--
 -- FORBIDDEN PLATES ARE NEVER TOUCHED. Every plate comes through NS.Compat.NamePlateForUnit or
 -- NS.Compat.NamePlates, which answer nil for a forbidden one (a friendly plate in an instance), so a
 -- forbidden plate gets no instance and no own-plate container sits on it.
@@ -45,6 +64,7 @@ local Anchors = NS.Anchors
 local tokens = {}     -- [token] = plate frame: the tracked, not forbidden plates
 local rechecks = {}   -- [token] = timer handle: the one-frame re-check after ADDED
 local ownRecheck      -- the timer re-placing own-plate containers a frame after a REMOVED
+local casting = {}    -- [token] = boolean: the last cast event's word on the plate's unit
 local own = {}        -- [inst] = true: the own-plate instances
 local plateInsts = {} -- [inst] = true: the per-plate instances
 
@@ -57,25 +77,67 @@ local plateInsts = {} -- [inst] = true: the per-plate instances
 local function unpin(inst)
     if inst.anchorPlate == nil then return end
     inst.frame:ClearAllPoints()
-    inst.anchorPlate = nil
+    inst.anchorPlate, inst.anchorPart = nil, nil
     inst:RefreshStrips()
 end
 
---- Anchor `inst` on `plate` at container `c`'s nameplate point, unless it already sits there.
---- Answers whether it sits on the plate.
-local function attach(inst, c, plate)
-    if inst.anchorPlate == plate then return true end
-    local np, root = c.nameplate or {}, inst.frame
+local CAST_PARTS = { castbar = true, castbarWhenCasting = true }
+
+--- Whether `bar` is shown, read under pcall; a secret or a raise reads as not shown.
+local function barShown(bar)
+    local ok, v = pcall(bar.IsShown, bar)
+    return ok and v == true
+end
+
+--- Whether the unit behind plate `token` casts now: the last cast event's word, else the client's
+--- cast read, else whether its cast bar `bar` is shown.
+local function castingOn(token, bar)
+    local known = token and casting[token]
+    if known ~= nil then return known end
+    local asked = token and NS.Compat.IsCasting(token)
+    if asked ~= nil then return asked end
+    return barShown(bar)
+end
+
+--- What container `c` pins `inst` to on `plate`: its cast bar when the container asks for it (and,
+--- for "castbarWhenCasting", while its unit casts) and the plate has one, else the plate.
+local function partOf(inst, c, plate)
+    local np = c.nameplate
+    local mode = np and np.attachTo
+    if not CAST_PARTS[mode] then return plate end
+    local token = inst.plateToken or NS.Compat.PlateToken(plate)
+    local bar = NS.FrameProviders.PlateCastBar(plate, token)
+    if not bar then return plate end
+    if mode == "castbarWhenCasting" and not castingOn(token, bar) then return plate end
+    return bar
+end
+
+--- The root pinned to `target` at the nameplate point; answers whether the client took it.
+local function pin(root, np, target)
     root:ClearAllPoints()
-    local ok = pcall(root.SetPoint, root, Anchors.Point(np.point, "TOP"), plate,
-        Anchors.Point(np.relPoint, "BOTTOM"), Anchors.Offset(np.x), Anchors.Offset(np.y))
+    return (pcall(root.SetPoint, root, Anchors.Point(np.point, "TOP"), target,
+        Anchors.Point(np.relPoint, "BOTTOM"), Anchors.Offset(np.x), Anchors.Offset(np.y)))
+end
+
+--- Anchor `inst` on `plate` (or its cast bar) at container `c`'s nameplate point, unless it already
+--- sits there. A cast bar refusing the anchor leaves it on the plate. Answers whether it sits on the
+--- plate.
+local function attach(inst, c, plate)
+    local part = partOf(inst, c, plate)
+    if inst.anchorPlate == plate and inst.anchorPart == part then return true end
+    local np, root = c.nameplate or {}, inst.frame
+    local ok = pin(root, np, part)
+    if not ok and part ~= plate then
+        part = plate
+        ok = pin(root, np, plate)
+    end
     if not ok then
         root:ClearAllPoints()
-        inst.anchorPlate = nil
+        inst.anchorPlate, inst.anchorPart = nil, nil
         inst:RefreshStrips()
         return false
     end
-    inst.anchorPlate = plate
+    inst.anchorPlate, inst.anchorPart = plate, part
     inst:RefreshStrips()
     return true
 end
@@ -253,6 +315,7 @@ end
 function Plates.Removed(token)
     if type(token) ~= "string" then return end
     cancelRecheck(token)
+    casting[token] = nil
     local plate = tokens[token] or NS.Compat.NamePlateForUnit(token)
     tokens[token] = nil
     for _, id in ipairs(NS.CM.List()) do NS.Container.ReleasePlate(id, token) end
@@ -266,7 +329,35 @@ local function tokenChanged(unit)
     if unit == "target" and not NS.IsStoodDown() then eachToken(function(token) syncToken(token, false) end) end
 end
 
+local function whileCasting(c)
+    return c ~= nil and c.nameplate ~= nil and c.nameplate.attachTo == "castbarWhenCasting"
+end
+
+--- A cast started (`started`) or moved on the unit behind `token` (core/RangeMaster.lua's
+--- UNIT_SPELLCAST_* handler): its word is kept, and every "castbarWhenCasting" instance on that
+--- plate, per-plate and own-plate, is placed again. Anything but a tracked plate token returns at once.
+function Plates.CastChanged(token, started)
+    local plate = type(token) == "string" and tokens[token]
+    if not plate or NS.IsStoodDown() then return end
+    if started then
+        casting[token] = true
+    else
+        casting[token] = NS.Compat.IsCasting(token) == true
+    end
+    for _, id in ipairs(NS.CM.List()) do
+        local c = NS.CM.Get(id)
+        if isPlates(c) and whileCasting(c) then
+            local inst = NS.Container.GetPlate(id, token)
+            if inst then placeOn(inst, c, plate) end
+        end
+    end
+    for inst in pairs(own) do
+        if inst.anchorPlate == plate and whileCasting(inst.container) then placeOwn(inst) end
+    end
+end
+
 function Plates.StandDown()
+    for token in pairs(casting) do casting[token] = nil end
     for token in pairs(rechecks) do cancelRecheck(token) end
     if ownRecheck then ownRecheck:Cancel() end
     ownRecheck = nil

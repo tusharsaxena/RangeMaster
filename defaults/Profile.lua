@@ -71,6 +71,9 @@ NS.CONTAINER_TEMPLATE = {
                   point = "BOTTOM", relPoint = "TOP", x = 0, y = 2 },
         cursor = { point = "CENTER", x = 12, y = -40 },
         point = "CENTER", relPoint = "CENTER", x = 0, y = 0, strata = "MEDIUM",
+        -- The root's Frame level inside its strata: 0 is Auto (each instance its own slot, stacked
+        -- in build order), 1..100 a fixed place, 1 the lowest (core/Constants.lua LAYERS).
+        level = 0,
     },
     -- sizing: "fit" sizes the container to its elements; "fixed" holds it at width x height (px),
     -- the elements centered in it (modules/Container.lua, Instance:Layout).
@@ -107,7 +110,10 @@ NS.CONTAINER_TEMPLATE = {
     },
     visibility = { combat = "any", reaction = "any", hideNoUnit = true, oocAlpha = 1 },
     sounds = { enabled = false, channel = "Master" },
-    nameplate = { includeFriendly = false, point = "TOP", relPoint = "BOTTOM", x = 0, y = -2 },
+    -- attachTo: "plate"|"castbar"|"castbarWhenCasting", what on the plate the point and offsets pin
+    -- to: the plate, its cast bar (EllesmereUI's, else the client's own; the plate while it has
+    -- none), or the cast bar only while the plate's unit casts.
+    nameplate = { includeFriendly = false, attachTo = "plate", point = "TOP", relPoint = "BOTTOM", x = 0, y = -2 },
 }
 
 --- One band set. `bands` is ordered, contiguous from 0 and open-ended, which modules/BandSets.lua's

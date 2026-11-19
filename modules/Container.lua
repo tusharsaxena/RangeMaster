@@ -177,7 +177,8 @@ local function newInstance()
     root:SetFrameStrata(LAYERS.STRATA.HUD)
     local LV = LAYERS.LEVEL
     nextSlot = nextSlot % LV.SLOTS + 1
-    Style.Stack(root, UIParent, LV.BASE + nextSlot * LV.STRIDE)
+    local slotLevel = LV.BASE + nextSlot * LV.STRIDE
+    Style.Stack(root, UIParent, slotLevel)
     local fill = layer(root, LAYERS.LEVEL.FILL)
     local bg = fill:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints(fill)
@@ -186,6 +187,7 @@ local function newInstance()
         frame = root, fill = fill, background = bg, overlay = layer(root, LAYERS.LEVEL.OVERLAY),
         border = { frame = borderFrame, strips = Style.NewEdges(borderFrame, "BORDER") },
         elements = {}, layout = {}, ctx = {}, spells = {}, spellCount = 0, seen = {},
+        slotLevel = slotLevel,
     }, InstanceMT)
 end
 
@@ -247,6 +249,32 @@ local function setAlpha(inst, a)
     inst.frame:SetAlpha(v)
 end
 
+--- The root's level over UIParent's: the container's own Frame level (1 to SLOTS, a STRIDE apart
+--- from FLOOR, so 1 is the lowest) when it set one, else the slot this instance took when it was
+--- built (0, Auto).
+local function levelOffset(inst, c)
+    local LV = LAYERS.LEVEL
+    local n = math.floor(tonumber(c.anchor.level) or 0)
+    if n >= 1 and n <= LV.SLOTS then return LV.FLOOR + (n - 1) * LV.STRIDE end
+    return inst.slotLevel
+end
+
+--- Seat the root at its level and every layer over it again. The client resets a frame's level, and
+--- its children's, when its strata is written (EllesmereUINameplates relies on it: its
+--- EUI_Nameplates_Cast.lua re-seats its cast art after every strata change), so the ladder is laid
+--- again after each write: the root, the fill, the border, the overlay, each element's frame over
+--- the overlay, and the drag strip (LibKa0s-Widgets' ApplyLevel, its offset over the root).
+local function restack(inst, c)
+    local root, LV = inst.frame, LAYERS.LEVEL
+    Style.Stack(root, UIParent, levelOffset(inst, c))
+    Style.Stack(inst.fill, root, LV.FILL)
+    Style.Stack(inst.border.frame, root, LV.BORDER)
+    Style.Stack(inst.overlay, root, LV.OVERLAY)
+    for _, el in pairs(inst.elements) do Style.Stack(el.frame, inst.overlay, LV.ELEMENT) end
+    local h = inst.dragHandle
+    if h and type(h.ApplyLevel) == "function" then pcall(h.ApplyLevel, h) end
+end
+
 local function applyFrame(inst, c)
     local root, lay = inst.frame, c.layout
     -- Only the values the Frame strata row offers (settings/Containers.lua, read at call time): a
@@ -254,6 +282,7 @@ local function applyFrame(inst, c)
     local V = NS.ContainerValues
     local strata = c.anchor.strata
     root:SetFrameStrata(V and V.STRATA and V.STRATA[strata] and strata or LAYERS.STRATA.HUD)
+    restack(inst, c)
     -- The container's own scale inside the Master controls' Master scale.
     inst.appliedScale = (tonumber(lay.scale) or 1) * (tonumber(NS.GetSetting("scale")) or 1)
     root:SetScale(inst.appliedScale)

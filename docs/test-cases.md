@@ -66,7 +66,7 @@ Total.
 - degraded Schema stub: Get forwards the instance id to a row's own get
 - degraded Schema stub: ApplyDefault forwards the instance id to Set
 
-### test_database.lua (23)
+### test_database.lua (24)
 
 - database: the account-wide schemaVersion default is 0 (savedvariables-§1)
 - database: the ladder holds two steps, v0 -> v1 (the frame defaults) and v1 -> v2 (band rules), and a fresh install is stamped 2
@@ -91,6 +91,7 @@ Total.
 - database: step 2 is idempotent and keeps a rule a band already carries
 - database: step 2 runs on a profile with no usable order and a container with no set (review D6)
 - database: step 2 on a fresh profile changes nothing, and the load pass then seeds rule presets
+- database: test_backfill_plate_part_and_level — a container stored before Attach to part and Frame level reads the plate and Auto
 
 ### test_bandsets.lua (24)
 
@@ -263,7 +264,7 @@ Total.
 - picker: refused in combat with one gray line, and combat during a pick cancels it
 - picker: Escape cancels
 
-### test_anchors_nameplate.lua (20)
+### test_anchors_nameplate.lua (33)
 
 - plates: test_nameplate_own_plate_follows_target_change — the target container moves to the new target's plate
 - plates: test_expert_plates_out_of_combat — Expert's plate containers show out of combat
@@ -285,6 +286,19 @@ Total.
 - plates: test_except_target_plate_arriving — the target's plate coming into view gets no instance
 - plates: test_all_nameplates_keeps_the_target_plate — plain All nameplates still draws on the target's plate
 - plates: test_except_target_is_a_plates_unit — no sound, no single instance, the plate rows
+- plates: test_strata_reaches_every_plate_instance — a Frame strata write re-seats the per-plate and own-plate roots, and no child keeps one
+- plates: test_strata_write_relays_the_levels — the ladder is laid again after the client resets it on a strata write
+- plates: test_frame_level_orders_within_the_strata — a Frame level puts the root at a fixed place, 1 under every Auto one
+- plates: test_castbar_provider — EllesmereUI's cast bar first, then the client's castBar or CastBar, else nil
+- plates: test_castbar_attach_own_plate — a target container set to Cast bar sits on its plate's cast bar
+- plates: test_castbar_attach_every_plate — each per-plate instance sits on its own plate's cast bar, EllesmereUI's where it has one
+- plates: test_castbar_falls_back_to_the_plate — no cast bar, or one refusing the anchor, leaves it on the plate
+- plates: test_castbar_found_a_frame_later — EllesmereUI building its plate after ADDED moves the container onto its cast bar on the re-check
+- plates: test_attach_part_three_choices — Nameplate, Cast bar, and Cast bar while casting (the plate between casts)
+- plates: test_cast_start_stop_flips_the_part — the cast events move a while-casting container onto the cast bar and back, per-plate and own-plate
+- plates: test_cast_mid_cast_plate_and_no_cast_read — a plate shown mid-cast starts on its bar; without the client's cast read the events and the bar decide
+- plates: test_cast_with_no_cast_bar — while casting, a plate with no cast bar keeps the container on the plate
+- plates: test_cast_events_registered_ifvalid — every cast event is in the lifecycle list, ifValid, on one handler
 
 ### test_anchors_cursor.lua (7)
 
@@ -638,7 +652,7 @@ Total.
 - the General page draws Master controls first, then Presets, and the Skin tab last
 - the General page is covered in combat on the sidebar path, and the window stays open (options-ui-§2)
 
-### test_settings_containers.lua (30)
+### test_settings_containers.lua (31)
 
 - settings: surface parity — every Containers and Band sets row answers /rm get and /rm set, through its registry's writer
 - settings: surface parity — every Containers row is drawn on its rail entry's tab
@@ -670,6 +684,7 @@ Total.
 - settings: test_dot_style_tiles_refresh — a Shape or color write repaints the tiles in place, a move to or from Bar redraws the tab
 - settings: test_dot_style_tiles_onrelease — a release the page does not see still takes the tiles off their slot
 - settings: test_dot_shape_row — the Shape row offers the seven shapes, Bar and Spell icon, and /rm set takes the new ones
+- settings: test_plate_part_and_level_rows — Attach to part opens On the nameplate wherever it shows; Frame level sits under Attach to in every mode
 
 ### test_settings_bandsets.lua (16)
 
@@ -931,7 +946,7 @@ Total.
 |-------|------:|
 | test_loadorder.lua | 16 |
 | test_schema.lua | 36 |
-| test_database.lua | 23 |
+| test_database.lua | 24 |
 | test_bandsets.lua | 24 |
 | test_container_manager.lua | 17 |
 | test_presets.lua | 13 |
@@ -939,7 +954,7 @@ Total.
 | test_container_render.lua | 60 |
 | test_anchors_screen.lua | 14 |
 | test_anchors_frame.lua | 17 |
-| test_anchors_nameplate.lua | 20 |
+| test_anchors_nameplate.lua | 33 |
 | test_anchors_cursor.lua | 7 |
 | test_anchors_mockplate.lua | 5 |
 | test_visibility.lua | 11 |
@@ -961,7 +976,7 @@ Total.
 | test_modes.lua | 23 |
 | test_optionssetup.lua | 16 |
 | test_realpages.lua | 7 |
-| test_settings_containers.lua | 30 |
+| test_settings_containers.lua | 31 |
 | test_settings_bandsets.lua | 16 |
 | test_settings_presets.lua | 14 |
 | test_skinsetup.lua | 12 |
@@ -985,4 +1000,4 @@ Total.
 | test_skin_switch.lua | 6 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **751** |
+| **Total** | **766** |

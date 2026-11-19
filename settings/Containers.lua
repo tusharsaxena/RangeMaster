@@ -71,6 +71,11 @@ V.POINTS_SORT = { "TOPLEFT", "TOP", "TOPRIGHT", "LEFT", "CENTER", "RIGHT", "BOTT
 V.STRATA = { BACKGROUND = "BACKGROUND", LOW = "LOW", MEDIUM = "MEDIUM", HIGH = "HIGH" }
 V.STRATA_SORT = { "BACKGROUND", "LOW", "MEDIUM", "HIGH" }
 
+-- What a nameplate container pins to on its plate (modules/Anchors_Nameplate.lua).
+V.PLATE_PARTS = { plate = L["Nameplate"], castbar = L["Cast bar"],
+    castbarWhenCasting = L["Cast bar while casting, else nameplate"] }
+V.PLATE_PARTS_SORT = { "plate", "castbar", "castbarWhenCasting" }
+
 -- The color-mode companion (options-ui-§17: a color-mode dropdown whose value set includes `class`).
 V.COLOR_MODES = { band = L["Band color"], fixed = L["Fixed color"], class = L["Class color"] }
 V.COLOR_MODES_SORT = { "band", "fixed", "class" }
@@ -181,8 +186,9 @@ local ROWS = {
 -- anchor points side by side, what it attaches to on the left ("Unit frame anchor point", "Nameplate
 -- anchor point", "Screen anchor point") and "This container anchor point" on the right, then its X
 -- and Y side by side. Only the chosen mode's subsection is drawn (`shownWhen`); every row stays in
--- the schema, so `/rm set` and the resets reach each one. Frame strata applies in every mode (the
--- root's strata, modules/Container.lua), so it sits under Attach to, not in one mode's subsection.
+-- the schema, so `/rm set` and the resets reach each one. Frame strata and Frame level apply in every
+-- mode (the root's, modules/Container.lua), so they sit under Attach to, not in one mode's subsection.
+-- Attach to part opens On the nameplate, so it shows wherever the nameplate rows do (ON_PLATE).
 
 local S_ANCHOR = L["Anchor"]
 local S_FRAME = L["On the unit frame"]
@@ -243,12 +249,20 @@ local POSITION_ROWS = {
     { path = "container.anchor.strata", page = PAGE, group = POSITION, subgroup = S_ANCHOR, order = 15,
       type = "string", values = V.STRATA, sorting = V.STRATA_SORT,
       label = L["Frame strata"], tooltip = H.StrataTooltip(V.STRATA) },
+    { path = "container.anchor.level", page = PAGE, group = POSITION, subgroup = S_ANCHOR, order = 17,
+      type = "number", min = 0, max = NS.Constants.LAYERS.LEVEL.SLOTS, step = 1, startsLine = true,
+      label = L["Frame level"],
+      desc = L["Where this container sits among the frames of its strata. 0 is Auto: each container takes its own place, the newest on top. 1 is the lowest, under every Auto container; higher numbers draw over lower ones, and two containers on the same number can draw through each other."] },
     pointRow("container.anchor.cursor.point", 130, S_CURSOR, whenMode("cursor"), THIS_POINT,
         L["The point of this container that follows the cursor."], true),
     offsetRow("container.anchor.cursor.x", 140, S_CURSOR, whenMode("cursor"), L["X offset"],
         L["Horizontal offset from the cursor, in pixels."], true),
     offsetRow("container.anchor.cursor.y", 150, S_CURSOR, whenMode("cursor"), L["Y offset"],
         L["Vertical offset from the cursor, in pixels."]),
+    { path = "container.nameplate.attachTo", page = PAGE, group = POSITION, subgroup = S_PLATE, order = 155,
+      type = "string", values = V.PLATE_PARTS, sorting = V.PLATE_PARTS_SORT, shownWhen = ON_PLATE,
+      label = L["Attach to part"],
+      desc = L["What on the nameplate this container is pinned to: the nameplate, its cast bar (EllesmereUI's, else the game's own), or the cast bar only while the unit casts and the nameplate otherwise. With no cast bar it stays on the nameplate. The anchor points and offsets below are measured from it."] },
     pointRow("container.nameplate.relPoint", 160, S_PLATE, ON_PLATE, L["Nameplate anchor point"],
         L["The point of the nameplate this container is attached to. While unlocked, a preview nameplate shows where it sits."], true),
     pointRow("container.nameplate.point", 170, S_PLATE, ON_PLATE, THIS_POINT, MY_POINT),

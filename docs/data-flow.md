@@ -72,6 +72,11 @@ CONTAINERS_CHANGED ─► NS.Container.Sync ─► inst:Apply ─► NS.Anchors.
      nameplate  NS.Plates.Get(unit) ─► on the plate, or hidden; re-placed on the unit change and plates
      plates     (nameplates container) NS.Plates.SyncAll ─► one instance per hostile plate (all with
                 includeFriendly)
+                both: nameplate.attachTo "castbar" ─► NS.FrameProviders.PlateCastBar ─► EllesmereUI's
+                      cast bar, else the client's, else (or refused) the plate itself;
+                      "castbarWhenCasting" the same while the unit casts, else the plate
+UNIT_SPELLCAST_* ─► addon:OnPlateCast ─► NS.Plates.CastChanged (tracked plate tokens only) ─►
+                    the "castbarWhenCasting" instances on that plate placed again
      cursor     one shared OnUpdate while a cursor container is shown ─► GetCursorPosition / scale
 NAME_PLATE_UNIT_ADDED ─► NS.Plates.Added ─► track (forbidden: nil) ─► instances built, own plates placed
                       └► next frame: the same again (a plate populated late)
@@ -264,8 +269,12 @@ plate, from a second keyed pool (`AcquirePlate`, `ReleasePlate`, `GetPlate`, `Fo
 watching its plate token; which plates get one is the plate registry's call. Frames stack by
 `NS.Constants.LAYERS` (the HUD strata; fill, border and overlay offset over the root). Each instance
 takes its own root level when built (`BASE + slot * STRIDE` over UIParent, the slot cycling 1..`SLOTS`),
-so overlapping displays stack whole rather than band by band (frame-layering-§3). The root's strata is
-the container's Frame strata only when the row offers it (`NS.ContainerValues.STRATA`), else HUD.
+so overlapping displays stack whole rather than band by band (frame-layering-§3), unless the
+container sets its own Frame level (`anchor.level` 1..`SLOTS`, `FLOOR + (level - 1) * STRIDE`; 0 is
+the slot). The root's strata is the container's Frame strata only when the row offers it
+(`NS.ContainerValues.STRATA`), else HUD. The client resets a frame's level and its children's on a
+strata write, so every apply lays the ladder again after it: the root, fill, border, overlay, each
+element's frame (`ELEMENT` over the overlay) and the drag strip (`ApplyLevel`).
 
 ### Anchors
 
@@ -292,6 +301,24 @@ is missing (`inst:SetAnchorHidden`), and the renderer tells the anchors each sho
 - **nameplate** (`modules/Anchors_Nameplate.lua`): on the unit's own plate
   (`NS.Plates.Get(unit)`), at the container's `nameplate` point, re-placed on a unit change and on a
   plate coming or going; pet has no plate in practice, so it is hidden.
+- **The part of the plate** (both nameplate modes): `nameplate.attachTo` `plate` (the default),
+  `castbar`, or `castbarWhenCasting` (the cast bar while the plate's unit casts, else the plate). On a
+  cast bar the same point and offsets pin the root to the plate's cast bar,
+  `NS.FrameProviders.PlateCastBar(plate, token)`: EllesmereUINameplates' own plate for the token
+  (`EllesmereNameplates_NS.plates[token]`, taken only while its `.nameplate` is this plate) and its
+  `cast`, else the client's `UnitFrame.castBar` (or `CastBar`), every read under `pcall` and
+  forbidden-checked. No cast bar, or one refusing the anchor, leaves it on the plate. `anchorPlate`
+  stays the plate (the removal compare), `anchorPart` is what it is pinned to, and the part is asked
+  again on every placing, so the one-frame re-check after `ADDED` moves it onto a cast bar EllesmereUI
+  built after this addon heard the event. A hidden cast bar keeps its place, so nothing moves between
+  casts. The unlocked preview nameplate does not draw a cast bar: it shows the plate's point.
+  `castbarWhenCasting` is event-driven, never polled: `UNIT_SPELLCAST_*` (start, stop, failed,
+  interrupted, succeeded, the channel and empower pairs; each `ifValid`) → `addon:OnPlateCast` →
+  `NS.Plates.CastChanged(token, started)`, which returns at once for a token it does not track. A
+  start marks the token casting, any other kind asks `NS.Compat.IsCasting` again, and every such
+  instance on that plate is placed again. A token no event has spoken for (a plate shown mid-cast)
+  asks `NS.Compat.IsCasting`, and where the client has no cast read (WoW Forever), whether the cast
+  bar is shown. `REMOVED` and the stand-down forget the word.
 - **plates**: a `nameplates` container's per-plate instance, on its plate. `NS.Plates` tracks every
   plate token from `NAME_PLATE_UNIT_ADDED` / `_REMOVED`; a plate is hostile through
   `NS.Compat.CanAttack`, and a container with `nameplate.includeFriendly` takes every plate. A

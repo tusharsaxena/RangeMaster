@@ -32,6 +32,7 @@ read_globals = {
   "BackdropTemplateMixin", "Mixin",           -- modules/Style.lua's media border, on a plain frame
   -- core/Compat.lua's plate and mouse-focus reads, and the anchors' cursor (design spec 5.4)
   "C_NamePlate", "GetMouseFoci", "GetCursorPosition", "IsMouseButtonDown",
+  "UnitCastingInfo", "UnitChannelInfo",       -- core/Compat.lua's IsCasting (a plate's "while casting" part)
   -- the band sounds' clock and the client's sound call (modules/Sounds.lua, modules/Container.lua)
   "GetTime", "PlaySoundFile",
   -- settings/Containers_Display.lua: the element list's on/off tick tooltip
