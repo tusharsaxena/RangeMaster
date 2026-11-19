@@ -401,4 +401,4 @@ Sources I checked: the repo (read-only), wago.tools DB2 CSVs downloaded for Fore
   - the Hekili, Plater and WeakAuras code claims;
   - the TrinityCore `GetMinRange` and melee-reach formulas (an emulator model in any case);
   - the Retail talent IDs I did not query: Precision Shot 428377, Javelineer 1271948, Jurisdiction 402971, Death's Reach 276079, Skyreach 392991, Arcane Reach 454983 and others;
-  - the Era Hawk Eye per-rank +2/+4/+6 values.
+  - the Era Hawk Eye per-rank +2/+4/+6 values.
