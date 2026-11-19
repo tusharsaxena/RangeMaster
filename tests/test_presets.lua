@@ -418,8 +418,9 @@ test("presets: test_ka0s_shape — the owner's Ka0s profile: five containers, nu
       assertEqual(find(unit, "screen").bandSetFriendly, healer, unit .. " reads the Healer set on a friend")
     end
     assertNil(find("pet", "screen").bandSetFriendly)
-    assertTrue(find("target", "screen").sounds.enabled, "the out-of-range sound on target")
-    assertFalse(find("focus", "screen").sounds.enabled)
+    for _, c in ipairs(list) do
+      assertFalse(c.sounds.enabled, c.name .. ": no sound (only Expert sounds, the owner, 2026-11-20)")
+    end
     local plate = find("target", "nameplate")
     assertEqual(plate.name, "Target plate")
     assertEqual(enabledElements(plate), "number", "the number alone: the owner turned its dot off")
