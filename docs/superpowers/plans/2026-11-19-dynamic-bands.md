@@ -62,7 +62,7 @@ overrides part 1 where they disagree).
 | D2 | Anchor resolver and the rebuild triggers | done | `133062e` |
 | D3 | Rule evaluation in the range memo; Resolve's rule path; Sim | done | `1c407b6` |
 | D4 | Schema v2: band rules, convert-everything migration, rule-based class presets | done | `03c5676` |
-| D5 | Band editor: Defined by, role, spell override, read-out, Fallback (yards) | todo | |
+| D5 | Band editor: Defined by, role, spell override, read-out, Fallback (yards) | done | `80ea9e7` |
 | D6 | Review: parallel reviewers, adversarially verified, fixes | todo | |
 | D7 | Docs, in-game probes in smoke tests, perf scenario, test-case list, badge, push | todo | |
 
