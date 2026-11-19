@@ -279,6 +279,44 @@ test("database: step 1 runs once, and a container made after it takes the new de
   assertNil(fresh.containers and next(fresh.containers), "a fresh profile has no container to migrate")
 end)
 
+test("database: step 1 through the real InitDB, against a stored v0 RangeMasterDB with two profiles", function()
+  -- red under: InitDB (or a profile callback) backfilling or preparing the active profile before
+  -- the ladder runs (the old containers would then load at 25% and matte, and the step skip them),
+  -- and under a step that skips a hand-edited container missing its frame or elements section.
+  local v0 = oldContainer()
+  v0.frame.background.enabled = false
+  local partial = { unit = "focus", frame = { background = { enabled = true } } }
+  local inactive = oldContainer()
+  local savedDb, savedSV = NS.db, _G.RangeMasterDB
+  _G.RangeMasterDB = {
+    profiles = {
+      Default = { containers = { [1] = v0, [2] = partial }, containerOrder = { 1, 2 }, nextContainerId = 3 },
+      Raid = { containers = { [7] = inactive }, containerOrder = { 7 }, nextContainerId = 8 },
+    },
+    global = {},
+  }
+  local sv = _G.RangeMasterDB
+  local ok, err = pcall(function()
+    NS:InitDB()
+    assertEqual(sv.global.schemaVersion, 1, "the stamp is written into the SavedVariables' global")
+    local p = NS.db.profile
+    assertTrue(p.containers[1] == v0, "the active profile is the stored one")
+    assertEqual(v0.frame.border.alpha, 1, "a stored container keeps a full border")
+    assertEqual(v0.elements.indicator.style, "plain", "and its plain dot")
+    assertFalse(v0.frame.background.enabled, "and no background")
+    assertEqual(partial.frame.border.alpha, 1, "a container with no border section keeps a full border")
+    assertEqual(partial.elements.indicator.style, "plain", "and with no elements section, the plain dot")
+    assertTrue(partial.frame.background.enabled, "its own background is kept")
+    assertEqual(inactive.frame.border.alpha, 1, "a profile not in use is migrated as it is stored")
+    assertEqual(inactive.elements.indicator.style, "plain")
+    NS:RunMigrations()
+    assertEqual(sv.global.schemaVersion, 1, "a second load climbs nothing")
+  end)
+  NS.db, _G.RangeMasterDB = savedDb, savedSV
+  NS.CM.__reset()
+  if not ok then error(err, 0) end
+end)
+
 test("database: a new container's frame defaults are a 25% border and a background", function()
   -- Red under the v0.1.0 template: no border opacity, the background off.
   local c = D.DeepCopy(NS.CONTAINER_TEMPLATE)

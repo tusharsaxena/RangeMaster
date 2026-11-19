@@ -66,10 +66,10 @@ Total.
 - degraded Schema stub: Get forwards the instance id to a row's own get
 - degraded Schema stub: ApplyDefault forwards the instance id to Set
 
-### test_database.lua (14)
+### test_database.lua (18)
 
 - database: the account-wide schemaVersion default is 0 (savedvariables-§1)
-- database: v0.1.0 ships the first data shape, so the ladder is empty and the target is 0
+- database: the ladder holds one step, v0 -> v1 (the frame defaults), and a fresh install is stamped 1
 - database: RunMigrations is a safe no-op when the DB is absent
 - database: the runner climbs every step, stamps each, and is idempotent
 - database: a step that raises leaves the stamp unmoved and says so once in chat
@@ -82,6 +82,10 @@ Total.
 - database: test_first_run_seeds_presets — a fresh profile gets the four sets, class default first
 - database: the load pass normalizes a stored band set and repairs its counter and order
 - database: the active profile was prepared at load
+- database: step 1 writes border opacity 100% and the plain dot onto every stored container, in every profile
+- database: step 1 runs once, and a container made after it takes the new defaults
+- database: step 1 through the real InitDB, against a stored v0 RangeMasterDB with two profiles
+- database: a new container's frame defaults are a 25% border and a background
 
 ### test_bandsets.lua (22)
 
@@ -128,19 +132,20 @@ Total.
 - cm: MarkSeeded is the first-run sentinel's one runtime writer
 - cm: spell chips follow the character until a list is stored (a shared profile, two classes)
 
-### test_presets.lua (12)
+### test_presets.lua (13)
 
-- presets: test_simple_four_free_containers — target, focus, pet, mouseover free on screen
-- presets: test_intermediate_shape — unit frames, cursor mouseover, friendly sets, hidden with no unit
-- presets: Intermediate creates the Healer set when the profile has none, and reuses one it has
-- presets: test_advanced_shape — six containers with plates, spell chips, a sound and rules
-- presets: Advanced keeps a sound the player already put on the out-of-range band
+- presets: test_five_presets — the picker's five, in order, each with its own elements on the same four homes
+- presets: test_simple_to_advanced_plain — the four lighter presets hold four containers, no sound, no friendly set
+- presets: test_expert_shape — six containers: the four with spell chips, both plates, the sound and the Healer set
+- presets: Expert creates the Healer set when the profile has none, and reuses one it has
+- presets: Expert keeps a sound the player already put on the out-of-range band
 - presets: test_preset_undo_restores — Undo puts back the containers and band sets from before
 - presets: an unknown key applies nothing and keeps the Undo slot
 - presets: Describe answers each preset's name, container count and bullet items
+- presets: test_preview_swap_restores — a later pick in the picker drops what Expert's preview added to the band sets
 - presets: an apply announces CONTAINERS_CHANGED once, on the next frame
 - presets: a profile switch, copy or reset drops the Undo slot, so no other profile is overwritten
-- presets: Advanced puts the OOR sound on through the band-set writer, which announces it
+- presets: Expert puts the OOR sound on through the band-set writer, which announces it
 - presets: test_preset_homes — each unit has one home on screen, the same in every preset, none shared
 
 ### test_number_format.lua (5)
@@ -151,7 +156,7 @@ Total.
 - number: no unit reads nothing, and an unknown format reads as range
 - number: a known state with no far bound and no near bound reads unknown, not 0
 
-### test_container_render.lua (35)
+### test_container_render.lua (39)
 
 - render: an enabled container gets one pooled instance, watching its unit, drawn at once
 - render: Release returns the frame to the pool cleanly, and the next Acquire reuses it
@@ -161,6 +166,7 @@ Total.
 - render: test_text_set_only_on_change — two identical renders set the text once
 - render: test_recolor_only_on_band_change — a new bracket in the same band paints no color
 - render: test_color_modes — band, fixed and class, for the number, the border and the fill
+- render: the border paints at its own opacity, 25% by default, in every color mode
 - render: an unknown range reads the set's gray ? on every element, never a band
 - render: an open-ended bracket reads 40+ and the out-of-range band
 - render: no unit hides a container that hides with no unit, and shows one that does not
@@ -170,6 +176,9 @@ Total.
 - render: test_fixed_size — a fixed-size container keeps its width and height, the elements centered
 - render: the layout's scale and alpha reach the root frame
 - render: the indicator shapes draw this addon's textures, recolored by band
+- render: the indicator draws its stored shape in its stored style, unknowns falling back
+- render: every shape and style the panel offers is one the element draws, none falling back
+- render: the default indicator style is matte
 - render: the bar indicator is LibKa0s-Widgets' data bar, fuller the nearer the band
 - render: spell chips are colored by each spell's own answer, and only when it changes
 - render: test_friendly_uses_friendly_set — a friendly unit reads the friendly override
@@ -185,7 +194,7 @@ Total.
 - render: an element font naming a LibSharedMedia key draws that face at the stored size
 - render: an element's shadow turns the font string's shadow offset on and off
 - render: a LibSharedMedia border draws on a backdrop of its own, band-colored, its tiling tracked
-- render: every indicator shape ships as a white 64x64 uncompressed 32-bit TGA
+- render: every indicator shape x style ships as a white 128x128 uncompressed 32-bit TGA
 - render: a stored container draws at login, whatever the skin settings are
 - render: a container with no stored chip list draws the logged-in character's class chips
 
@@ -286,7 +295,7 @@ Total.
 - sounds: a key LibSharedMedia does not know plays nothing, and a raising client is contained
 - sounds: through the render path, a band change plays after the next steady read
 - sounds: a hidden container plays nothing
-- sounds: the out-of-range key the Advanced preset uses is built in
+- sounds: the out-of-range key the Expert preset uses is built in
 
 ### test_compat.lua (6)
 
@@ -549,7 +558,7 @@ Total.
 - the General page draws Master controls first, then Presets, and the Skin tab last
 - the General page is covered in combat on the sidebar path, and the window stays open (options-ui-§2)
 
-### test_settings_containers.lua (18)
+### test_settings_containers.lua (29)
 
 - settings: surface parity — every Containers and Band sets row answers /rm get and /rm set, through its registry's writer
 - settings: surface parity — every Containers row is drawn on its rail entry's tab
@@ -569,6 +578,17 @@ Total.
 - settings: test_element_tick — the tick turns an element on at the end of the drawn ones, the cross off at the head of the rest
 - settings: the element order list is canceled before the next render draws anything (options-ui-§18)
 - settings: test_position_rows — each attach mode reads as AuraMaster's: its anchor point, this container's, then X and Y
+- settings: Display > Frame > Border ends with Border opacity, a percent slider after the color pair
+- settings: test_display_tabs — Display carries Layout, Frame, Number, Text, Dot and Spell chips; the rail has no Indicator
+- settings: test_element_order_dot — the element order list calls the indicator Dot
+- settings: test_dot_style_row — the Style row is a dropdown in the schema, reached by /rm set, disabled for Bar and Spell icon
+- settings: test_dot_style_tiles — the Dot tab draws a tile per style in the stored shape, and a click writes the style
+- settings: test_dot_style_tiles_off — for Bar and Spell icon the tiles gray and take no click
+- settings: the style tiles are handed back before the next render clears the scroll
+- settings: test_dot_style_tiles_paint — the stored style is the picked tile, tinted as the dot draws, the dot's art for Bar and Spell icon
+- settings: test_dot_style_tiles_refresh — a Shape or color write repaints the tiles in place, a move to or from Bar redraws the tab
+- settings: test_dot_style_tiles_onrelease — a release the page does not see still takes the tiles off their slot
+- settings: test_dot_shape_row — the Shape row offers the seven shapes, Bar and Spell icon, and /rm set takes the new ones
 
 ### test_settings_bandsets.lua (6)
 
@@ -579,20 +599,21 @@ Total.
 - bandsets: deleting the selected band set selects its neighbor and moves its containers to the default
 - bandsets: the Band sets page draws General and Bands, and the editor's controls reach the writers
 
-### test_settings_presets.lua (13)
+### test_settings_presets.lua (14)
 
 - presets: test_preset_apply_confirms — Apply asks first when there is something to replace, and Undo puts it back
 - presets: an empty profile applies at once, with nothing to confirm
 - presets: test_first_run_picker_once — the picker shows once per profile, marks it seen as it shows, and waits out combat
 - presets: the picker opens unlocked in test mode, a pick previews, and Not now restores
 - presets: the picker's Apply asks over the player's containers, keeps the pick and locks
+- presets: test_picker_lists_five — the picker's dropdown offers the five presets, each pick previewed with its blurb
 - presets: test_picker_previews_on_empty_profile — a new profile's picker puts Simple on screen as it opens
 - presets: Apply over an empty profile keeps the pick at once; with no pick it keeps what is there
 - presets: taking the picker down offers no skin picker and restores; a replaced profile is not restored
 - presets: Escape is the player's close; the settings mark closes it and opens General > Presets
 - presets: combat starting restores a preview, and a pick in combat is refused
 - presets: a profile change while the picker is up shows only the new profile's preset picker
-- presets: the Presets tab draws the three cards with Apply and the Undo button
+- presets: test_presets_tab_five — the Presets tab draws the five cards with Apply and the Undo button
 - presets: test_unlock_with_nothing_says_so — /rm unlock on an empty profile points at /rm preset; with containers it shows them
 
 ### test_skinsetup.lua (12)
@@ -819,12 +840,12 @@ Total.
 |-------|------:|
 | test_loadorder.lua | 16 |
 | test_schema.lua | 36 |
-| test_database.lua | 14 |
+| test_database.lua | 18 |
 | test_bandsets.lua | 22 |
 | test_container_manager.lua | 17 |
-| test_presets.lua | 12 |
+| test_presets.lua | 13 |
 | test_number_format.lua | 5 |
-| test_container_render.lua | 35 |
+| test_container_render.lua | 39 |
 | test_anchors_screen.lua | 12 |
 | test_anchors_frame.lua | 17 |
 | test_anchors_nameplate.lua | 14 |
@@ -849,9 +870,9 @@ Total.
 | test_modes.lua | 20 |
 | test_optionssetup.lua | 16 |
 | test_realpages.lua | 7 |
-| test_settings_containers.lua | 18 |
+| test_settings_containers.lua | 29 |
 | test_settings_bandsets.lua | 6 |
-| test_settings_presets.lua | 13 |
+| test_settings_presets.lua | 14 |
 | test_skinsetup.lua | 12 |
 | test_skin_picker.lua | 16 |
 | test_skin_picker_preview.lua | 9 |
@@ -873,4 +894,4 @@ Total.
 | test_skin_switch.lua | 6 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **639** |
+| **Total** | **660** |

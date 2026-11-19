@@ -45,7 +45,8 @@ local _, NS = ...
 -- dropdown row in the schema, so `/rm set container.elements.indicator.style gem` works. Each tile
 -- is the stored shape's art in that style, tinted as the dot would draw in the first band, and a
 -- click writes through the row. Bar and Spell icon take no style: the row is disabledIf them, and
--- the tiles gray and take no click (NS.ReleaseStyleTiles hands them back before the clear).
+-- the tiles gray and take no click. Their slot's own OnRelease takes them off it, and they carry a
+-- refresher of their own, so a Shape or color write repaints them (the tile section, below).
 
 local L = NS.L
 local H = NS.Helpers
@@ -507,6 +508,14 @@ end
 -- One Button per style on an AceGUI slot under the Style heading: the art (the stored shape in that
 -- style, the dot's when the shape is Bar or Spell icon), its name below, the stored one edged in the
 -- accent. A click is one write through the style row, then a redraw. Pooled as the order rows are.
+--
+-- THE TILES ARE HAND-BUILT, so they bring their own refresher (options-ui-§11): any write the page
+-- makes (the Shape dropdown, the Dot color swatch, Color from) re-reads the container and repaints
+-- the six tiles in place. Only a change between a styled shape and Bar or Spell icon changes the
+-- tab's layout (the note above the tiles comes or goes), and that one asks for a structural redraw.
+-- THE SLOT'S OWN "OnRelease" PARKS THEM (options-ui-§19): the slot is a SimpleGroup this file
+-- creates, so whatever releases it (this page's clear, another page's, a parent's ReleaseChildren)
+-- takes the tiles off it first; NS.ReleaseStyleTiles before the clear is belt-and-braces.
 
 local TILE_W, TILE_H, TILE_GAP, TILE_ART = 64, 66, 8, 40
 -- The tile's four 1px edges: the two corners each spans, and whether it is a row (height) or a column.
@@ -517,17 +526,24 @@ local EDGES = {
 
 local tilePool = {}
 
+--- Take `tile` off its slot, onto the attic, and back into the free list. Once per acquisition: the
+--- renderer's park and the slot's OnRelease may both reach it.
+local function parkTile(tile)
+    if tile.rmParked then return end
+    tile.rmParked = true
+    tile.rmStyle, tile.rmOff, tile.rmPicked, tile.rmArtPath, tile.rmSlot = nil, nil, nil, nil, nil
+    tile:Hide()
+    tile:ClearAllPoints()
+    tile:SetParent(attic())
+    tilePool[#tilePool + 1] = tile
+end
+
 --- Give the last render's tiles back. Called before the Containers page clears its scroll.
 function NS.ReleaseStyleTiles(ctx)
     if not ctx then return end
     for i = #(ctx.rmStyleTiles or {}), 1, -1 do
-        local tile = ctx.rmStyleTiles[i]
+        parkTile(ctx.rmStyleTiles[i])
         ctx.rmStyleTiles[i] = nil
-        tile.rmStyle, tile.rmOff, tile.rmArtPath = nil, nil, nil
-        tile:Hide()
-        tile:ClearAllPoints()
-        tile:SetParent(attic())
-        tilePool[#tilePool + 1] = tile
     end
 end
 
@@ -555,6 +571,7 @@ end
 --- A tile, from the free list or newly built, on `parent`.
 local function acquireTile(parent)
     local tile = table.remove(tilePool)
+    if tile then tile.rmParked = nil end
     if not tile then
         tile = CreateFrame("Button", nil, parent)
         tile:SetSize(TILE_W, TILE_H)
@@ -590,7 +607,7 @@ end
 --- Paint `tile` as style `key` of shape `shape`: picked (edged in the accent) or not, grayed or not.
 local function paintTile(tile, key, shape, picked, off, r, g, b)
     -- The art's path and the gray state are kept on the tile too: what a test (and /dump) reads back.
-    tile.rmStyle, tile.rmOff = key, off
+    tile.rmStyle, tile.rmOff, tile.rmPicked = key, off, picked
     tile.rmArtPath = NS.Constants.INDICATOR_PATH .. shape .. "_" .. key
     tile.rmArt:SetTexture(tile.rmArtPath)
     tile.rmArt:SetVertexColor(r, g, b)
@@ -607,13 +624,39 @@ local function paintTile(tile, key, shape, picked, off, r, g, b)
     tile:EnableMouse(not off)
 end
 
+--- Paint every tile of `ctx`'s last render from the selected container as it is stored now.
+local function paintTiles(ctx, c)
+    local el, off = c.elements.indicator, noStyle()
+    local shape = (SHAPES[el.shape] and not UNSTYLED[el.shape]) and el.shape or "dot"
+    local stored = STYLES[el.style] and el.style or "matte"
+    local r, g, b = tileTint(c)
+    for i, tile in ipairs(ctx.rmStyleTiles) do
+        local key = STYLES_SORT[i]
+        paintTile(tile, key, shape, key == stored, off, r, g, b)
+    end
+end
+
+--- The tiles' refresher: a repaint in place, or a structural redraw when the shape moved between a
+--- styled one and Bar or Spell icon (the note above the tiles comes or goes).
+local function tilesRefresher(ctx)
+    return function()
+        local c = NS.SelectedContainer()
+        if not (c and ctx.rmStyleTiles and #ctx.rmStyleTiles > 0) then return end
+        if noStyle() ~= ctx.rmStyleOff then
+            NS.RequestPanelRefresh()
+            return
+        end
+        paintTiles(ctx, c)
+    end
+end
+
 --- The Dot tab's Style subgroup: a tile per style, after the heading the flow drew for the row.
 local function renderStyleTiles(ctx, group)
     if group ~= DOT then return end
     local c = NS.SelectedContainer()
     local scroll = H.EnsureScroll(ctx)
     if not (c and scroll and NS.AceGUI) then return end
-    local el, off = c.elements.indicator, noStyle()
+    local off = noStyle()
     if off then
         H.TextRow(ctx, L["Bar and Spell icon take no style. Pick a shape to choose its finish."],
             { fontObject = "GameFontDisableSmall" })
@@ -624,16 +667,25 @@ local function renderStyleTiles(ctx, group)
     slot:SetHeight(TILE_H + 8)
     scroll:AddChild(slot)
     local parent = slot.frame or slot.content
-    local shape = (SHAPES[el.shape] and not UNSTYLED[el.shape]) and el.shape or "dot"
-    local stored = STYLES[el.style] and el.style or "matte"
-    local r, g, b = tileTint(c)
-    ctx.rmStyleTiles = ctx.rmStyleTiles or {}
-    for i, key in ipairs(STYLES_SORT) do
+    local mine = {}
+    -- The one OnRelease this slot gets: it parks the tiles still on it (options-ui-§19), and the
+    -- page forgets them, so its refresher paints nothing that is no longer on screen.
+    slot:SetCallback("OnRelease", function()
+        for _, tile in ipairs(mine) do
+            if tile.rmSlot == slot then parkTile(tile) end
+        end
+        if ctx.rmStyleTiles and ctx.rmStyleTiles[1] == mine[1] then ctx.rmStyleTiles = {} end
+    end)
+    ctx.rmStyleTiles, ctx.rmStyleOff = ctx.rmStyleTiles or {}, off
+    for i = 1, #STYLES_SORT do
         local tile = acquireTile(parent)
+        tile.rmSlot = slot
         tile:SetPoint("TOPLEFT", parent, "TOPLEFT", (i - 1) * (TILE_W + TILE_GAP), -4)
-        paintTile(tile, key, shape, key == stored, off, r, g, b)
+        mine[#mine + 1] = tile
         ctx.rmStyleTiles[#ctx.rmStyleTiles + 1] = tile
     end
+    paintTiles(ctx, c)
+    if ctx.refreshers then ctx.refreshers[#ctx.refreshers + 1] = tilesRefresher(ctx) end
 end
 
 NS.RegisterContainerSection(PAGE, L["Display"], {

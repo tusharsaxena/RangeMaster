@@ -74,6 +74,21 @@ end
 
 local function band(setId, i) return B.Get(setId).bands[i] end
 
+--- The Display entry's Shape and Style rows' choices that are art: the shapes but Bar and Spell
+--- icon, and every style. The art, the element and the panel must agree on these lists.
+local function artChoices()
+  local shapes, styles
+  for _, row in ipairs(NS.SchemaForPage("containers_display")) do
+    if row.path == "container.elements.indicator.shape" then shapes = row.sorting end
+    if row.path == "container.elements.indicator.style" then styles = row.sorting end
+  end
+  local art = {}
+  for _, s in ipairs(shapes or {}) do
+    if s ~= "bar" and s ~= "icon" then art[#art + 1] = s end
+  end
+  return art, styles or {}
+end
+
 -- ---------------------------------------------------------------------------
 -- The pool
 -- ---------------------------------------------------------------------------
@@ -420,6 +435,25 @@ test("render: the indicator draws its stored shape in its stored style, unknowns
   end)
 end)
 
+test("render: every shape and style the panel offers is one the element draws, none falling back", function()
+  -- red under: a shape or style the Display rows list that modules/Elements_Indicator.lua's SHAPES
+  -- or STYLES lacks (the element then draws the dot, or matte, instead of what was picked).
+  local shapes, styles = artChoices()
+  withRenderer(function()
+    local id, _, inst = newContainer({ elements = { indicator = { enabled = true } } })
+    local tex = inst.elements.indicator.tex
+    for _, shape in ipairs(shapes) do
+      for _, style in ipairs(styles) do
+        local cfg = CM.Get(id).elements.indicator
+        cfg.shape, cfg.style = shape, style
+        CM.RequestApply()
+        CM.FlushPending()
+        assertEqual(M.__paint(tex).texture, C.INDICATOR_PATH .. shape .. "_" .. style, shape .. " " .. style)
+      end
+    end
+  end)
+end)
+
 test("render: the default indicator style is matte", function()
   -- red under: defaults/Profile.lua without elements.indicator.style.
   assertEqual(NS.CONTAINER_TEMPLATE.elements.indicator.style, "matte")
@@ -718,25 +752,49 @@ test("render: a LibSharedMedia border draws on a backdrop of its own, band-color
   end)
 end)
 
+--- `path`'s pixels as TGA BGRA quads: assert a transparent corner, some drawn pixel, and gray
+--- (R == G == B) wherever a pixel is drawn, so SetVertexColor tints it true and no square shows.
+local function assertWhiteArt(path, data)
+  local drawn, colored = 0, nil
+  for i = 1, #data, 4 do
+    local bl, gr, rd, al = data:byte(i, i + 3)
+    if al > 0 then
+      drawn = drawn + 1
+      if not colored and not (rd == gr and gr == bl) then colored = (i - 1) / 4 end
+    end
+  end
+  assertEqual(data:byte(4), 0, path .. ": the corner pixel is transparent (no background square)")
+  assertTrue(drawn > 0, path .. ": draws something")
+  assertNil(colored, path .. ": gray wherever it draws (pixel " .. tostring(colored) .. " is colored)")
+end
+
 test("render: every indicator shape x style ships as a white 128x128 uncompressed 32-bit TGA", function()
   -- An RLE or 24-bit TGA draws nothing and raises nothing in the client (anti-pattern #82), so the
-  -- header is the check: image type 2 (uncompressed true-color), 128 x 128, 32 bits, 8 alpha bits.
-  -- tools/indicator_art.py draws them; red under the old single-file art (<shape>.tga, 64x64).
-  for _, shape in ipairs({ "dot", "ring", "square", "diamond", "triangle", "hexagon", "star" }) do
-    for _, style in ipairs({ "plain", "matte", "glossy", "glowing", "neon", "gem" }) do
+  -- header is the check: image type 2 (uncompressed true-color), 128 x 128, 32 bits, 8 alpha bits;
+  -- then the pixels: white or gray art on a transparent ground, tinted by SetVertexColor.
+  -- tools/indicator_art.py draws them; red under the old single-file art (<shape>.tga, 64x64), and
+  -- under art with a colored RGB, an opaque ground or nothing drawn.
+  local shapes, styles = artChoices()
+  assertEqual(table.concat(shapes, ","), "dot,ring,square,diamond,triangle,hexagon,star",
+    "the panel's shapes that are art")
+  assertEqual(#styles, 6, "the panel's six styles")
+  for _, shape in ipairs(shapes) do
+    for _, style in ipairs(styles) do
       local path = "media/textures/indicators/" .. shape .. "_" .. style .. ".tga"
       local fh = io.open(path, "rb")
       assertTrue(fh ~= nil, path .. " is missing")
       local h = fh:read(18)
-      local size = fh:seek("end")
+      local data = fh:read("*a")
       fh:close()
       local w = h:byte(13) + h:byte(14) * 256
       local ht = h:byte(15) + h:byte(16) * 256
+      assertEqual(h:byte(1), 0, path .. ": no image id before the pixels")
       assertEqual(h:byte(3), 2, path .. ": uncompressed true-color")
       assertEqual(w .. "x" .. ht, "128x128", path)
       assertEqual(h:byte(17), 32, path .. ": 32 bits per pixel")
       assertEqual(h:byte(18) % 16, 8, path .. ": 8 alpha bits")
-      assertEqual(size, 18 + 128 * 128 * 4, path .. ": the whole image, nothing after it")
+      assertEqual(18 + #data, 18 + 128 * 128 * 4, path .. ": the whole image, nothing after it")
+      assertWhiteArt(path, data)
     end
   end
   -- The old single files are gone, so nothing can still be drawing them.

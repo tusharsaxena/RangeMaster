@@ -222,10 +222,47 @@ test("presets: Describe answers each preset's name, container count and bullet i
     local d = Presets.Describe(key)
     assertEqual(d.name, names[key], key)
     assertEqual(d.count, count, key)
-    assertTrue(#d.items >= 3, key .. " has items")
+  end
+  -- The cards' lines are the only place the player reads what each preset holds; red under a card
+  -- copied from another (Simple still listing the range number, Expert missing a line).
+  local L = NS.L
+  local onScreen, oneSet = L["Target, Focus, Pet, Mouseover: free on screen"], L["One band set (class default)"]
+  local noSounds = L["No sounds, always visible when the unit exists"]
+  local want = {
+    simple = { onScreen, L["A dot colored by band"], oneSet, noSounds },
+    text = { onScreen, L["The band's label as text"], oneSet, noSounds },
+    numbers = { onScreen, L["The range number"], oneSet, noSounds },
+    advanced = { onScreen, L["Dot + range number + text label"], oneSet, noSounds },
+    expert = {
+      L["Everything in Advanced, with spell-range chips (class spells)"],
+      L["Healer band set for friendly target, focus and mouseover"],
+      L["Target on its own nameplate + dot on all hostile plates"],
+      L["Band-change sound on target (out-of-range warning)"],
+      L["Visibility rules: nameplates in combat only, hostile only"],
+    },
+  }
+  for key, items in pairs(want) do
+    assertEqual(table.concat(Presets.Describe(key).items, " | "), table.concat(items, " | "), key .. "'s card")
   end
   assertNil(Presets.Describe("intermediate"), "the old keys are gone")
   assertNil(Presets.Describe("bogus"))
+end)
+
+test("presets: test_preview_swap_restores — a later pick in the picker drops what Expert's preview added to the band sets", function()
+  -- red under: BeginPreview building each pick over the last one (the Healer set and the OOR sound
+  -- Expert's preview added outlived it into the preset kept).
+  withFreshProfile(function()
+    B.Delete(setNamed("Healer"))
+    local setsBefore = #B.List()
+    assertTrue(Presets.BeginPreview("expert"))
+    assertTrue(setNamed("Healer") ~= nil, "Expert's preview made the Healer set")
+    assertTrue(Presets.BeginPreview("simple"))
+    assertTrue(Presets.EndPreview(true))
+    assertEqual(#containers(), 4, "Simple kept")
+    assertEqual(#B.List(), setsBefore, "no Healer set the player never chose")
+    local bands = B.Get(B.DefaultId()).bands
+    assertNil(bands[#bands].sound, "no out-of-range sound the player never chose")
+  end)
 end)
 
 test("presets: an apply announces CONTAINERS_CHANGED once, on the next frame", function()

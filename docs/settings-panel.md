@@ -10,7 +10,7 @@ by the sidebar is covered by the library's lock (options-ui-§2).
 |---|---|
 | Ka0s Range Master (landing) | The logo, the TOC Notes line and the slash command list (`settings/About.lua`) |
 | General | Master controls, the presets and the skin (`settings/General.lua`, `settings/Presets.lua`) |
-| Containers | One range container at a time: a banner picker with New container, and a nav rail of five entries (`settings/Containers*.lua`) |
+| Containers | One range container at a time: a banner picker with New container, and a nav rail of four entries: General, Display, Visibility, Sounds (`settings/Containers*.lua`) |
 | Band sets | One band set at a time: a banner picker with New band set, its General tab and the Bands editor (`settings/BandSets.lua`) |
 | Profiles | AceDB profiles: switch, copy, delete, reset (`settings/Profiles.lua`) |
 
@@ -44,7 +44,7 @@ The header **Defaults** button restores every General row on this profile except
 ### Presets
 
 A host tab (options-ui-§13) between Master controls and Skin: one card per preset (Simple,
-Intermediate, Advanced), each its `NS.Presets.Describe` lines and an **Apply <name>…** button, then
+Intermediate (Range Text), Intermediate (Range Numbers), Advanced, Expert), each its `NS.Presets.Describe` lines and an **Apply <name>…** button, then
 **Undo last preset**. Apply goes through `NS.ConfirmPreset`: a profile with containers is asked first
 (the popup names the preset and the count it replaces); an empty one applies at once. `/rm preset`
 takes the same route.
@@ -54,7 +54,7 @@ takes the same route.
 A standalone window (`settings/Presets.lua`, shaped as AuraMaster's `settings/PresetPicker.lua`),
 shown once per profile while `seeded` is false (marked seen as it shows, held through combat) and on
 demand from a bare `/rm preset`. Title **Choose a preset** with the settings and close marks, the
-owner line, a LibKa0s dropdown of the three presets (`Simple - 4 containers`, ...), a one-line
+owner line, a LibKa0s dropdown of the five presets (`Simple - 4 containers`, ..., `Expert - 6 containers`), a one-line
 blurb, *The skin picker opens next.* while that one is due, two toggles (**Containers:
 locked/unlocked**, **Test mode: on/off**), **Apply** and **Not now**, and the footer *Change it later
 on General > Presets.* Opening records the lock, unlocks and turns test mode on. A pick previews the
@@ -99,7 +99,7 @@ Name, Match band by, and the Unknown range subsection (Unknown label, Unknown co
 with no class companion), then the containers using the set and **Duplicate band set** / **Delete
 band set…** (confirmed; its containers move to the default set; the last set is never deleted).
 **Bands** (a host editor): the distance ribbon, then per band Up to (yards), Label, Frame / Text /
-Indicator color and Sound on enter, Remove band, and **Add band** at the foot. The bands are ordered
+Dot color and Sound on enter, Remove band, and **Add band** at the foot. The bands are ordered
 by their edges (`modules/BandSets.lua` normalizes every write), so a band moves by moving its edge and
 there is no reorder control (options-ui-§18 binds a list whose order is the setting; this one's is
 derived). The band colors are palette swatches (options-ui-§17's one exemption): each identifies a

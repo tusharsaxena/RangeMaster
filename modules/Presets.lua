@@ -198,11 +198,14 @@ end
 -- which replace the profile whole, drop it (DropPreview). Combat start restores it too.
 
 --- Preview preset `key`: the player's set snapshotted at the first pick, then the preset built.
+--- A later pick first puts the player's set back, so what an earlier pick added to the band sets
+--- (Expert's Healer set and out-of-range sound) does not outlive it into the preset kept.
 --- Answers false for an unknown key or no profile (nothing changed).
 function Presets.BeginPreview(key)
     if not BUILD[key] or not NS.CM.Get then return false end
     local origin = preview and preview.origin or NS.CM.Snapshot()
     if not origin then return false end
+    if preview then NS.CM.RestoreSnapshot(origin) end
     build(key)
     preview = { key = key, origin = origin }
     NS.Debug("Presets", "previewing %s: %d container(s)", key, #NS.CM.List())

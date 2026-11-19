@@ -603,6 +603,139 @@ test("settings: the style tiles are handed back before the next render clears th
     if not ok then error(err, 0) end
     assertTrue(released, "the old tiles are released before the clear")
     assertEqual(#ctx.rmStyleTiles, 6, "and the new render drew six")
-    assertTrue(first ~= nil)
+    -- red under: a release that empties the list but never hands the tiles to the free list (every
+    -- render would then build six new Buttons and leak the old ones).
+    local reused = false
+    for _, tile in ipairs(ctx.rmStyleTiles) do
+      if tile == first then reused = true end
+    end
+    assertTrue(reused, "the next render reuses a released tile")
+  end)
+end)
+
+--- Run `ctx`'s refreshers, as a write from any of its widgets does (O.RefreshScalars).
+local function refresh(ctx)
+  for _, fn in ipairs(ctx.refreshers or {}) do pcall(fn) end
+end
+
+--- Each tile's art tint as "r,g,b", in tile order: what a repaint by the tiles' refresher hands
+--- SetVertexColor (the kit's default texture stub keeps no vertex color, so it is recorded here).
+local function tints(ctx)
+  local out = {}
+  for i, tile in ipairs(ctx.rmStyleTiles) do
+    rawset(tile.rmArt, "SetVertexColor", function(_, r, g, b) out[i] = table.concat({ r, g, b }, ",") end)
+  end
+  refresh(ctx)
+  for _, tile in ipairs(ctx.rmStyleTiles) do rawset(tile.rmArt, "SetVertexColor", nil) end
+  return out
+end
+
+test("settings: test_dot_style_tiles_paint — the stored style is the picked tile, tinted as the dot draws, the dot's art for Bar and Spell icon", function()
+  -- red under: every tile (or none) edged as picked, a picked fallback other than matte, a tint from
+  -- the wrong band or one that ignores the fixed swatch, and Bar or Spell icon tiles drawing no art.
+  E.with(function()
+    local id = CM.Create("target")
+    NS.SelectContainer(id)
+    local function picked(ctx)
+      local out = {}
+      for _, tile in ipairs(ctx.rmStyleTiles) do
+        if tile.rmPicked then out[#out + 1] = tile.rmStyle end
+      end
+      return table.concat(out, ",")
+    end
+    CM.SetField(id, "elements.indicator.style", "glossy")
+    local ctx = dotTab()
+    assertEqual(picked(ctx), "glossy", "the stored style alone is picked")
+    local c = CM.Get(id)
+    c.elements.indicator.style = nil
+    ctx = dotTab()
+    assertEqual(picked(ctx), "matte", "no stored style picks matte")
+    local band1 = NS.BandSets.Get(c.bandSet or NS.BandSets.DefaultId()).bands[1].indicatorColor
+    assertEqual(tints(ctx)[2], table.concat({ band1.r, band1.g, band1.b }, ","),
+      "band mode: the first band's dot color")
+    CM.SetField(id, "elements.indicator.colorMode", "fixed")
+    CM.SetField(id, "elements.indicator.color", { r = 0.25, g = 0.5, b = 0.75, a = 1 })
+    ctx = dotTab()
+    assertEqual(tints(ctx)[4], "0.25,0.5,0.75", "fixed mode: the swatch")
+    for _, shape in ipairs({ "bar", "icon" }) do
+      CM.SetField(id, "elements.indicator.shape", shape)
+      ctx = dotTab()
+      for _, tile in ipairs(ctx.rmStyleTiles) do
+        assertTrue(tostring(tile.rmArtPath):find("indicators\\dot_" .. tile.rmStyle, 1, true) ~= nil,
+          shape .. ": the " .. tile.rmStyle .. " tile draws the dot's art")
+      end
+    end
+  end)
+end)
+
+test("settings: test_dot_style_tiles_refresh — a Shape or color write repaints the tiles in place, a move to or from Bar redraws the tab", function()
+  -- red under: tiles with no refresher of their own (options-ui-§11): they keep the old shape's art
+  -- and the old tint, and stay lit for Bar, until something else re-renders the page.
+  E.with(function()
+    local id = CM.Create("target")
+    NS.SelectContainer(id)
+    local ctx = dotTab()
+    local tiles = ctx.rmStyleTiles
+    local savedRefresh, asked = NS.RequestPanelRefresh, 0
+    NS.RequestPanelRefresh = function() asked = asked + 1 end
+    local ok, err = pcall(function()
+      NS.SetByPath("container.elements.indicator.shape", "star")
+      refresh(ctx)
+      assertTrue(tostring(tiles[1].rmArtPath):find("indicators\\star_plain", 1, true) ~= nil,
+        "the tiles draw the new shape: " .. tostring(tiles[1].rmArtPath))
+      assertEqual(asked, 0, "a shape that takes a style repaints in place, no redraw")
+      NS.SetByPath("container.elements.indicator.colorMode", "fixed")
+      NS.SetByPath("container.elements.indicator.color", { r = 0.5, g = 0.25, b = 1, a = 1 })
+      assertEqual(tints(ctx)[3], "0.5,0.25,1", "the new tint")
+      NS.SetByPath("container.elements.indicator.shape", "bar")
+      refresh(ctx)
+      assertTrue(asked > 0, "Bar asks for a redraw (the note comes, the tiles gray)")
+    end)
+    NS.RequestPanelRefresh = savedRefresh
+    if not ok then error(err, 0) end
+    ctx = dotTab()
+    assertTrue(ctx.rmStyleTiles[1].rmOff, "and the redraw grays them")
+  end)
+end)
+
+test("settings: test_dot_style_tiles_onrelease — a release the page does not see still takes the tiles off their slot", function()
+  -- red under: no OnRelease on the tiles' slot (options-ui-§19): a clear the Containers renderer
+  -- does not run pools the SimpleGroup with the six Buttons still on it.
+  E.with(function()
+    NS.SelectContainer(CM.Create("target"))
+    local ctx = dotTab()
+    local tiles = {}
+    for i, tile in ipairs(ctx.rmStyleTiles) do tiles[i] = tile end
+    local slot = tiles[1].rmSlot
+    assertTrue(slot ~= nil, "the tile knows its slot")
+    -- What a parent's ReleaseChildren (or another page's clear) does to the slot in the client.
+    NS.AceGUI:Release(slot)
+    for _, tile in ipairs(tiles) do
+      assertTrue(tile.rmParked, "every tile is parked")
+      assertFalse(tile:IsShown(), "and hidden")
+    end
+    assertEqual(#ctx.rmStyleTiles, 0, "the page forgets them")
+    ctx = dotTab()
+    assertEqual(#ctx.rmStyleTiles, 6, "the next render draws six again")
+  end)
+end)
+
+test("settings: test_dot_shape_row — the Shape row offers the seven shapes, Bar and Spell icon, and /rm set takes the new ones", function()
+  -- red under: SHAPES or SHAPES_SORT without hexagon or star (the panel could not pick them and
+  -- /rm set would refuse them).
+  E.with(function()
+    local id = CM.Create("target")
+    NS.SelectContainer(id)
+    local row = displayRows()["container.elements.indicator.shape"]
+    assertEqual(table.concat(row.sorting, ","), "dot,ring,square,diamond,triangle,hexagon,star,bar,icon")
+    for _, key in ipairs(row.sorting) do
+      assertTrue(row.values[key] ~= nil, key .. " has a label")
+    end
+    for _, shape in ipairs({ "hexagon", "star" }) do
+      slash("set container.elements.indicator.shape " .. shape)
+      assertEqual(CM.Get(id).elements.indicator.shape, shape, "/rm set takes " .. shape)
+    end
+    slash("set container.elements.indicator.shape blob")
+    assertEqual(CM.Get(id).elements.indicator.shape, "star", "a shape that is none is refused")
   end)
 end)

@@ -7,7 +7,7 @@ local _, NS = ...
 --              Used by: Target, Pet            [Duplicate band set] [Delete band set…]
 --     Bands    0–5 MELEE   5–20 CLOSE   20–30 MID   30–40 LONG   40+ OOR   ?     <- the distance ribbon
 --              -- Band 1: 0–5 MELEE --  [Up to (yards)] [Label] / [Frame color] [Text color] /
---                                       [Indicator color] [Sound on enter] / [Remove band]
+--                                       [Dot color] [Sound on enter] / [Remove band]
 --              ...                      [Add band]
 --
 -- The General tab's rows are selection-relative, `bandSet.<field>` (settings/Schema.lua), so `/rm
@@ -201,7 +201,7 @@ local function bandItems(id, set, i)
           set = function(v) NS.BandSets.SetBand(id, i, "label", v) end },
         colorItem(id, i, "frameColor", L["Frame color"], L["The border and background color in this band, while Color from is Band color."]),
         colorItem(id, i, "textColor", L["Text color"], L["The number and label color in this band, while Color from is Band color."]),
-        colorItem(id, i, "indicatorColor", L["Indicator color"], L["The indicator and spell chip color in this band, while Color from is Band color."]),
+        colorItem(id, i, "indicatorColor", L["Dot color"], L["The dot and spell chip color in this band, while Color from is Band color."]),
         { type = "string", dialogControl = "Ka0sMedia_Sound", values = SOUNDS, label = L["Sound on enter"],
           tooltip = L["Played when the unit enters this band, on containers with Play band sounds on."],
           get = function() return NS.BandSets.Get(id).bands[i].sound or "" end,

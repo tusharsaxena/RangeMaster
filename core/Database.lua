@@ -210,16 +210,28 @@ local function eachProfile(db, fn)
     visit(db.profile)
 end
 
---- v0 -> v1, the frame defaults: a new container's border is drawn at 25% and its dot is matte. A
---- container already stored keeps its look: full border opacity and the plain dot, where unset.
+--- `t[key]` as a table: made where it is missing or not a table (the load pass then fills the rest).
+local function subtable(t, key)
+    if type(t[key]) ~= "table" then t[key] = {} end
+    return t[key]
+end
+
+--- v0 -> v1, the frame defaults: a new container's border is drawn at 25%, its background is on and
+--- its dot is matte. A container already stored keeps its v0 look where unset: full border opacity,
+--- no background and the plain dot. A section a hand-edited container lacks is made here, so the
+--- load pass after the ladder cannot fill it from the new template instead.
 local function keepStoredLook(db)
     eachProfile(db, function(p)
         if type(p.containers) ~= "table" then return end
         for _, c in pairs(p.containers) do
-            local border = type(c) == "table" and type(c.frame) == "table" and c.frame.border
-            if type(border) == "table" and border.alpha == nil then border.alpha = 1 end
-            local ind = type(c) == "table" and type(c.elements) == "table" and c.elements.indicator
-            if type(ind) == "table" and ind.style == nil then ind.style = "plain" end
+            if type(c) == "table" then
+                local frame = subtable(c, "frame")
+                local border, background = subtable(frame, "border"), subtable(frame, "background")
+                if border.alpha == nil then border.alpha = 1 end
+                if background.enabled == nil then background.enabled = false end
+                local ind = subtable(subtable(c, "elements"), "indicator")
+                if ind.style == nil then ind.style = "plain" end
+            end
         end
     end)
 end

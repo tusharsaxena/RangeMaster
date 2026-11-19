@@ -117,7 +117,7 @@ test("bandsets: the Band sets page draws General and Bands, and the editor's con
     ctx.activeTab = "Bands"
     NS.__renderBandSetsPage(ctx)
     labels = E.labels(ctx)
-    for _, label in ipairs({ "Up to (yards)", "Label", "Frame color", "Text color", "Indicator color",
+    for _, label in ipairs({ "Up to (yards)", "Label", "Frame color", "Text color", "Dot color",
         "Sound on enter", "Add band" }) do
       assertTrue(labels[label], "Bands shows " .. label)
     end

@@ -180,19 +180,22 @@ addon arms no timer, and the stand-up asks for one apply. A profile switch, copy
 three AceDB callbacks, `adoptProfile` in `core/RangeMaster.lua`) replaces the registry whole, so it
 asks for one apply too.
 
-`NS.Presets.Apply(key)` (`simple`, `intermediate`, `advanced`) snapshots, clears and creates through
+`NS.Presets.Apply(key)` (`simple`, `text`, `numbers`, `advanced`, `expert`) snapshots, clears and creates through
 `NS.CM`, and answers the snapshot; `Undo` restores it (one level). The Undo slot belongs to the
-profile it was taken on: `adoptProfile` calls `ForgetUndo` on a switch, copy or reset. Simple: target, focus, pet and
-mouseover free on screen, number and band-colored border. Intermediate: target, focus and pet on their
-Blizzard unit frames, mouseover on the cursor, number + text + dot, hidden with no unit, the Healer set
-as the friendly override on target, focus and mouseover (reused by name, else created). Advanced:
-Intermediate with spell chips on focus and sounds on target (its set's out-of-range band gets
-`NS.Presets.OOR_SOUND` through `NS.BandSets.SetBandSound` when it has no sound), plus target on its own nameplate (diamond + number) and
-every hostile nameplate (dot + the `max` number), both in combat only. `Describe(key)` feeds the
+profile it was taken on: `adoptProfile` calls `ForgetUndo` on a switch, copy or reset. Every preset puts target, focus, pet and
+mouseover free on screen at their homes (`Presets.HOME`), on the template's frame (background on, the
+band-colored border at 25%) and matte dot; only the elements differ. Simple: the dot. Intermediate
+(Range Text, `text`): the band's text label. Intermediate (Range Numbers, `numbers`): the range
+number. Advanced: dot + number + text. Expert: Advanced with spell chips, the Healer set as the
+friendly override on target, focus and mouseover (reused by name, else created), sounds on target
+(its set's out-of-range band gets `NS.Presets.OOR_SOUND` through `NS.BandSets.SetBandSound` when it
+has no sound), plus target on its own nameplate (diamond + number) and every hostile nameplate (dot +
+the `max` number), both in combat only. `Describe(key)` feeds the
 preset cards on General › Presets. `PickerDue` / `MarkPickerSeen` are the one runtime reader and
 writer of `profile.seeded`, the first-run preset picker's sentinel (`settings/Presets.lua` shows the
 picker and marks it seen as it shows). The picker's picks preview through `BeginPreview` /
-`EndPreview(keep)`: one snapshot of the player's set at the first pick, restored on Not now, combat,
+`EndPreview(keep)`: one snapshot of the player's set at the first pick (a later pick restores it
+before it builds, so what one preview added to the band sets never outlives it), restored on Not now, combat,
 the take-down and AceDB's shutdowns, or made the Undo slot when Apply keeps it. Its own take-down
 (`NS.HidePresetPicker`: the stand-down, every profile event, the shutdowns) closes it quietly and
 offers no skin picker; the player's close does, and a profile event asks for both prompts afresh, the skin picker still behind.
@@ -311,7 +314,7 @@ keyboard only (frame-layering-§4 retired the full-screen click catcher). It is 
   had settled is quiet. `NS.Sounds.Reset` (a unit change, a faction change, a preview starting or
   ending) forgets the bands but keeps the last sound's time, so the 1 s gap is the container's and
   survives a retarget. A `nameplates` container never sounds: its per-plate instances keep no state,
-  and its Test or Sim mode stand-in is turned down by `NS.Sounds.Wants`. The Advanced preset's out-of-range key is built in (`NS.Sounds.BUILTIN`: the raid warning
+  and its Test or Sim mode stand-in is turned down by `NS.Sounds.Wants`. The Expert preset's out-of-range key is built in (`NS.Sounds.BUILTIN`: the raid warning
   chime, file id 567397) and registered with LibSharedMedia at load.
 - **Test mode** (`modules/Preview.lua`): `NS.Preview.Refresh` is the one caller of
   `NS.Range.SetSource` (a fake range every read answers, for any token) and

@@ -31,7 +31,7 @@ change. A secret or failed answer reads as *unknown*, never as out of range.
 |---|---|---|
 | Range engine | `modules/Range.lua` (`NS.Range`), `modules/Ticker.lua` (`NS.Ticker`), `core/Compat.lua` | A guarded, memoized bracket per unit token per tick; one adaptive ticker that sends `RANGE_UPDATED` on change |
 | Band sets | `modules/BandSets.lua` (`NS.BandSets`), `defaults/BandSetPresets.lua` | Named, shared, normalized yard bands; `Resolve` turns a bracket into a band, `ForUnit` picks the friendly override |
-| Containers and presets | `modules/ContainerManager.lua` (`NS.CM`), `modules/Presets.lua` (`NS.Presets`) | The container registry's one writer and its coalesced, combat-held apply; Simple, Intermediate and Advanced with a one-level Undo |
+| Containers and presets | `modules/ContainerManager.lua` (`NS.CM`), `modules/Presets.lua` (`NS.Presets`) | The container registry's one writer and its coalesced, combat-held apply; Simple, Intermediate (Range Text), Intermediate (Range Numbers), Advanced and Expert, with a one-level Undo |
 | Rendering | `modules/Container.lua` (`NS.Container`), `modules/Style.lua`, `modules/Elements_*.lua` | One pooled instance per enabled container (one per plate for `nameplates`), repainted only on a band or text change |
 | Anchors | `modules/Anchors.lua` (`NS.Anchors`), `modules/Anchors_*.lua`, `modules/FrameProviders.lua`, `modules/FramePicker.lua` | Free on screen, on a unit frame, on a nameplate (own plate or every plate), at the cursor |
 | Behavior and modes | `modules/Visibility.lua`, `modules/Sounds.lua`, `modules/Preview.lua`, `modules/Sim.lua` | The visibility rules, the debounced band sounds, Test mode's placeholder and Sim mode's distance sweep |
@@ -55,7 +55,7 @@ the AceDB defaults, the templates and the data tables; `modules/` the band sets,
 and its ticker, the container registry and presets, the renderer with its style and element files,
 and the diagnostics sections; `settings/` the schema runtime, the slash
 descriptor, the options descriptor and the pages (General with its Presets tab, Containers with
-its rail entries General, Display, Indicator, Visibility and Sounds, Band sets, Profiles).
+its rail entries General, Display, Visibility and Sounds, Band sets, Profiles).
 
 ### Per-client features
 
