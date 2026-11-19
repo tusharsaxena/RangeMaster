@@ -23,8 +23,8 @@ unless a check names one. The anchors are run as a matrix, one result per mode a
 | LOC-1 | Non-English client | a deDE or frFR client |
 | RANGE-1..5 | Range engine | brackets, unknown, the Forever ladder, the ticker's rate and stop, the seed spells |
 | DRAW-1..5 | Containers drawn | brackets drawn, unknown gray, elements and order, the skin face, disable |
-| CONT-1..9 | Containers page | New container, the rail, Position, Duplicate / Delete / Copy settings from, Defaults, Color from, the Dot tab and its Style tiles, Border opacity, the Label tab's caption |
-| BANDS-1..5 | Band sets page | the picker, the Bands editor, shared sets, the friendly override, the unknown label |
+| CONT-1..10 | Containers page | New container (no band preview), the rail, Position, Duplicate / Delete / Copy settings from, Defaults, Color from, the Dot tab and its Style tiles, Border opacity, the caption's positions, the caption's styling |
+| BANDS-1..5 | Band sets page | the picker, the Bands editor (no band ribbon), shared sets, the friendly override, the unknown label |
 | PRESET-1..4 | Presets | the first-run picker, Apply on an empty profile, Apply over containers with Undo, what each of the five shows |
 | ANCHOR-1..8 | Anchors | every mode on both clients: screen, unit frames (Blizzard, EllesmereUI, custom, missing), own nameplate, all nameplates, cursor, the picker |
 | VIS-1..3 | Visibility | combat and reaction rules, out-of-combat opacity, the master rows |
@@ -50,7 +50,8 @@ starts with a cyan `[RM]`. Most checks need a container: apply a preset (General
 - **INSTALL-4. An upgrade keeps the look.** With containers made on a build before the frame
   defaults (schema v0: no Border opacity, no dot style), and a second profile holding some too,
   install this build and log in → every stored container looks as it did: a full-opacity border, no
-  background where it had none, the plain dot; Frame → Border reads Border opacity 100% and Dot →
+  background where it had none, the plain dot at the size it had (the art fills its box as the old
+  dot did); Frame → Border reads Border opacity 100% and Dot →
   Style has Plain picked. Switch to the other profile → the same. A container made now takes the
   new look (25% border, background, matte). Result:
 
@@ -237,7 +238,9 @@ RANGE-1 to RANGE-4 are run through a target container. RANGE-5 needs only the ch
 
 - **CONT-1. New container.** Containers → **New container** → a Target container is made, the banner
   picker shows it, and it draws on screen; the picker lists every container and switching it moves
-  every tab to that container. Result:
+  every tab to that container. General shows Name, Enable, What it tracks and the acts, and no
+  Preview section: the band preview blocks are gone from the settings (plan 2026-11-19 M8; `/rm bands`
+  keeps its chat ribbon). Result:
 - **CONT-2. The rail.** The rail reads General, Display, Visibility, Sounds. Set Unit to
   All nameplates → Sounds leaves the rail (and the page heals to General if Sounds was shown); set
   it back → Sounds returns. Result:
@@ -259,20 +262,31 @@ RANGE-1 to RANGE-4 are run through a target container. RANGE-5 needs only the ch
   one edged in gold (Matte on a new container). Click Gem → the on-screen dot turns gem and the tile
   is edged. Change Shape to Star → the tiles redraw as stars at once; to Bar or Spell icon → the
   tiles gray, a line says Bar and Spell icon take no style, and a click does nothing; back to Hexagon
-  → the tiles light again. Change Dot color (fixed) → the tiles take the new tint. No preview box
-  shows on the tab. Result:
+  → the tiles light again. Change Dot color (fixed) → the tiles take the new tint. Plain, Matte,
+  Glossy and Gem fill the tile as the v0.1.0 dot did; Glowing and Neon draw a smaller core with the
+  halo around it, nothing clipped at the tile's edge. No preview box shows on the tab. Result:
 - **CONT-8. Border opacity.** On a new container, Frame → Border shows **Border opacity** at 25%, the
   border drawn faint over a background; drag it to 100% → the border is solid, in every Color from
   mode. Result:
-- **CONT-9. The Label tab.** Display → Label: tick **Show label** → a caption reading the
-  container's name shows above its elements, inside its border; rename the container on General →
-  the caption follows. Type a Label text and press Enter → the caption reads it; clear it → the name
-  again. Position Bottom, Left, Right → the caption moves to that side and the container grows to
-  hold it; Align shows only for Top and Bottom, and Left / Right moves the caption along the edge.
-  Raise Gap (px) → the space between the caption and the elements widens. Change the Font block's
-  size and color → the caption follows. Set Layout's Size to Fixed size → the box keeps its width
-  and height, the caption inside it. Untick Show label → the caption goes and the container shrinks
-  back. Result:
+- **CONT-9. The caption's text and positions.** Display → Label: the tab shows Show label, Label
+  text, Position, Align, Gap (px), then the Font block; a new container has Show label off and draws
+  no caption. Tick **Show label** → a caption reading the container's name shows above its elements,
+  inside its border; rename the container on General → the caption follows. Type a Label text and
+  press Enter → the caption reads it; clear it → the name again. Position Bottom, Left, Right → the
+  caption moves to that side and the container grows to hold it, the elements and the caption
+  centered on each other; Align shows only for Top and Bottom, where Left / Center / Right moves the
+  caption along the edge. Raise Gap (px) → the space between the caption and the elements widens.
+  `/rm unlock` with the caption on Top → the drag strip sits above the border, clear of the caption.
+  Turn every element off → the caption alone, with no gap. Set Layout's Size to Fixed size → the box
+  keeps its width and height, the caption inside it. Untick Show label → the caption goes and the
+  container shrinks back. Result:
+- **CONT-10. The caption's styling.** With the caption on: change the Font block's face, size,
+  outline and Font shadow → the caption takes each at once and the container resizes to the new
+  width; leave the face on Skin and switch the skin → the caption's face follows. Color from Fixed
+  with a swatch → that color; Band → the caption takes the band's text color as the target moves
+  between bands; Class with a player targeted → that player's class color, the swatch when the target
+  has no class. Copy settings from a container with a styled caption → the style and position come
+  over and the destination keeps its own Label text. Result:
 
 ## Band sets page
 
@@ -418,3 +432,4 @@ Set the rules on Containers → Visibility.
 | MODES-5..7, VIS-1..3, SOUND-1..2 | the v0.1.0 behavior and modes (plan Task 7), 2026-11-18 | no preview, visibility rule or sound has been seen or heard in a client yet; the chime's file id (567397) is unconfirmed on Forever |
 | SLASH-5..8, CONT-1..6, BANDS-1..5, PRESET-1..4, PROFILE-3 | the v0.1.0 settings pages and verbs (plan Task 8), 2026-11-18 | no settings page beyond General has been opened in a client yet |
 | INSTALL-4, CONT-2, CONT-7..8, PRESET-1, PRESET-3..4 | the five presets and dot styles (plan 2026-11-19-presets-and-dot-styles), 2026-11-19 | the Dot tab, the style art, Border opacity, the v0 -> v1 migration and the five presets have not been seen in a client yet |
+| INSTALL-4, CONT-1, CONT-7, CONT-9..10, BANDS-2 | the Label tab, the removed band previews and the art fill (the same plan, M7-M9), 2026-11-19 | the caption, the settings without their band previews and the redrawn halo-free art have not been seen in a client yet |

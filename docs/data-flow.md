@@ -235,7 +235,8 @@ the caption inside it). Paint colors the caption with the frame and measures it 
 that moved lays the container out again. The number writes the bracket in one
 of six formats and `40+` for an open-ended one, never an invented far bound. The indicator draws
 this addon's shape art in the stored style (`media/textures/indicators/<shape>_<style>`, matte by
-default), LibKa0s-Widgets' data bar (fuller the nearer
+default; plain, matte, glossy and gem fill the box as the v0.1.0 art did, so a migrated `plain` dot
+keeps its size, and glowing and neon draw a smaller core inside their halo), LibKa0s-Widgets' data bar (fuller the nearer
 the band, empty when unknown) or a spell icon. The spell chips are an array pool per element, each
 chip colored by its own answer and repainted only when that answer moves. Placement is
 `NS.Anchors.Apply` (below). A `nameplates` container has no single instance: it owns one per eligible

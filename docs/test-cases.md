@@ -156,7 +156,7 @@ Total.
 - number: no unit reads nothing, and an unknown format reads as range
 - number: a known state with no far bound and no near bound reads unknown, not 0
 
-### test_container_render.lua (45)
+### test_container_render.lua (49)
 
 - render: an enabled container gets one pooled instance, watching its unit, drawn at once
 - render: Release returns the frame to the pool cleanly, and the next Acquire reuses it
@@ -200,6 +200,10 @@ Total.
 - render: a container with no stored chip list draws the logged-in character's class chips
 - render: test_caption_text — the caption reads the container's name until it has its own, and follows a rename
 - render: test_caption_hidden — off by default and while disabled, the root sized as before
+- render: test_caption_no_text — an enabled caption with no text and no name draws nothing
+- render: test_caption_wider_taller — a caption larger than the elements centers them on it
+- render: test_caption_alone — with every element off the caption is drawn with no gap
+- render: test_caption_remeasured — a caption measured short at the apply is corrected on a band change
 - render: test_caption_positions — top, bottom, left and right, inside the padding, the root grown to hold it
 - render: test_caption_fixed_size — a fixed-size container keeps its box, the caption inside it
 - render: test_caption_color_modes — band, fixed and class, as the elements
@@ -852,7 +856,7 @@ Total.
 | test_container_manager.lua | 17 |
 | test_presets.lua | 13 |
 | test_number_format.lua | 5 |
-| test_container_render.lua | 45 |
+| test_container_render.lua | 49 |
 | test_anchors_screen.lua | 12 |
 | test_anchors_frame.lua | 17 |
 | test_anchors_nameplate.lua | 14 |
@@ -901,4 +905,4 @@ Total.
 | test_skin_switch.lua | 6 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **667** |
+| **Total** | **671** |

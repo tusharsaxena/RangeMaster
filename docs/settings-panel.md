@@ -80,7 +80,9 @@ The band carries the page's only picker and **New container** (`O.PageBanner` wi
 rail picks which part of the selected container is shown; each entry is its own page key, so the
 header **Defaults** restores every tab of the entry on screen, for the container in the band. The
 **Sounds** entry is not listed for a `nameplates` container, and the rail heals to General when the
-selection moves to one.
+selection moves to one. No page draws a band preview: General's Preview section and the Band sets
+page's band ribbon were removed (plan 2026-11-19 M8); `/rm bands` keeps its chat ribbon
+(`NS.BandRibbon`, which only that verb calls now).
 
 | Entry (page key) | Tabs | Rows |
 |---|---|---|
@@ -98,7 +100,7 @@ The band carries the band-set picker (the default set marked) and **New band set
 Name, Match band by, and the Unknown range subsection (Unknown label, Unknown color, a palette swatch
 with no class companion), then the containers using the set and **Duplicate band set** / **Delete
 band set…** (confirmed; its containers move to the default set; the last set is never deleted).
-**Bands** (a host editor): per band Up to (yards), Label, Frame / Text /
+**Bands** (a host editor, with no band ribbon above it): per band Up to (yards), Label, Frame / Text /
 Dot color and Sound on enter, Remove band, and **Add band** at the foot. The bands are ordered
 by their edges (`modules/BandSets.lua` normalizes every write), so a band moves by moving its edge and
 there is no reorder control (options-ui-§18 binds a list whose order is the setting; this one's is

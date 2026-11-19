@@ -7,7 +7,7 @@ in the topic docs registered under [Documentation map](#documentation-map) (docu
 
 Ka0s Range Master draws player-built range **containers**: one unit each (`target`, `focus`, `pet`,
 `mouseover`, or every enemy nameplate), showing a range bracket as a number, a band label, an
-indicator and a row of spell chips, colored by a shared **band set**. The design and the plan of
+indicator and a row of spell chips, with an optional caption naming it, colored by a shared **band set**. The design and the plan of
 record are `docs/superpowers/specs/2026-11-18-rangemaster-design.md` and
 `docs/superpowers/plans/2026-11-18-rangemaster-v0.1.0.md`.
 
