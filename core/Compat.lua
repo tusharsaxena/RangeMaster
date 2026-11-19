@@ -326,6 +326,28 @@ function Compat.GetMouseFocus()
     return foci[1]
 end
 
+--- One cast read: whether `fn(unit)` answered a cast, or nil when it is absent or raised.
+local function castAnswer(fn, unit)
+    if not fn then return nil end
+    local ok, name = pcall(fn, unit)
+    if not ok then return nil end
+    return type(name) ~= "nil"
+end
+
+--- Whether `unit` is casting or channeling now: true, false, or nil when the client will not say
+--- (no UnitCastingInfo / UnitChannelInfo on this client, a raise). Only the answer's presence is read,
+--- through type(), which a secret value allows (EllesmereUINameplates reads its casts the same way).
+--- @return boolean|nil
+function Compat.IsCasting(unit)
+    if type(unit) ~= "string" then return nil end
+    local cast = castAnswer(UnitCastingInfo, unit)
+    if cast then return true end
+    local channel = castAnswer(UnitChannelInfo, unit)
+    if channel then return true end
+    if cast == nil and channel == nil then return nil end
+    return false
+end
+
 -- ---------------------------------------------------------------------------
 -- The per-client range ladder (clients-§5)
 -- ---------------------------------------------------------------------------

@@ -632,3 +632,143 @@ test("plates: test_castbar_found_a_frame_later — EllesmereUI building its plat
     end)
   end)
 end)
+
+--- Run `body(cast)` with the client's cast reads stubbed: `cast[token] = true` makes UnitCastingInfo
+--- answer a spell name for it. `withApi` false leaves both reads absent (a client without them).
+local function withCasts(withApi, body)
+  local saved = { M.UnitCastingInfo, M.UnitChannelInfo }
+  local cast = {}
+  if withApi then
+    M.UnitCastingInfo = function(unit) if cast[unit] then return "Fireball" end return nil end
+    M.UnitChannelInfo = function() return nil end
+  else
+    M.UnitCastingInfo, M.UnitChannelInfo = nil, nil
+  end
+  local ok, err = pcall(body, cast)
+  M.UnitCastingInfo, M.UnitChannelInfo = saved[1], saved[2]
+  if not ok then error(err, 0) end
+end
+
+local function partOpts(unit, part)
+  local opts = { nameplate = { attachTo = part } }
+  if not NS.CM.IsPlates(unit) then opts.anchor = { mode = "nameplate" } end
+  return opts
+end
+
+test("plates: test_attach_part_three_choices — Nameplate, Cast bar, and Cast bar while casting (the plate between casts)", function()
+  H.with(function()
+    withCasts(true, function()
+      local p = H.plate("nameplate1", true)
+      local bar = blizzardCast(p)
+      H.added("nameplate1")
+      local plateId = H.container("nameplates", partOpts("nameplates", "plate"))
+      local barId = H.container("nameplates", partOpts("nameplates", "castbar"))
+      local whenId = H.container("nameplates", partOpts("nameplates", "castbarWhenCasting"))
+      assertTrue(platesOf(plateId).nameplate1.anchorPart == p, "Nameplate: on the plate")
+      assertTrue(platesOf(barId).nameplate1.anchorPart == bar, "Cast bar: on the bar, casting or not")
+      assertTrue(platesOf(whenId).nameplate1.anchorPart == p, "while casting: on the plate between casts")
+      local values = NS.ContainerValues.PLATE_PARTS
+      assertEqual(table.concat(NS.ContainerValues.PLATE_PARTS_SORT, ","), "plate,castbar,castbarWhenCasting")
+      assertEqual(values.castbarWhenCasting, NS.L["Cast bar while casting, else nameplate"])
+    end)
+  end)
+end)
+
+test("plates: test_cast_start_stop_flips_the_part — the cast events move a while-casting container onto the cast bar and back, per-plate and own-plate", function()
+  H.with(function()
+    withCasts(true, function(cast)
+      local p, a = H.plate("nameplate1", true), H.plate("nameplate2", true)
+      local bar, abar = blizzardCast(p), blizzardCast(a)
+      M.__plates.target = a
+      H.added("nameplate1")
+      H.added("nameplate2")
+      local id = H.container("nameplates", partOpts("nameplates", "castbarWhenCasting"))
+      local _, mine = own("target", partOpts("target", "castbarWhenCasting"))
+      local each = platesOf(id).nameplate1
+      assertTrue(each.anchorPart == p and mine.anchorPart == a, "between casts: on the plates")
+      cast.nameplate1 = true
+      M.__fireEvent("UNIT_SPELLCAST_START", "nameplate1")
+      assertTrue(each.anchorPart == bar, "a cast starts: onto its cast bar")
+      assertTrue(mine.anchorPart == a, "another plate's cast moves nothing else")
+      cast.nameplate1 = nil
+      M.__fireEvent("UNIT_SPELLCAST_STOP", "nameplate1")
+      assertTrue(each.anchorPart == p, "the cast stops: back on the plate")
+      assertTrue(each.frame:IsShown(), "shown throughout")
+      cast.nameplate2 = true
+      M.__fireEvent("UNIT_SPELLCAST_CHANNEL_START", "nameplate2")
+      assertTrue(mine.anchorPart == abar, "a channel on the target's plate: the own-plate container moves")
+      M.__fireEvent("UNIT_SPELLCAST_SUCCEEDED", "nameplate2")
+      assertTrue(mine.anchorPart == abar, "a SUCCEEDED while the client still says casting keeps it on the bar")
+      cast.nameplate2 = nil
+      M.__fireEvent("UNIT_SPELLCAST_INTERRUPTED", "nameplate2")
+      assertTrue(mine.anchorPart == a, "interrupted: back on the plate")
+      M.__fireEvent("UNIT_SPELLCAST_START", "player")
+      M.__fireEvent("UNIT_SPELLCAST_START", "nameplate9")
+      assertTrue(each.anchorPart == p, "an untracked token moves nothing")
+    end)
+  end)
+end)
+
+test("plates: test_cast_mid_cast_plate_and_no_cast_read — a plate shown mid-cast starts on its bar; without the client's cast read the events and the bar decide", function()
+  H.with(function()
+    withCasts(true, function(cast)
+      local p = H.plate("nameplate1", true)
+      local bar = blizzardCast(p)
+      cast.nameplate1 = true
+      H.added("nameplate1")
+      local id = H.container("nameplates", partOpts("nameplates", "castbarWhenCasting"))
+      assertTrue(platesOf(id).nameplate1.anchorPart == bar, "the client's read: already casting")
+    end)
+  end)
+  H.with(function()
+    withCasts(false, function()
+      local p = H.plate("nameplate1", true)
+      local bar = blizzardCast(p)
+      bar:Hide()
+      H.added("nameplate1")
+      local id = H.container("nameplates", partOpts("nameplates", "castbarWhenCasting"))
+      local inst = platesOf(id).nameplate1
+      assertTrue(inst.anchorPart == p, "no cast read, the bar hidden: the plate")
+      M.__fireEvent("UNIT_SPELLCAST_START", "nameplate1")
+      assertTrue(inst.anchorPart == bar, "the start event alone moves it")
+      M.__fireEvent("UNIT_SPELLCAST_STOP", "nameplate1")
+      assertTrue(inst.anchorPart == p, "and the stop back")
+      H.removed("nameplate1")
+      local q = H.plate("nameplate1", true)
+      local qbar = blizzardCast(q)
+      qbar:Show()
+      H.added("nameplate1")
+      assertTrue(platesOf(id).nameplate1.anchorPart == qbar, "a new plate no event spoke for: its shown bar says casting")
+    end)
+  end)
+end)
+
+test("plates: test_cast_with_no_cast_bar — while casting, a plate with no cast bar keeps the container on the plate", function()
+  H.with(function()
+    withCasts(true, function(cast)
+      local p = H.plate("nameplate1", true)
+      H.added("nameplate1")
+      local id = H.container("nameplates", partOpts("nameplates", "castbarWhenCasting"))
+      local barId = H.container("nameplates", partOpts("nameplates", "castbar"))
+      cast.nameplate1 = true
+      M.__fireEvent("UNIT_SPELLCAST_START", "nameplate1")
+      assertTrue(platesOf(id).nameplate1.anchorPart == p, "while casting: still the plate")
+      assertTrue(platesOf(barId).nameplate1.anchorPart == p, "Cast bar: the plate too")
+      assertTrue(platesOf(id).nameplate1.frame:IsShown(), "and shown")
+    end)
+  end)
+end)
+
+test("plates: test_cast_events_registered_ifvalid — every cast event is in the lifecycle list, ifValid, on one handler", function()
+  local want = { "UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_FAILED",
+    "UNIT_SPELLCAST_INTERRUPTED", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_CHANNEL_START",
+    "UNIT_SPELLCAST_CHANNEL_STOP", "UNIT_SPELLCAST_EMPOWER_START", "UNIT_SPELLCAST_EMPOWER_STOP" }
+  local byName = {}
+  for _, pair in ipairs(NS.__lifecycleEvents) do byName[pair[1]] = pair end
+  for _, name in ipairs(want) do
+    local pair = byName[name]
+    assertTrue(pair ~= nil, name .. " is registered")
+    assertTrue(pair.ifValid == true, name .. " is ifValid")
+    assertEqual(pair[2], "OnPlateCast", name .. "'s handler")
+  end
+end)

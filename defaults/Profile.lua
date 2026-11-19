@@ -108,8 +108,9 @@ NS.CONTAINER_TEMPLATE = {
     },
     visibility = { combat = "any", reaction = "any", hideNoUnit = true, oocAlpha = 1 },
     sounds = { enabled = false, channel = "Master" },
-    -- attachTo: "plate"|"castbar", what on the plate the point and offsets pin to: the plate, or
-    -- its cast bar (EllesmereUI's, else the client's own; the plate while it has none).
+    -- attachTo: "plate"|"castbar"|"castbarWhenCasting", what on the plate the point and offsets pin
+    -- to: the plate, its cast bar (EllesmereUI's, else the client's own; the plate while it has
+    -- none), or the cast bar only while the plate's unit casts.
     nameplate = { includeFriendly = false, attachTo = "plate", point = "TOP", relPoint = "BOTTOM", x = 0, y = -2 },
 }
 

@@ -77,6 +77,18 @@ local LIFECYCLE_EVENTS = {
     -- A unit's reaction moved (a mob turning hostile, a duel): the band set a container reads
     -- depends on it (design spec 5.3, bandSetFriendly), so it is a unit change like a retarget.
     { "UNIT_FACTION",          "OnUnitFaction", ifValid = true },
+    -- A plate's unit started or stopped casting: a nameplate container on "Cast bar while casting"
+    -- moves between the plate and its cast bar (modules/Anchors_Nameplate.lua, Plates.CastChanged).
+    -- Each is ifValid: the empower pair is Retail's, and a client lacking any one skips it.
+    { "UNIT_SPELLCAST_START",          "OnPlateCast", ifValid = true },
+    { "UNIT_SPELLCAST_STOP",           "OnPlateCast", ifValid = true },
+    { "UNIT_SPELLCAST_FAILED",         "OnPlateCast", ifValid = true },
+    { "UNIT_SPELLCAST_INTERRUPTED",    "OnPlateCast", ifValid = true },
+    { "UNIT_SPELLCAST_SUCCEEDED",      "OnPlateCast", ifValid = true },
+    { "UNIT_SPELLCAST_CHANNEL_START",  "OnPlateCast", ifValid = true },
+    { "UNIT_SPELLCAST_CHANNEL_STOP",   "OnPlateCast", ifValid = true },
+    { "UNIT_SPELLCAST_EMPOWER_START",  "OnPlateCast", ifValid = true },
+    { "UNIT_SPELLCAST_EMPOWER_STOP",   "OnPlateCast", ifValid = true },
     -- Learned, unlearned or swapped spells: the ladder, the known-spell cache and the band rules'
     -- anchors, debounced (NS.Range.Rebuild).
     { "SPELLS_CHANGED",        "OnSpellsChanged" },
@@ -187,6 +199,18 @@ function addon:OnNamePlateChanged(event, token)
         NS.Plates.Added(token)
         unitChanged(token)
     end
+end
+
+--- The cast events that start a cast; every other one only asks again whether the unit still casts.
+local CAST_START = {
+    UNIT_SPELLCAST_START = true, UNIT_SPELLCAST_CHANNEL_START = true, UNIT_SPELLCAST_EMPOWER_START = true,
+}
+
+--- A unit's cast moved. Every unit's casts arrive here; the plate registry returns at once for any
+--- token it does not track, so the cost is one table read for the player's, the party's and the rest.
+function addon:OnPlateCast(event, unit)
+    if type(unit) ~= "string" or not NS.Compat.IsSafeKey(unit) then return end
+    NS.Plates.CastChanged(unit, CAST_START[event] == true)
 end
 
 --- Any addon loading may have created a unit frame a container waits for.

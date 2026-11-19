@@ -72,8 +72,9 @@ V.STRATA = { BACKGROUND = "BACKGROUND", LOW = "LOW", MEDIUM = "MEDIUM", HIGH = "
 V.STRATA_SORT = { "BACKGROUND", "LOW", "MEDIUM", "HIGH" }
 
 -- What a nameplate container pins to on its plate (modules/Anchors_Nameplate.lua).
-V.PLATE_PARTS = { plate = L["Nameplate"], castbar = L["Cast bar"] }
-V.PLATE_PARTS_SORT = { "plate", "castbar" }
+V.PLATE_PARTS = { plate = L["Nameplate"], castbar = L["Cast bar"],
+    castbarWhenCasting = L["Cast bar while casting, else nameplate"] }
+V.PLATE_PARTS_SORT = { "plate", "castbar", "castbarWhenCasting" }
 
 -- The color-mode companion (options-ui-§17: a color-mode dropdown whose value set includes `class`).
 V.COLOR_MODES = { band = L["Band color"], fixed = L["Fixed color"], class = L["Class color"] }
@@ -251,7 +252,7 @@ local POSITION_ROWS = {
     { path = "container.anchor.level", page = PAGE, group = POSITION, subgroup = S_ANCHOR, order = 17,
       type = "number", min = 0, max = NS.Constants.LAYERS.LEVEL.SLOTS, step = 1, startsLine = true,
       label = L["Frame level"],
-      desc = L["Where this container sits among the frames of its strata. 0 is Auto: each container takes its own place, the newest on top. 1 is the lowest, under every Auto container; higher numbers draw over lower ones."] },
+      desc = L["Where this container sits among the frames of its strata. 0 is Auto: each container takes its own place, the newest on top. 1 is the lowest, under every Auto container; higher numbers draw over lower ones, and two containers on the same number can draw through each other."] },
     pointRow("container.anchor.cursor.point", 130, S_CURSOR, whenMode("cursor"), THIS_POINT,
         L["The point of this container that follows the cursor."], true),
     offsetRow("container.anchor.cursor.x", 140, S_CURSOR, whenMode("cursor"), L["X offset"],
@@ -261,7 +262,7 @@ local POSITION_ROWS = {
     { path = "container.nameplate.attachTo", page = PAGE, group = POSITION, subgroup = S_PLATE, order = 155,
       type = "string", values = V.PLATE_PARTS, sorting = V.PLATE_PARTS_SORT, shownWhen = ON_PLATE,
       label = L["Attach to part"],
-      desc = L["What on the nameplate this container is pinned to: the nameplate, or its cast bar (EllesmereUI's, else the game's own). With no cast bar it stays on the nameplate. The anchor points and offsets below are measured from it."] },
+      desc = L["What on the nameplate this container is pinned to: the nameplate, its cast bar (EllesmereUI's, else the game's own), or the cast bar only while the unit casts and the nameplate otherwise. With no cast bar it stays on the nameplate. The anchor points and offsets below are measured from it."] },
     pointRow("container.nameplate.relPoint", 160, S_PLATE, ON_PLATE, L["Nameplate anchor point"],
         L["The point of the nameplate this container is attached to. While unlocked, a preview nameplate shows where it sits."], true),
     pointRow("container.nameplate.point", 170, S_PLATE, ON_PLATE, THIS_POINT, MY_POINT),

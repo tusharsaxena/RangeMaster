@@ -795,7 +795,8 @@ test("settings: test_plate_part_and_level_rows — Attach to part opens On the n
   assertTrue(part.shownWhen == point.shownWhen, "shown exactly where the nameplate rows are (ON_PLATE)")
   assertEqual(part.values.plate, L["Nameplate"])
   assertEqual(part.values.castbar, L["Cast bar"])
-  assertEqual(table.concat(part.sorting, ","), "plate,castbar")
+  assertEqual(part.values.castbarWhenCasting, L["Cast bar while casting, else nameplate"])
+  assertEqual(table.concat(part.sorting, ","), "plate,castbar,castbarWhenCasting")
   local level, strata = byPath["container.anchor.level"], byPath["container.anchor.strata"]
   assertTrue(level ~= nil, "container.anchor.level is a row")
   assertEqual(level.label, L["Frame level"])
