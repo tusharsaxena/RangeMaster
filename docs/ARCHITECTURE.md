@@ -7,7 +7,7 @@ in the topic docs registered under [Documentation map](#documentation-map) (docu
 
 Ka0s Range Master draws player-built range **containers**: one unit each (`target`, `focus`, `pet`,
 `mouseover`, or every enemy nameplate), showing a range bracket as a number, a band label, an
-indicator and a row of spell chips, colored by a shared **band set**. The design and the plan of
+indicator and a row of spell chips, with an optional caption naming it, colored by a shared **band set**. The design and the plan of
 record are `docs/superpowers/specs/2026-11-18-rangemaster-design.md` and
 `docs/superpowers/plans/2026-11-18-rangemaster-v0.1.0.md`.
 
@@ -31,7 +31,7 @@ change. A secret or failed answer reads as *unknown*, never as out of range.
 |---|---|---|
 | Range engine | `modules/Range.lua` (`NS.Range`), `modules/Ticker.lua` (`NS.Ticker`), `core/Compat.lua` | A guarded, memoized bracket per unit token per tick; one adaptive ticker that sends `RANGE_UPDATED` on change |
 | Band sets | `modules/BandSets.lua` (`NS.BandSets`), `defaults/BandSetPresets.lua` | Named, shared, normalized yard bands; `Resolve` turns a bracket into a band, `ForUnit` picks the friendly override |
-| Containers and presets | `modules/ContainerManager.lua` (`NS.CM`), `modules/Presets.lua` (`NS.Presets`) | The container registry's one writer and its coalesced, combat-held apply; Simple, Intermediate and Advanced with a one-level Undo |
+| Containers and presets | `modules/ContainerManager.lua` (`NS.CM`), `modules/Presets.lua` (`NS.Presets`) | The container registry's one writer and its coalesced, combat-held apply; Simple, Intermediate (Range Text), Intermediate (Range Numbers), Advanced and Expert, with a one-level Undo |
 | Rendering | `modules/Container.lua` (`NS.Container`), `modules/Style.lua`, `modules/Elements_*.lua` | One pooled instance per enabled container (one per plate for `nameplates`), repainted only on a band or text change |
 | Anchors | `modules/Anchors.lua` (`NS.Anchors`), `modules/Anchors_*.lua`, `modules/FrameProviders.lua`, `modules/FramePicker.lua` | Free on screen, on a unit frame, on a nameplate (own plate or every plate), at the cursor |
 | Behavior and modes | `modules/Visibility.lua`, `modules/Sounds.lua`, `modules/Preview.lua`, `modules/Sim.lua` | The visibility rules, the debounced band sounds, Test mode's placeholder and Sim mode's distance sweep |
@@ -42,7 +42,7 @@ How each one works, its seams and its edge cases: `docs/data-flow.md`, *Componen
 ### Libraries
 
 Everything is vendored under `libs/`: LibStub and CallbackHandler, the Ace3 stack, LibSharedMedia,
-LibDataBroker and LibDBIcon (the launcher), LibKa0s v1.105.0 (whole, its icons and sounds pruned to
+LibDataBroker and LibDBIcon (the launcher), LibKa0s v1.106.0 (whole, its icons and sounds pruned to
 `CLAUDE.md`'s declarations) and LibRangeCheck-3.0 MINOR 39 (commit and source in root
 `DEPENDENCIES.md`). Which LibKa0s modules are wired, one setup file each: `docs/module-map.md`.
 
@@ -55,7 +55,7 @@ the AceDB defaults, the templates and the data tables; `modules/` the band sets,
 and its ticker, the container registry and presets, the renderer with its style and element files,
 and the diagnostics sections; `settings/` the schema runtime, the slash
 descriptor, the options descriptor and the pages (General with its Presets tab, Containers with
-its rail entries General, Display, Indicator, Visibility and Sounds, Band sets, Profiles).
+its rail entries General, Display, Visibility and Sounds, Band sets, Profiles).
 
 ### Per-client features
 
@@ -217,13 +217,13 @@ addon's own frames (never a `SetPoint`); the preview modes' stand-ins and screen
 placed out of combat, because both modes are refused in it and ended at its start.
 
 A region anchored to a nameplate cannot be measured: the client raises *Can't measure restricted
-regions* on `GetTop` and its kin. Nothing in this addon measures a container root, but
-LibKa0s-Widgets' HUD-docked TestStrip does, from `OnShow` / `OnSizeChanged` hooks on its target
-that no `pcall` here covers. So the dock's target is `inst.stripHost`, a child laid over the root
-and parked on `UIParent`'s center while the root sits on a plate, and a container on a plate wears
-an undocked strip anchored on its top edge instead (`modules/Container.lua`). The nameplate anchors
-clear a root's points when it leaves its plate, so `inst.anchorPlate` always says whether the root's
-points name one.
+regions* on `GetTop` and its kin. Nothing in this addon measures a container root. LibKa0s-Widgets'
+HUD-docked TestStrip measures its target to flip near the screen's top, and from Widgets minor 28
+(LibKa0s v1.106.0, RangeMaster#17) every such read is guarded, so a strip docked on a root riding a
+plate sits on its top edge, unflipped, and raises nothing. The nameplate anchors clear a root's
+points when it leaves its plate, so `inst.anchorPlate` always says whether the root's points name
+one. The unlocked preview nameplate (`modules/Anchors_Mockplate.lua`) is this addon's own frame,
+never a real plate, and nothing measures it.
 
 ## Known Limitations
 

@@ -1,18 +1,34 @@
 local _, NS = ...
 -- settings/Containers_Display.lua — the Containers page's Display entry: how the selected container is
--- laid out and framed, and its number and text.
+-- laid out and framed, the elements it draws (its number, text, dot and spell chips), and its caption.
 --
---     [ Layout ][ Frame ][ Number ][ Text ]
+--     [ Layout ][ Frame ][ Number ][ Text ][ Label ][ Dot ][ Spell chips ]
 --
 --     Layout   [Direction] [Spacing (px)] / [Padding (px)] / [Container scale] [Container opacity]
 --              [Size] / [Width (px)] [Height (px)]  (grayed while Size fits the content)
 --              -- Element order --  a drag list, one row per element: handle, on/off tick, name; the
 --              elements turned on first and only they drag
---     Frame    -- Border --      the composed border block (options-ui-§16), Show border first
+--     Frame    -- Border --      the composed border block (options-ui-§16), Show border first, then
+--                                [Border opacity] as the block's extra
 --              -- Background --  [Show background], the background swatch and its color mode,
 --                                [Band tint opacity]
 --     Number   [Show number] [Format]  -- Font --  the composed Font block
 --     Text     [Show text label] [Uppercase]  -- Font --  the composed Font block
+--     Label    [Show label] [Label text] / [Position] [Align] / [Gap (px)]  -- Font --  the composed
+--              Font block (Align is drawn only for Top and Bottom)
+--     Dot      [Show dot] [Shape] / [Size (px)] / [Dot color] [Color from]
+--              -- Style --  a tile per style, each drawn in the stored shape (grayed while the
+--                           shape is Bar or Spell icon, which take no style)
+--     Spell chips  [Show spell chips] [Style] / [Size (px)]
+--
+-- The dot is the `indicator` element: its paths (`container.elements.indicator.*`) and its name on
+-- the CLI keep that word, so stored settings and /rm set reach it as before; the panel calls it Dot.
+-- Which spells the chips show is the logged-in character's class seeds for this client until a list
+-- is stored (NS.CM.SpellChips, modules/ContainerManager.lua).
+--
+-- The Label tab is the CAPTION naming the display (`container.label.*`, modules/Container.lua): no
+-- element, so it is not in the element order. Its Label text row is an EditBox that applies on Enter;
+-- left empty, the caption reads the container's name (the General tab's Name row), and follows a rename.
 --
 -- THE BLOCKS ARE COMPOSED (options-ui-§16, anti-pattern #73): H.FontGroup and H.BorderGroup emit the
 -- canonical rows and their order; `keys` maps each canonical leaf onto the field the container
@@ -29,13 +45,22 @@ local _, NS = ...
 -- The list's controller is canceled at the top of every Containers render, before the scroll is
 -- cleared (NS.CancelElementOrder, called by settings/Containers.lua), because its handles and row
 -- boxes sit on frames the clear hands back to AceGUI's pool.
+--
+-- THE DOT'S STYLE IS PICKED FROM TILES, the same way: the row `container.elements.indicator.style`
+-- is skipRender (the tiles are its surface, drawn after its `Style` subgroup's heading) and stays a
+-- dropdown row in the schema, so `/rm set container.elements.indicator.style gem` works. Each tile
+-- is the stored shape's art in that style, tinted as the dot would draw in the first band, and a
+-- click writes through the row. Bar and Spell icon take no style: the row is disabledIf them, and
+-- the tiles gray and take no click. Their slot's own OnRelease takes them off it, and they carry a
+-- refresher of their own, so a Shape or color write repaints them (the tile section, below).
 
 local L = NS.L
 local H = NS.Helpers
 local V = NS.ContainerValues
 
 local PAGE = "containers_display"
-local LAYOUT, FRAME, NUMBER, TEXT = L["Layout"], L["Frame"], L["Number"], L["Text"]
+local LAYOUT, FRAME, NUMBER, TEXT, LABEL = L["Layout"], L["Frame"], L["Number"], L["Text"], L["Label"]
+local DOT, SPELLS, S_STYLE = L["Dot"], L["Spell chips"], L["Style"]
 
 local UNIT_CLASS = { source = "unit" }
 
@@ -98,6 +123,11 @@ add(H.BorderGroup({
     show = true, classColor = UNIT_CLASS,
     keys = { borderShow = "enabled", borderStyle = "texture", borderSize = "size", borderColor = "color",
              useClassColorBorder = "colorMode" },
+    extra = {
+        { path = "container.frame.border.alpha", type = "number", startsLine = true, min = 0, max = 1,
+          step = 0.05, isPercent = true, label = L["Border opacity"],
+          desc = L["How opaque the border is, multiplying its color's own opacity in every color mode."] },
+    },
 }))
 add({
     { path = "container.frame.background.enabled", page = PAGE, group = FRAME, subgroup = L["Background"],
@@ -151,10 +181,100 @@ add({
 })
 add(fontBlock("container.elements.text.", TEXT, 100))
 
+-- ── Label ───────────────────────────────────────────────────────────────────────────────────
+
+-- The plain sides are inside the container (what the first Label tab stored); "outside*" sit beyond its
+-- border (modules/Container.lua's CaptionSide).
+local CAPTION_SIDES = {
+    top = L["Inside top"], outsideTop = L["Outside top"], bottom = L["Inside bottom"],
+    outsideBottom = L["Outside bottom"], left = L["Inside left"], outsideLeft = L["Outside left"],
+    right = L["Inside right"], outsideRight = L["Outside right"],
+}
+local CAPTION_SIDES_SORT = { "top", "outsideTop", "bottom", "outsideBottom", "left", "outsideLeft", "right",
+    "outsideRight" }
+local CAPTION_ALIGNS = { left = L["Left"], center = L["Center"], right = L["Right"] }
+local CAPTION_ALIGNS_SORT = { "left", "center", "right" }
+
+add({
+    { path = "container.label.enabled", page = PAGE, group = LABEL, order = 10, type = "bool",
+      startsLine = true, label = L["Show label"], desc = L["Draw a caption naming this container."] },
+    { path = "container.label.text", page = PAGE, group = LABEL, order = 20, type = "string",
+      dialogControl = "EditBox", maxLetters = 40, label = L["Label text"],
+      desc = L["What the caption reads. Leave it empty to show the container's name. Press Enter to apply."],
+      validate = function(v) return type(v) == "string" end },
+    { path = "container.label.position", page = PAGE, group = LABEL, order = 30, type = "string",
+      startsLine = true, values = CAPTION_SIDES, sorting = CAPTION_SIDES_SORT, label = L["Position"],
+      desc = L["Where the caption sits: inside the container, beside the elements and within its border, or outside it, beyond the border."] },
+    { path = "container.label.align", page = PAGE, group = LABEL, order = 40, type = "string",
+      values = CAPTION_ALIGNS, sorting = CAPTION_ALIGNS_SORT, label = L["Align"],
+      shownWhen = { path = "container.label.position", equals = { "top", "bottom", "outsideTop", "outsideBottom" } },
+      desc = L["Where the caption sits along the container's top or bottom."] },
+    { path = "container.label.gap", page = PAGE, group = LABEL, order = 50, type = "number",
+      startsLine = true, min = 0, max = 40, step = 1, label = L["Gap (px)"],
+      desc = L["The space between the caption and the elements (inside) or the container's edge (outside), in pixels."] },
+})
+add(fontBlock("container.label.", LABEL, 100))
+
+-- ── Dot and Spell chips ─────────────────────────────────────────────────────────────────────
+
+local SHAPES = {
+    dot = L["Dot"], ring = L["Ring"], square = L["Square"], diamond = L["Diamond"], triangle = L["Triangle"],
+    hexagon = L["Hexagon"], star = L["Star"], bar = L["Bar (fills toward the band's far edge)"], icon = L["Spell icon"],
+}
+local SHAPES_SORT = { "dot", "ring", "square", "diamond", "triangle", "hexagon", "star", "bar", "icon" }
+
+-- The finishes modules/Elements_Indicator.lua draws (<shape>_<style>.tga); matte is the default.
+local STYLES = { plain = L["Plain"], matte = L["Matte"], glossy = L["Glossy"], glowing = L["Glowing"],
+    neon = L["Neon"], gem = L["Gem"] }
+local STYLES_SORT = { "plain", "matte", "glossy", "glowing", "neon", "gem" }
+-- The shapes that are not art, and so take no style.
+local UNSTYLED = { bar = true, icon = true }
+
+local CHIP_STYLES = { chip = L["Chip (colored edge)"], icon = L["Icon only"] }
+local CHIP_STYLES_SORT = { "chip", "icon" }
+
+--- Whether the selected container's dot takes no style (its shape is Bar or Spell icon).
+local function noStyle()
+    local c = NS.SelectedContainer()
+    return c ~= nil and UNSTYLED[c.elements.indicator.shape] == true
+end
+
+add({
+    { path = "container.elements.indicator.enabled", page = PAGE, group = DOT, order = 10, type = "bool",
+      label = L["Show dot"], desc = L["Draw a shape colored by the current band."] },
+    { path = "container.elements.indicator.shape", page = PAGE, group = DOT, order = 20, type = "string",
+      values = SHAPES, sorting = SHAPES_SORT, label = L["Shape"],
+      desc = L["The dot's shape. Spell icon shows the first spell chip's icon."] },
+    { path = "container.elements.indicator.size", page = PAGE, group = DOT, order = 30, type = "number",
+      min = 4, max = 64, step = 1, startsLine = true, label = L["Size (px)"],
+      desc = L["The dot's width and height, in pixels."] },
+})
+add(H.ColorPair({
+    prefix = "container.elements.indicator.", page = PAGE, group = DOT, order = 40, key = "color",
+    companionKey = "colorMode", label = L["Dot color"], classColor = UNIT_CLASS,
+}))
+local styleRow = {
+    path = "container.elements.indicator.style", page = PAGE, group = DOT, subgroup = S_STYLE, order = 100,
+    type = "string", skipRender = true, values = STYLES, sorting = STYLES_SORT, label = S_STYLE,
+    disabledIf = function() return noStyle() end,
+    desc = L["The dot's finish. Bar and Spell icon take no style."],
+}
+add({ styleRow })
+add({
+    { path = "container.elements.spells.enabled", page = PAGE, group = SPELLS, order = 10, type = "bool",
+      label = L["Show spell chips"],
+      desc = L["Draw a chip per class spell, its edge lit while the unit is in that spell's range."] },
+    { path = "container.elements.spells.style", page = PAGE, group = SPELLS, order = 20, type = "string",
+      values = CHIP_STYLES, sorting = CHIP_STYLES_SORT, label = L["Style"],
+      desc = L["A chip with a colored edge, or the icon alone, dimmed while out of range."] },
+    { path = "container.elements.spells.size", page = PAGE, group = SPELLS, order = 30, type = "number",
+      min = 10, max = 48, step = 1, label = L["Size (px)"], desc = L["Each chip's width and height, in pixels."] },
+})
+
 -- ── Element order ───────────────────────────────────────────────────────────────────────────
 
 local ELEMENT_NAMES = {
-    indicator = L["Indicator"], number = L["Number"], text = L["Text label"], spells = L["Spell chips"],
+    indicator = L["Dot"], number = L["Number"], text = L["Text label"], spells = L["Spell chips"],
 }
 local ORDER_PATH = "container.elements.order"
 local ORDER_LABEL = L["Element order"]
@@ -423,7 +543,193 @@ local function renderOrder(ctx)
     if list then list:Finish(scroll.content or scroll.frame) end
 end
 
+-- ── the style tiles ─────────────────────────────────────────────────────────────────────────
+--
+-- One Button per style on an AceGUI slot under the Style heading: the art (the stored shape in that
+-- style, the dot's when the shape is Bar or Spell icon), its name below, the stored one edged in the
+-- accent. A click is one write through the style row, then a redraw. Pooled as the order rows are.
+--
+-- THE TILES ARE HAND-BUILT, so they bring their own refresher (options-ui-§11): any write the page
+-- makes (the Shape dropdown, the Dot color swatch, Color from) re-reads the container and repaints
+-- the six tiles in place. Only a change between a styled shape and Bar or Spell icon changes the
+-- tab's layout (the note above the tiles comes or goes), and that one asks for a structural redraw.
+-- THE SLOT'S OWN "OnRelease" PARKS THEM (options-ui-§19): the slot is a SimpleGroup this file
+-- creates, so whatever releases it (this page's clear, another page's, a parent's ReleaseChildren)
+-- takes the tiles off it first; NS.ReleaseStyleTiles before the clear is belt-and-braces.
+
+local TILE_W, TILE_H, TILE_GAP, TILE_ART = 64, 66, 8, 40
+-- The tile's four 1px edges: the two corners each spans, and whether it is a row (height) or a column.
+local EDGES = {
+    { "TOPLEFT", "TOPRIGHT", true }, { "BOTTOMLEFT", "BOTTOMRIGHT", true },
+    { "TOPLEFT", "BOTTOMLEFT", false }, { "TOPRIGHT", "BOTTOMRIGHT", false },
+}
+
+local tilePool = {}
+
+--- Take `tile` off its slot, onto the attic, and back into the free list. Once per acquisition: the
+--- renderer's park and the slot's OnRelease may both reach it.
+local function parkTile(tile)
+    if tile.rmParked then return end
+    tile.rmParked = true
+    tile.rmStyle, tile.rmOff, tile.rmPicked, tile.rmArtPath, tile.rmSlot = nil, nil, nil, nil, nil
+    tile:Hide()
+    tile:ClearAllPoints()
+    tile:SetParent(attic())
+    tilePool[#tilePool + 1] = tile
+end
+
+--- Give the last render's tiles back. Called before the Containers page clears its scroll.
+function NS.ReleaseStyleTiles(ctx)
+    if not ctx then return end
+    for i = #(ctx.rmStyleTiles or {}), 1, -1 do
+        parkTile(ctx.rmStyleTiles[i])
+        ctx.rmStyleTiles[i] = nil
+    end
+end
+
+--- A skin color token's r, g, b, or the fallback while the skin does not answer one.
+local function skinRGB(token, r, g, b)
+    if not (NS.Skin and NS.Skin.Color) then return r, g, b end
+    local sr, sg, sb = NS.Skin.Color(token)
+    if type(sr) == "number" then return sr, sg, sb end
+    return r, g, b
+end
+
+--- The color the dot draws in its first band: the swatch in fixed or class mode, else the band's.
+local function tileTint(c)
+    local el = c.elements.indicator
+    local col = el.color
+    if el.colorMode == "band" then
+        local set = NS.BandSets and NS.BandSets.Get and NS.BandSets.Get(c.bandSet or NS.BandSets.DefaultId())
+        local band = set and set.bands and set.bands[1]
+        col = (band and band.indicatorColor) or col
+    end
+    if type(col) ~= "table" then return 1, 1, 1 end
+    return col.r or 1, col.g or 1, col.b or 1
+end
+
+--- A tile, from the free list or newly built, on `parent`.
+local function acquireTile(parent)
+    local tile = table.remove(tilePool)
+    if tile then tile.rmParked = nil end
+    if not tile then
+        tile = CreateFrame("Button", nil, parent)
+        tile:SetSize(TILE_W, TILE_H)
+        tile.rmBg = tile:CreateTexture(nil, "BACKGROUND")
+        tile.rmBg:SetAllPoints(tile)
+        tile.rmEdges = {}
+        for _, spec in ipairs(EDGES) do
+            local edge = tile:CreateTexture(nil, "BORDER")
+            edge:SetPoint(spec[1], tile, spec[1], 0, 0)
+            edge:SetPoint(spec[2], tile, spec[2], 0, 0)
+            if spec[3] then edge:SetHeight(1) else edge:SetWidth(1) end
+            tile.rmEdges[#tile.rmEdges + 1] = edge
+        end
+        tile.rmArt = tile:CreateTexture(nil, "ARTWORK")
+        tile.rmArt:SetSize(TILE_ART, TILE_ART)
+        tile.rmArt:SetPoint("TOP", tile, "TOP", 0, -5)
+        tile.rmLabel = tile:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        tile.rmLabel:SetPoint("BOTTOM", tile, "BOTTOM", 0, 5)
+        -- The style is read off the tile at click time: a pooled tile is re-pointed every render.
+        tile:SetScript("OnClick", function(self)
+            if self.rmStyle and not noStyle() then
+                NS.SetByPath(styleRow.path, self.rmStyle)
+                NS.RequestPanelRefresh()
+            end
+        end)
+    end
+    tile:SetParent(parent)
+    tile:ClearAllPoints()
+    tile:Show()
+    return tile
+end
+
+--- Paint `tile` as style `key` of shape `shape`: picked (edged in the accent) or not, grayed or not.
+local function paintTile(tile, key, shape, picked, off, r, g, b)
+    -- The art's path and the gray state are kept on the tile too: what a test (and /dump) reads back.
+    tile.rmStyle, tile.rmOff, tile.rmPicked = key, off, picked
+    tile.rmArtPath = NS.Constants.INDICATOR_PATH .. shape .. "_" .. key
+    tile.rmArt:SetTexture(tile.rmArtPath)
+    tile.rmArt:SetVertexColor(r, g, b)
+    tile.rmLabel:SetText(STYLES[key])
+    local br, bg, bb = skinRGB("input.bg", 0.08, 0.07, 0.06)
+    tile.rmBg:SetColorTexture(br, bg, bb, 0.9)
+    local er, eg, eb = skinRGB(picked and "text.accent" or "input.border", picked and 1 or 0.25,
+        picked and 0.82 or 0.22, picked and 0 or 0.16)
+    for _, edge in ipairs(tile.rmEdges) do edge:SetColorTexture(er, eg, eb, 1) end
+    if NS.Skin and NS.Skin.Text then
+        NS.Skin.Text(tile.rmLabel, off and "disabled" or (picked and "accent" or "body"), PANEL_TEXT)
+    end
+    tile:SetAlpha(off and 0.4 or 1)
+    tile:EnableMouse(not off)
+end
+
+--- Paint every tile of `ctx`'s last render from the selected container as it is stored now.
+local function paintTiles(ctx, c)
+    local el, off = c.elements.indicator, noStyle()
+    local shape = (SHAPES[el.shape] and not UNSTYLED[el.shape]) and el.shape or "dot"
+    local stored = STYLES[el.style] and el.style or "matte"
+    local r, g, b = tileTint(c)
+    for i, tile in ipairs(ctx.rmStyleTiles) do
+        local key = STYLES_SORT[i]
+        paintTile(tile, key, shape, key == stored, off, r, g, b)
+    end
+end
+
+--- The tiles' refresher: a repaint in place, or a structural redraw when the shape moved between a
+--- styled one and Bar or Spell icon (the note above the tiles comes or goes).
+local function tilesRefresher(ctx)
+    return function()
+        local c = NS.SelectedContainer()
+        if not (c and ctx.rmStyleTiles and #ctx.rmStyleTiles > 0) then return end
+        if noStyle() ~= ctx.rmStyleOff then
+            NS.RequestPanelRefresh()
+            return
+        end
+        paintTiles(ctx, c)
+    end
+end
+
+--- The Dot tab's Style subgroup: a tile per style, after the heading the flow drew for the row.
+local function renderStyleTiles(ctx, group)
+    if group ~= DOT then return end
+    local c = NS.SelectedContainer()
+    local scroll = H.EnsureScroll(ctx)
+    if not (c and scroll and NS.AceGUI) then return end
+    local off = noStyle()
+    if off then
+        H.TextRow(ctx, L["Bar and Spell icon take no style. Pick a shape to choose its finish."],
+            { fontObject = "GameFontDisableSmall" })
+    end
+    local slot = NS.AceGUI:Create("SimpleGroup")
+    slot:SetLayout(nil)
+    slot:SetFullWidth(true)
+    slot:SetHeight(TILE_H + 8)
+    scroll:AddChild(slot)
+    local parent = slot.frame or slot.content
+    local mine = {}
+    -- The one OnRelease this slot gets: it parks the tiles still on it (options-ui-§19), and the
+    -- page forgets them, so its refresher paints nothing that is no longer on screen.
+    slot:SetCallback("OnRelease", function()
+        for _, tile in ipairs(mine) do
+            if tile.rmSlot == slot then parkTile(tile) end
+        end
+        if ctx.rmStyleTiles and ctx.rmStyleTiles[1] == mine[1] then ctx.rmStyleTiles = {} end
+    end)
+    ctx.rmStyleTiles, ctx.rmStyleOff = ctx.rmStyleTiles or {}, off
+    for i = 1, #STYLES_SORT do
+        local tile = acquireTile(parent)
+        tile.rmSlot = slot
+        tile:SetPoint("TOPLEFT", parent, "TOPLEFT", (i - 1) * (TILE_W + TILE_GAP), -4)
+        mine[#mine + 1] = tile
+        ctx.rmStyleTiles[#ctx.rmStyleTiles + 1] = tile
+    end
+    paintTiles(ctx, c)
+    if ctx.refreshers then ctx.refreshers[#ctx.refreshers + 1] = tilesRefresher(ctx) end
+end
+
 NS.RegisterContainerSection(PAGE, L["Display"], {
-    tooltip = L["How this container is laid out and framed, and its number and text."],
+    tooltip = L["How this container is laid out and framed, the elements it draws (its number, text, dot and spell chips), and its caption."],
     afterGroup = { [LAYOUT] = renderOrder },
+    afterSubgroup = { [S_STYLE] = renderStyleTiles },
 })

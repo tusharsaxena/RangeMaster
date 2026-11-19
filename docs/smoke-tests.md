@@ -11,7 +11,7 @@ unless a check names one. The anchors are run as a matrix, one result per mode a
 
 | ID range | Theme | What it covers |
 |---|---|---|
-| INSTALL-1..3 | Install | load, reload, the first-run prompts |
+| INSTALL-1..4 | Install | load, reload, the first-run prompts, an upgrade keeping stored looks |
 | SLASH-1..8 | Slash | help, the schema CLI, disabled refusals, the container, band-set, pick and preset verbs |
 | PANEL-1..4 | Panel | the landing page, General's three tabs, Defaults, tooltips |
 | PROFILE-1..3 | Profiles | the Profiles page, `/rm profile`, a profile's own containers |
@@ -23,9 +23,9 @@ unless a check names one. The anchors are run as a matrix, one result per mode a
 | LOC-1 | Non-English client | a deDE or frFR client |
 | RANGE-1..5 | Range engine | brackets, unknown, the Forever ladder, the ticker's rate and stop, the seed spells |
 | DRAW-1..5 | Containers drawn | brackets drawn, unknown gray, elements and order, the skin face, disable |
-| CONT-1..6 | Containers page | New container, the rail, Position, Duplicate / Delete / Copy settings from, Defaults, Color from |
-| BANDS-1..5 | Band sets page | the picker, the Bands editor, shared sets, the friendly override, the unknown label |
-| PRESET-1..4 | Presets | the first-run picker, Apply on an empty profile, Apply over containers with Undo, from chat |
+| CONT-1..10 | Containers page | New container (no band preview), the rail, Position, Duplicate / Delete / Copy settings from, Defaults, Color from, the Dot tab and its Style tiles, Border opacity, the caption's positions, the caption's styling |
+| BANDS-1..5 | Band sets page | the picker, the Bands editor (no band ribbon), shared sets, the friendly override, the unknown label |
+| PRESET-1..4 | Presets | the first-run picker, Apply on an empty profile, Apply over containers with Undo, what each of the five shows |
 | ANCHOR-1..8 | Anchors | every mode on both clients: screen, unit frames (Blizzard, EllesmereUI, custom, missing), own nameplate, all nameplates, cursor, the picker |
 | VIS-1..3 | Visibility | combat and reaction rules, out-of-combat opacity, the master rows |
 | SOUND-1..2 | Sounds | the debounced band sound, none on nameplates |
@@ -47,6 +47,13 @@ starts with a cyan `[RM]`. Most checks need a container: apply a preset (General
   Press **Not now** → the skin picker shows with its eye lit, and Test mode is on while it is up;
   closing it turns Test mode back off. Neither shows again on the next `/reload`. Result:
 - **INSTALL-3. Reload is quiet.** `/reload` → no chat line from the addon, no error. Result:
+- **INSTALL-4. An upgrade keeps the look.** With containers made on a build before the frame
+  defaults (schema v0: no Border opacity, no dot style), and a second profile holding some too,
+  install this build and log in → every stored container looks as it did: a full-opacity border, no
+  background where it had none, the plain dot at the size it had (the art fills its box as the old
+  dot did); Frame → Border reads Border opacity 100% and Dot →
+  Style has Plain picked. Switch to the other profile → the same. A container made now takes the
+  new look (25% border, background, matte). Result:
 
 ## Slash
 
@@ -68,7 +75,8 @@ starts with a cyan `[RM]`. Most checks need a container: apply a preset (General
 - **SLASH-7. Band-set verbs.** `/rm bands` → the band sets, the selected one marked, then the
   selected set's ribbon; `/rm bands 2` selects the second; `/rm set bandSet.unknown.label ??` changes
   its unknown label; `/rm bands nosuchset` → `No band set 'nosuchset'`. Result:
-- **SLASH-8. Preset, pick and position verbs.** `/rm preset` opens the preset picker.
+- **SLASH-8. Preset, pick and position verbs.** `/rm preset` opens the preset picker. On a profile
+  with no containers, `/rm unlock` prints a line pointing at `/rm preset`.
   `/rm preset simple` on a profile with containers →
   the same confirm as the Presets tab; `/rm preset undo` puts them back; `/rm preset nope` → the usage
   line. `/rm pick` starts the frame picker for the selected container (ANCHOR-8). `/rm resetposition`
@@ -120,13 +128,13 @@ starts with a cyan `[RM]`. Most checks need a container: apply a preset (General
   line `Cannot start a preview mode during combat.`; nothing turns on. Result:
 - **MODES-4. Combat ends both.** Start Test mode, then Sim mode, then enter combat → both turn off at
   the pull (the boxes untick on an open panel), and the displays read the live range again. Result:
-- **MODES-5. Placeholders everywhere.** With no target, apply the Advanced preset and tick **Test
-  mode** → every container shows `20–25` with an amber `TEST` strip on its top edge: the ones on unit
-  frames, the own-plate one and the all-nameplates one (no plate on screen) at their screen points,
+- **MODES-5. Placeholders everywhere.** With no target, apply the Expert preset and tick **Test
+  mode** → every container shows `20–25` with an amber `TEST` strip on its top edge: the four free
+  on screen, the own-plate one and the all-nameplates one (no plate on screen) at their screen points,
   the in-combat ones out of combat. Untick → each goes back to what its rules say. Result:
 - **MODES-6. The sweep.** `/rm sim` → the `Range Master - SIM` step panel opens and every container
   walks `0–1` out to `50+` and back over about 20 s, each band's color in turn, with a cyan `SIM`
-  strip; the Advanced preset's target plays its out-of-range chime once on the way out. At the end
+  strip; the Expert preset's target plays its out-of-range chime once on the way out. At the end
   the panel closes and Sim mode unticks. `/rm sim status`, `/rm sim pause`, `/rm sim resume` and
   `/rm sim stop` answer in chat. Result:
 - **MODES-7. One at a time.** With Sim mode running, `/rm test` → one gray line `Cannot start Test
@@ -166,7 +174,7 @@ The addon's own seams that a client language could reach, enumerated from the co
   `LibKa0s-Compat-1.0`, spells are keyed by spell id (`defaults/SpellSeeds.lua`) and classes by class
   token. A spell's name is read only beside its id, for the Sim sweep's range, and its icon for the
   chips; neither is compared with a string.
-- The one name lookup is the Intermediate preset reusing a band set called `Healer`, which is this
+- The one name lookup is the Expert preset reusing a band set called `Healer`, which is this
   addon's own English string, the same on every client.
 - It writes no header, token or key another tool parses, apart from the diagnostics report's markers,
   which carry the brand in English on every client by design.
@@ -230,8 +238,10 @@ RANGE-1 to RANGE-4 are run through a target container. RANGE-5 needs only the ch
 
 - **CONT-1. New container.** Containers → **New container** → a Target container is made, the banner
   picker shows it, and it draws on screen; the picker lists every container and switching it moves
-  every tab to that container. Result:
-- **CONT-2. The rail.** The rail reads General, Display, Indicator, Visibility, Sounds. Set Unit to
+  every tab to that container. General shows Name, Enable, What it tracks and the acts, and no
+  Preview section: the band preview blocks are gone from the settings (plan 2026-11-19 M8; `/rm bands`
+  keeps its chat ribbon). Result:
+- **CONT-2. The rail.** The rail reads General, Display, Visibility, Sounds. Set Unit to
   All nameplates → Sounds leaves the rail (and the page heals to General if Sounds was shown); set
   it back → Sounds returns. Result:
 - **CONT-3. Position follows Attach to.** General → Position: each Attach to value (Free on screen,
@@ -240,12 +250,47 @@ RANGE-1 to RANGE-4 are run through a target container. RANGE-5 needs only the ch
   and Friendly nameplates too. Result:
 - **CONT-4. Duplicate, Delete, Copy settings from.** **Duplicate container** makes `<name> copy`
   next to it, offset on screen; **Delete container…** asks first and deletes the one it named; Copy
-  settings from copies the look and rules onto the selected container but keeps its name, unit and
-  placement. Result:
+  settings from copies the look and rules onto the selected container but keeps its name, its label
+  text, unit and placement. Result:
 - **CONT-5. Defaults.** Change a row on Display and one on Visibility, press **Defaults** on the
   Display entry → only Display's tabs reset, only for the container in the banner. Result:
 - **CONT-6. Color from.** Set Frame's Color from to Class color and target a player of another class →
   the border takes that player's class color; a target with no class keeps the swatch. Result:
+- **CONT-7. The Dot tab.** Display's tabs read Layout, Frame, Number, Text, Label, Dot, Spell chips. Dot
+  shows Show dot, Shape, Size (px), Dot color and Color from, then **Style**: six tiles (Plain, Matte,
+  Glossy, Glowing, Neon, Gem), each the stored shape in that style tinted as the dot draws, the stored
+  one edged in gold (Matte on a new container). Click Gem → the on-screen dot turns gem and the tile
+  is edged. Change Shape to Star → the tiles redraw as stars at once; to Bar or Spell icon → the
+  tiles gray, a line says Bar and Spell icon take no style, and a click does nothing; back to Hexagon
+  → the tiles light again. Change Dot color (fixed) → the tiles take the new tint. Plain, Matte,
+  Glossy and Gem fill the tile as the v0.1.0 dot did; Glowing and Neon draw a smaller core with the
+  halo around it, nothing clipped at the tile's edge. No preview box shows on the tab. Result:
+- **CONT-8. Border opacity.** On a new container, Frame → Border shows **Border opacity** at 25%, the
+  border drawn faint over a background; drag it to 100% → the border is solid, in every Color from
+  mode. Result:
+- **CONT-9. The caption's text and positions.** Display → Label: the tab shows Show label, Label
+  text, Position, Align, Gap (px), then the Font block; a new container has Show label off and draws
+  no caption. Tick **Show label** → a caption reading the container's name shows above its elements,
+  inside its border; rename the container on General → the caption follows. Type a Label text and
+  press Enter → the caption reads it; clear it → the name again. Position Bottom, Left, Right → the
+  caption moves to that side and the container grows to hold it, the elements and the caption
+  centered on each other; Align shows only for Top and Bottom, where Left / Center / Right moves the
+  caption along the edge. Raise Gap (px) → the space between the caption and the elements widens.
+  `/rm unlock` with the caption on Top → the drag strip sits above the border, clear of the caption.
+  Turn every element off → the caption alone, with no gap. Set Layout's Size to Fixed size → the box
+  keeps its width and height, the caption inside it. Position lists Inside and Outside for each side:
+  Outside top / bottom / left / right → the caption sits beyond the border, Gap (px) off the edge, and
+  the container shrinks to its elements; Align moves an outside top or bottom caption along the edge.
+  `/rm unlock` with Outside top → the drag strip sits above the caption, not over it; `/rm test` while
+  locked → the TEST strip sits above it too. Untick Show label → the caption goes and the
+  container shrinks back. Result:
+- **CONT-10. The caption's styling.** With the caption on: change the Font block's face, size,
+  outline and Font shadow → the caption takes each at once and the container resizes to the new
+  width; leave the face on Skin and switch the skin → the caption's face follows. Color from Fixed
+  with a swatch → that color; Band → the caption takes the band's text color as the target moves
+  between bands; Class with a player targeted → that player's class color, the swatch when the target
+  has no class. Copy settings from a container with a styled caption → the style and position come
+  over and the destination keeps its own Label text. Result:
 
 ## Band sets page
 
@@ -253,8 +298,8 @@ RANGE-1 to RANGE-4 are run through a target container. RANGE-5 needs only the ch
   `(default)`; **New band set** makes and selects one; **Duplicate band set** makes `<name> copy`;
   **Delete band set…** asks first and moves its containers to the default set; deleting the last set
   prints `The last band set cannot be deleted.` Result:
-- **BANDS-2. The Bands editor.** Bands → the ribbon shows every band in its color; change a band's
-  **Up to** → the next band starts there and the ribbon follows; **Add band** splits a band off the
+- **BANDS-2. The Bands editor.** Bands → a heading per band, no ribbon above them; change a band's
+  **Up to** → the next band starts there and the headings follow; **Add band** splits a band off the
   open-ended last one; **Remove band** removes one, and the last band left cannot be removed. Result:
 - **BANDS-3. Shared.** Put two containers on one set and change a band's Frame color → both change
   at once, without a reload. Result:
@@ -266,10 +311,14 @@ RANGE-1 to RANGE-4 are run through a target container. RANGE-5 needs only the ch
 ## Presets
 
 - **PRESET-1. First-run picker.** On a new profile the **Choose a preset** window opens above the
-  center, the containers unlocked and test mode on (its two toggles say so). Pick **Advanced** in the
-  dropdown → six displays appear on screen with placeholder ranges and the status line shows; pick
-  **Simple** → four. **Not now** → your own displays are back, test mode off, the lock as it was,
-  then the skin picker opens. On another new profile pick **Intermediate** and **Apply** → kept with
+  center, the containers unlocked and test mode on (its two toggles say so), and Simple's four
+  displays already on screen with the status line showing, no pick needed. The dropdown lists five:
+  Simple, Intermediate (Range Text), Intermediate (Range Numbers), Advanced, Expert. Pick **Expert**
+  → six displays; pick **Simple** → four, and the Band sets page lists no Healer set Expert's pick
+  made. In every preset each unit sits at the same home: target and focus side by side below the
+  center, pet and mouseover under them, the two nameplate containers (each beside its preview
+  nameplate) in a third row; no two drag strips overlap. **Not now** → your own displays are back, test mode off, the lock as it was,
+  then the skin picker opens. On another new profile pick **Intermediate (Range Text)** and **Apply** → kept with
   no confirm on an empty profile, displays locked, test mode off. The window does not return after a
   `/reload`; `/rm preset` opens it again. Entering combat while a pick is previewed puts your own
   displays back; entering combat before it shows holds it until combat ends. The gear opens General
@@ -277,13 +326,21 @@ RANGE-1 to RANGE-4 are run through a target container. RANGE-5 needs only the ch
 - **PRESET-2. Apply on an empty profile.** With no container, **Apply Simple…** → applied at once, no
   confirm: four containers (Target, Focus, Pet, Mouseover) free on screen, and a chat line naming
   `/rm preset undo`. Result:
-- **PRESET-3. Apply over containers, then Undo.** With containers, **Apply Advanced…** → a confirm
+- **PRESET-3. Apply over containers, then Undo.** With containers, **Apply Expert…** → a confirm
   naming the preset and how many displays it replaces; **Cancel** changes nothing; **Apply** leaves
-  six containers (target, focus and pet on unit frames, mouseover on the cursor, target on its own
-  plate, one on every hostile plate). **Undo last preset** puts the earlier ones back. Result:
-- **PRESET-4. Intermediate.** Apply Intermediate → target, focus and pet sit on their Blizzard unit
-  frames, mouseover follows the cursor, each shows number, text and a dot and hides with no unit;
-  the Healer set is the friendly override. Result:
+  six containers (target, focus, pet and mouseover free on screen, target on its own plate, one on
+  every hostile plate). **Undo last preset** puts the earlier ones back. Result:
+- **PRESET-4. What each preset shows.** Apply each in turn from General → Presets; every one puts
+  target, focus, pet and mouseover free on screen at their homes, each with its name (Target, Focus,
+  Pet, Mouseover) as a caption above its border, on a faint band-tinted background with a faint
+  border, and differs only in what they show: Simple a matte dot; Intermediate (Range Text) the
+  band's name (MELEE, LONG, ...); Intermediate (Range Numbers) the range number; Advanced dot, number
+  and name; Expert all three with spell chips, plus the two nameplate containers (shown out of
+  combat too: target a hostile mob out of combat → the target-plate container shows under its plate,
+  and every hostile plate wears a dot; no caption on either),
+  the out-of-range chime on target and the Healer set as the friendly override on target, focus and
+  mouseover. `/rm preset text`, `/rm preset numbers` and `/rm preset expert` reach the same; `/rm
+  preset intermediate` prints the usage line. Result:
 
 ## Anchors
 
@@ -296,10 +353,13 @@ it), or from chat with `/rm set container.anchor.mode frame` (`screen`, `frame`,
   strip); entering combat puts each back on its own visibility rules, leaving combat shows them again,
   `/rm lock` hides the ones with no unit. A drag strip (name, gear, X, ?) shows above every
   container: the gear opens it on the Containers page, the X disables it with one chat line. Drag a
-  free-on-screen one, then `/reload` → it is where it was dropped. With the Advanced preset, the
-  mouseover (cursor) and target-plate containers sit still at their screen points while unlocked,
-  not on the cursor or a plate, and drag; a container on a unit frame stays on it with its name
-  grayed and does not drag; the `nameplates` stand-in wears one strip, a real plate's instance none.
+  free-on-screen one, then `/reload` → it is where it was dropped. With the Expert preset and its
+  mouseover container set to Cursor, the mouseover (cursor) and target-plate containers sit still at their screen points while unlocked,
+  not on the cursor or a plate, and drag; each container on a nameplate (and the `nameplates`
+  stand-in) sits beside a red preview nameplate named for whose plate it stands for, its drag strip
+  above the plate, and dragging the strip moves both; a container on a unit frame stays on it with
+  its name grayed and does not drag (its Position tab reads Unit frame anchor point, This container
+  anchor point, X offset, Y offset, and each moves it on the frame); the `nameplates` stand-in wears one strip, a real plate's instance none.
   With Test mode on, each drag strip ends in TEST and no amber strip shows beside it; `/rm lock`
   brings the amber strip back on each display (Sim mode: SIM, the cyan strip). Entering combat
   puts the cursor container back on the cursor and drops the strips of the non-screen ones.
@@ -318,7 +378,11 @@ it), or from chat with `/rm set container.anchor.mode frame` (`screen`, `frame`,
   late → no `ADDON_ACTION_BLOCKED`; it attaches after combat. Changing a unit-frame container's
   offset in combat moves it after combat, not during.
 - **ANCHOR-5. Own nameplate.** A target container on Nameplate sits under the target's plate, follows
-  a retarget, hides when the plate leaves the screen, and comes back with it.
+  a retarget, hides when the plate leaves the screen, and comes back with it. Unlocked, it sits
+  under its preview nameplate instead; changing Nameplate anchor point, This container anchor point
+  or the offsets moves it against the preview at once, and `/rm lock` with a target puts it on the
+  real plate in the same place. In Test mode, locked, the container on the target's plate wears the
+  amber strip on its top edge and BugSack shows no *Can't measure restricted regions* error.
 - **ANCHOR-6. All nameplates.** An All nameplates container draws on every hostile plate in a pack
   and on none of the friendly ones; with Friendly nameplates too on, friendly plates too. Pulling a
   pack and killing it (plates recycling fast) raises no error. In an instance, friendly plates
@@ -358,7 +422,7 @@ Set the rules on Containers → Visibility.
 
 ## Sounds
 
-- **SOUND-1. The out-of-range chime.** Apply Advanced, target a dummy in range, walk out past 40 yd →
+- **SOUND-1. The out-of-range chime.** Apply Expert, target a dummy in range, walk out past 40 yd →
   one chime about 0.2 s after crossing; walking back and forth across the edge quickly does not
   chain chimes (at most one a second); retargeting while out of range is silent. Result:
 - **SOUND-2. None on nameplates.** Put a sound on every band of the all-nameplates container's set and
@@ -374,3 +438,6 @@ Set the rules on Containers → Visibility.
 | ANCHOR-1..8 | the v0.1.0 anchors (plan Task 6), 2026-11-18 | no anchor has been seen in a client yet; the EllesmereUI names are read from its source, not a running client |
 | MODES-5..7, VIS-1..3, SOUND-1..2 | the v0.1.0 behavior and modes (plan Task 7), 2026-11-18 | no preview, visibility rule or sound has been seen or heard in a client yet; the chime's file id (567397) is unconfirmed on Forever |
 | SLASH-5..8, CONT-1..6, BANDS-1..5, PRESET-1..4, PROFILE-3 | the v0.1.0 settings pages and verbs (plan Task 8), 2026-11-18 | no settings page beyond General has been opened in a client yet |
+| INSTALL-4, CONT-2, CONT-7..8, PRESET-1, PRESET-3..4 | the five presets and dot styles (plan 2026-11-19-presets-and-dot-styles), 2026-11-19 | the Dot tab, the style art, Border opacity, the v0 -> v1 migration and the five presets have not been seen in a client yet |
+| INSTALL-4, CONT-1, CONT-7, CONT-9..10, BANDS-2 | the Label tab, the removed band previews and the art fill (the same plan, M7-M9), 2026-11-19 | the caption, the settings without their band previews and the redrawn halo-free art have not been seen in a client yet |
+| CONT-9, PRESET-4 | the outside caption positions and the preset defaults (the same plan, M11-M12), 2026-11-19 | the outside captions, the lifted strips, the faint preset frames and the plate containers out of combat have not been seen in a client yet |

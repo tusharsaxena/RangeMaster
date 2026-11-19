@@ -76,7 +76,7 @@ NS.COMMANDS = {
         function() runPick() end},
     {"bands",         L["List the band sets, or select one by number or name \226\128\148 /rm bands 2"],
         function(rest) runBands(rest) end},
-    {"preset",        L["Open the preset picker, apply a preset, or undo the last \226\128\148 /rm preset [simple|intermediate|advanced|undo]"],
+    {"preset",        L["Open the preset picker, apply a preset, or undo the last \226\128\148 /rm preset [simple|text|numbers|advanced|expert|undo]"],
         function(rest) runPreset(rest) end},
     {"test",          L["Toggle Test mode: placeholder ranges on every display \226\128\148 /rm test [on|off]"],
         function(rest) runTest(rest) end},
@@ -164,6 +164,10 @@ function runLock(locked)
     local ok, err = NS.SetByPath("locked", locked)
     if ok == false then return print(err) end
     echo("locked", locked and L["Range displays locked"] or L["Range displays unlocked \226\128\148 drag one by its handle"])
+    -- Unlocking a profile with no containers shows nothing at all; say why, and what puts some there.
+    if not locked and #NS.CM.List() == 0 then
+        print(L["You have no range displays yet. /rm preset puts a set on screen; the Containers page adds one."])
+    end
 end
 
 local ON_OFF = { on = true, off = false }
@@ -299,13 +303,19 @@ function runBands(rest)
     if set then print(NS.BandRibbon(set)) end
 end
 
-local PRESET_KEYS = { simple = true, intermediate = true, advanced = true }
+--- Whether `word` is a preset key (NS.Presets.ORDER, the one list of them).
+local function isPresetKey(word)
+    for _, key in ipairs(NS.Presets.ORDER) do
+        if key == word then return true end
+    end
+    return false
+end
 
 function runPreset(rest)
     local word = firstWord(rest)
     if word == nil or word == "" then return NS.ShowPresetPicker() end
     if word == "undo" then return NS.UndoPreset() end
-    if not PRESET_KEYS[word] then return print(L["Usage: /rm preset [simple|intermediate|advanced|undo]"]) end
+    if not isPresetKey(word) then return print(L["Usage: /rm preset [simple|text|numbers|advanced|expert|undo]"]) end
     NS.ConfirmPreset(word)
 end
 

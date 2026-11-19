@@ -25,6 +25,9 @@ function E.with(body)
     NS.Database.PrepareProfile(p)
     body(p)
   end)
+  -- The renderer's instances go too: a preview built here (the picker's) watches its units on the
+  -- ticker, and a later suite would find them still watched.
+  NS.Container.__reset()
   NS.CM.__reset()
   NS.Presets.__reset()
   NS.db = saved.db

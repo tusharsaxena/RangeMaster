@@ -50,8 +50,7 @@ local plateInsts = {} -- [inst] = true: the per-plate instances
 -- ---------------------------------------------------------------------------
 
 --- Off its plate: the root's points cleared while they still name one, so `inst.anchorPlate` stays
---- true to them (a root on a plate cannot be measured, modules/Container.lua's header), and its
---- preview strips moved to the set worn off a plate.
+--- true to them, and its preview strips re-placed.
 local function unpin(inst)
     if inst.anchorPlate == nil then return end
     inst.frame:ClearAllPoints()

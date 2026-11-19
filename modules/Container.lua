@@ -18,9 +18,11 @@ local _, NS = ...
 --                                        decides which plates get one), applied now
 --   NS.Container.ReleasePlate(id, token), GetPlate(id, token), ForEachPlate(fn(inst, id, token))
 --   inst:SetAnchorHidden(hidden)         the anchor's say: hidden while its frame or plate is missing
---   inst:DockStrips()                    dock the preview strips again, beyond a drag handle built
---                                        after them (modules/Anchors_Screen.lua, on the first unlock)
---   inst:RefreshStrips()                 the root came onto or off a nameplate: the strips follow
+--   inst:DockStrips(always?)             dock the preview strips again, beyond a drag handle built
+--                                        after them (modules/Anchors_Screen.lua, on the first unlock);
+--                                        `always`: with no handle too (the caption's lift moved)
+--   inst:RefreshStrips()                 the drag strip showed or hid, or the root came onto or off
+--                                        a nameplate: the preview strips follow
 --                                        (modules/Anchors_Nameplate.lua)
 --   NS.Container.SetPreview(kind|nil)    Test mode ("test") or Sim mode ("sim") draws, or neither
 --                                        (modules/Preview.lua is its one caller)
@@ -90,14 +92,10 @@ local _, NS = ...
 -- Sim mode), docked on its top edge (`dock = "hud"`), built on first use and kept with the frame. A
 -- preview never runs in combat (refused in it, ended by it), so the stand-ins are built out of combat.
 --
--- A ROOT ON A NAMEPLATE CANNOT BE MEASURED. The client refuses GetTop and its kin on a region
--- anchored to a nameplate ("Can't measure restricted regions"), and the HUD dock measures its target
--- (to flip under the display near the screen's top) on every show and resize, through hooks no
--- pcall here covers. So the dock's target is not the root but `inst.stripHost`, a child laid over
--- it and parked on UIParent's center while the root sits on a plate (`inst.anchorPlate`, which the
--- nameplate anchors keep true to the root's points). On a plate the instance wears a second strip of
--- each kind instead, undocked, anchored on the root's top edge and never measured (it does not flip).
--- `inst.strips` is the set worn where the root sits now.
+-- A ROOT ON A NAMEPLATE CANNOT BE MEASURED (the client refuses GetTop and its kin on a region
+-- anchored to a nameplate). The HUD dock measures its target to flip the strip near the screen's
+-- top, and from LibKa0s-Widgets minor 28 (v1.106.0, RangeMaster#17) a refused read answers nil, so a
+-- strip docked on a root riding a plate sits on its top edge, unflipped, and raises nothing.
 --
 -- WHILE ITS DRAG STRIP SHOWS TAGGED, a display wears no TestStrip: the drag strip's TEST or SIM tag
 -- is its preview marker (preview-mode, *Where the strip sits*, v2.114.0; NS.Anchors.Screen.Tagged).
@@ -109,6 +107,18 @@ local _, NS = ...
 -- there draws the preview's placeholder triple (NS.Preview.PLACEHOLDER) so it is not an empty box; it
 -- keeps "none" as its state, so the combat edge, which ends this (as it ends a preview), hides it on
 -- its own rules, and a placeholder plays no band sound. No preview strip is worn.
+--
+-- THE CAPTION (`label`) NAMES THE DISPLAY and is no element: it is not in `elements.order`, cannot be
+-- dragged, and draws no range. One FontString on the overlay, built on first use; its text is the
+-- stored `label.text`, else the container's name, read on every apply, so a rename (NS.CM.Rename asks
+-- for one) shows on the next frame. Instance:Layout places it on its side of the elements' block
+-- (top, bottom, left or right, `label.gap` px off it) INSIDE the root, so the root's size includes it
+-- and the strips docked on the root's top edge clear it; a fixed-size container keeps its box and the
+-- caption goes inside it with the elements. An OUTSIDE position ("outsideTop" ...) anchors it on the
+-- root's edge, `gap` px off it, beyond the border and the background, and the root keeps the elements'
+-- size; an outside-top caption lifts the drag strip and the preview strips by its height and gap
+-- (`inst.captionLift`, its laid-out size: nothing is measured, so a root on a nameplate is safe). Its
+-- color is read in Paint, as an element's is.
 --
 -- BAND SOUNDS (modules/Sounds.lua) hear every shown render's band and every steady read of a shown
 -- instance's unit; a unit change forgets the instance's sound state (UnitChanged), as does a preview
@@ -171,12 +181,8 @@ local function newInstance()
     local bg = fill:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints(fill)
     local borderFrame = layer(root, LAYERS.LEVEL.BORDER)
-    -- The preview strips' dock target: over the root, parked while the root sits on a plate (header).
-    local host = CreateFrame("Frame", nil, root)
-    host:SetAllPoints(root)
     return setmetatable({
         frame = root, fill = fill, background = bg, overlay = layer(root, LAYERS.LEVEL.OVERLAY),
-        stripHost = host, hostParked = false,
         border = { frame = borderFrame, strips = Style.NewEdges(borderFrame, "BORDER") },
         elements = {}, layout = {}, ctx = {}, spells = {}, spellCount = 0, seen = {},
     }, InstanceMT)
@@ -279,6 +285,37 @@ local function applyElements(inst, c)
     end
 end
 
+--- The caption's text: the stored one, else the container's name (blank or spaces read as unset).
+local function captionText(c)
+    local own = c.label.text
+    if type(own) == "string" and own:match("%S") then return own end
+    return type(c.name) == "string" and c.name or ""
+end
+
+--- Build (on first use), style and measure the caption, or hide it while `label.enabled` is off.
+local function applyCaption(inst, c)
+    local lab, cap = c.label, inst.caption
+    if not (type(lab) == "table" and lab.enabled) then
+        if cap then
+            cap.on = false
+            cap.fs:Hide()
+        end
+        return
+    end
+    if not cap then
+        cap = { fs = inst.overlay:CreateFontString(nil, "OVERLAY") }
+        inst.caption = cap
+    end
+    local size = Style.Font(cap.fs, lab)
+    local text = captionText(c)
+    cap.text, cap.size = text, size
+    cap.fs:SetText(text)
+    cap.w = Style.TextWidth(cap.fs, text, size)
+    cap.h = cap.w > 0 and size or 0
+    cap.on = cap.w > 0
+    if cap.on then cap.fs:Show() else cap.fs:Hide() end
+end
+
 --- Forget what was drawn, so the next render paints everything.
 function Instance:Invalidate()
     self.bandIndex, self.setId, self.layoutDirty = nil, nil, true
@@ -297,6 +334,7 @@ function Instance:Apply(id, c)
     self.applying = true
     applyFrame(self, c)
     applyElements(self, c)
+    applyCaption(self, c)
     self.applying = nil
     self:Invalidate()
     if not watch(self, self.plateToken or c.unit) then self:Rerender() end
@@ -347,29 +385,114 @@ local function side(v, fallback)
     return v >= 1 and v or 1
 end
 
---- Place the cells along the main axis from the padding, centered across it, and size the root: to
---- the cells (`layout.sizing` "fit"), or at `layout.width` x `layout.height` with the cells' block
---- centered in it ("fixed"; a block larger than the box overflows it evenly on both sides).
+--- A stored `label.position` as its side and whether the caption sits outside the root. The plain
+--- sides ("top", ...) are inside (what M7 stored, so no stored value moves); "outsideTop" ... are
+--- outside. Anything else reads as inside top.
+local OUTSIDE_SIDES = { outsideTop = "top", outsideBottom = "bottom", outsideLeft = "left", outsideRight = "right" }
+local INSIDE_SIDES = { top = true, bottom = true, left = true, right = true }
+local function captionSide(pos)
+    if OUTSIDE_SIDES[pos] then return OUTSIDE_SIDES[pos], true end
+    if INSIDE_SIDES[pos] then return pos, false end
+    return "top", false
+end
+Container.CaptionSide = captionSide
+
+-- An outside caption's anchor on the root, per side (and alignment for top / bottom): the caption's
+-- point, the root's point, and the gap's sign along x and y.
+local OUTSIDE_ANCHOR = {
+    top    = { left = { "BOTTOMLEFT", "TOPLEFT" }, center = { "BOTTOM", "TOP" },
+               right = { "BOTTOMRIGHT", "TOPRIGHT" }, dx = 0, dy = 1 },
+    bottom = { left = { "TOPLEFT", "BOTTOMLEFT" }, center = { "TOP", "BOTTOM" },
+               right = { "TOPRIGHT", "BOTTOMRIGHT" }, dx = 0, dy = -1 },
+    left   = { center = { "RIGHT", "LEFT" }, dx = -1, dy = 0 },
+    right  = { center = { "LEFT", "RIGHT" }, dx = 1, dy = 0 },
+}
+
+--- An outside caption: anchored on the root's edge, `gap` px off it, and no part of the root's size
+--- (the border and the background stay the elements'). Keeps its anchor on `cap` (`point`, `rel`,
+--- `ox`, `oy`) and how far it reaches over the root's top (`lift`: the strips docked there clear it).
+local function outsideCaption(cap, lab, where)
+    local g = math.max(tonumber(lab.gap) or 0, 0)
+    local a = OUTSIDE_ANCHOR[where]
+    local pair = (where == "top" or where == "bottom") and a[lab.align] or a.center
+    cap.outside, cap.point, cap.rel, cap.ox, cap.oy = true, pair[1], pair[2], a.dx * g, a.dy * g
+    cap.lift = where == "top" and (g + cap.h) or 0
+end
+
+--- The caption beside the cells' block (`bw` x `bh`): answers the block's offset inside the content
+--- and the content's size, and keeps the caption's own offset and anchor point on `cap`. Top and
+--- bottom center the block across the wider of the two; left and right center both down. An outside
+--- caption takes no room in the content (outsideCaption).
+local function captionBox(cap, lab, bw, bh, hasCells)
+    if cap then cap.outside, cap.lift = false, 0 end
+    if not (cap and cap.on) then return 0, 0, bw, bh end
+    local where, outside = captionSide(lab.position)
+    if outside then
+        outsideCaption(cap, lab, where)
+        return 0, 0, bw, bh
+    end
+    local g = hasCells and math.max(tonumber(lab.gap) or 0, 0) or 0
+    if where == "left" or where == "right" then
+        local cw, ch = cap.w + g + bw, math.max(cap.h, bh)
+        cap.y = (ch - cap.h) / 2
+        if where == "left" then
+            -- Hugging the elements: its right edge sits `gap` px before the block.
+            cap.point, cap.x = "TOPRIGHT", cap.w
+            return cap.w + g, (ch - bh) / 2, cw, ch
+        end
+        cap.point, cap.x = "TOPLEFT", bw + g
+        return 0, (ch - bh) / 2, cw, ch
+    end
+    local cw, ch = math.max(cap.w, bw), cap.h + g + bh
+    local align = lab.align
+    if align == "left" then
+        cap.point, cap.x = "TOPLEFT", 0
+    elseif align == "right" then
+        cap.point, cap.x = "TOPRIGHT", cw
+    else
+        cap.point, cap.x = "TOP", cw / 2
+    end
+    if where == "bottom" then
+        cap.y = bh + g
+        return (cw - bw) / 2, 0, cw, ch
+    end
+    cap.y = 0
+    return (cw - bw) / 2, cap.h + g, cw, ch
+end
+
+--- Place the cells along the main axis, centered across it, the caption on its side of them, all
+--- inside the padding, and size the root: to that content (`layout.sizing` "fit"), or at
+--- `layout.width` x `layout.height` with the content centered in it ("fixed"; content larger than the
+--- box overflows it evenly on both sides). The caption is anchored by the point its alignment names
+--- and keeps its own drawn width, so a measure that ran short never truncates it.
 function Instance:Layout()
     self.layoutDirty = false
-    local lay = self.container.layout
+    local c = self.container
+    local lay = c.layout
     local pad, gap = tonumber(lay.padding) or 0, tonumber(lay.spacing) or 0
     local row = lay.direction ~= "column"
-    local cells, n = collect(self, self.container)
+    local cells, n = collect(self, c)
     local cross = 0
     for i = 1, n do cross = math.max(cross, row and cells[i].h or cells[i].w) end
-    local pos = pad
+    local pos = 0
     for i = 1, n do
         local cell = cells[i]
         if row then
-            cell.x, cell.y, pos = pos, pad + (cross - cell.h) / 2, pos + cell.w + gap
+            cell.x, cell.y, pos = pos, (cross - cell.h) / 2, pos + cell.w + gap
         else
-            cell.x, cell.y, pos = pad + (cross - cell.w) / 2, pos, pos + cell.h + gap
+            cell.x, cell.y, pos = (cross - cell.w) / 2, pos, pos + cell.h + gap
         end
     end
-    local main = n > 0 and (pos - gap + pad) or pad * 2
-    local w, h
-    if row then w, h = main, cross + pad * 2 else w, h = cross + pad * 2, main end
+    local main = n > 0 and (pos - gap) or 0
+    local bw, bh = cross, main
+    if row then bw, bh = main, cross end
+    local cap = self.caption
+    local ex, ey, cw, ch = captionBox(cap, c.label, bw, bh, n > 0)
+    for i = 1, n do
+        local cell = cells[i]
+        cell.x, cell.y = cell.x + pad + ex, cell.y + pad + ey
+    end
+    local w, h = cw + pad * 2, ch + pad * 2
     local dx, dy = 0, 0
     if lay.sizing == "fixed" then
         local T = NS.CONTAINER_TEMPLATE.layout
@@ -383,25 +506,61 @@ function Instance:Layout()
         f:ClearAllPoints()
         f:SetPoint("TOPLEFT", self.frame, "TOPLEFT", cell.x + dx, -(cell.y + dy))
     end
+    if cap and cap.on then
+        cap.fs:ClearAllPoints()
+        if cap.outside then
+            cap.fs:SetPoint(cap.point, self.frame, cap.rel, cap.ox, cap.oy)
+        else
+            cap.fs:SetPoint(cap.point, self.frame, "TOPLEFT", pad + cap.x + dx, -(pad + cap.y + dy))
+        end
+    end
     self.width, self.height = w, h
     self.frame:SetSize(w, h)
+    -- An outside-top caption reaches over the root's top: the drag strip and the preview strips
+    -- docked there are lifted clear of it (no measure: the lift is the caption's own laid-out size).
+    local lift = cap and cap.on and cap.lift or 0
+    if lift ~= (self.captionLift or 0) then
+        self.captionLift = lift
+        self:DockStrips(true)
+        local S = NS.Anchors and NS.Anchors.Screen
+        if S and S.RefreshLift then S.RefreshLift(self) end
+    end
+    -- Beside a stand-in nameplate (unlocked), the drag strip's lift over it follows the new size.
+    if self.anchorMode == "mockplate" then NS.Anchors.Mockplate.Relaid(self) end
 end
 
 -- ---------------------------------------------------------------------------
 -- Rendering
 -- ---------------------------------------------------------------------------
 
---- Every color: the border, the fill, then each element. Answers whether a cell's width moved.
+--- Every color: the border, the fill, the caption, then each element. Answers whether a cell's or the
+--- caption's width moved.
 function Instance:Paint(ctx)
     local c = self.container
     local bd, bg = c.frame.border, c.frame.background
-    if bd.enabled then Style.PaintBorder(self.border, Style.Color(bd.colorMode, bd.color, ctx, "frameColor")) end
+    if bd.enabled then
+        local r, g, b, a = Style.Color(bd.colorMode, bd.color, ctx, "frameColor")
+        local k = tonumber(bd.alpha) or 1
+        if k < 0 then k = 0 elseif k > 1 then k = 1 end
+        Style.PaintBorder(self.border, r, g, b, a * k)
+    end
     if bg.enabled then
         local r, g, b, a = Style.Color(bg.colorMode, bg.color, ctx, "frameColor")
         if bg.colorMode == "band" then a = a * (tonumber(bg.bandAlpha) or 0.15) end
         self.background:SetColorTexture(r, g, b, a)
     end
+    local cap = self.caption
+    if cap and cap.on then
+        local lab = c.label
+        cap.fs:SetTextColor(Style.Color(lab.colorMode, lab.color, ctx, "textColor"))
+    end
     local moved = false
+    if cap and cap.on then
+        -- Measured again, as the Number and Text elements are: a face not loaded at the apply's
+        -- measure (the estimate stood in) is corrected on the next band change.
+        local w = Style.TextWidth(cap.fs, cap.text, cap.size)
+        if w > 0 and w ~= cap.w then cap.w, moved = w, true end
+    end
     for name, mod in pairs(ELEMENT) do
         local el = self.elements[name]
         if el and el.on and mod.Paint(el, c.elements[name], ctx) then moved = true end
@@ -423,87 +582,48 @@ local function resolveBand(inst, state, lo, hi)
     return true
 end
 
---- The dock of this instance's docked strips: on the display's top edge (through the strip host,
---- see the header), stacked beyond its drag handle while that shows (preview-mode, *Where the strip
---- sits*).
+--- The dock of this instance's strips: on the display's top edge, stacked beyond its drag handle
+--- while that shows (preview-mode, *Where the strip sits*).
 local function dockSpec(inst)
-    return { dock = "hud", target = inst.stripHost, clear = inst.dragHandle or nil }
+    return { dock = "hud", target = inst.frame, clear = inst.dragHandle or nil, gap = inst.captionLift or 0 }
 end
 
-local PLATE_STRIP_LEVEL = 5   -- the HUD dock's chrome band: this many levels over the display
-
---- A new preview strip of `kind`: docked, or (`onPlate`) anchored on the root's top edge by hand,
---- taking no mouse, a chrome band over the display. False without the library.
-local function newStrip(inst, kind, onPlate)
+--- A new preview strip of `kind`, docked on the display; false without the library.
+local function newStrip(inst, kind)
     if not (KW and KW.TestStrip) then return false end
-    local root = inst.frame
-    local opts = { text = kind == "sim" and L["SIM"] or L["TEST"], icon = NS.Icon("info"), kind = kind,
-                   owner = NS.name }
-    if not onPlate then opts.dock, opts.target, opts.clear = "hud", inst.stripHost, inst.dragHandle or nil end
-    local ok, s = pcall(KW.TestStrip, root, opts)
-    if not (ok and s) then return false end
-    if onPlate then
-        s:EnableMouse(false)
-        s:ClearAllPoints()
-        s:SetPoint("BOTTOMLEFT", root, "TOPLEFT", 0, 0)
-        s:SetPoint("BOTTOMRIGHT", root, "TOPRIGHT", 0, 0)
-        s:SetFrameStrata(LAYERS.STRATA.HUD)
-        local okLevel, level = pcall(root.GetFrameLevel, root)
-        if okLevel and type(level) == "number" then s:SetFrameLevel(level + PLATE_STRIP_LEVEL) end
-    end
-    return s
-end
-
---- The strip host over the root, or parked on UIParent's center while the root sits on a plate.
-local function syncHost(inst)
-    local parked = inst.anchorPlate ~= nil
-    if inst.hostParked == parked then return end
-    inst.hostParked = parked
-    local host = inst.stripHost
-    host:ClearAllPoints()
-    if parked then
-        host:SetSize(1, 1)
-        host:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-    else
-        host:SetAllPoints(inst.frame)
-    end
+    local opts = dockSpec(inst)
+    opts.text, opts.icon, opts.kind, opts.owner = kind == "sim" and L["SIM"] or L["TEST"], NS.Icon("info"),
+        kind, NS.name
+    local ok, s = pcall(KW.TestStrip, inst.frame, opts)
+    return ok and s or false
 end
 
 --- The drag handle was built after the strips were (modules/Anchors_Screen.lua builds it on the
---- first unlock): dock every docked strip again, so each stacks beyond the handle rather than over it.
-function Instance:DockStrips()
-    local docked = self.stripSets and self.stripSets.docked
-    if not (docked and self.dragHandle and KW and KW.DockTestStrip) then return end
-    for _, s in pairs(docked) do
+--- first unlock): dock every strip again, so each stacks beyond the handle rather than over it.
+--- `always` re-docks with no handle too: an outside-top caption's lift (the dock's gap) moved.
+function Instance:DockStrips(always)
+    if not (self.strips and (always or self.dragHandle) and KW and KW.DockTestStrip) then return end
+    for _, s in pairs(self.strips) do
         if s then pcall(KW.DockTestStrip, s, dockSpec(self)) end
     end
 end
 
---- Show the running preview's strip of the set worn where the root sits (built on first use) and
---- hide every other strip (every strip with no preview, and every one while the drag strip shows
---- tagged: the header).
+--- Show the running preview's strip (built on first use) and hide every other strip (every strip
+--- with no preview, and every one while the drag strip shows tagged: the header).
 local function showStrips(inst)
-    syncHost(inst)
-    if not preview and not inst.stripSets then return end
+    if not preview and not inst.strips then return end
     local marker = preview ~= nil and not NS.Anchors.Screen.Tagged(inst)
-    inst.stripSets = inst.stripSets or { docked = {}, plate = {} }
-    local onPlate = inst.anchorPlate ~= nil
-    local set = onPlate and inst.stripSets.plate or inst.stripSets.docked
-    local other = onPlate and inst.stripSets.docked or inst.stripSets.plate
-    inst.strips = set
-    for _, s in pairs(other) do
-        if s then s:Hide() end
-    end
+    inst.strips = inst.strips or {}
     for _, kind in ipairs(STRIP_KINDS) do
-        local s = set[kind]
+        local s = inst.strips[kind]
         if s == nil and preview == kind then
-            s = newStrip(inst, kind, onPlate)
-            set[kind] = s
+            s = newStrip(inst, kind)
+            inst.strips[kind] = s
         end
         if s then
             local on = marker and preview == kind
             s:SetShown(on)
-            if on and not onPlate and s.Place then pcall(s.Place, s) end
+            if on and s.Place then pcall(s.Place, s) end
         end
     end
 end
@@ -597,10 +717,8 @@ local function park(inst)
     inst.key, inst.id, inst.container, inst.pool, inst.plateToken = nil, nil, nil, nil, nil
     inst.state, inst.lo, inst.hi, inst.shown, inst.anchorHidden = nil, nil, nil, nil, nil
     inst.bandIndex, inst.setId, inst.sound, inst.alpha = nil, nil, nil, nil
-    for _, set in pairs(inst.stripSets or {}) do
-        for _, s in pairs(set) do
-            if s then s:Hide() end
-        end
+    for _, s in pairs(inst.strips or {}) do
+        if s then s:Hide() end
     end
     inst.frame:ClearAllPoints()
 end

@@ -76,10 +76,18 @@ NS.CONTAINER_TEMPLATE = {
     -- the elements centered in it (modules/Container.lua, Instance:Layout).
     layout = { direction = "row", spacing = 4, padding = 4, scale = 1, alpha = 1,
                sizing = "fit", width = 120, height = 28 },
+    -- border.alpha multiplies the border color's own alpha in every color mode (modules/Container.lua
+    -- Paint). A container stored before schemaVersion 1 was given 1 by that step (core/Database.lua).
     frame = {
-        border = { enabled = true, texture = "", size = 1, colorMode = "band", color = white() },
-        background = { enabled = false, colorMode = "band", color = C.HexColor("000000", 0.5), bandAlpha = 0.15 },
+        border = { enabled = true, texture = "", size = 1, colorMode = "band", color = white(), alpha = 0.25 },
+        background = { enabled = true, colorMode = "band", color = C.HexColor("000000", 0.5), bandAlpha = 0.15 },
     },
+    -- The caption naming the display (modules/Container.lua, Instance:Layout): no element of
+    -- `elements.order`, laid out beside the elements inside the root. `text` "" draws the container's
+    -- name; position: top|bottom|left|right; align (top and bottom): left|center|right; `gap` the px
+    -- between the caption and the elements. Off by default, so a stored container draws as before.
+    label = { enabled = false, text = "", position = "top", align = "center", gap = 2,
+              font = "", size = 12, outline = "OUTLINE", shadow = false, colorMode = "fixed", color = white() },
     elements = {
         -- An ARRAY: the load pass never backfills it index by index; it appends a missing name once.
         order = { "indicator", "number", "text", "spells" },
@@ -87,8 +95,10 @@ NS.CONTAINER_TEMPLATE = {
                    shadow = false, colorMode = "band", color = white() },
         text = { enabled = false, font = "", size = 12, outline = "OUTLINE", shadow = false,
                  colorMode = "band", color = white(), upper = true },
-        indicator = { enabled = false, shape = "dot", size = 12, colorMode = "band", color = white(),
-                      spellID = nil },
+        -- shape: dot|ring|square|diamond|triangle|hexagon|star|bar|icon; style (the art's finish,
+        -- the shapes only): plain|matte|glossy|glowing|neon|gem (modules/Elements_Indicator.lua).
+        indicator = { enabled = false, shape = "dot", style = "matte", size = 12, colorMode = "band",
+                      color = white(), spellID = nil },
         -- `list` is the player's (seeded per client and class on create, Task 4); empty here, so the
         -- load pass has nothing to fill into it.
         spells = { enabled = false, list = {}, style = "chip", size = 20 },

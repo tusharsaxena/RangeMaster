@@ -5,8 +5,10 @@ local addonName, NS = ...
 --
 --     General > Presets
 --       -- Simple · 4 containers --        what it holds, line by line      [Apply Simple…]
---       -- Intermediate · 4 containers --  ...                              [Apply Intermediate…]
---       -- Advanced · 6 containers --      ...                              [Apply Advanced…]
+--       -- Intermediate (Range Text) · 4 containers --  ...                 [Apply Intermediate (Range Text)…]
+--       -- Intermediate (Range Numbers) · 4 containers --  ...              [Apply Intermediate (Range Numbers)…]
+--       -- Advanced · 4 containers --      ...                              [Apply Advanced…]
+--       -- Expert · 6 containers --        ...                              [Apply Expert…]
 --       [Undo last preset]
 --
 -- APPLYING REPLACES THE PROFILE'S CONTAINERS, so it is confirmed first whenever there is anything to
@@ -15,7 +17,7 @@ local addonName, NS = ...
 -- `/rm preset undo`) the same NS.UndoPreset. The work is modules/Presets.lua's, through the
 -- registries' own writers.
 --
--- THE PRESET PICKER is a window of its own, shaped as AuraMaster's (below): a dropdown of the three
+-- THE PRESET PICKER is a window of its own, shaped as AuraMaster's (below): a dropdown of the five
 -- presets, each pick previewed on the real screen in test mode, Apply and Not now. It shows once per
 -- profile while `profile.seeded` is false (modules/Presets.lua's PickerDue), marked seen as it SHOWS,
 -- and on demand from `/rm preset`. The first-run skin picker waits behind it, so the two never show
@@ -124,7 +126,7 @@ end
 -- page's Defaults does not reach it. Placed after Master controls and before the Skin tab.
 NS.PRESETS_TAB = {
     key = "Presets", label = L["Presets"],
-    tooltip = L["Start from Simple, Intermediate or Advanced, and undo it."],
+    tooltip = L["Start from one of the five presets, and undo it."],
     render = function(ctx) renderTab(ctx) end,
 }
 
@@ -145,8 +147,9 @@ NS.PRESETS_TAB = {
 --     -- Change it later on General > Presets. --  <- the footer
 --
 -- OPENING records the lock, unlocks the containers and turns test mode on, so a pick is seen where
--- it lands. A PICK previews the preset on the real screen (NS.Presets.BeginPreview); nothing is
--- previewed until one is made. APPLY keeps the pick behind the confirm when the player has
+-- it lands. A PICK previews the preset on the real screen (NS.Presets.BeginPreview). On a profile
+-- with no containers of its own (a new one) the window previews Simple, its selection, as it opens,
+-- so the screen is never empty under it; one with containers keeps them on screen until a pick. APPLY keeps the pick behind the confirm when the player has
 -- containers of their own (the window stays up under it), then locks and turns test mode off; with
 -- nothing picked it keeps what is there. NOT NOW, the close mark and Escape restore the player's set
 -- and put back the lock the window found. Every close the player makes offers the skin picker next,
@@ -176,9 +179,11 @@ local HEIGHT_SHARE = 0.75
 local FOOTER_FALLBACK_H = 24   -- W.FOOTER.HEIGHT, for an install without the library
 
 local BLURBS = {
-    simple = L["Target, focus, pet and mouseover, free on screen: the range number on a band-colored frame."],
-    intermediate = L["On their unit frames, mouseover on the cursor: number, label and dot, a healer set for friends."],
-    advanced = L["Intermediate, plus spell chips on focus, an out-of-range sound and nameplate markers in combat."],
+    simple   = L["Target, focus, pet and mouseover, free on screen: a dot in the band's color."],
+    text     = L["Target, focus, pet and mouseover, free on screen: the band's label as text."],
+    numbers  = L["Target, focus, pet and mouseover, free on screen: the range number."],
+    advanced = L["Target, focus, pet and mouseover, free on screen: dot, range number and label."],
+    expert   = L["Advanced with spell chips, a healer set for friends, an out-of-range sound and combat nameplate markers."],
 }
 
 -- The window's session state: `sel` what the dropdown shows, `picked` whether the player chose
@@ -562,11 +567,14 @@ end
 --- unlocked and test mode on. The skin picker goes down first, unmarked; it comes back after the close.
 local function show()
     local f = Picker.frame or build()
-    if not f:IsShown() then
+    local fresh = not f:IsShown()
+    if fresh then
         state.sel, state.picked, state.open = "simple", false, true
         place(f)
         openUnlocked()
     end
+    -- A profile with nothing of its own previews the selection at once (the header).
+    if fresh and Presets.OwnContainerCount() == 0 and not InCombatLockdown() then pick(state.sel) end
     if NS.HideSkinPicker then NS.HideSkinPicker() end
     f:Show()
     refresh()

@@ -42,8 +42,9 @@ local _, NS = ...
 --
 -- NO COLOR ROW CARRIES `disabledIf`, and none ever may (options-ui-§17, anti-pattern #74): a
 -- swatch is still read for its ALPHA while its class-color companion is on, so graying it would
--- tell the player something untrue. The two rows that do carry it are the Display entry's Width and
--- Height, grayed while Size fits the content, when nothing reads them.
+-- tell the player something untrue. The rows that do carry it are the Display entry's: Width and
+-- Height, grayed while Size fits the content, and the Dot tab's Style, grayed while the shape is Bar
+-- or Spell icon; nothing reads them then.
 
 NS.Schema = NS.Schema or {}
 
@@ -684,11 +685,11 @@ end
 -- does NOT resolve against the defaults that hold it -- a typo'd path would otherwise silently
 -- read and write nothing. It only PRINTS; it never refuses to register.
 --
--- A page is where a row is EDITED, never where it is stored. The Containers page's five rail entries
+-- A page is where a row is EDITED, never where it is stored. The Containers page's four rail entries
 -- are a page key each (settings/Containers.lua), and the Band sets page is one.
 local VALID_PAGES = {
     general = true, profiles = true, bandsets = true,
-    containers = true, containers_display = true, containers_indicator = true,
+    containers = true, containers_display = true,
     containers_visibility = true, containers_sounds = true,
 }
 

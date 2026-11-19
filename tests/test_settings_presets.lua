@@ -44,7 +44,7 @@ test("presets: an empty profile applies at once, with nothing to confirm", funct
   E.with(function()
     local shown = E.spyPopups()
     local answer
-    E.capture(function() answer = NS.ConfirmPreset("intermediate") end)
+    E.capture(function() answer = NS.ConfirmPreset("text") end)
     assertEqual(answer, "applied")
     assertEqual(#shown, 0, "no confirm: nothing of the player's is replaced")
     assertEqual(#CM.List(), 4)
@@ -109,9 +109,9 @@ test("presets: the picker opens unlocked in test mode, a pick previews, and Not 
     assertFalse(NS.GetSetting("locked"), "opening unlocks the containers")
     assertTrue(NS.IsTestMode(), "and turns test mode on")
     assertEqual(units(), "pet", "nothing is previewed until a pick")
-    C.pick("advanced")
+    C.pick("expert")
     assertEqual(#CM.List(), 6, "a pick puts the preset on the screen")
-    assertEqual(Presets.Previewed(), "advanced")
+    assertEqual(Presets.Previewed(), "expert")
     C.pick("simple")
     assertEqual(units(), "target,focus,pet,mouseover", "a second pick swaps the preview")
     local asks = countSkinAsks(function() E.capture(function() C.dismiss() end) end)
@@ -147,11 +147,55 @@ test("presets: the picker's Apply asks over the player's containers, keeps the p
   end)
 end)
 
+test("presets: test_picker_lists_five — the picker's dropdown offers the five presets, each pick previewed with its blurb", function()
+  -- red under: the three-preset dropdown (simple, intermediate, advanced).
+  withPicker(function()
+    NS.MaybeShowPresetPicker()
+    local values, labels = {}, {}
+    for i, o in ipairs(P.frame.dd._options or {}) do values[i], labels[i] = o.value, o.label end
+    assertEqual(table.concat(values, ","), "simple,text,numbers,advanced,expert")
+    assertEqual(labels[2], "Intermediate (Range Text) - 4 containers")
+    assertEqual(labels[3], "Intermediate (Range Numbers) - 4 containers")
+    assertEqual(labels[5], "Expert - 6 containers")
+    -- The kit's font strings may not answer GetText: the blurb is captured as it is set.
+    local fs, blurb = P.frame.blurb, nil
+    local setText = fs.SetText
+    fs.SetText = function(self, text, ...) blurb = text; if setText then return setText(self, text, ...) end end
+    local blurbs = {}
+    local ok, err = pcall(function()
+      for _, key in ipairs(Presets.ORDER) do
+        blurb = nil
+        P.__controls.pick(key)
+        assertEqual(Presets.Previewed(), key, key .. " previews")
+        assertEqual(#CM.List(), Presets.Describe(key).count, key .. ": its containers on screen")
+        assertTrue(type(blurb) == "string" and blurb ~= "", key .. " has a blurb")
+        assertTrue(blurbs[blurb] == nil, key .. "'s blurb is its own")
+        blurbs[blurb] = true
+      end
+    end)
+    fs.SetText = setText
+    if not ok then error(err, 0) end
+  end)
+end)
+
+test("presets: test_picker_previews_on_empty_profile — a new profile's picker puts Simple on screen as it opens", function()
+  -- red under: a picker that previews nothing until a pick (an empty screen under the window).
+  withPicker(function(_, C)
+    NS.MaybeShowPresetPicker()
+    assertEqual(units(), "target,focus,pet,mouseover", "Simple, the selection, is on screen")
+    assertEqual(Presets.Previewed(), "simple")
+    C.pick("expert")
+    assertEqual(#CM.List(), 6, "a pick swaps it as before")
+    E.capture(function() C.dismiss() end)
+    assertEqual(#CM.List(), 0, "Not now leaves the profile empty again")
+  end)
+end)
+
 test("presets: Apply over an empty profile keeps the pick at once; with no pick it keeps what is there", function()
   withPicker(function(_, C)
     local shown = E.spyPopups()
     NS.MaybeShowPresetPicker()
-    C.pick("intermediate")
+    C.pick("numbers")
     E.capture(function() C.apply() end)
     assertEqual(#shown, 0, "nothing of the player's is replaced: no confirm")
     assertEqual(#CM.List(), 4)
@@ -169,7 +213,7 @@ test("presets: taking the picker down offers no skin picker and restores; a repl
   withPicker(function(_, C)
     CM.Create("pet")
     NS.MaybeShowPresetPicker()
-    C.pick("advanced")
+    C.pick("expert")
     assertEqual(countSkinAsks(function() E.capture(function() NS.HidePresetPicker() end) end), 0,
       "the stand-down and a profile event close it quietly")
     assertEqual(units(), "pet", "its preview restored")
@@ -217,7 +261,7 @@ test("presets: combat starting restores a preview, and a pick in combat is refus
   withPicker(function(_, C)
     CM.Create("pet")
     NS.MaybeShowPresetPicker()
-    C.pick("advanced")
+    C.pick("expert")
     NS.PresetPickerCombat()
     assertEqual(units(), "pet", "the player's set is back for the fight")
     assertTrue(shownNow(), "the window stays up")
@@ -243,17 +287,38 @@ test("presets: a profile change while the picker is up shows only the new profil
   end)
 end)
 
-test("presets: the Presets tab draws the three cards with Apply and the Undo button", function()
+test("presets: test_presets_tab_five — the Presets tab draws the five cards with Apply and the Undo button", function()
+  -- red under: the tab's three cards (Simple, Intermediate, Advanced).
   E.with(function()
     local ctx = E.page("general", "General")
     ctx.activeTab = "Presets"
     NS.Helpers.RefreshPanel(ctx, true)
     local labels = E.labels(ctx)
-    for _, text in ipairs({ "Apply Simple\226\128\166", "Apply Intermediate\226\128\166", "Apply Advanced\226\128\166",
-        "Undo last preset" }) do
+    for _, text in ipairs({ "Apply Simple\226\128\166", "Apply Intermediate (Range Text)\226\128\166",
+        "Apply Intermediate (Range Numbers)\226\128\166", "Apply Advanced\226\128\166", "Apply Expert\226\128\166",
+        "Expert \194\183 6 containers", "Advanced \194\183 4 containers", "Undo last preset" }) do
       assertTrue(labels[text], "the tab carries " .. text)
     end
     ctx.activeTab = "Master controls"
     NS.Helpers.RefreshPanel(ctx, true)
+  end)
+end)
+
+test("presets: test_unlock_with_nothing_says_so — /rm unlock on an empty profile points at /rm preset; with containers it shows them", function()
+  -- red under: an unlock that shows nothing and says nothing on a profile with no containers.
+  E.with(function()
+    local out = E.capture(function() NS.Slash:OnSlash("unlock") end)
+    assertTrue(table.concat(out, "\n"):find("/rm preset", 1, true) ~= nil, "an empty profile is told how to get some")
+    NS.SetByPath("locked", true)
+    Presets.Apply("simple")
+    CM.FlushPending()
+    out = E.capture(function() NS.Slash:OnSlash("unlock") end)
+    assertTrue(table.concat(out, "\n"):find("/rm preset", 1, true) == nil, "no hint once it has containers")
+    for _, id in ipairs(CM.List()) do
+      local inst = NS.Container.Get(id)
+      assertTrue(inst ~= nil and inst.frame:IsShown(), CM.Get(id).name .. " shows unlocked")
+      assertTrue(inst.dragHandle ~= nil and inst.dragHandle:IsShown(), CM.Get(id).name .. " wears its drag strip")
+    end
+    NS.SetByPath("locked", true)
   end)
 end)

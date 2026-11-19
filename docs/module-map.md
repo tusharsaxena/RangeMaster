@@ -45,7 +45,7 @@ runner's load list to the TOC.
 | `modules/Range.lua` | `NS.Range`: `Get` (the guarded LibRangeCheck bracket, the per-tick memo by unit token, Forever's ladder fallback), `InSpellRange`, `BeginTick`, `SetPerfParent`, `Rebuild`, the preview's fake source (`SetSource`, `HasSource`). LOAD-BEARING: before Ticker |
 | `modules/Ticker.lua` | `NS.Ticker`: the watch list, the one adaptive `C_Timer` ticker, `RANGE_UPDATED` on change, `Changed` for a new unit behind a token (sent even unmoved), `OnSteady` listeners for an unmoved read, `Removed` for a plate going away; `StandDown` / `StandUp` |
 | `modules/ContainerManager.lua` | `NS.CM`: the container registry's writer (`Create`, `Delete`, `Duplicate`, `Rename`, `UniqueName`, `CopySettings`, `Clear`, `Snapshot`, `RestoreSnapshot`, `SetField`), `IsElementOrder`, `List`, `Get`, `SetPosition` / `ResetPosition` (a drag's result, Reset position), the coalesced, combat-deferred `RequestApply` / `FlushPending`; sender of `CONTAINERS_CHANGED` |
-| `modules/Presets.lua` | `NS.Presets`: `Apply` (Simple, Intermediate, Advanced, through `NS.CM`), the one-level `Undo` / `CanUndo`, `Describe` for the preset cards, `OOR_SOUND`, and `PickerDue` / `MarkPickerSeen` (the writer of `profile.seeded`) |
+| `modules/Presets.lua` | `NS.Presets`: `Apply` (Simple, Intermediate (Range Text), Intermediate (Range Numbers), Advanced, Expert, through `NS.CM`), the first-run picker's `BeginPreview` / `EndPreview`, the one-level `Undo` / `CanUndo`, `Describe` for the preset cards, `OOR_SOUND`, and `PickerDue` / `MarkPickerSeen` (the writer of `profile.seeded`) |
 | `modules/Style.lua` | `NS.Style`: a setting's color (band, fixed, class), the HUD face through the skin's `S.HudFont`, measured text width, edge strips, the media border, frame levels over a root. LOAD-BEARING: before the element files |
 | `modules/Elements_Number.lua` | `NS.Elements.Number`: `Format` (the six formats, `40+`, the unknown label) and the number element |
 | `modules/Elements_Text.lua` | `NS.Elements.Text`: the band label element |
@@ -58,6 +58,7 @@ runner's load list to the TOC.
 | `modules/Anchors_Frame.lua` | The `frame` mode (`NS.Anchors.Frame`): a unit frame from the providers, a missing one hidden and retried, a write held through combat, mouseover to the cursor |
 | `modules/Anchors_Nameplate.lua` | `NS.Plates`, the plate registry (`Get`, `ForEachHostile`, `Added`, `Removed`, `SyncAll`, the one-frame re-check), and the `nameplate` (own plate) and `plates` (per-plate instance) modes |
 | `modules/Anchors_Cursor.lua` | The `cursor` mode (`NS.Anchors.Cursor`): one shared OnUpdate for every cursor container, armed only while one is shown |
+| `modules/Anchors_Mockplate.lua` | The `mockplate` mode (`NS.Anchors.Mockplate`): unlocked out of combat, a container on a nameplate waits at its screen point beside a stand-in plate placed by its `nameplate` point and offsets (`Rect`, `Relaid`, `PLATE`) |
 | `modules/FramePicker.lua` | `NS.FramePicker`: the pick-on-screen overlay, Enter picks and Escape cancels (`Start`, `Stop`, `Cancel`, `IsActive`, `NamedAncestor`), refused in and ended by combat |
 | `modules/Visibility.lua` | `NS.Visibility`: `Evaluate(container, unit, state?) -> shown, alpha` (General visibility, the combat, no-unit and reaction rules, Master opacity times `oocAlpha`), the combat edge's flag (`SetCombat`, `InCombat`) |
 | `modules/Sounds.lua` | `NS.Sounds`: `OnBand(inst, band, now)` (the 0.2 s settle, the 1 s gap, the silent first band, per-instance state), `Reset`, `Wants` (never a `nameplates` container), `BUILTIN` (the out-of-range chime, registered with LibSharedMedia at load) |
@@ -69,9 +70,8 @@ runner's load list to the TOC.
 | `settings/OptionsSetup.lua` | `LibKa0s-Options-1.0`: `NS.Helpers`, eager category registration, the reset vetoes. LOAD-BEARING |
 | `settings/About.lua` | The landing page's spec, drawn by `BuildLandingPage` |
 | `settings/General.lua` | The General page: Master controls (composed; the `locked` row shows the screen drag strips), the Presets tab and the Skin tab |
-| `settings/Containers.lua` | The Containers page: the banner (picker, New container), the nav rail (`NS.RegisterContainerSection`), the General entry's rows (identity, band sets, Position) and acts (Duplicate, Delete, Copy settings from, Pick on screen, the band preview); `NS.ContainerValues`, `NS.RequestPanelRefresh`, `NS.ShowContainer`, `NS.NewContainer`, `NS.DeleteContainer`, `NS.PickFrameForSelected`, `NS.BandRibbon`. LOAD-BEARING: before the entry files |
-| `settings/Containers_Display.lua` | The Display entry: Layout (and the Element order drag list, `NS.CancelElementOrder`), Frame (the composed border block, the background pair), Number and Text (each the composed Font block) |
-| `settings/Containers_Indicator.lua` | The Indicator entry: the indicator (its color pair composed) and the spell chips |
+| `settings/Containers.lua` | The Containers page: the banner (picker, New container), the nav rail (`NS.RegisterContainerSection`), the General entry's rows (identity, band sets, Position) and acts (Duplicate, Delete, Copy settings from, Pick on screen); `NS.ContainerValues`, `NS.RequestPanelRefresh`, `NS.ShowContainer`, `NS.NewContainer`, `NS.DeleteContainer`, `NS.PickFrameForSelected`, `NS.BandRibbon` (the `/rm bands` chat line). LOAD-BEARING: before the entry files |
+| `settings/Containers_Display.lua` | The Display entry: Layout (and the Element order drag list, `NS.CancelElementOrder`), Frame (the composed border block with Border opacity, the background pair), Number and Text (each the composed Font block), Label (the `container.label.*` caption rows and their composed Font block), Dot (its color pair composed, and the Style tiles, `NS.ReleaseStyleTiles`) and Spell chips |
 | `settings/Containers_Visibility.lua` | The Visibility entry: the combat, reaction and no-unit rules and the out-of-combat opacity |
 | `settings/Containers_Sounds.lua` | The Sounds entry: whether band sounds play, and the channel; not on the rail for a `nameplates` container |
 | `settings/BandSets.lua` | The Band sets page: the banner (picker, New band set), General (`bandSet.*` rows and the acts) and the Bands host editor; `NS.ShowBandSet`, `NS.DeleteBandSet` |
@@ -91,9 +91,12 @@ is per module): Tooltip, Role, Item, Glow, Callout, Charts, IconBrowser, Toast a
 
 ## Media
 
-`media/logos/` (the addon logo, layout-§4) and `media/textures/indicators/` (the indicator shapes:
-`dot`, `ring`, `square`, `diamond`, `triangle`, each a white 64x64 uncompressed 32-bit TGA tinted at
-draw time; `tests/test_container_render.lua` checks the headers).
+`media/logos/` (the addon logo, layout-§4) and `media/textures/indicators/` (the indicator art:
+`<shape>_<style>` for the shapes `dot`, `ring`, `square`, `diamond`, `triangle`, `hexagon`, `star` and
+the styles `plain`, `matte`, `glossy`, `glowing`, `neon`, `gem`, each a white 128x128 uncompressed
+32-bit TGA tinted at draw time, drawn by `tools/indicator_art.py`; plain, matte, glossy and gem fill
+the box as the v0.1.0 single-file art did (the dot 87.5%), glowing and neon draw a smaller core (about
+70%) so their halo fits; `tests/test_container_render.lua` checks the headers and the fill).
 
 ## Tests
 

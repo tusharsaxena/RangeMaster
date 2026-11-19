@@ -170,7 +170,7 @@ opts?)` (a deep copy of the template on the default band set, the class's spell-
 screen container staggered by id), `Delete`,
 `Duplicate` (after its source, `"<name> copy"`, a screen copy offset), `Rename`, `UniqueName`
 (`Target`, `Target 2`, case-insensitive), `SetField` (one dotted field; `elements.order` only as an
-arrangement of the four elements, `IsElementOrder`), `CopySettings` (never name, enabled, unit or anchor),
+arrangement of the four elements, `IsElementOrder`), `CopySettings` (never name, enabled, unit or anchor, nor the caption's own `label.text`),
 `Clear`, and `Snapshot` / `RestoreSnapshot`, which carry both registries, ids included, the band-set
 half through `NS.BandSets.Snapshot` / `RestoreSnapshot`. A restore never rewinds either id counter
 (each keeps the higher of its own and the snapshot's), so an id is never reused. Every write calls `RequestApply`, which
@@ -180,19 +180,23 @@ addon arms no timer, and the stand-up asks for one apply. A profile switch, copy
 three AceDB callbacks, `adoptProfile` in `core/RangeMaster.lua`) replaces the registry whole, so it
 asks for one apply too.
 
-`NS.Presets.Apply(key)` (`simple`, `intermediate`, `advanced`) snapshots, clears and creates through
+`NS.Presets.Apply(key)` (`simple`, `text`, `numbers`, `advanced`, `expert`) snapshots, clears and creates through
 `NS.CM`, and answers the snapshot; `Undo` restores it (one level). The Undo slot belongs to the
-profile it was taken on: `adoptProfile` calls `ForgetUndo` on a switch, copy or reset. Simple: target, focus, pet and
-mouseover free on screen, number and band-colored border. Intermediate: target, focus and pet on their
-Blizzard unit frames, mouseover on the cursor, number + text + dot, hidden with no unit, the Healer set
-as the friendly override on target, focus and mouseover (reused by name, else created). Advanced:
-Intermediate with spell chips on focus and sounds on target (its set's out-of-range band gets
-`NS.Presets.OOR_SOUND` through `NS.BandSets.SetBandSound` when it has no sound), plus target on its own nameplate (diamond + number) and
-every hostile nameplate (dot + the `max` number), both in combat only. `Describe(key)` feeds the
+profile it was taken on: `adoptProfile` calls `ForgetUndo` on a switch, copy or reset. Every preset puts target, focus, pet and
+mouseover free on screen at their homes (`Presets.HOME`), each named by its caption at Outside top,
+on a faint frame (background and band-colored border on, the border and the band tint at 10%, the
+plate containers too) and the matte dot; only the elements differ. Simple: the dot. Intermediate
+(Range Text, `text`): the band's text label. Intermediate (Range Numbers, `numbers`): the range
+number. Advanced: dot + number + text. Expert: Advanced with spell chips, the Healer set as the
+friendly override on target, focus and mouseover (reused by name, else created), sounds on target
+(its set's out-of-range band gets `NS.Presets.OOR_SOUND` through `NS.BandSets.SetBandSound` when it
+has no sound), plus target on its own nameplate (diamond + number) and every hostile nameplate (dot +
+the `max` number), both shown whenever their unit is there. `Describe(key)` feeds the
 preset cards on General › Presets. `PickerDue` / `MarkPickerSeen` are the one runtime reader and
 writer of `profile.seeded`, the first-run preset picker's sentinel (`settings/Presets.lua` shows the
 picker and marks it seen as it shows). The picker's picks preview through `BeginPreview` /
-`EndPreview(keep)`: one snapshot of the player's set at the first pick, restored on Not now, combat,
+`EndPreview(keep)`: one snapshot of the player's set at the first pick (a later pick restores it
+before it builds, so what one preview added to the band sets never outlives it), restored on Not now, combat,
 the take-down and AceDB's shutdowns, or made the Undo slot when Apply keeps it. Its own take-down
 (`NS.HidePresetPicker`: the stand-down, every profile event, the shutdowns) closes it quietly and
 offers no skin picker; the player's close does, and a profile event asks for both prompts afresh, the skin picker still behind.
@@ -223,10 +227,17 @@ with no unit. Colors read `band` (the band's frame, text or indicator color), `f
 `class` (the TRACKED unit's class color, the swatch's alpha kept, an unresolvable class falling
 through to the swatch; options-ui-§17, because a range container describes its unit; the
 color rows declare `classColorSource = "unit"`). The elements follow
-`elements.order` along `layout.direction`, from the padding, `spacing` apart, centered across; only
-an enabled element is ever built, and one turned off is hidden. The number writes the bracket in one
+`elements.order` along `layout.direction`, `spacing` apart, centered across; only an enabled element
+is ever built, and one turned off is hidden. The caption (`label`, while enabled; no element of the
+order) sits between the padding and the elements' block on its side (top, bottom, left or right),
+`gap` px from it (no gap with no element shown), and the cells are offset by it: the block and the
+caption are centered on each other, and the root grows to hold both (a fixed-size box keeps its size,
+the caption inside it). Paint colors the caption with the frame and measures it again, so a width
+that moved lays the container out again. The number writes the bracket in one
 of six formats and `40+` for an open-ended one, never an invented far bound. The indicator draws
-this addon's shape art (`media/textures/indicators/`), LibKa0s-Widgets' data bar (fuller the nearer
+this addon's shape art in the stored style (`media/textures/indicators/<shape>_<style>`, matte by
+default; plain, matte, glossy and gem fill the box as the v0.1.0 art did, so a migrated `plain` dot
+keeps its size, and glowing and neon draw a smaller core inside their halo), LibKa0s-Widgets' data bar (fuller the nearer
 the band, empty when unknown) or a spell icon. The spell chips are an array pool per element, each
 chip colored by its own answer and repainted only when that answer moves. Placement is
 `NS.Anchors.Apply` (below). A `nameplates` container has no single instance: it owns one per eligible
@@ -274,6 +285,13 @@ is missing (`inst:SetAnchorHidden`), and the renderer tells the anchors each sho
   a cursor container is shown, places each at `GetCursorPosition()` over `UIParent`'s effective
   scale plus the container's own `anchor.cursor` offset (below and right of the cursor by default,
   never the screen point) (bucket `cursor.follow`).
+- **mockplate** (`modules/Anchors_Mockplate.lua`), unlocked out of combat only: an own-plate
+  container and a `nameplates` container's stand-in sit at their screen point (and drag, as a screen
+  container does) beside a stand-in nameplate, a child of the root hung off it by the inverse of
+  the container's `nameplate` point and offsets, so the pair reads as the container will sit on a
+  real plate. A write to those rows re-places it at once. The drag strip is lifted over the stand-in
+  (`NS.Anchors.Screen.SetLift`), worked out from the stored points and the laid-out size alone.
+  Locking or combat puts the container back on `nameplate` (or its per-plate instances).
 
 `NS.FramePicker.Start(onPick)` (`modules/FramePicker.lua`) is the custom provider's pick on screen: an
 overlay outlines the nearest named ancestor of the frame under the cursor; Enter picks it and Escape
@@ -303,7 +321,7 @@ keyboard only (frame-layering-§4 retired the full-screen click catcher). It is 
   had settled is quiet. `NS.Sounds.Reset` (a unit change, a faction change, a preview starting or
   ending) forgets the bands but keeps the last sound's time, so the 1 s gap is the container's and
   survives a retarget. A `nameplates` container never sounds: its per-plate instances keep no state,
-  and its Test or Sim mode stand-in is turned down by `NS.Sounds.Wants`. The Advanced preset's out-of-range key is built in (`NS.Sounds.BUILTIN`: the raid warning
+  and its Test or Sim mode stand-in is turned down by `NS.Sounds.Wants`. The Expert preset's out-of-range key is built in (`NS.Sounds.BUILTIN`: the raid warning
   chime, file id 567397) and registered with LibSharedMedia at load.
 - **Test mode** (`modules/Preview.lua`): `NS.Preview.Refresh` is the one caller of
   `NS.Range.SetSource` (a fake range every read answers, for any token) and
@@ -314,9 +332,9 @@ keyboard only (frame-layering-§4 retired the full-screen click catcher). It is 
   "hud"`, amber `TEST`, cyan `SIM`), including an instance acquired while the preview runs (a
   container created or enabled, a plate added, a pooled frame coming back). The strip stacks beyond
   the screen anchor's drag handle: one built before the first unlock is docked again when the handle
-  is built (`inst:DockStrips`). Its dock target is the instance's strip host, never the root; a
-  container on a nameplate wears an undocked strip on its top edge instead, since the client will not
-  measure a region anchored on a plate (ARCHITECTURE.md, *Taint Notes*). While a display's drag
+  is built (`inst:DockStrips`). Its dock target is the root, a root on a nameplate included: the
+  library's dock answers a refused measurement as "no flip" (LibKa0s v1.106.0; ARCHITECTURE.md,
+  *Taint Notes*). While a display's drag
   strip shows, its label ends in the TEST or SIM tag and the TestStrip is hidden: the tagged drag
   strip is that display's marker (preview-mode, *Where the strip sits*, v2.114.0;
   `NS.Anchors.Screen.Tagged`), and the TestStrip returns when the drag strip hides. The ticker, the memo, `RANGE_UPDATED` and the render are the live

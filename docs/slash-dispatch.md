@@ -18,7 +18,7 @@ settings panel in either state; `/rm options` is an alias of `config`.
 | `reset` | path | yes | one setting back to its default |
 | `resetall` | — | yes | every setting back to defaults (a profile reset) |
 | `profile` | [name] | yes | lists profiles, or switches to an existing one |
-| `lock` / `unlock` | — | no | writes `locked` and echoes it |
+| `lock` / `unlock` | — | no | writes `locked` and echoes it; `unlock` on a profile with no containers adds a line pointing at `/rm preset` |
 | `resetposition` | — | no | `NS.ResetPositions`: every screen container back at its new-container point; echoes how many moved |
 | `containers` | — | no | lists the containers as `n. Name (unit, anchor)`, the selected one marked `*` |
 | `select` | number or name | no | selects a container (a name matches in any case); `container.*` paths then mean it |
@@ -26,7 +26,7 @@ settings panel in either state; `/rm options` is an alias of `config`.
 | `delete` | number or name | no | asks first (the panel's confirmation, `NS.ConfirmDeleteContainer`), then deletes the container on Yes and selects its neighbor |
 | `pick` | — | no | starts the pick-on-screen overlay for the selected container (Enter picks, Escape cancels); a pick attaches it to that frame by name (refused in combat by the picker) |
 | `bands` | [number or name] | no | bare: lists the band sets, the selected one marked, and the selected set's ribbon; with an argument selects one (`bandSet.*` paths then mean it) |
-| `preset` | none, `simple`, `intermediate`, `advanced` or `undo` | no | bare: opens the preset picker (refused in combat); a name applies that preset behind the same confirm as the Presets tab (none on an empty profile); `undo` puts back what the last one replaced |
+| `preset` | none, `simple`, `text`, `numbers`, `advanced`, `expert` or `undo` | no | bare: opens the preset picker (refused in combat); a name applies that preset behind the same confirm as the Presets tab (none on an empty profile); `undo` puts back what the last one replaced |
 | `test` | [on\|off] | no | toggles or sets Test mode (`NS.SetTestMode`); refused in combat |
 | `sim` | [on\|off], or a simulator verb | no | bare, `on` or `off` toggles or sets Sim mode (`NS.SetSimMode`), refused in combat; any other word is LibKa0s-Sim's own verb (`status`, `step`, `pause`, `resume`, `restart`, `stop`, `panel`, `start sweep`; `NS.Sim.RunVerb`), its answer printed in chat |
 | `debug` | [on\|off\|diagnostics] | yes | bare: toggles the console window; on/off: session logging; diagnostics: the report |

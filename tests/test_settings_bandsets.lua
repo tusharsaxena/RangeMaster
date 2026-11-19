@@ -117,11 +117,13 @@ test("bandsets: the Band sets page draws General and Bands, and the editor's con
     ctx.activeTab = "Bands"
     NS.__renderBandSetsPage(ctx)
     labels = E.labels(ctx)
-    for _, label in ipairs({ "Up to (yards)", "Label", "Frame color", "Text color", "Indicator color",
+    for _, label in ipairs({ "Up to (yards)", "Label", "Frame color", "Text color", "Dot color",
         "Sound on enter", "Add band" }) do
       assertTrue(labels[label], "Bands shows " .. label)
     end
     local set, id = NS.SelectedBandSet()
+    -- Red under the Bands tab still drawing the band ribbon over the list (plan M8).
+    assertNil(NS.BandRibbon and labels[NS.BandRibbon(set)] or nil, "and no band ribbon over the list")
     local items = NS.__bandItems(id, set, 1)
     local was = set.bands[1].to
     items[1].set(was + 1)

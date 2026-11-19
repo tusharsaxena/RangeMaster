@@ -10,7 +10,7 @@ by the sidebar is covered by the library's lock (options-ui-§2).
 |---|---|
 | Ka0s Range Master (landing) | The logo, the TOC Notes line and the slash command list (`settings/About.lua`) |
 | General | Master controls, the presets and the skin (`settings/General.lua`, `settings/Presets.lua`) |
-| Containers | One range container at a time: a banner picker with New container, and a nav rail of five entries (`settings/Containers*.lua`) |
+| Containers | One range container at a time: a banner picker with New container, and a nav rail of four entries: General, Display, Visibility, Sounds (`settings/Containers*.lua`) |
 | Band sets | One band set at a time: a banner picker with New band set, its General tab and the Bands editor (`settings/BandSets.lua`) |
 | Profiles | AceDB profiles: switch, copy, delete, reset (`settings/Profiles.lua`) |
 
@@ -44,7 +44,7 @@ The header **Defaults** button restores every General row on this profile except
 ### Presets
 
 A host tab (options-ui-§13) between Master controls and Skin: one card per preset (Simple,
-Intermediate, Advanced), each its `NS.Presets.Describe` lines and an **Apply <name>…** button, then
+Intermediate (Range Text), Intermediate (Range Numbers), Advanced, Expert), each its `NS.Presets.Describe` lines and an **Apply <name>…** button, then
 **Undo last preset**. Apply goes through `NS.ConfirmPreset`: a profile with containers is asked first
 (the popup names the preset and the count it replaces); an empty one applies at once. `/rm preset`
 takes the same route.
@@ -54,7 +54,7 @@ takes the same route.
 A standalone window (`settings/Presets.lua`, shaped as AuraMaster's `settings/PresetPicker.lua`),
 shown once per profile while `seeded` is false (marked seen as it shows, held through combat) and on
 demand from a bare `/rm preset`. Title **Choose a preset** with the settings and close marks, the
-owner line, a LibKa0s dropdown of the three presets (`Simple - 4 containers`, ...), a one-line
+owner line, a LibKa0s dropdown of the five presets (`Simple - 4 containers`, ..., `Expert - 6 containers`), a one-line
 blurb, *The skin picker opens next.* while that one is due, two toggles (**Containers:
 locked/unlocked**, **Test mode: on/off**), **Apply** and **Not now**, and the footer *Change it later
 on General > Presets.* Opening records the lock, unlocks and turns test mode on. A pick previews the
@@ -80,13 +80,14 @@ The band carries the page's only picker and **New container** (`O.PageBanner` wi
 rail picks which part of the selected container is shown; each entry is its own page key, so the
 header **Defaults** restores every tab of the entry on screen, for the container in the band. The
 **Sounds** entry is not listed for a `nameplates` container, and the rail heals to General when the
-selection moves to one.
+selection moves to one. No page draws a band preview: General's Preview section and the Band sets
+page's band ribbon were removed (plan 2026-11-19 M8); `/rm bands` keeps its chat ribbon
+(`NS.BandRibbon`, which only that verb calls now).
 
 | Entry (page key) | Tabs | Rows |
 |---|---|---|
-| General (`containers`) | General, Position | Name, Enable this container; What it tracks: Unit, Band set, Friendly band set; then Duplicate container, Delete container… (confirmed), Copy settings from and the band Preview. Position: Attach to, and the rows of the chosen placement only (`shownWhen`, options-ui-§22): on the unit frame (Unit frames from, Frame name for a custom frame, points, offsets, **Pick on screen**), on screen (points, offsets, Frame strata), at the cursor, on the nameplate (and Friendly nameplates too for All nameplates) |
-| Display (`containers_display`) | Layout, Frame, Number, Text | Direction, Spacing, Padding, Container scale, Container opacity, Size (`container.layout.sizing`: Fit its content, or Fixed size) with Width and Height (grayed while it fits its content), then **Element order**: a LibKa0s-Widgets `ReorderList` shaped as MultiMeters' Columns list, one row per element (the `segment` handle, an on/off tick that writes the element's own `enabled` row, the name at the right); the elements turned on come first and only they drag (the list's `boundary`), the ones turned off sit dimmed below with no handle; a drop or a tick writes `container.elements.order` as the list shows it (options-ui-§18; on the CLI the row takes names, `number,text` putting those first); the composed border block and the background pair; Show number and Format with the composed Font block; Show text label and Uppercase with the composed Font block |
-| Indicator (`containers_indicator`) | Indicator, Spell chips | Show indicator, Shape, Size and the composed color pair; Show spell chips, Style, Size |
+| General (`containers`) | General, Position | Name, Enable this container; What it tracks: Unit, Band set, Friendly band set; then Duplicate container, Delete container… (confirmed) and Copy settings from. Position: Attach to and Frame strata (every mode), then the rows of the chosen placement only (`shownWhen`, options-ui-§22), read as AuraMaster's Position tab: what it attaches to's anchor point and This container anchor point side by side, then X and Y side by side. On the unit frame: Unit frames from, Frame name for a custom frame, **Pick on screen**, Unit frame anchor point, This container anchor point, X offset, Y offset. On screen: Screen anchor point, This container anchor point, X position, Y position. At the cursor: This container anchor point, X offset, Y offset. On the nameplate: Nameplate anchor point, This container anchor point, X offset, Y offset (and Friendly nameplates too for All nameplates); while unlocked a preview nameplate shows where the container sits on one |
+| Display (`containers_display`) | Layout, Frame, Number, Text, Label, Dot, Spell chips | Direction, Spacing, Padding, Container scale, Container opacity, Size (`container.layout.sizing`: Fit its content, or Fixed size) with Width and Height (grayed while it fits its content), then **Element order**: a LibKa0s-Widgets `ReorderList` shaped as MultiMeters' Columns list, one row per element (the `segment` handle, an on/off tick that writes the element's own `enabled` row, the name at the right); the elements turned on come first and only they drag (the list's `boundary`), the ones turned off sit dimmed below with no handle; a drop or a tick writes `container.elements.order` as the list shows it (options-ui-§18; on the CLI the row takes names, `number,text` putting those first); the composed border block with **Border opacity** (`container.frame.border.alpha`, 25% on a new container) as its extra, and the background pair (on for a new container); Show number and Format with the composed Font block; Show text label and Uppercase with the composed Font block; the caption naming the container (`container.label.*`, off by default): Show label, Label text (an EditBox that applies on Enter; empty shows the container's name), Position (Inside top, Outside top, Inside bottom, Outside bottom, Inside left, Outside left, Inside right, Outside right: inside sits beside the elements within the border and grows the container; outside sits beyond the border, `gap` px off its edge, and the container keeps the elements' size; `top`/`bottom`/`left`/`right` stored are the inside ones), Align (Left, Center, Right; shown for the tops and bottoms only), Gap (px), then the composed Font block (its face `Skin` = `""` stored, with the caption's color and Color from); Show dot, Shape, Size (px) and the composed Dot color pair, then **Style**: a tile per style (Plain, Matte, Glossy, Glowing, Neon, Gem), each the stored shape's art in that style, a click writing `container.elements.indicator.style` (a skipRender dropdown row on the CLI; grayed, and the tiles inert, while the shape is Bar or Spell icon); Show spell chips, Style, Size |
 | Visibility (`containers_visibility`) | Visibility | Show (always, in combat, out of combat), Reaction, Hide with no unit, Out of combat opacity |
 | Sounds (`containers_sounds`) | Sounds | Play band sounds, Sound channel |
 
@@ -99,8 +100,8 @@ The band carries the band-set picker (the default set marked) and **New band set
 Name, Match band by, and the Unknown range subsection (Unknown label, Unknown color, a palette swatch
 with no class companion), then the containers using the set and **Duplicate band set** / **Delete
 band set…** (confirmed; its containers move to the default set; the last set is never deleted).
-**Bands** (a host editor): the distance ribbon, then per band Up to (yards), Label, Frame / Text /
-Indicator color and Sound on enter, Remove band, and **Add band** at the foot. The bands are ordered
+**Bands** (a host editor, with no band ribbon above it): per band Up to (yards), Label, Frame / Text /
+Dot color and Sound on enter, Remove band, and **Add band** at the foot. The bands are ordered
 by their edges (`modules/BandSets.lua` normalizes every write), so a band moves by moving its edge and
 there is no reorder control (options-ui-§18 binds a list whose order is the setting; this one's is
 derived). The band colors are palette swatches (options-ui-§17's one exemption): each identifies a

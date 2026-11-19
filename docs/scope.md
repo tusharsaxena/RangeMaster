@@ -6,11 +6,12 @@ Range Master shows how far away a unit is, as the narrowest bracket the game's r
 on displays the player builds. Each display (a **container**) watches one unit: `target`, `focus`,
 `pet`, `mouseover`, or every enemy nameplate at once. It can show the bracket as a number, a band
 label, a colored indicator and a row of the player's own spells that light when in reach, all colored
-by a shared **band set**. A display sits on the screen, on a unit frame (Blizzard's, EllesmereUI's or
+by a shared **band set**, with an optional caption naming the display. A display sits on the screen, on a unit frame (Blizzard's, EllesmereUI's or
 any named frame), on a nameplate, or at the cursor. It can play a sound when the band changes, and it
 can hide by combat state, reaction or a missing unit.
 
-Three presets (Simple, Intermediate, Advanced) build a starter set, Test mode shows placeholders for
+Five presets (Simple, Intermediate (Range Text), Intermediate (Range Numbers), Advanced, Expert)
+build a starter set, Test mode shows placeholders for
 placing and styling, and Sim mode walks a simulated target through the bands. It runs on Retail and
 WoW Forever from one codebase. The full feature list is the design spec,
 `docs/superpowers/specs/2026-11-18-rangemaster-design.md`, section 3.

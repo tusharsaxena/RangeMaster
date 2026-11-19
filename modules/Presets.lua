@@ -1,6 +1,7 @@
 local _, NS = ...
 -- modules/Presets.lua — the container presets (design spec 5.2, "Container presets"; the mockup's
--- presets board): Simple, Intermediate and Advanced, shown on first run and on General › Presets
+-- presets board; the five-preset plan of 2026-11-19, M4): Simple, Intermediate (Range Text),
+-- Intermediate (Range Numbers), Advanced and Expert, shown on first run and on General › Presets
 -- (plan Task 8).
 --
 --   NS.Presets.Apply(key) -> snapshotBefore   key ∈ NS.Presets.ORDER; nil (and nothing done) otherwise
@@ -21,34 +22,44 @@ local _, NS = ...
 -- The confirm before it is the caller's (the Presets tab, `/rm preset`, plan Task 8).
 --
 -- THE BAND SETS ARE THE PLAYER'S, picked for their class on first run: every preset container uses
--- the default set. Two presets touch the band-set registry, each through its writer and only to add:
--- Intermediate's friendly override is the "Healer" set (the one named so, else a new one from the
--- healer preset), and Advanced's out-of-range warning puts OOR_SOUND on the last band of the
--- target's set when that band has no sound yet (NS.BandSets.SetBandSound). Undo restores both
--- registries (NS.CM.Snapshot).
+-- the default set. Expert alone touches the band-set registry, through its writers and only to add:
+-- its friendly override is the "Healer" set (the one named so, else a new one from the healer
+-- preset), and its out-of-range warning puts OOR_SOUND on the last band of the target's set when
+-- that band has no sound yet (NS.BandSets.SetBandSound). Undo restores both registries
+-- (NS.CM.Snapshot).
 --
 -- THE UNDO SLOT BELONGS TO THE PROFILE IT WAS TAKEN ON. A switch, copy or reset replaces the profile
 -- whole, so core/RangeMaster.lua's adoptProfile calls ForgetUndo: an Undo there would otherwise put
 -- the old profile's containers and band sets over the new one's.
 --
--- What each preset holds (the spec's text, where the mockup's Simple card shows three containers,
--- the spec and the plan name four):
---   Simple        Target, Focus, Pet, Mouseover, free on screen; number + band-colored border.
---   Intermediate  Target / Focus / Pet on their Blizzard unit frames, Mouseover on the cursor;
---                 number + text + dot; Healer set for friendly target, focus and mouseover;
---                 hidden while there is no unit.
---   Advanced      Intermediate, with spell chips on Focus and the OOR sound on Target; plus Target on
---                 its own nameplate (diamond + number) and every hostile nameplate (dot + the short
---                 `max` number), both shown in combat only.
+-- EVERY UNIT HAS ONE HOME ON SCREEN, the same in every preset (HOME, below): a grid of two columns
+-- below the screen's center, wide enough that two drag strips side by side never overlap and tall
+-- enough for a preview nameplate over a nameplate container. A screen container sits at its home; a
+-- nameplate container waits there while the displays are unlocked.
+--
+-- What each preset holds (the owner's rulings of 2026-11-19). Every one puts Target, Focus, Pet and
+-- Mouseover FREE ON SCREEN at their homes, each named by its caption at Outside top, on a faint frame
+-- (background and band-colored border on, the border and the band tint at 10%: every preset container,
+-- the plate ones too) with the template's dot (shape and matte style are the template's,
+-- defaults/Profile.lua, so neither is written here); only the elements shown differ:
+--   Simple                         the dot.
+--   Intermediate (Range Text)      the band's text label.
+--   Intermediate (Range Numbers)   the range number.
+--   Advanced                       dot + number + text.
+--   Expert                         dot + number + text + spell chips; the Healer set for friendly
+--                                  target, focus and mouseover, the OOR sound on Target; plus Target
+--                                  on its own nameplate (diamond + number) and every hostile
+--                                  nameplate (dot + the short `max` number), both shown whenever
+--                                  their unit is there (no caption on a plate).
 
 NS.Presets = NS.Presets or {}
 local Presets = NS.Presets
 
 local L = NS.L
 
-Presets.ORDER = { "simple", "intermediate", "advanced" }
+Presets.ORDER = { "simple", "text", "numbers", "advanced", "expert" }
 
---- The LSM sound key Advanced puts on the out-of-range band. Registered with LibSharedMedia by the
+--- The LSM sound key Expert puts on the out-of-range band. Registered with LibSharedMedia by the
 --- band sounds (modules/Sounds.lua's BUILTIN, the raid warning chime), so it plays without LSM too.
 Presets.OOR_SOUND = "Ka0s Range Master: Out of range"
 
@@ -59,12 +70,50 @@ local preview        -- the picker's preview while one is up: { key, origin = th
 -- The presets, as (unit, opts) lists for NS.CM.Create
 -- ---------------------------------------------------------------------------
 
---- Simple: the four units, free on screen in a two-by-two block below the center.
-local function simple()
-    local function at(unit, x, y)
-        return { unit = unit, opts = { anchor = { mode = "screen", x = x, y = y } } }
-    end
-    return { at("target", -70, -140), at("focus", 70, -140), at("pet", -70, -180), at("mouseover", 70, -180) }
+-- The homes (EVERY UNIT HAS ONE HOME ON SCREEN): columns COL_X either side of the center line, rows
+-- from ROW_Y down by ROW_STEP. Target and focus share the first row, pet and mouseover the second,
+-- the two nameplate containers the third.
+local COL_X, ROW_Y, ROW_STEP = 135, -100, 90
+local HOME = {
+    target = { -1, 0 }, focus = { 1, 0 }, pet = { -1, 1 }, mouseover = { 1, 1 },
+    targetPlate = { -1, 2 }, nameplates = { 1, 2 },
+}
+Presets.HOME = HOME
+
+--- `anchor` (a preset's anchor table) given the screen point of home `slot`; answers it.
+local function home(anchor, slot)
+    local h = HOME[slot]
+    anchor.point, anchor.relPoint = "CENTER", "CENTER"
+    anchor.x, anchor.y = h[1] * COL_X, ROW_Y - h[2] * ROW_STEP
+    return anchor
+end
+Presets.__home = function(slot) return home({}, slot) end
+
+--- Every preset container's faint frame (the owner, 2026-11-19 M12): border and background on, the
+--- border at 10% and the background's band tint at 10%. A new table per call.
+local function faintFrame()
+    return { border = { enabled = true, alpha = 0.1 }, background = { enabled = true, bandAlpha = 0.1 } }
+end
+
+--- One of the four unit containers, free on screen at its home, showing the elements `show` names
+--- (`dot`, `number`, `text`, `spells`) and no other, named by its caption at Outside top (the caption
+--- reads the container's name: Target, Focus, Pet, Mouseover).
+local function onScreen(unit, show)
+    return { unit = unit, opts = {
+        anchor = home({ mode = "screen" }, unit),
+        frame = faintFrame(),
+        label = { enabled = true, text = "", position = "outsideTop", align = "center" },
+        elements = {
+            indicator = { enabled = show.dot == true }, number = { enabled = show.number == true },
+            text = { enabled = show.text == true }, spells = { enabled = show.spells == true },
+        },
+    } }
+end
+
+--- The four units on screen, each showing `show`.
+local function four(show)
+    return { onScreen("target", show), onScreen("focus", show), onScreen("pet", show),
+        onScreen("mouseover", show) }
 end
 
 --- The Healer band set's id: the stored set named so, else a new one from the healer preset.
@@ -75,50 +124,42 @@ local function healerSet()
     return NS.BandSets.Create(nil, "healer")
 end
 
---- One Intermediate container: number + text + dot, hidden with no unit, `anchor` its placement.
-local function shown(unit, anchor, friendly)
-    return { unit = unit, opts = {
-        anchor = anchor, bandSetFriendly = friendly,
-        elements = { text = { enabled = true }, indicator = { enabled = true, shape = "dot" } },
-        visibility = { hideNoUnit = true },
-    } }
-end
-
-local function onFrame() return { mode = "frame", frame = { provider = "blizzard", name = "" } } end
-
-local function intermediate()
-    local healer = healerSet()
-    return {
-        shown("target", onFrame(), healer), shown("focus", onFrame(), healer), shown("pet", onFrame()),
-        shown("mouseover", { mode = "cursor" }, healer),
-    }
-end
-
---- One nameplate container: indicator `shape` + number in `format`, shown in combat only; `extra`'s
---- keys (a name, a section) replace the opts' own.
-local function plate(unit, shape, format, extra)
+--- One nameplate container: indicator `shape` + number in `format`, on the faint frame, shown at any
+--- time its unit is there (in combat only, the owner saw none out of combat: M12); `extra`'s keys (a
+--- name, a section) replace the opts' own.
+local function plate(unit, slot, shape, format, extra)
     local opts = {
-        anchor = { mode = "nameplate" },
+        anchor = home({ mode = "nameplate" }, slot),
+        frame = faintFrame(),
         elements = { indicator = { enabled = true, shape = shape }, number = { format = format } },
-        visibility = { combat = "in", hideNoUnit = true },
+        visibility = { combat = "any", hideNoUnit = true },
     }
     for k, v in pairs(extra or {}) do opts[k] = v end
     return { unit = unit, opts = opts }
 end
 
-local function advanced()
-    local list = intermediate()
+local function expert()
+    local list = four({ dot = true, number = true, text = true, spells = true })
+    local healer = healerSet()
+    for i = 1, #list do
+        if list[i].unit ~= "pet" then list[i].opts.bandSetFriendly = healer end   -- a pet is always friendly
+    end
     list[1].opts.sounds = { enabled = true }
-    list[2].opts.elements.spells = { enabled = true }
-    list[#list + 1] = plate("target", "diamond", "range", { name = L["Target plate"] })
-    list[#list + 1] = plate("nameplates", "dot", "max", {
-        visibility = { combat = "in", reaction = "hostile", hideNoUnit = true },
+    list[#list + 1] = plate("target", "targetPlate", "diamond", "range", { name = L["Target plate"] })
+    list[#list + 1] = plate("nameplates", "nameplates", "dot", "max", {
+        visibility = { combat = "any", reaction = "hostile", hideNoUnit = true },
         nameplate = { includeFriendly = false },
     })
     return list
 end
 
-local BUILD = { simple = simple, intermediate = intermediate, advanced = advanced }
+local BUILD = {
+    simple   = function() return four({ dot = true }) end,
+    text     = function() return four({ text = true }) end,
+    numbers  = function() return four({ number = true }) end,
+    advanced = function() return four({ dot = true, number = true, text = true }) end,
+    expert   = expert,
+}
 
 -- ---------------------------------------------------------------------------
 -- Applying
@@ -170,11 +211,14 @@ end
 -- which replace the profile whole, drop it (DropPreview). Combat start restores it too.
 
 --- Preview preset `key`: the player's set snapshotted at the first pick, then the preset built.
+--- A later pick first puts the player's set back, so what an earlier pick added to the band sets
+--- (Expert's Healer set and out-of-range sound) does not outlive it into the preset kept.
 --- Answers false for an unknown key or no profile (nothing changed).
 function Presets.BeginPreview(key)
     if not BUILD[key] or not NS.CM.Get then return false end
     local origin = preview and preview.origin or NS.CM.Snapshot()
     if not origin then return false end
+    if preview then NS.CM.RestoreSnapshot(origin) end
     build(key)
     preview = { key = key, origin = origin }
     NS.Debug("Presets", "previewing %s: %d container(s)", key, #NS.CM.List())
@@ -260,26 +304,29 @@ function Presets.__reset() lastSnapshot, preview = nil, nil end
 -- Describing (the preset cards)
 -- ---------------------------------------------------------------------------
 
+local ON_SCREEN = L["Target, Focus, Pet, Mouseover: free on screen, each named above it"]
+local ONE_SET = L["One band set (class default)"]
+local NO_SOUNDS = L["No sounds, always visible when the unit exists"]
+
 local DESCRIBE = {
     simple = { name = L["Simple"], count = 4, items = {
-        L["Target, Focus, Pet, Mouseover: free on screen"],
-        L["Number + frame colored by band"],
-        L["One band set (class default)"],
-        L["No sounds, always visible when the unit exists"],
+        ON_SCREEN, L["A dot colored by band"], ONE_SET, NO_SOUNDS,
     } },
-    intermediate = { name = L["Intermediate"], count = 4, items = {
-        L["Target / Focus / Pet attached to their unit frames"],
-        L["Mouseover follows the cursor"],
-        L["Number + text label + dot"],
-        L["Hostile vs friendly band sets"],
-        L["Hidden while there is no unit"],
+    text = { name = L["Intermediate (Range Text)"], count = 4, items = {
+        ON_SCREEN, L["The band's label as text"], ONE_SET, NO_SOUNDS,
     } },
-    advanced = { name = L["Advanced"], count = 6, items = {
-        L["Everything in Intermediate"],
+    numbers = { name = L["Intermediate (Range Numbers)"], count = 4, items = {
+        ON_SCREEN, L["The range number"], ONE_SET, NO_SOUNDS,
+    } },
+    advanced = { name = L["Advanced"], count = 4, items = {
+        ON_SCREEN, L["Dot + range number + text label"], ONE_SET, NO_SOUNDS,
+    } },
+    expert = { name = L["Expert"], count = 6, items = {
+        L["Everything in Advanced, with spell-range chips (class spells)"],
+        L["Healer band set for friendly target, focus and mouseover"],
         L["Target on its own nameplate + dot on all hostile plates"],
-        L["Focus with spell-range chips (class spells)"],
-        L["Band-change sound (out-of-range warning)"],
-        L["Visibility rules: nameplates in combat only, hostile only"],
+        L["Band-change sound on target (out-of-range warning)"],
+        L["Visibility rules: hostile nameplates only"],
     } },
 }
 

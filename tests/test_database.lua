@@ -14,10 +14,12 @@ test("database: the account-wide schemaVersion default is 0 (savedvariables-§1)
   assertEqual(NS.defaults.global.schemaVersion, 0)
 end)
 
-test("database: v0.1.0 ships the first data shape, so the ladder is empty and the target is 0", function()
-  assertEqual(#NS.__migrationSteps, 0, "no step to migrate from yet")
-  assertEqual(NS.SCHEMA_VERSION, 0, "the runner's target is the highest step's `to`, or 0")
-  assertEqual(NS.db.global.schemaVersion, 0, "a fresh install is stamped at the target")
+test("database: the ladder holds one step, v0 -> v1 (the frame defaults), and a fresh install is stamped 1", function()
+  -- Red under the v0.1.0 ladder, which was empty with a target of 0.
+  assertEqual(#NS.__migrationSteps, 1, "one step")
+  assertEqual(NS.__migrationSteps[1].to, 1, "the step climbs to v1")
+  assertEqual(NS.SCHEMA_VERSION, 1, "the runner's target is the highest step's `to`")
+  assertEqual(NS.db.global.schemaVersion, 1, "a fresh install is stamped at the target")
 end)
 
 test("database: RunMigrations is a safe no-op when the DB is absent", function()
@@ -30,6 +32,7 @@ end)
 
 test("database: the runner climbs every step, stamps each, and is idempotent", function()
   local steps, ran = NS.__migrationSteps, {}
+  local real = steps[1]
   steps[1] = { to = 1, apply = function() ran[#ran + 1] = 1 end }
   steps[2] = { to = 2, apply = function() ran[#ran + 1] = 2 end }
   local g = NS.db.global
@@ -37,8 +40,8 @@ test("database: the runner climbs every step, stamps each, and is idempotent", f
   local ok, err = pcall(NS.RunMigrations, NS)
   local stamp = g.schemaVersion
   NS:RunMigrations()
-  steps[1], steps[2] = nil, nil
-  g.schemaVersion = 0
+  steps[1], steps[2] = real, nil
+  g.schemaVersion = NS.SCHEMA_VERSION
   assertTrue(ok, tostring(err))
   assertEqual(table.concat(ran, ","), "1,2", "each step ran once, in order")
   assertEqual(stamp, 2, "the stamp advanced past each step")
@@ -46,15 +49,18 @@ end)
 
 test("database: a step that raises leaves the stamp unmoved and says so once in chat", function()
   local steps = NS.__migrationSteps
+  local real = steps[1]
   steps[1] = { to = 1, apply = function() error("boom") end }
   local g = NS.db.global
   g.schemaVersion = 0
   T.mocks.__resetPrinted()
   local ok = pcall(NS.RunMigrations, NS)
   local printed = T.mocks.__printed()
-  steps[1] = nil
+  steps[1] = real
+  local stamp = g.schemaVersion
+  g.schemaVersion = NS.SCHEMA_VERSION
   assertTrue(ok, "the runner never raises out of a failed step")
-  assertEqual(g.schemaVersion, 0, "the stamp did not move past the failed step")
+  assertEqual(stamp, 0, "the stamp did not move past the failed step")
   assertEqual(#printed, 1, "one chat line: " .. table.concat(printed, " / "))
   assertTrue(printed[1]:find("v0 -> v1", 1, true) ~= nil, "it names the step: " .. printed[1])
 end)
@@ -92,6 +98,9 @@ test("database: a profile reset re-reads the latch and traces once", function()
   assertTrue(NS.IsStoodDown(), "precondition: down")
   db:ResetProfile()
   assertFalse(NS.IsStoodDown(), "the reset profile is enabled, and the addon came back up")
+  -- The reset profile is fresh, so the first-run picker came up and previews Simple on it; close it
+  -- unanswered, so the shared profile carries no preview into the suites after this one.
+  NS.HidePresetPicker()
 end)
 
 -- ---------------------------------------------------------------------------
@@ -196,4 +205,122 @@ test("database: the active profile was prepared at load", function()
   assertTrue(#p.bandSetOrder >= 1, "the live profile carries its seeded band sets")
   assertEqual(type(p.nextContainerId), "number")
   assertTrue(p.seeded ~= nil)
+end)
+
+-- ---------------------------------------------------------------------------
+-- Migration step 1: the frame defaults (border opacity 25%, the matte dot) reach only containers
+-- created after it; every container already stored, in every profile, keeps its look.
+-- ---------------------------------------------------------------------------
+
+--- A container stored before step 1: no border opacity, no indicator style.
+local function oldContainer()
+  local c = D.DeepCopy(NS.CONTAINER_TEMPLATE)
+  c.frame.border.alpha = nil
+  c.elements.indicator.style = nil
+  return c
+end
+
+--- Run the ladder from v0 against `db` (swapped in for NS.db), then restore the real one.
+local function migrate(db, body)
+  local savedDb = NS.db
+  db.global = db.global or { schemaVersion = 0 }
+  NS.db = db
+  local ok, err = pcall(function()
+    NS:RunMigrations()
+    if body then body(db) end
+  end)
+  NS.db = savedDb
+  if not ok then error(err, 0) end
+end
+
+test("database: step 1 writes border opacity 100% and the plain dot onto every stored container, in every profile", function()
+  -- Red under the empty v0.1.0 ladder: nothing writes either field, and the load pass backfills the
+  -- new defaults (25%, matte) onto the old containers instead.
+  local active, raid = { containers = { [1] = oldContainer() } }, { containers = { [3] = oldContainer() } }
+  local kept = oldContainer()
+  kept.frame.border.alpha, kept.elements.indicator.style = 0.6, "gem"
+  raid.containers[4] = kept
+  -- The kit's AceDB shape: every profile under db.sv.profiles, the active one also as db.profile.
+  migrate({ profile = active, sv = { profiles = { Default = active, Raid = raid, Junk = "junk" } } }, function(db)
+    assertEqual(db.global.schemaVersion, 1, "stamped v1")
+  end)
+  assertEqual(active.containers[1].frame.border.alpha, 1, "the active profile's container keeps a full border")
+  assertEqual(active.containers[1].elements.indicator.style, "plain", "and its plain dot")
+  assertEqual(raid.containers[3].frame.border.alpha, 1, "a profile not in use is migrated too")
+  assertEqual(raid.containers[3].elements.indicator.style, "plain")
+  assertEqual(kept.frame.border.alpha, 0.6, "a value already stored is the player's and survives")
+  assertEqual(kept.elements.indicator.style, "gem")
+
+  -- Real AceDB-3.0's shape: db.profiles is the raw SavedVariables' profiles table.
+  local other = { containers = { [2] = oldContainer() } }
+  migrate({ profile = {}, profiles = { Other = other } })
+  assertEqual(other.containers[2].frame.border.alpha, 1, "db.profiles is walked")
+  assertEqual(other.containers[2].elements.indicator.style, "plain")
+
+  -- The soft fallback with no AceDB: only the active profile, and junk in it is passed over.
+  local bare = { containers = { [1] = oldContainer(), [2] = { frame = "junk" } } }
+  migrate({ profile = bare })
+  assertEqual(bare.containers[1].frame.border.alpha, 1, "the active profile alone is migrated")
+end)
+
+test("database: step 1 runs once, and a container made after it takes the new defaults", function()
+  local p = { containers = { [1] = oldContainer() } }
+  local db = { profile = p, sv = { profiles = { Default = p } } }
+  migrate(db, function()
+    p.containers[2] = oldContainer()
+    NS:RunMigrations()
+  end)
+  assertEqual(db.global.schemaVersion, 1)
+  assertEqual(p.containers[1].frame.border.alpha, 1, "migrated")
+  assertEqual(p.containers[2].frame.border.alpha, 0.25, "a container stored after the stamp gets the default")
+  assertEqual(p.containers[2].elements.indicator.style, "matte", "and the matte dot")
+  local fresh = {}
+  migrate({ profile = fresh })
+  assertNil(fresh.containers and next(fresh.containers), "a fresh profile has no container to migrate")
+end)
+
+test("database: step 1 through the real InitDB, against a stored v0 RangeMasterDB with two profiles", function()
+  -- red under: InitDB (or a profile callback) backfilling or preparing the active profile before
+  -- the ladder runs (the old containers would then load at 25% and matte, and the step skip them),
+  -- and under a step that skips a hand-edited container missing its frame or elements section.
+  local v0 = oldContainer()
+  v0.frame.background.enabled = false
+  local partial = { unit = "focus", frame = { background = { enabled = true } } }
+  local inactive = oldContainer()
+  local savedDb, savedSV = NS.db, _G.RangeMasterDB
+  _G.RangeMasterDB = {
+    profiles = {
+      Default = { containers = { [1] = v0, [2] = partial }, containerOrder = { 1, 2 }, nextContainerId = 3 },
+      Raid = { containers = { [7] = inactive }, containerOrder = { 7 }, nextContainerId = 8 },
+    },
+    global = {},
+  }
+  local sv = _G.RangeMasterDB
+  local ok, err = pcall(function()
+    NS:InitDB()
+    assertEqual(sv.global.schemaVersion, 1, "the stamp is written into the SavedVariables' global")
+    local p = NS.db.profile
+    assertTrue(p.containers[1] == v0, "the active profile is the stored one")
+    assertEqual(v0.frame.border.alpha, 1, "a stored container keeps a full border")
+    assertEqual(v0.elements.indicator.style, "plain", "and its plain dot")
+    assertFalse(v0.frame.background.enabled, "and no background")
+    assertEqual(partial.frame.border.alpha, 1, "a container with no border section keeps a full border")
+    assertEqual(partial.elements.indicator.style, "plain", "and with no elements section, the plain dot")
+    assertTrue(partial.frame.background.enabled, "its own background is kept")
+    assertEqual(inactive.frame.border.alpha, 1, "a profile not in use is migrated as it is stored")
+    assertEqual(inactive.elements.indicator.style, "plain")
+    NS:RunMigrations()
+    assertEqual(sv.global.schemaVersion, 1, "a second load climbs nothing")
+  end)
+  NS.db, _G.RangeMasterDB = savedDb, savedSV
+  NS.CM.__reset()
+  if not ok then error(err, 0) end
+end)
+
+test("database: a new container's frame defaults are a 25% border and a background", function()
+  -- Red under the v0.1.0 template: no border opacity, the background off.
+  local c = D.DeepCopy(NS.CONTAINER_TEMPLATE)
+  assertEqual(c.frame.border.alpha, 0.25, "border opacity 25%")
+  assertTrue(c.frame.border.enabled, "border on")
+  assertTrue(c.frame.background.enabled, "background on")
 end)

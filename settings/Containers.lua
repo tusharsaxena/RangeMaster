@@ -4,14 +4,13 @@ local _, NS = ...
 --     band   [Container v picker ]                [ New container ]     <- above the rail and the strip
 --     rail   | General    |  [ General ][ Position ]                     <- the selected entry's tabs
 --            | Display    |  [Name]               [Enable this container]
---            | Indicator  |  -- What it tracks --
---            | Visibility |  [Unit]               [Band set]
---            | Sounds     |  [Friendly band set]
+--            | Visibility |  -- What it tracks --
+--            | Sounds     |  [Unit]               [Band set]
+--                            [Friendly band set]
 --                            [Duplicate container] [Delete container…]
 --                            -- Copy settings from --  [Source v] [Copy onto this container]
---                            -- Preview --  every band of the band set, in its own color
 --
--- ONE PAGE, A RAIL OF FIVE ENTRIES (options-ui-§13, §14; design spec 5.6). The band carries the page's
+-- ONE PAGE, A RAIL OF FOUR ENTRIES (options-ui-§13, §14; design spec 5.6). The band carries the page's
 -- only picker and its create act (O.PageBanner with `action`); the rail chooses which part of the
 -- selected container is shown, never which container. Each rail entry is a page key of its own
 -- (`containers`, `containers_display`, ...) whose rows carry it, so the header's Defaults restores
@@ -175,6 +174,13 @@ local ROWS = {
 }
 
 -- ── the Position tab ────────────────────────────────────────────────────────────────────────
+--
+-- Read the way AuraMaster's Position and growth tab reads: each mode's subsection opens with the two
+-- anchor points side by side, what it attaches to on the left ("Unit frame anchor point", "Nameplate
+-- anchor point", "Screen anchor point") and "This container anchor point" on the right, then its X
+-- and Y side by side. Only the chosen mode's subsection is drawn (`shownWhen`); every row stays in
+-- the schema, so `/rm set` and the resets reach each one. Frame strata applies in every mode (the
+-- root's strata, modules/Container.lua), so it sits under Attach to, not in one mode's subsection.
 
 local S_ANCHOR = L["Anchor"]
 local S_FRAME = L["On the unit frame"]
@@ -184,22 +190,25 @@ local S_PLATE = L["On the nameplate"]
 
 local function whenMode(mode) return { path = "container.anchor.mode", equals = mode } end
 
---- A point dropdown row.
-local function pointRow(path, order, subgroup, shown, label, desc)
+--- A point dropdown row; `startsLine` opens a new line (the first of a pair).
+local function pointRow(path, order, subgroup, shown, label, desc, startsLine)
     return { path = path, page = PAGE, group = POSITION, subgroup = subgroup, order = order,
         type = "string", values = V.POINTS, sorting = V.POINTS_SORT, shownWhen = shown,
+        startsLine = startsLine, label = label, desc = desc }
+end
+
+--- An offset slider row; `startsLine` opens a new line (the X of an X and Y pair).
+local function offsetRow(path, order, subgroup, shown, label, desc, startsLine)
+    return { path = path, page = PAGE, group = POSITION, subgroup = subgroup, order = order,
+        type = "number", min = -500, max = 500, step = 1, shownWhen = shown, startsLine = startsLine,
         label = label, desc = desc }
 end
 
---- An offset slider row.
-local function offsetRow(path, order, subgroup, shown, label)
-    return { path = path, page = PAGE, group = POSITION, subgroup = subgroup, order = order,
-        type = "number", min = -500, max = 500, step = 1, shownWhen = shown, label = label,
-        desc = L["How far this container sits from its anchor point, in pixels."] }
-end
-
-local MY_POINT = L["The point of this container that is pinned."]
-local ITS_POINT = L["The point of what it is pinned to."]
+local THIS_POINT = L["This container anchor point"]
+local MY_POINT = L["The point of this container that is pinned to the anchor point beside it."]
+local X_NUDGE = L["Horizontal offset from the attachment point, in pixels."]
+local Y_NUDGE = L["Vertical offset from the attachment point, in pixels."]
+local ON_PLATE = { any = { whenMode("nameplate"), { path = "container.unit", equals = "nameplates" } } }
 
 local POSITION_ROWS = {
     { path = "container.anchor.mode", page = PAGE, group = POSITION, subgroup = S_ANCHOR, order = 10,
@@ -214,36 +223,35 @@ local POSITION_ROWS = {
       type = "string", dialogControl = "EditBox", maxLetters = 80,
       shownWhen = { path = "container.anchor.frame.provider", equals = "custom" }, label = L["Frame name"],
       desc = L["The global name of the frame to attach to. Needs Unit frames from set to Custom frame (by name)."] },
-    pointRow("container.anchor.frame.point", 40, S_FRAME, whenMode("frame"), L["Anchor point"], MY_POINT),
-    pointRow("container.anchor.frame.relPoint", 50, S_FRAME, whenMode("frame"), L["Relative point"], ITS_POINT),
-    offsetRow("container.anchor.frame.x", 60, S_FRAME, whenMode("frame"), L["X offset (px)"]),
-    offsetRow("container.anchor.frame.y", 70, S_FRAME, whenMode("frame"), L["Y offset (px)"]),
-    pointRow("container.anchor.point", 80, S_SCREEN, whenMode("screen"), L["Anchor point"], MY_POINT),
-    pointRow("container.anchor.relPoint", 90, S_SCREEN, whenMode("screen"), L["Relative point"], ITS_POINT),
+    pointRow("container.anchor.frame.relPoint", 40, S_FRAME, whenMode("frame"), L["Unit frame anchor point"],
+        L["The point of the unit frame this container is attached to."], true),
+    pointRow("container.anchor.frame.point", 50, S_FRAME, whenMode("frame"), THIS_POINT, MY_POINT),
+    offsetRow("container.anchor.frame.x", 60, S_FRAME, whenMode("frame"), L["X offset"], X_NUDGE, true),
+    offsetRow("container.anchor.frame.y", 70, S_FRAME, whenMode("frame"), L["Y offset"], Y_NUDGE),
+    pointRow("container.anchor.relPoint", 80, S_SCREEN, whenMode("screen"), L["Screen anchor point"],
+        L["The point of the screen X position and Y position are measured from."], true),
+    pointRow("container.anchor.point", 90, S_SCREEN, whenMode("screen"), THIS_POINT,
+        L["The point of this container placed at the position measured from the screen anchor point. Dragging it while unlocked sets these for you."]),
     { path = "container.anchor.x", page = PAGE, group = POSITION, subgroup = S_SCREEN, order = 100,
-      type = "number", min = -2000, max = 2000, step = 1, shownWhen = whenMode("screen"),
-      label = L["X offset (px)"], desc = L["How far this container sits from the center of the screen, in pixels. Dragging it while unlocked sets this too."] },
+      type = "number", min = -2000, max = 2000, step = 1, shownWhen = whenMode("screen"), startsLine = true,
+      label = L["X position"], desc = L["Horizontal position, in pixels, measured from the screen anchor point. Dragging it while unlocked sets this too."] },
     { path = "container.anchor.y", page = PAGE, group = POSITION, subgroup = S_SCREEN, order = 110,
       type = "number", min = -2000, max = 2000, step = 1, shownWhen = whenMode("screen"),
-      label = L["Y offset (px)"], desc = L["How far this container sits from the center of the screen, in pixels. Dragging it while unlocked sets this too."] },
-    { path = "container.anchor.strata", page = PAGE, group = POSITION, subgroup = S_SCREEN, order = 120,
-      type = "string", values = V.STRATA, sorting = V.STRATA_SORT, shownWhen = whenMode("screen"),
+      label = L["Y position"], desc = L["Vertical position, in pixels, measured from the screen anchor point. Dragging it while unlocked sets this too."] },
+    { path = "container.anchor.strata", page = PAGE, group = POSITION, subgroup = S_ANCHOR, order = 15,
+      type = "string", values = V.STRATA, sorting = V.STRATA_SORT,
       label = L["Frame strata"], tooltip = H.StrataTooltip(V.STRATA) },
-    pointRow("container.anchor.cursor.point", 130, S_CURSOR, whenMode("cursor"), L["Anchor point"], MY_POINT),
-    offsetRow("container.anchor.cursor.x", 140, S_CURSOR, whenMode("cursor"), L["X offset (px)"]),
-    offsetRow("container.anchor.cursor.y", 150, S_CURSOR, whenMode("cursor"), L["Y offset (px)"]),
-    pointRow("container.nameplate.point", 160, S_PLATE,
-        { any = { whenMode("nameplate"), { path = "container.unit", equals = "nameplates" } } },
-        L["Anchor point"], MY_POINT),
-    pointRow("container.nameplate.relPoint", 170, S_PLATE,
-        { any = { whenMode("nameplate"), { path = "container.unit", equals = "nameplates" } } },
-        L["Relative point"], ITS_POINT),
-    offsetRow("container.nameplate.x", 180, S_PLATE,
-        { any = { whenMode("nameplate"), { path = "container.unit", equals = "nameplates" } } },
-        L["X offset (px)"]),
-    offsetRow("container.nameplate.y", 190, S_PLATE,
-        { any = { whenMode("nameplate"), { path = "container.unit", equals = "nameplates" } } },
-        L["Y offset (px)"]),
+    pointRow("container.anchor.cursor.point", 130, S_CURSOR, whenMode("cursor"), THIS_POINT,
+        L["The point of this container that follows the cursor."], true),
+    offsetRow("container.anchor.cursor.x", 140, S_CURSOR, whenMode("cursor"), L["X offset"],
+        L["Horizontal offset from the cursor, in pixels."], true),
+    offsetRow("container.anchor.cursor.y", 150, S_CURSOR, whenMode("cursor"), L["Y offset"],
+        L["Vertical offset from the cursor, in pixels."]),
+    pointRow("container.nameplate.relPoint", 160, S_PLATE, ON_PLATE, L["Nameplate anchor point"],
+        L["The point of the nameplate this container is attached to. While unlocked, a preview nameplate shows where it sits."], true),
+    pointRow("container.nameplate.point", 170, S_PLATE, ON_PLATE, THIS_POINT, MY_POINT),
+    offsetRow("container.nameplate.x", 180, S_PLATE, ON_PLATE, L["X offset"], X_NUDGE, true),
+    offsetRow("container.nameplate.y", 190, S_PLATE, ON_PLATE, L["Y offset"], Y_NUDGE),
     { path = "container.nameplate.includeFriendly", page = PAGE, group = POSITION, subgroup = S_PLATE,
       order = 200, type = "bool", shownWhen = { path = "container.unit", equals = "nameplates" },
       label = L["Friendly nameplates too"],
@@ -375,20 +383,9 @@ local function renderCopy(ctx)
     H.RenderGrid(ctx, { { make = sourceCell } })
     H.InlineButtonPair(ctx, {
         text = L["Copy onto this container"],
-        tooltip = L["Replace how the selected container looks and behaves with the source's: its band sets, layout, frame, elements, visibility and sounds. Its name, unit and position are never copied."],
+        tooltip = L["Replace how the selected container looks and behaves with the source's: its band sets, layout, frame, label, elements, visibility and sounds. Its name, label text, unit and position are never copied."],
         onClick = doCopy,
     }, nil)
-end
-
---- The selected container's band set, drawn band by band in each band's frame color: the page's
---- preview (the mockup's), read through the same band set the renderer reads.
-local function renderPreview(ctx, c)
-    local set = NS.BandSets.Get(NS.BandSets.ForUnit(c, c.unit)) or NS.BandSets.Get(NS.BandSets.DefaultId())
-    if not set then return end
-    H.Section(ctx, L["Preview"])
-    H.TextRow(ctx, NS.BandRibbon(set))
-    H.TextRow(ctx, L["Every band of the selected band set, in its own color. Test mode shows the same on screen."],
-        { fontObject = "GameFontDisableSmall" })
 end
 
 local function afterGeneral(ctx)
@@ -400,7 +397,6 @@ local function afterGeneral(ctx)
         { text = L["Delete container\226\128\166"], tooltip = L["Delete this container. Asks first."],
           onClick = doDelete })
     if #NS.CM.List() > 1 then renderCopy(ctx) end
-    renderPreview(ctx, c)
 end
 
 --- Pick on screen, under the frame rows: the pick-on-screen overlay (modules/FramePicker.lua), whose
@@ -434,7 +430,7 @@ NS.RegisterContainerSection(PAGE, GENERAL, {
 })
 
 -- ---------------------------------------------------------------------------
--- The band ribbon (the Preview here, and the Band sets page's distance ribbon)
+-- The band ribbon (`/rm bands`' chat line, settings/Slash.lua)
 -- ---------------------------------------------------------------------------
 
 --- A stored color as a `|cffRRGGBB` escape.
@@ -536,9 +532,10 @@ end
 --- order: PageBanner, NavRail, TabStrip; options-ui-§13, §14).
 function render(ctx)
     ctx.sectionTabs = ctx.sectionTabs or {}
-    -- Before the clear, never after (options-ui-§18): the Display entry's drag list holds frames on
-    -- AceGUI widgets the clear hands back to the pool.
+    -- Before the clear, never after (options-ui-§18): the Display entry's drag list and its Dot tab's
+    -- style tiles hold frames on AceGUI widgets the clear hands back to the pool.
     if NS.CancelElementOrder then NS.CancelElementOrder(ctx) end
+    if NS.ReleaseStyleTiles then NS.ReleaseStyleTiles(ctx) end
     H.ClearScroll(ctx)
     local scroll = H.EnsureScroll(ctx)
     local c, id = NS.SelectedContainer()

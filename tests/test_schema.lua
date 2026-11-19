@@ -282,7 +282,7 @@ end)
 
 test("every schema row lands on a page the panel actually builds", function()
   local pages = { general = true, appearance = true, profiles = true, bandsets = true, containers = true,
-    containers_display = true, containers_indicator = true, containers_visibility = true,
+    containers_display = true, containers_visibility = true,
     containers_sounds = true }
   for _, row in ipairs(NS.Schema) do
     assertTrue(pages[row.page], tostring(row.path) .. " is on unknown page " .. tostring(row.page))

@@ -3,14 +3,14 @@
 ![WoW](https://img.shields.io/badge/WoW-Midnight_12.1.5_and_Forever_1.60.1-purple)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
-![Tests](https://img.shields.io/badge/Tests-630%2F630_passing-green)
+![Tests](https://img.shields.io/badge/Tests-676%2F676_passing-green)
 
 Supports Retail and WoW Forever. Range Master lets you build your own range displays for your
 target, your focus, your pet, whatever is under your mouse, and every enemy nameplate on screen.
 
 Each display is a container. You pick its unit, then what it shows: the distance as a number, a
 word such as "Melee" or "Out of range", a colored dot or shape, and a row of your own spells that
-light up when that spell would reach. The distance is split into bands, and every band has its own
+light up when that spell would reach, with a caption naming it if you want one. The distance is split into bands, and every band has its own
 color, so a glance tells you whether you can hit the thing in front of you. Band sets are shared, so
 one change to your caster bands updates every display that uses them.
 
@@ -26,15 +26,20 @@ Screenshots arrive with the first release.
 ## Usage
 
 The first time you log in, Range Master opens its preset picker. Pick **Simple** (four displays free
-on screen), **Intermediate** (on your unit frames and the cursor) or **Advanced** (adds nameplates,
-spell chips and a warning sound) from its dropdown and it shows on your screen in test mode right
+on screen, each showing a colored dot), **Intermediate (Range Text)** (the band's name instead),
+**Intermediate (Range Numbers)** (the range number instead), **Advanced** (dot, number and band name)
+or **Expert** (Advanced plus spell chips, nameplates, a Healer band set for friends and a warning
+sound) from its dropdown and it shows on your screen in test mode right
 away; **Apply** keeps it, **Not now** puts your own displays back. Open the picker again any time
 with `/rm preset`, or use General → Presets, or type `/rm preset simple`. If you already have displays, applying a
 preset asks first, and **Undo last preset** (or `/rm preset undo`) puts them back.
 
 To build one yourself, open the **Containers** page with `/rm` and press New container. Pick its
 unit, its band set and where it sits, then what it shows. The **Band sets** page holds the distance
-bands every display colors by: where each band ends, its name, its colors and an optional sound. From
+bands every display colors by: where each band ends, its name, its colors and an optional sound.
+Under Display → Label a display can carry a caption, its own name or any text, above, below or beside
+it, inside its border or outside it, in its own font and color (the presets name each screen display
+above it). From
 chat, `/rm new focus` makes a display, `/rm containers` lists them, and `/rm select 2` picks the one
 that `container.` settings change, for example `/rm set container.anchor.mode cursor`.
 
@@ -76,7 +81,7 @@ Everything else is under Settings → AddOns → Ka0s Range Master, and `/rm hel
 |----------|--------|
 | Does it show the exact distance? | No addon can. The game only answers "in range of this spell or not", so Range Master shows the narrowest bracket the answers allow. |
 | Does it work on WoW Forever? | Yes, from the same download. Range Master uses each client's own spells and items to measure distance. |
-| Can I have a different band set for friends? | Yes. Each display has a Friendly band set, used whenever its unit is friendly. The Intermediate preset sets it to Healer. |
+| Can I have a different band set for friends? | Yes. Each display has a Friendly band set, used whenever its unit is friendly. The Expert preset sets it to Healer. |
 | Will it slow my game down? | It does one small pass ten or twenty times a second, only while a display is watching a unit, and none at all when the addon is turned off. |
 
 ## Troubleshooting
@@ -110,7 +115,7 @@ Please file reports there rather than in comments, so nothing gets lost.
 
 | Version | Date | Highlights |
 |---------|------|------------|
-| 0.1.0 | Unreleased | - Range displays for your target, focus, pet, mouseover and every enemy nameplate, each showing a range bracket as a number, a band name, a colored shape and your own spells<br>- Shared band sets with their own colors and sounds, and a separate set for friendly units<br>- Displays free on screen, on Blizzard or EllesmereUI unit frames or any frame you click, on nameplates, or at the cursor<br>- Simple, Intermediate and Advanced presets, offered on first run, with Undo<br>- Visibility by combat, reaction and missing unit<br>- Test mode and Sim mode for placing and checking your displays<br>- Works on Retail and WoW Forever |
+| 0.1.0 | Unreleased | - Range displays for your target, focus, pet, mouseover and every enemy nameplate, each showing a range bracket as a number, a band name, a colored shape and your own spells<br>- Shared band sets with their own colors and sounds, and a separate set for friendly units<br>- Displays free on screen, on Blizzard or EllesmereUI unit frames or any frame you click, on nameplates, or at the cursor<br>- Five presets (Simple, two Intermediates for range text or range numbers, Advanced and Expert), offered on first run, with Undo<br>- Dot shapes in six styles (plain, matte, glossy, glowing, neon, gem)<br>- An optional caption naming each display, on any side, inside or outside its border, in its own font and color<br>- Visibility by combat, reaction and missing unit<br>- Test mode and Sim mode for placing and checking your displays<br>- Works on Retail and WoW Forever |
 
 ## Credits
 

@@ -80,13 +80,20 @@ the template holds nil:
 |---|---|---|
 | `container.bandSet` | `0` = the default band set | the template's `nil` is filled with `DefaultId()` on create and on load |
 | `container.bandSetFriendly` | `0` = none (`nil` stored) | nil uses `bandSet` for every reaction |
-| `container.elements.number.font`, `container.elements.text.font` | `Skin` = `""` stored | `""` is the skin's face (`modules/Style.lua`) |
+| `container.elements.number.font`, `container.elements.text.font`, `container.label.font` | `Skin` = `""` stored | `""` is the skin's face (`modules/Style.lua`) |
 | `container.frame.border.texture` | `Solid` = `""` stored | `""` draws the solid edge strips |
 
 The selection itself (`NS.State.selectedContainer`, `selectedBandSet`) is session state; an unset or
 stale one reads the first container, or the default band set. `NS.ValidateSchema` resolves every such
 path against its template. The template gained `elements.number.shadow` and `elements.text.shadow`
-(`false`) for the composed Font block's Font shadow; the load pass backfills them.
+(`false`) for the composed Font block's Font shadow, and the `label` section (the caption naming the
+container, plan 2026-11-19 M7): `enabled = false`, `text = ""` (the container's name), `position =
+"top"`, `align = "center"`, `gap = 2`, `font = ""`, `size = 12`, `outline = "OUTLINE"`, `shadow =
+false`, `colorMode = "fixed"`, `color` white. The load pass backfills them; the caption is off, so a
+stored container draws as before and no migration step is needed. `label.position` (M11) takes eight
+values: `top`, `bottom`, `left`, `right` are INSIDE the container (what M7 stored, so a stored value
+keeps its meaning) and `outsideTop`, `outsideBottom`, `outsideLeft`, `outsideRight` sit beyond its
+border; an unknown value reads as inside top (`NS.Container.CaptionSide`).
 
 ## The global store (`db.global`)
 
@@ -105,9 +112,13 @@ path against its template. The template gained `elements.number.shadow` and `ele
 
 ## Migrations
 
-`core/Database.lua`'s ladder is empty: v0.1.0 ships the first data shape, `NS.SCHEMA_VERSION` is 0 and
-a fresh install stays stamped 0. The runner climbs from `db.global.schemaVersion`, advances the stamp
+`core/Database.lua`'s ladder has one step, so `NS.SCHEMA_VERSION` is 1 (the declared default stays 0).
+**v0 -> v1, the frame defaults:** a new container draws its border at 25% (`frame.border.alpha`, new)
+over a background (`frame.background.enabled` now true) with a matte dot; so that an existing one keeps
+its look, the step writes `frame.border.alpha = 1`, `frame.background.enabled = false` and
+`elements.indicator.style = "plain"`, where unset, onto every container already stored (making a
+section a hand-edited container lacks, so the load pass cannot fill it from the new template), in every profile (`db.profiles`, `db.sv.profiles` and the
+active profile). A fresh install climbs it against a profile with no container. The runner climbs from `db.global.schemaVersion`, advances the stamp
 only past a step that returned, and on a raising step prints one line and leaves the stamp where it
 was. After the ladder, the active profile is backfilled from the defaults with `== nil` tests, so a
-stored `false` survives (savedvariables-§5), and the registries' load pass runs (above). The first real step will be the first change to a stored
-shape after v0.1.0 ships.
+stored `false` survives (savedvariables-§5), and the registries' load pass runs (above).

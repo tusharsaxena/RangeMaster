@@ -2,14 +2,19 @@ local addonName, NS = ...
 -- modules/Elements_Indicator.lua — the indicator element (design spec 5.3): one shape in the band's
 -- indicator color. The element contract is modules/Elements_Number.lua's.
 --
---   dot, ring, square, diamond, triangle   this addon's white 64x64 art (media/textures/indicators/),
---                                          tinted with SetVertexColor
+--   dot, ring, square, diamond,            this addon's white 128x128 art (media/textures/indicators/
+--   triangle, hexagon, star                <shape>_<style>, drawn by tools/indicator_art.py), tinted
+--                                          with SetVertexColor. The style is the finish: plain, matte
+--                                          (the default), glossy, glowing, neon or gem. An unknown
+--                                          shape draws the dot, an unknown or missing style matte.
 --   bar                                    LibKa0s-Widgets-1.0's data bar (W.Bar), full in the nearest
 --                                          band and empty in the farthest or an unknown one: it draws
 --                                          the BAND's position, never a guessed distance. Without the
 --                                          Widgets major, a flat strip in the band color.
 --   icon                                   a spell's icon (`spellID`, else the first spell chip),
 --                                          tinted; a question mark when neither names a spell
+--
+-- The bar and the spell icon take no style.
 --
 -- Everything moves only with the band, so Update is empty and Paint does the work.
 --
@@ -26,7 +31,9 @@ local Style = NS.Style
 local C = NS.Constants
 local W = LibStub and LibStub("LibKa0s-Widgets-1.0", true)
 
-local SHAPES = { dot = true, ring = true, square = true, diamond = true, triangle = true }
+local SHAPES = { dot = true, ring = true, square = true, diamond = true, triangle = true, hexagon = true,
+                 star = true }
+local STYLES = { plain = true, matte = true, glossy = true, glowing = true, neon = true, gem = true }
 local FLAT = "Interface\\Buttons\\WHITE8X8"
 local NO_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
 
@@ -75,7 +82,8 @@ function Indicator.Style(el, cfg, container)
     if cfg.shape == "icon" then
         el.tex:SetTexture(iconOf(cfg, container))
     else
-        el.tex:SetTexture(C.INDICATOR_PATH .. (SHAPES[cfg.shape] and cfg.shape or "dot"))
+        el.tex:SetTexture(C.INDICATOR_PATH .. (SHAPES[cfg.shape] and cfg.shape or "dot") .. "_"
+            .. (STYLES[cfg.style] and cfg.style or "matte"))
     end
 end
 

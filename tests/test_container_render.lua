@@ -74,6 +74,21 @@ end
 
 local function band(setId, i) return B.Get(setId).bands[i] end
 
+--- The Display entry's Shape and Style rows' choices that are art: the shapes but Bar and Spell
+--- icon, and every style. The art, the element and the panel must agree on these lists.
+local function artChoices()
+  local shapes, styles
+  for _, row in ipairs(NS.SchemaForPage("containers_display")) do
+    if row.path == "container.elements.indicator.shape" then shapes = row.sorting end
+    if row.path == "container.elements.indicator.style" then styles = row.sorting end
+  end
+  local art = {}
+  for _, s in ipairs(shapes or {}) do
+    if s ~= "bar" and s ~= "icon" then art[#art + 1] = s end
+  end
+  return art, styles or {}
+end
+
 -- ---------------------------------------------------------------------------
 -- The pool
 -- ---------------------------------------------------------------------------
@@ -226,6 +241,31 @@ test("render: test_color_modes — band, fixed and class, for the number, the bo
   end, "MAGE")
 end)
 
+test("render: the border paints at its own opacity, 25% by default, in every color mode", function()
+  -- Red under the v0.1.0 Paint, which drew the border at its color's own alpha.
+  withRenderer(function()
+    local fixed = { r = 0.2, g = 0.4, b = 0.6, a = 0.8 }
+    local _, setId, inst = newContainer()
+    local bandA = band(setId, 3).frameColor.a or 1
+    assertTrue(near(M.__paint(inst.border.strips[1]).color[4], bandA * 0.25), "band: 25% by default")
+    assertTrue(inst.background:IsShown(), "the background is on by default")
+
+    local _, _, migrated = newContainer({ frame = { border = { alpha = 1 } } })
+    assertTrue(near(M.__paint(migrated.border.strips[1]).color[4], bandA), "a migrated container keeps 100%")
+
+    local _, _, inst2 = newContainer({ frame = { border = { colorMode = "fixed", color = fixed, alpha = 0.5 } } })
+    assertTrue(near(M.__paint(inst2.border.strips[1]).color[4], 0.4), "fixed: the color's alpha times the opacity")
+
+    local _, _, inst3 = newContainer({ frame = { border = { colorMode = "class", color = fixed, alpha = 0.5 } } })
+    assertTrue(near(M.__paint(inst3.border.strips[1]).color[4], 0.4), "class: the same")
+
+    local _, _, over = newContainer({ frame = { border = { colorMode = "fixed", color = fixed, alpha = 3 } } })
+    assertTrue(near(M.__paint(over.border.strips[1]).color[4], 0.8), "an opacity over 1 is clamped to 1")
+    local _, _, under = newContainer({ frame = { border = { colorMode = "fixed", color = fixed, alpha = -1 } } })
+    assertTrue(near(M.__paint(under.border.strips[1]).color[4], 0), "and one under 0 to 0")
+  end, "MAGE")
+end)
+
 test("render: an unknown range reads the set's gray ? on every element, never a band", function()
   withRenderer(function(_, LRC)
     -- A raise: unknown on both clients (a nil answer on Forever walks the Compat ladder instead).
@@ -356,14 +396,67 @@ test("render: the indicator shapes draw this addon's textures, recolored by band
   withRenderer(function()
     local id, setId, inst = newContainer({ elements = { indicator = { enabled = true, shape = "diamond" } } })
     local tex = inst.elements.indicator.tex
-    assertTrue(tostring(M.__paint(tex).texture):find("media\\textures\\indicators\\diamond", 1, true) ~= nil,
-      "the diamond art")
+    assertEqual(M.__paint(tex).texture, C.INDICATOR_PATH .. "diamond_matte", "the diamond art, matte by default")
     assertColor(M.__paint(tex).vertex, band(setId, 3).indicatorColor, "MID's indicator color")
     CM.Get(id).elements.indicator.shape = "square"
     CM.RequestApply()
     CM.FlushPending()
-    assertTrue(tostring(M.__paint(tex).texture):find("indicators\\square", 1, true) ~= nil, "re-shaped")
+    assertTrue(tostring(M.__paint(tex).texture):find("indicators\\square_matte", 1, true) ~= nil, "re-shaped")
   end)
+end)
+
+test("render: the indicator draws its stored shape in its stored style, unknowns falling back", function()
+  -- red under: the old path (C.INDICATOR_PATH .. shape, no style), and under a SHAPES list without
+  -- hexagon and star (they fell back to the dot).
+  withRenderer(function()
+    local id, _, inst = newContainer({ elements = { indicator = { enabled = true, shape = "hexagon",
+                                                                   style = "gem" } } })
+    local tex = inst.elements.indicator.tex
+    local function art() return M.__paint(tex).texture end
+    local function restyle(shape, style)
+      local cfg = CM.Get(id).elements.indicator
+      cfg.shape, cfg.style = shape, style
+      CM.RequestApply()
+      CM.FlushPending()
+    end
+    assertEqual(art(), C.INDICATOR_PATH .. "hexagon_gem", "the stored shape and style")
+    restyle("star", "neon")
+    assertEqual(art(), C.INDICATOR_PATH .. "star_neon", "a star, neon")
+    restyle("hexagon", "plain")
+    assertEqual(art(), C.INDICATOR_PATH .. "hexagon_plain", "plain is a style like the rest")
+    restyle("blob", "glossy")
+    assertEqual(art(), C.INDICATOR_PATH .. "dot_glossy", "an unknown shape draws the dot")
+    restyle("ring", "sparkly")
+    assertEqual(art(), C.INDICATOR_PATH .. "ring_matte", "an unknown style draws matte")
+    restyle("ring", nil)
+    assertEqual(art(), C.INDICATOR_PATH .. "ring_matte", "no style draws matte")
+    restyle("icon", "gem")
+    assertFalse(tostring(art()):find("indicators", 1, true) ~= nil, "the spell icon takes no style")
+  end)
+end)
+
+test("render: every shape and style the panel offers is one the element draws, none falling back", function()
+  -- red under: a shape or style the Display rows list that modules/Elements_Indicator.lua's SHAPES
+  -- or STYLES lacks (the element then draws the dot, or matte, instead of what was picked).
+  local shapes, styles = artChoices()
+  withRenderer(function()
+    local id, _, inst = newContainer({ elements = { indicator = { enabled = true } } })
+    local tex = inst.elements.indicator.tex
+    for _, shape in ipairs(shapes) do
+      for _, style in ipairs(styles) do
+        local cfg = CM.Get(id).elements.indicator
+        cfg.shape, cfg.style = shape, style
+        CM.RequestApply()
+        CM.FlushPending()
+        assertEqual(M.__paint(tex).texture, C.INDICATOR_PATH .. shape .. "_" .. style, shape .. " " .. style)
+      end
+    end
+  end)
+end)
+
+test("render: the default indicator style is matte", function()
+  -- red under: defaults/Profile.lua without elements.indicator.style.
+  assertEqual(NS.CONTAINER_TEMPLATE.elements.indicator.style, "matte")
 end)
 
 test("render: the bar indicator is LibKa0s-Widgets' data bar, fuller the nearer the band", function()
@@ -659,21 +752,122 @@ test("render: a LibSharedMedia border draws on a backdrop of its own, band-color
   end)
 end)
 
-test("render: every indicator shape ships as a white 64x64 uncompressed 32-bit TGA", function()
+--- `path`'s pixels as TGA BGRA quads: assert a transparent corner, some drawn pixel, and gray
+--- (R == G == B) wherever a pixel is drawn, so SetVertexColor tints it true and no square shows.
+local function assertWhiteArt(path, data)
+  local drawn, colored = 0, nil
+  for i = 1, #data, 4 do
+    local bl, gr, rd, al = data:byte(i, i + 3)
+    if al > 0 then
+      drawn = drawn + 1
+      if not colored and not (rd == gr and gr == bl) then colored = (i - 1) / 4 end
+    end
+  end
+  assertEqual(data:byte(4), 0, path .. ": the corner pixel is transparent (no background square)")
+  assertTrue(drawn > 0, path .. ": draws something")
+  assertNil(colored, path .. ": gray wherever it draws (pixel " .. tostring(colored) .. " is colored)")
+end
+
+test("render: every indicator shape x style ships as a white 128x128 uncompressed 32-bit TGA", function()
   -- An RLE or 24-bit TGA draws nothing and raises nothing in the client (anti-pattern #82), so the
-  -- header is the check: image type 2 (uncompressed true-color), 64 x 64, 32 bits, 8 alpha bits.
+  -- header is the check: image type 2 (uncompressed true-color), 128 x 128, 32 bits, 8 alpha bits;
+  -- then the pixels: white or gray art on a transparent ground, tinted by SetVertexColor.
+  -- tools/indicator_art.py draws them; red under the old single-file art (<shape>.tga, 64x64), and
+  -- under art with a colored RGB, an opaque ground or nothing drawn.
+  local shapes, styles = artChoices()
+  assertEqual(table.concat(shapes, ","), "dot,ring,square,diamond,triangle,hexagon,star",
+    "the panel's shapes that are art")
+  assertEqual(#styles, 6, "the panel's six styles")
+  for _, shape in ipairs(shapes) do
+    for _, style in ipairs(styles) do
+      local path = "media/textures/indicators/" .. shape .. "_" .. style .. ".tga"
+      local fh = io.open(path, "rb")
+      assertTrue(fh ~= nil, path .. " is missing")
+      local h = fh:read(18)
+      local data = fh:read("*a")
+      fh:close()
+      local w = h:byte(13) + h:byte(14) * 256
+      local ht = h:byte(15) + h:byte(16) * 256
+      assertEqual(h:byte(1), 0, path .. ": no image id before the pixels")
+      assertEqual(h:byte(3), 2, path .. ": uncompressed true-color")
+      assertEqual(w .. "x" .. ht, "128x128", path)
+      assertEqual(h:byte(17), 32, path .. ": 32 bits per pixel")
+      assertEqual(h:byte(18) % 16, 8, path .. ": 8 alpha bits")
+      assertEqual(18 + #data, 18 + 128 * 128 * 4, path .. ": the whole image, nothing after it")
+      assertWhiteArt(path, data)
+    end
+  end
+  -- The old single files are gone, so nothing can still be drawing them.
   for _, shape in ipairs({ "dot", "ring", "square", "diamond", "triangle" }) do
-    local path = "media/textures/indicators/" .. shape .. ".tga"
-    local fh = io.open(path, "rb")
-    assertTrue(fh ~= nil, path .. " is missing")
-    local h = fh:read(18)
-    fh:close()
-    local w = h:byte(13) + h:byte(14) * 256
-    local ht = h:byte(15) + h:byte(16) * 256
-    assertEqual(h:byte(3), 2, path .. ": uncompressed true-color")
-    assertEqual(w .. "x" .. ht, "64x64", path)
-    assertEqual(h:byte(17), 32, path .. ": 32 bits per pixel")
-    assertEqual(h:byte(18) % 16, 8, path .. ": 8 alpha bits")
+    local fh = io.open("media/textures/indicators/" .. shape .. ".tga", "rb")
+    if fh then fh:close() end
+    assertNil(fh, shape .. ".tga is retired")
+  end
+end)
+
+--- A 128x128 indicator tile's pixels (TGA BGRA quads, after the 18-byte header).
+local function artPixels(shape, style)
+  local fh = assert(io.open("media/textures/indicators/" .. shape .. "_" .. style .. ".tga", "rb"))
+  fh:read(18)
+  local data = fh:read("*a")
+  fh:close()
+  return data
+end
+
+--- The bounding box of the pixels over half opaque, as its width and height, and the most opaque
+--- pixel on the tile's outer edge.
+local function artExtent(data)
+  local x0, y0, x1, y1, edge = 128, 128, -1, -1, 0
+  for y = 0, 127 do
+    for x = 0, 127 do
+      local a = data:byte((y * 128 + x) * 4 + 4)
+      if a > 127 then
+        if x < x0 then x0 = x end
+        if x > x1 then x1 = x end
+        if y < y0 then y0 = y end
+        if y > y1 then y1 = y end
+      end
+      if (x == 0 or x == 127 or y == 0 or y == 127) and a > edge then edge = a end
+    end
+  end
+  return x1 - x0 + 1, y1 - y0 + 1, edge
+end
+
+test("render: the halo-free styles draw each shape at the old art's fill, glowing and neon smaller", function()
+  -- The v0.1.0 single-file art (64x64, cb7ca0a) filled the box: dot and ring 56 of 64, square 52,
+  -- diamond 58, triangle 54 x 49 (over-half-opaque extent), so a migrated container (style plain)
+  -- must draw that size at the same Size. Doubled for the 128 tiles; hexagon and star are new and
+  -- take the dot's extent on their long side. Red under the M1 art, which drew every style at about
+  -- 70% of the box (the dot 90 px wide), and under halo styles drawn at the full fill (their halo
+  -- clips the border).
+  local old = { dot = { 112, 112 }, ring = { 112, 112 }, square = { 104, 104 },
+    diamond = { 116, 116 }, triangle = { 108, 98 } }
+  local shapes, styles = artChoices()
+  for _, shape in ipairs(shapes) do
+    local fullW, fullH
+    for _, style in ipairs(styles) do
+      local w, h, edge = artExtent(artPixels(shape, style))
+      local tile = shape .. "_" .. style
+      assertTrue(edge <= 1, tile .. ": the border is transparent (alpha " .. edge .. "), nothing clips")
+      if style ~= "glowing" and style ~= "neon" then
+        if old[shape] then
+          assertTrue(math.abs(w - old[shape][1]) <= 3 and math.abs(h - old[shape][2]) <= 3,
+            tile .. ": " .. w .. "x" .. h .. " is the old art's " .. old[shape][1] .. "x" .. old[shape][2])
+        else
+          local long = math.max(w, h)
+          assertTrue(math.abs(long - 112) <= 3, tile .. ": its long side " .. long .. " is the dot's 112")
+        end
+        if fullW then
+          assertEqual(w .. "x" .. h, fullW .. "x" .. fullH, tile .. ": every halo-free style the same size")
+        end
+        fullW, fullH = w, h
+      end
+    end
+    for _, style in ipairs({ "glowing", "neon" }) do
+      local w, h = artExtent(artPixels(shape, style))
+      assertTrue(w <= fullW - 10 and h <= fullH - 6,
+        shape .. "_" .. style .. ": a smaller core (" .. w .. "x" .. h .. ") with room for its halo")
+    end
   end
 end)
 
@@ -721,5 +915,277 @@ test("render: a container with no stored chip list draws the logged-in character
     NS.Range.InSpellRange = real
     if not ok then error(err, 0) end
     assertEqual(asked[1], seeds[1], "and the priest's spells are the ones asked")
+  end, "MAGE")
+end)
+
+-- ---------------------------------------------------------------------------
+-- The caption (`label`, plan 2026-11-19 M7): no element, laid out beside the elements inside the root
+-- ---------------------------------------------------------------------------
+
+--- Store `fields` onto container `id`'s label and apply now.
+local function relabel(id, fields)
+  local lab = CM.Get(id).label
+  for k, v in pairs(fields) do lab[k] = v end
+  CM.RequestApply()
+  CM.FlushPending()
+end
+
+--- The caption's one anchor: point, relative frame, relative point, x, y.
+local function capPoint(inst)
+  local fs = inst.caption.fs
+  assertEqual(fs:GetNumPoints(), 1, "the caption is anchored once")
+  return fs:GetPoint(1)
+end
+
+test("render: test_caption_text — the caption reads the container's name until it has its own, and follows a rename", function()
+  -- red under: a renderer with no caption (inst.caption nil), and under a caption whose name is read
+  -- once at build (the rename would need a /reload).
+  withRenderer(function()
+    local id, _, inst = newContainer({ label = { enabled = true } })
+    assertTrue(inst.caption ~= nil, "an enabled label builds the caption")
+    assertEqual(inst.caption.fs:GetText(), CM.Get(id).name, "empty text: the container's name")
+    assertTrue(inst.caption.fs:IsShown())
+    CM.Rename(id, "Boss")
+    CM.FlushPending()
+    assertEqual(inst.caption.fs:GetText(), "Boss", "a rename shows on the next apply")
+    relabel(id, { text = "Focus me" })
+    assertEqual(inst.caption.fs:GetText(), "Focus me", "its own text wins over the name")
+    relabel(id, { text = "   " })
+    assertEqual(inst.caption.fs:GetText(), "Boss", "blank text reads as unset")
+    local names = {}
+    for i, cell in ipairs(inst.layout) do names[i] = cell.name end
+    assertEqual(table.concat(names, ","), "number", "the caption is no element of the order")
+  end)
+end)
+
+test("render: test_caption_hidden — off by default and while disabled, the root sized as before", function()
+  -- red under: a caption drawn or measured while label.enabled is off.
+  withRenderer(function()
+    local id, _, inst = newContainer()
+    assertNil(inst.caption, "no caption is built while the label is off")
+    local w0, h0 = inst.width, inst.height
+    relabel(id, { enabled = true })
+    assertTrue(inst.height > h0, "the caption grows the root")
+    relabel(id, { enabled = false })
+    assertFalse(inst.caption.fs:IsShown(), "turned off, it hides")
+    assertEqual(inst.width .. "x" .. inst.height, w0 .. "x" .. h0, "and the root shrinks back")
+    -- Red under an applyCaption that never shows the FontString again after an off / on cycle.
+    relabel(id, { enabled = true })
+    assertTrue(inst.caption.fs:IsShown(), "turned on again, it shows")
+  end)
+end)
+
+test("render: test_caption_no_text — an enabled caption with no text and no name draws nothing", function()
+  -- red under: a caption that grows the root by its gap, or shows an empty FontString, when its text
+  -- and the container's name both read "" (a hand-edited SavedVariables with no name).
+  withRenderer(function()
+    local id, _, inst = newContainer({ label = { gap = 6 } })
+    local w0, h0 = inst.width, inst.height
+    CM.Get(id).name = nil
+    relabel(id, { enabled = true, text = "" })
+    assertTrue(inst.caption == nil or not inst.caption.fs:IsShown(), "no caption shows")
+    assertEqual(inst.width .. "x" .. inst.height, w0 .. "x" .. h0, "the root keeps the elements' size")
+    CM.Get(id).name = ""
+    relabel(id, { text = "  " })
+    assertTrue(inst.caption == nil or not inst.caption.fs:IsShown(), "an empty name: still nothing")
+    assertEqual(inst.width .. "x" .. inst.height, w0 .. "x" .. h0)
+  end)
+end)
+
+test("render: test_caption_wider_taller — a caption larger than the elements centers them on it", function()
+  -- red under: a Layout that sizes a top caption's root from the elements alone, or drops the
+  -- block's centering on the caption (across for top / bottom, down for left / right).
+  withRenderer(function()
+    local id, _, inst = newContainer({ layout = { padding = 4 },
+      label = { enabled = true, gap = 3, size = 30, text = string.rep("W", 30) } })
+    local cap, num = inst.caption, inst.elements.number
+    local cw, chh, bw, bh = cap.w, cap.h, num.w, num.h
+    assertTrue(cw > bw and chh > bh, "the caption is the wider and the taller")
+    assertEqual(inst.width, cw + 8, "top: the root as wide as the caption")
+    assertEqual(inst.layout[1].x, 4 + (cw - bw) / 2, "the number centered across under it")
+    assertEqual(inst.layout[1].y, 4 + chh + 3)
+    relabel(id, { position = "bottom" })
+    assertEqual(inst.width, cw + 8, "bottom: the same width")
+    assertEqual(inst.layout[1].x, 4 + (cw - bw) / 2, "the number centered across over it")
+    relabel(id, { position = "left" })
+    assertEqual(inst.height, chh + 8, "left: the root as tall as the caption")
+    assertEqual(inst.layout[1].y, 4 + (chh - bh) / 2, "the number centered down beside it")
+    relabel(id, { position = "right" })
+    assertEqual(inst.layout[1].y, 4 + (chh - bh) / 2, "right: the same")
+    assertEqual(inst.layout[1].x, 4)
+  end)
+end)
+
+test("render: test_caption_alone — with every element off the caption is drawn with no gap", function()
+  -- red under: a captionBox that adds the gap with no cell beside it.
+  withRenderer(function()
+    local _, _, inst = newContainer({ layout = { padding = 4 }, elements = { number = { enabled = false } },
+      label = { enabled = true, gap = 9 } })
+    assertEqual(#inst.layout, 0, "no element is laid out")
+    local cap = inst.caption
+    assertTrue(cap.fs:IsShown() and cap.w > 0)
+    assertEqual(inst.height, cap.h + 8, "the caption and the padding, no gap")
+    assertEqual(inst.width, cap.w + 8)
+  end)
+end)
+
+test("render: test_caption_remeasured — a caption measured short at the apply is corrected on a band change", function()
+  -- red under: a caption measured on Apply only (a face not loaded yet at login keeps the estimate's
+  -- width until a setting change).
+  withRenderer(function()
+    local _, _, inst = newContainer({ layout = { padding = 4 }, label = { enabled = true } })
+    local num = inst.elements.number
+    rawset(inst.caption.fs, "GetStringWidth", function() return 300 end)
+    inst:Update("known", 0, 5)
+    assertEqual(inst.caption.w, 300, "measured again on the band change")
+    assertEqual(inst.width, math.max(300, num.w) + 8, "and the root laid out again to it")
+  end)
+end)
+
+test("render: test_caption_positions — top, bottom, left and right, inside the padding, the root grown to hold it", function()
+  -- red under: a Layout that sizes the root to the elements alone (a caption outside the root would
+  -- sit under the drag strip and the preview strips docked on its top edge).
+  withRenderer(function()
+    local id, _, inst = newContainer({ layout = { padding = 4 }, label = { enabled = true, gap = 3 } })
+    relabel(id, { enabled = false })
+    local w0, h0 = inst.width, inst.height
+    local num = inst.elements.number
+    local bw, bh = num.w, num.h
+    relabel(id, { enabled = true })
+    local cap = inst.caption
+    local cw, chh = cap.w, cap.h
+    assertTrue(cw > 0 and chh > 0, "the caption measured")
+
+    -- Top, centered (the default): above the elements, the elements below it by the gap.
+    local cwide = math.max(cw, bw)
+    assertEqual(inst.height, h0 + chh + 3, "top: the root grows by the caption and the gap")
+    assertEqual(inst.width, cwide + 8, "and is as wide as the wider of the caption and the elements")
+    local p, rel, rp, x, y = capPoint(inst)
+    assertEqual(p, "TOP"); assertTrue(rel == inst.frame); assertEqual(rp, "TOPLEFT")
+    assertEqual(x, 4 + cwide / 2, "centered across the content")
+    assertEqual(y, -4, "at the padding")
+    assertEqual(inst.layout[1].y, 4 + chh + 3, "the number sits under it by the gap")
+
+    relabel(id, { align = "left" })
+    p, _, _, x = capPoint(inst)
+    assertEqual(p .. " " .. x, "TOPLEFT 4", "left aligned: from the padding")
+    relabel(id, { align = "right" })
+    p, _, _, x = capPoint(inst)
+    assertEqual(p .. " " .. x, "TOPRIGHT " .. (4 + cwide), "right aligned: to the content's right edge")
+
+    relabel(id, { position = "bottom", align = "center" })
+    _, _, _, _, y = capPoint(inst)
+    assertEqual(inst.height, h0 + chh + 3, "bottom: the same growth")
+    assertEqual(y, -(4 + bh + 3), "under the elements by the gap")
+    assertEqual(inst.layout[1].y, 4, "the number stays at the padding")
+
+    relabel(id, { position = "left" })
+    p, _, _, x, y = capPoint(inst)
+    assertEqual(inst.width, w0 + cw + 3, "left: the root grows across")
+    assertEqual(inst.height, math.max(chh, bh) + 8)
+    assertEqual(y, -(4 + (math.max(chh, bh) - chh) / 2), "centered down beside the elements")
+    assertEqual(p .. " " .. x, "TOPRIGHT " .. (4 + cw), "its right edge before the elements")
+    assertEqual(inst.layout[1].x, 4 + cw + 3, "the number after it by the gap")
+
+    relabel(id, { position = "right" })
+    p, _, _, x = capPoint(inst)
+    assertEqual(inst.width, w0 + cw + 3, "right: the same growth")
+    assertEqual(p .. " " .. x, "TOPLEFT " .. (4 + bw + 3), "after the elements by the gap")
+    assertEqual(inst.layout[1].x, 4, "the number stays at the padding")
+  end)
+end)
+
+test("render: test_caption_outside — outside on each side: on the root's edge by the gap, the root the elements' size", function()
+  -- red under: a Layout that reads "outsideTop" ... as inside (or as top), grows the root by an outside
+  -- caption, or anchors it from the content's TOPLEFT (plan 2026-11-19 M11).
+  withRenderer(function()
+    local id, _, inst = newContainer({ layout = { padding = 4 }, label = { enabled = false, gap = 3 } })
+    local w0, h0 = inst.width, inst.height
+    local cases = {
+      { "outsideTop", "center", "BOTTOM", "TOP", 0, 3 },
+      { "outsideTop", "left", "BOTTOMLEFT", "TOPLEFT", 0, 3 },
+      { "outsideTop", "right", "BOTTOMRIGHT", "TOPRIGHT", 0, 3 },
+      { "outsideBottom", "center", "TOP", "BOTTOM", 0, -3 },
+      { "outsideBottom", "left", "TOPLEFT", "BOTTOMLEFT", 0, -3 },
+      { "outsideBottom", "right", "TOPRIGHT", "BOTTOMRIGHT", 0, -3 },
+      { "outsideLeft", "left", "RIGHT", "LEFT", -3, 0 },
+      { "outsideRight", "right", "LEFT", "RIGHT", 3, 0 },
+    }
+    for _, k in ipairs(cases) do
+      relabel(id, { enabled = true, position = k[1], align = k[2] })
+      local p, rel, rp, x, y = capPoint(inst)
+      local what = k[1] .. "/" .. k[2]
+      assertEqual(p .. " " .. rp, k[3] .. " " .. k[4], what .. ": its point on the root's edge")
+      assertTrue(rel == inst.frame, what .. ": on the root")
+      assertEqual(x .. "," .. y, k[5] .. "," .. k[6], what .. ": the gap off the edge")
+      assertEqual(inst.width .. "x" .. inst.height, w0 .. "x" .. h0, what .. ": the root keeps the elements' size")
+      assertEqual(inst.layout[1].x .. "," .. inst.layout[1].y, "4,4", what .. ": the number stays at the padding")
+      assertTrue(inst.caption.fs:IsShown(), what .. ": shown")
+    end
+  end)
+end)
+
+test("render: test_caption_inside_sides — the stored plain sides read as inside, an unknown one as inside top", function()
+  -- red under: a CaptionSide that reads "top" ... as outside, or drops an unknown stored value.
+  local side = NS.Container.CaptionSide
+  for _, s in ipairs({ "top", "bottom", "left", "right" }) do
+    local w, out = side(s)
+    assertEqual(w, s); assertFalse(out, s .. " is inside")
+  end
+  local w, out = side("outsideRight")
+  assertEqual(w, "right"); assertTrue(out)
+  w, out = side("sideways")
+  assertEqual(w, "top", "an unknown value: top"); assertFalse(out, "inside")
+  withRenderer(function()
+    local id, _, inst = newContainer({ layout = { padding = 4 }, label = { enabled = false, gap = 3 } })
+    local h0 = inst.height
+    relabel(id, { enabled = true, position = "top" })
+    assertEqual(inst.height, h0 + inst.caption.h + 3, "a stored top still grows the root (inside)")
+  end)
+end)
+
+test("render: test_caption_outside_lift — an outside-top caption lifts the drag strip and the preview strips over it", function()
+  -- red under: strips docked on the root's top edge with no lift (the strip would cover the caption).
+  withRenderer(function()
+    local id, _, inst = newContainer({ label = { enabled = true, gap = 5, position = "outsideTop" } })
+    assertEqual(inst.captionLift, inst.caption.h + 5, "the caption's height and its gap")
+    relabel(id, { position = "outsideBottom" })
+    assertEqual(inst.captionLift, 0, "below the root: nothing to clear")
+    relabel(id, { position = "top" })
+    assertEqual(inst.captionLift, 0, "inside: the root already holds it")
+    relabel(id, { position = "outsideTop" })
+    relabel(id, { enabled = false })
+    assertEqual(inst.captionLift, 0, "turned off: the lift goes")
+  end)
+end)
+
+test("render: test_caption_fixed_size — a fixed-size container keeps its box, the caption inside it", function()
+  -- red under: a Layout that grows a fixed box by the caption.
+  withRenderer(function()
+    local id, _, inst = newContainer({ layout = { sizing = "fixed", width = 200, height = 80, padding = 4 },
+      label = { enabled = true, gap = 2 } })
+    assertEqual(inst.width .. "x" .. inst.height, "200x80", "the stored box")
+    local cap, num = inst.caption, inst.elements.number
+    local cwide = math.max(cap.w, num.w)
+    local contentH = cap.h + 2 + num.h + 8
+    local _, _, _, x, y = capPoint(inst)
+    assertEqual(x, 4 + cwide / 2 + (200 - (cwide + 8)) / 2, "centered across the box")
+    assertEqual(y, -(4 + (80 - contentH) / 2), "the caption and the elements centered down it together")
+    assertTrue(id ~= nil)
+  end)
+end)
+
+test("render: test_caption_color_modes — band, fixed and class, as the elements", function()
+  -- red under: a caption painted once at build, or in the number's color.
+  withRenderer(function()
+    local fixed = { r = 0.2, g = 0.4, b = 0.6, a = 1 }
+    local _, setId, inst = newContainer({ label = { enabled = true, colorMode = "band" } })
+    assertColor(color3({ inst.caption.fs:GetTextColor() }), band(setId, 3).textColor, "band: the band's text color")
+    local _, _, inst2 = newContainer({ label = { enabled = true, colorMode = "fixed", color = fixed } })
+    assertColor(color3({ inst2.caption.fs:GetTextColor() }), fixed, "fixed: the swatch")
+    local _, _, inst3 = newContainer({ label = { enabled = true, colorMode = "class", color = fixed } })
+    assertColor(color3({ inst3.caption.fs:GetTextColor() }), M.RAID_CLASS_COLORS.MAGE, "class: the unit's class")
+    local _, _, inst4 = newContainer({ label = { enabled = true } })
+    assertColor(color3({ inst4.caption.fs:GetTextColor() }), { 1, 1, 1 }, "the default: fixed white")
   end, "MAGE")
 end)
