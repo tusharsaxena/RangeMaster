@@ -23,7 +23,7 @@ unless a check names one. The anchors are run as a matrix, one result per mode a
 | LOC-1 | Non-English client | a deDE or frFR client |
 | RANGE-1..17 | Range engine | brackets, unknown, the Forever ladder, the ticker's rate and stop, the seed spells; the anchor probes: reported ranges under talents, rank IDs, the talent event, overrides, Auto Shot unarmed |
 | DRAW-1..5 | Containers drawn | brackets drawn, unknown gray, elements and order, the skin face, disable |
-| CONT-1..10 | Containers page | New container (no band preview), the rail, Position, Duplicate / Delete / Copy settings from, Defaults, Color from, the Dot tab and its Style tiles, Border opacity, the caption's positions, the caption's styling |
+| CONT-1..11 | Containers page | New container (no band preview), the rail, Position, Duplicate / Delete / Copy settings from, Defaults, Color from, the Dot tab and its Style tiles, Border opacity, the caption's positions, the caption's styling |
 | BANDS-1..11 | Band sets page | the picker, the Bands editor (no band ribbon), shared sets, the friendly override, the unknown label; spell bands: the rule controls, the read-out, the owner's Hawk Eye case, the dead zone, the v1 -> v2 conversion, the band rail |
 | PRESET-1..4 | Presets | the first-run picker, Apply on an empty profile, Apply over containers with Undo, what each of the five shows |
 | ANCHOR-1..10 | Anchors | every mode on both clients: screen, unit frames (Blizzard, EllesmereUI, custom, missing), own nameplate, all nameplates, cursor, the picker, all nameplates except target, the drag strip's marks |
@@ -347,6 +347,12 @@ a training dummy for each. The spell IDs are the anchors in `defaults/SpellSeeds
   between bands; Class with a player targeted → that player's class color, the swatch when the target
   has no class. Copy settings from a container with a styled caption → the style and position come
   over and the destination keeps its own Label text. Result:
+- **CONT-11. One line, Align, Band span.** A container with Number and Text on (any preset that
+  shows both, or an existing one: the load pass turns Number and text on one line on) reads as one
+  line, "28+ OOR", the label in its band color, with no gap between them; Display → Layout → Number
+  and text on one line off → two elements again. Align Left / Center / Right with Size → Fixed size
+  at 200 px → the line sits left, centered, right. Number → Format → Band span: a Forever hunter with
+  Hawk Eye reads 8–41 in AUTO, 0–5 in MELEE, 41+ in OOR, instead of the 5 yd steps. Result:
 
 ## Band sets page
 

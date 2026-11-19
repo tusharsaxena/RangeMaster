@@ -284,6 +284,13 @@ local function applyElements(inst, c)
             el.frame:Hide()
         end
     end
+    -- One line (NS.Elements.Number.Joins): the number writes the band's label too, so the text
+    -- element draws nothing and takes no cell.
+    local tx = inst.elements.text
+    if tx and tx.on and E.Number.Joins(c) then
+        tx.on = false
+        tx.frame:Hide()
+    end
 end
 
 --- The caption's text: the stored one, else the container's name (blank or spaces read as unset).
@@ -424,7 +431,14 @@ end
 --- and the content's size, and keeps the caption's own offset and anchor point on `cap`. Top and
 --- bottom center the block across the wider of the two; left and right center both down. An outside
 --- caption takes no room in the content (outsideCaption).
-local function captionBox(cap, lab, bw, bh, hasCells)
+--- `room` split by `align`: nothing before the block (left), all of it (right), half (center).
+local function alignOff(room, align)
+    if align == "left" then return 0 end
+    if align == "right" then return room end
+    return room / 2
+end
+
+local function captionBox(cap, lab, bw, bh, hasCells, align)
     if cap then cap.outside, cap.lift = false, 0 end
     if not (cap and cap.on) then return 0, 0, bw, bh end
     local where, outside = captionSide(lab.position)
@@ -445,20 +459,20 @@ local function captionBox(cap, lab, bw, bh, hasCells)
         return 0, (ch - bh) / 2, cw, ch
     end
     local cw, ch = math.max(cap.w, bw), cap.h + g + bh
-    local align = lab.align
-    if align == "left" then
+    local capAlign = lab.align
+    if capAlign == "left" then
         cap.point, cap.x = "TOPLEFT", 0
-    elseif align == "right" then
+    elseif capAlign == "right" then
         cap.point, cap.x = "TOPRIGHT", cw
     else
         cap.point, cap.x = "TOP", cw / 2
     end
     if where == "bottom" then
         cap.y = bh + g
-        return (cw - bw) / 2, 0, cw, ch
+        return alignOff(cw - bw, align), 0, cw, ch
     end
     cap.y = 0
-    return (cw - bw) / 2, cap.h + g, cw, ch
+    return alignOff(cw - bw, align), cap.h + g, cw, ch
 end
 
 --- Place the cells along the main axis, centered across it, the caption on its side of them, all
@@ -488,7 +502,7 @@ function Instance:Layout()
     local bw, bh = cross, main
     if row then bw, bh = main, cross end
     local cap = self.caption
-    local ex, ey, cw, ch = captionBox(cap, c.label, bw, bh, n > 0)
+    local ex, ey, cw, ch = captionBox(cap, c.label, bw, bh, n > 0, lay.align)
     for i = 1, n do
         local cell = cells[i]
         cell.x, cell.y = cell.x + pad + ex, cell.y + pad + ey
@@ -498,7 +512,7 @@ function Instance:Layout()
     if lay.sizing == "fixed" then
         local T = NS.CONTAINER_TEMPLATE.layout
         local fw, fh = side(lay.width, T.width), side(lay.height, T.height)
-        dx, dy, w, h = (fw - w) / 2, (fh - h) / 2, fw, fh
+        dx, dy, w, h = alignOff(fw - w, lay.align), (fh - h) / 2, fw, fh
     end
     for i = 1, n do
         local cell = cells[i]
