@@ -12,7 +12,7 @@ local _, NS = ...
 --   NS.BandSets.SetField(id, field, value) -> boolean    matchBy, unknown.label, unknown.color
 --   NS.BandSets.SetBand(id, bandIndex, field, value) -> boolean   to, label, frameColor, textColor, indicatorColor
 --   NS.BandSets.AddBand(id) -> index, RemoveBand(id, bandIndex) -> boolean
---   NS.BandSets.Resolve(setId, state, minYd, maxYd) -> bandIndex | "unknown" | nil (state "none")
+--   NS.BandSets.Resolve(setId, state, minYd, maxYd, unit?) -> bandIndex | "unknown" | nil (state "none")
 --   NS.BandSets.ForUnit(container, unit) -> setId
 --   NS.BandSets.Snapshot() -> snap, RestoreSnapshot(snap) -> boolean   the registry whole, for an Undo
 --
@@ -27,6 +27,19 @@ local _, NS = ...
 -- Duplicate, Normalize and RestoreSnapshot normalize on write; core/Database.lua's load pass normalizes
 -- every stored set. SetBandSound touches no edge, so it has nothing to normalize; SetBand, AddBand
 -- and RemoveBand, which can, normalize after the write.
+--
+-- A BAND MAY CARRY A RULE (dynamic-bands plan): `band.rule = { type = "spell", role, spells? }`,
+-- `{ type = "gap" }` or `{ type = "beyond" }`; its yards stay, as the band's fallback. Resolve, given
+-- the unit, walks the bands in order and takes the first that holds:
+--   a yard band (no rule, or one it cannot read) holds when the bracket falls in its yards;
+--   spell(role) holds on its anchor's true (NS.Range.RoleInRange); on a nil it is a yard band;
+--   gap holds when the ranged anchor says false, the melee anchor does not say true and a shorter
+--     check confirms the unit is near (NS.Range.Near);
+--   beyond holds when every spell band's anchor said false and no gap holds.
+-- When none holds, the band the yards pick is taken unless that band's own anchor contradicts it
+-- (a spell band whose anchor said false, a gap band while an anchor says true): then, as with no
+-- bracket, the answer is "unknown", never out of range. A set with no rule reads its yards alone
+-- and asks no spell.
 --
 -- Two of the registry's helpers are the load pass's too (architecture-§5): the seed routine (Seed)
 -- and the per-set repair (NormalizeSet), both called from core/Database.lua's PrepareProfile.
@@ -153,25 +166,133 @@ function BandSets.List()
     return out
 end
 
---- The band a bracket falls in. `state` is NS.Range.Get's: "none" answers nil, "unknown" (or a set
---- with nothing to read) answers "unknown", "known" answers the band's index. matchBy "max" picks by
---- the far bound (an open-ended bracket reads as infinitely far) and a band holds (from, to]; "min"
---- picks by the near bound and a band holds [from, to). A set id that does not exist reads the default.
---- @return number|string|nil
-function BandSets.Resolve(setId, state, minYd, maxYd)
-    if state == "none" then return nil end
-    local set = BandSets.Get(setId) or BandSets.Get(BandSets.DefaultId())
-    if state ~= "known" or not set or #set.bands == 0 then return "unknown" end
+--- The band the yards pick for a known bracket, or nil. matchBy "max" picks by the far bound (an
+--- open-ended bracket reads as infinitely far) and a band holds (from, to]; "min" picks by the near
+--- bound and a band holds [from, to).
+local function yardPick(set, minYd, maxYd)
     local byMin = set.matchBy == "min"
     local v
     if byMin then v = minYd or 0 else v = maxYd or HUGE end
-    if type(v) ~= "number" then return "unknown" end
+    if type(v) ~= "number" then return nil end
     local bands = set.bands
     for i = 1, #bands do
         local to = bands[i].to
         if to == nil or v < to or (not byMin and v == to) then return i end
     end
     return #bands
+end
+
+local RULE_TYPES = { spell = true, gap = true, beyond = true }
+
+--- The band's rule when it is one Resolve can read, else nil (a yard band).
+local function ruleOf(band)
+    local r = band.rule
+    if type(r) ~= "table" or not RULE_TYPES[r.type] then return nil end
+    if r.type == "spell" and type(r.role) ~= "string" then return nil end
+    return r
+end
+
+local function hasRule(bands)
+    for i = 1, #bands do
+        if ruleOf(bands[i]) then return true end
+    end
+    return false
+end
+
+-- One Resolve's reading, reused (Resolve never re-enters): each spell band's answer, NONE for nil.
+local NONE = {}
+local answers = {}
+local cur = { bands = nil, unit = nil, state = nil, maxYd = nil, gap = nil }
+
+local function answerOf(i, rule)
+    local v = answers[i]
+    if v == nil then
+        v = NS.Range.RoleInRange(rule.role, cur.unit, rule.spells)
+        if v == nil then v = NONE end
+        answers[i] = v
+    end
+    if v == NONE then return nil end
+    return v
+end
+
+--- The dead zone's test, asked once a Resolve.
+local function gapHolds()
+    if cur.gap == nil then
+        local R, unit = NS.Range, cur.unit
+        cur.gap = R.RoleInRange("ranged", unit) == false and R.RoleInRange("melee", unit) ~= true
+            and R.Near(unit, cur.state, cur.maxYd) == true
+    end
+    return cur.gap
+end
+
+local function beyondHolds()
+    local bands, any = cur.bands, false
+    for i = 1, #bands do
+        local r = ruleOf(bands[i])
+        if r and r.type == "spell" then
+            if answerOf(i, r) ~= false then return false end
+            any = true
+        elseif r and r.type == "gap" and gapHolds() then
+            return false
+        end
+    end
+    return any
+end
+
+--- Whether band `i`'s own rule says the unit is not in it, so its yards may not be taken.
+local function contradicts(i)
+    local r = ruleOf(cur.bands[i])
+    if not r then return false end
+    if r.type == "spell" then return answerOf(i, r) == false end
+    if r.type == "gap" then
+        local R = NS.Range
+        return R.RoleInRange("ranged", cur.unit) == true or R.RoleInRange("melee", cur.unit) == true
+    end
+    return false
+end
+
+--- Whether band `i` holds (see A BAND MAY CARRY A RULE in the header); `pick` is the yards' band.
+local function holds(i, pick)
+    local r = ruleOf(cur.bands[i])
+    if r and r.type == "spell" then
+        local v = answerOf(i, r)
+        if v ~= nil then return v end
+    elseif r and r.type == "gap" then
+        return gapHolds()
+    elseif r then
+        return beyondHolds()
+    end
+    return pick == i
+end
+
+local function resolveRules(bands, pick, state, maxYd, unit)
+    for i = 1, #bands do answers[i] = nil end
+    cur.bands, cur.unit, cur.state, cur.maxYd, cur.gap = bands, unit, state, maxYd, nil
+    local out = "unknown"
+    for i = 1, #bands do
+        if holds(i, pick) then
+            out = i
+            break
+        end
+    end
+    if out == "unknown" and pick and not contradicts(pick) then out = pick end
+    cur.bands, cur.unit = nil, nil
+    return out
+end
+
+--- The band a bracket falls in. `state` is NS.Range.Get's: "none" answers nil, "unknown" (or a set
+--- with nothing to read) answers "unknown", "known" answers the band's index (yardPick). A set
+--- with band rules is read through them for `unit` first (see the header). A set id that does not
+--- exist reads the default.
+--- @param unit string|nil the unit token the bracket is for; without one every rule is no answer
+--- @return number|string|nil
+function BandSets.Resolve(setId, state, minYd, maxYd, unit)
+    if state == "none" then return nil end
+    local set = BandSets.Get(setId) or BandSets.Get(BandSets.DefaultId())
+    if not set or #set.bands == 0 then return "unknown" end
+    local pick = state == "known" and yardPick(set, minYd, maxYd) or nil
+    if not hasRule(set.bands) then return pick or "unknown" end
+    return resolveRules(set.bands, pick, state, maxYd, unit)
 end
 
 --- The set a container uses for `unit`: its friendly override when one is set, exists and the client

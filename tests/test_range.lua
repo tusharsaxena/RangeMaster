@@ -197,6 +197,7 @@ test("range: a known spell that is unusable right now is not trusted (research l
     assertNil(NS.Range.InSpellRange(5176, "target"), "unusable: no answer")
     assertEqual(asked(), 0, "and the range API is not asked")
     usableNow = true
+    NS.Range.BeginTick()   -- an answer holds for its tick (the spell memo, dynamic-bands plan D3)
     assertEqual(NS.Range.InSpellRange(5176, "target"), true, "usable again, trusted again")
   end, function() return usableNow, false end)
   withSpells({ [5176] = true }, function() return false end, function()
@@ -791,4 +792,226 @@ test("anchors: LibRangeCheck's CHECKERS_CHANGED rebuilds while up, and is droppe
   end)
   NS.addon:RegisterLifecycleEvents()
   if not ok then error(err, 0) end
+end)
+
+-- ── the rule evaluation (dynamic-bands plan D3) ──────────────────────────────────────────────
+
+local B = NS.BandSets
+
+--- The Forever hunter shape as rule bands; the yards are each band's fallback.
+local function hunterBands()
+  return {
+    { from = 0, to = 5, label = "MELEE", rule = { type = "spell", role = "melee" } },
+    { from = 5, to = 8, label = "DEAD", rule = { type = "gap" } },
+    { from = 8, to = 35, label = "AUTO", rule = { type = "spell", role = "ranged" } },
+    { from = 35, label = "OOR", rule = { type = "beyond" } },
+  }
+end
+
+local HUNTER = {
+  anchors = { melee = { 2973 }, ranged = { 75 } },
+  known = { [2973] = true, [75] = true },
+  info = { [2973] = { "Raptor Strike", 2973, 0, 5 }, [75] = { "Auto Shot", 75, 8, 41 } },
+}
+
+--- A spec for withRules: HUNTER's anchors and spellbook with `extra`'s fields laid over them.
+local function hunter(extra)
+  local spec = {}
+  for k, v in pairs(HUNTER) do spec[k] = v end
+  for k, v in pairs(extra or {}) do spec[k] = v end
+  return spec
+end
+
+--- Run `body(setId, asked)` with a band set of `spec.bands` (the hunter shape when omitted) stored,
+--- the player's class `spec.class` (HUNTER when omitted), the anchors and spellbook of `spec`
+--- (withAnchors), C_Spell.IsSpellInRange answering `spec.inRange[id]` (a function is called), the
+--- interact checks answering `spec.interact[index]`, and LibRangeCheck answering `spec.bracket`.
+--- `asked()` counts the range API's calls.
+local function withRules(spec, body)
+  local savedClass = M.__context.classToken
+  local spell = M.C_Spell
+  local realInRange, realInteract = spell.IsSpellInRange, M.CheckInteractDistance
+  local asked = 0
+  M.__context.classToken = spec.class or "HUNTER"
+  spec.inRange, spec.interact, spec.bracket = spec.inRange or {}, spec.interact or {}, spec.bracket or {}
+  spell.IsSpellInRange = function(id)
+    asked = asked + 1
+    local v = spec.inRange[id]
+    if type(v) == "function" then return v() end
+    return v
+  end
+  M.CheckInteractDistance = function(_, index) return spec.interact[index] end
+  local setId = B.Create("Rules", spec.bands or hunterBands())
+  local ok, err = pcall(withRange, function() return spec.bracket[1], spec.bracket[2] end, { target = true },
+    function()
+      withAnchors(spec, function() body(setId, function() return asked end) end)
+    end)
+  B.Delete(setId)
+  spell.IsSpellInRange, M.CheckInteractDistance = realInRange, realInteract
+  M.__context.classToken = savedClass
+  if not ok then error(err, 0) end
+end
+
+--- The set's band index for the bracket `spec.bracket` on the target, at a fresh tick.
+local function resolve(setId, spec)
+  NS.Range.BeginTick()
+  local lo, hi = spec.bracket[1], spec.bracket[2]
+  local state = (lo or hi) and "known" or "unknown"
+  return B.Resolve(setId, state, lo, hi, "target")
+end
+
+test("rules: the owner's case: a 35-40 bracket with Auto Shot in range reads AUTO, not OOR", function()
+  -- red under: a Resolve that reads the yards alone (40 is past AUTO's 35 yd edge).
+  local spec = hunter({ bracket = { 35, 40 }, inRange = { [2973] = false, [75] = true } })
+  withRules(spec, function(setId)
+    assertEqual(NS.Range.RoleInRange("ranged", "target"), true, "the ranged anchor answers")
+    assertEqual(resolve(setId, spec), 3, "AUTO")
+    spec.inRange[75] = false
+    assertEqual(resolve(setId, spec), 4, "out of every anchor's range: OOR")
+    spec.inRange[2973] = true
+    assertEqual(resolve(setId, spec), 1, "in melee wins, in band order")
+  end)
+end)
+
+test("rules: the dead zone holds only when a shorter check confirms the target is near", function()
+  -- red under: a gap read from the two anchors alone (a target past 41 yd would read DEAD).
+  local spec = hunter({ bracket = { 5, 8 }, inRange = { [2973] = false, [75] = false } })
+  withRules(spec, function(setId)
+    assertEqual(resolve(setId, spec), 2, "the bracket's max at the ranged anchor's min: DEAD")
+    spec.bracket = {}
+    spec.interact[3] = true
+    assertEqual(resolve(setId, spec), 2, "no bracket, the interact distance says near: DEAD")
+    spec.interact[3] = false
+    assertEqual(resolve(setId, spec), 4, "nothing confirms near, every anchor out: OOR")
+    spec.bracket = { 5, 10 }
+    assertEqual(resolve(setId, spec), 4, "a bracket reaching past the min confirms nothing")
+    spec.interact[3], spec.inRange[75] = true, true
+    assertEqual(resolve(setId, spec), 3, "the ranged anchor in range is never the dead zone")
+  end)
+end)
+
+test("rules: an unlearned anchor falls back to its band's yards, and unknown stays unknown", function()
+  -- red under: an unresolved role read as out of range (a fresh level 1 would read OOR everywhere).
+  local spec = hunter({ known = { [2973] = true }, bracket = { 20, 25 }, inRange = { [2973] = false, [75] = true } })
+  withRules(spec, function(setId)
+    assertNil(NS.Range.RoleInRange("ranged", "target"), "no ranged anchor: no answer")
+    assertEqual(resolve(setId, spec), 3, "AUTO by its fallback yards")
+    spec.bracket = { 35, 40 }
+    assertEqual(resolve(setId, spec), 4, "OOR by its fallback yards")
+    spec.bracket = {}
+    assertEqual(resolve(setId, spec), "unknown", "nothing to decide: unknown, never OOR")
+  end)
+end)
+
+test("rules: a nil or secret answer is no answer: the yards decide, or unknown", function()
+  local restore = T.installSecretValue()
+  local ok, err = pcall(function()
+    local spec = hunter({ bracket = { 20, 25 }, inRange = { [2973] = false } })
+    withRules(spec, function(setId)
+      assertEqual(resolve(setId, spec), 3, "a nil answer: AUTO by its yards")
+      spec.inRange[75] = function() return T.secret(false) end
+      assertNil(NS.Range.RoleInRange("ranged", "target"), "a secret is no answer")
+      assertEqual(resolve(setId, spec), 3, "a secret: AUTO by its yards")
+      spec.bracket = {}
+      assertEqual(resolve(setId, spec), "unknown", "and with no bracket, unknown, never OOR")
+    end)
+  end)
+  restore()
+  if not ok then error(err, 0) end
+end)
+
+test("rules: yards that contradict a band's own anchor read unknown", function()
+  -- red under: a fallback that paints AUTO while Auto Shot says the target is out of its range.
+  local spec = hunter({ known = { [75] = true }, bracket = { 20, 25 }, inRange = { [75] = false } })
+  withRules(spec, function(setId)
+    assertEqual(resolve(setId, spec), "unknown", "the yards say AUTO, the anchor says no")
+  end)
+end)
+
+test("rules: a non-hunter's melee true is voided when the bracket puts the unit 20 yd or more away", function()
+  -- red under: no guard (a melee spell unusable in the form can answer true from anywhere).
+  local spec = hunter({ class = "WARRIOR", bracket = { 25, 30 }, inRange = { [2973] = true, [75] = true } })
+  withRules(spec, function(setId)
+    assertNil(NS.Range.RoleInRange("melee", "target"), "a warrior's melee true at 25 yd is voided")
+    assertEqual(resolve(setId, spec), 3, "and the next band's anchor decides")
+    spec.bracket = { 0, 5 }
+    NS.Range.BeginTick()
+    assertEqual(NS.Range.RoleInRange("melee", "target"), true, "close by, the true stands")
+  end)
+  spec = hunter({ bracket = { 25, 30 }, inRange = { [2973] = true } })
+  withRules(spec, function()
+    assertEqual(NS.Range.RoleInRange("melee", "target"), true, "a hunter's melee is not guarded")
+  end)
+end)
+
+test("rules: a druid's melee band follows the form, and reads its yards out of Cat and Bear", function()
+  local form = 1
+  local spec = {
+    class = "DRUID",
+    anchors = { melee = { cat = { 1082 }, bear = { 6807 } }, ranged = { 5176 } },
+    known = { [1082] = true, [6807] = true, [5176] = true },
+    info = { [1082] = { "Claw", 1082, 0, 5 }, [6807] = { "Maul", 6807, 0, 5 }, [5176] = { "Wrath", 5176, 0, 30 } },
+    form = function() return form end,
+    bracket = { 0, 5 },
+    inRange = { [1082] = true, [6807] = false, [5176] = true },
+    bands = {
+      { from = 0, to = 5, label = "MELEE", rule = { type = "spell", role = "melee" } },
+      { from = 5, to = 30, label = "CAST", rule = { type = "spell", role = "ranged" } },
+      { from = 30, label = "OOR", rule = { type = "beyond" } },
+    },
+  }
+  withRules(spec, function(setId)
+    assertEqual(resolve(setId, spec), 1, "Cat Form: Claw says in range")
+    form = 5
+    assertEqual(resolve(setId, spec), 2, "Bear Form: Maul says no, Wrath says yes")
+    form = 0
+    assertNil(NS.Range.RoleInRange("melee", "target"), "caster form: no melee anchor")
+    assertEqual(resolve(setId, spec), 1, "and the melee band reads its yards")
+  end)
+end)
+
+test("rules: one range call per spell per unit per tick, shared by the bands and the chips", function()
+  -- red under: a band read that asks the client again for a spell a chip asked this tick.
+  local spec = hunter({ bracket = { 20, 25 }, inRange = { [2973] = false, [75] = true } })
+  withRules(spec, function(setId, asked)
+    NS.Range.BeginTick()
+    local before = asked()
+    assertEqual(NS.Range.InSpellRange(75, "target"), true, "the chip's answer")
+    assertEqual(B.Resolve(setId, "known", 20, 25, "target"), 3)
+    assertEqual(B.Resolve(setId, "known", 20, 25, "target"), 3)
+    assertEqual(asked() - before, 2, "Auto Shot once, Raptor Strike once")
+    NS.Range.BeginTick()
+    NS.Range.RoleInRange("ranged", "target")
+    assertEqual(asked() - before, 3, "a new tick asks again")
+    local yards = B.Create("Yards only", "melee_ranged")
+    NS.Range.BeginTick()
+    B.Resolve(yards, "known", 20, 25, "target")
+    B.Delete(yards)
+    assertEqual(asked() - before, 3, "a set with no rule asks no spell")
+  end)
+end)
+
+test("rules: a spell band's own list overrides the class's anchors for its role", function()
+  local spec = hunter({
+    known = { [2973] = true, [75] = true, [3044] = true },
+    info = { [2973] = { "Raptor Strike", 2973, 0, 5 }, [75] = { "Auto Shot", 75, 8, 41 },
+      [3044] = { "Arcane Shot", 3044, 8, 41 } },
+    bracket = { 20, 25 }, inRange = { [2973] = false, [75] = false, [3044] = true },
+  })
+  spec.bands = hunterBands()
+  spec.bands[3].rule.spells = { 3044 }
+  withRules(spec, function(setId)
+    assertEqual(NS.Range.RoleInRange("ranged", "target", { 3044 }), true, "the override's answer")
+    assertEqual(resolve(setId, spec), 3, "AUTO on Arcane Shot, whatever Auto Shot says")
+  end)
+end)
+
+test("rules: a malformed rule reads as a yard band", function()
+  local spec = hunter({ bracket = { 20, 25 }, inRange = { [2973] = false, [75] = false } })
+  spec.bands = hunterBands()
+  spec.bands[3].rule = { type = "spell", role = 42 }
+  spec.bands[4].rule = "beyond"
+  withRules(spec, function(setId)
+    assertEqual(resolve(setId, spec), 3, "AUTO by its yards")
+  end)
 end)

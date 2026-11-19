@@ -134,6 +134,46 @@ D2 decisions (taken in the build):
   unlearned anchor (fallback yards), a nil/secret answer (fallback, never OOR), the melee guard, form
   gating, Sim.
 
+D3 decisions (taken in the build):
+
+- Band order is kept for every band, yard bands included: the first band that holds wins. A yard band
+  (no rule, or a rule Resolve cannot read) holds when the bracket's yard pick is that band. A spell
+  band holds on its anchor's true. If the anchor answers nil, the band acts as a yard band. If
+  `Resolve` ran every rule before the yards, a caster's yard first band could never win, because
+  its ranged spell is also in range at melee distance.
+- When no band holds, the yard pick is taken unless that band's own rule contradicts it: a spell band
+  whose anchor said false, or a gap band while the ranged or melee anchor says true. A contradicted
+  pick, or no bracket at all, reads "unknown", never OOR.
+- The melee guard's "verified 20 yd check" is the estimator's own bracket: a melee true is voided
+  (made nil) for every class but HUNTER when the bracket's near bound is 20 yd or more. The bracket
+  is already built from the verified item and interact checks (on Forever, the 20/30/35 yd items), so
+  the guard needs no extra client call.
+- The gap's "shorter check" is the bracket's far bound at or under the ranged anchor's reported min,
+  or the duel interact distance (index 3, 10 yd). The interact check is not asked under a preview or
+  where the client refuses it (spellsOnly). A ranged anchor with no min range has no dead zone, so a
+  Retail gap band never holds by rule. The gap reads the class's default melee and ranged anchors, not
+  a band's own `spells` list.
+- The spell memo is per unit token, then per spell ID, and lives until BeginTick. The chips
+  (`InSpellRange`, known cached until rebuild) and the band rules (`RoleInRange`, through
+  `Compat.AnchorInRange`) share it, so each spell is asked once per unit per tick. An existing test
+  that flipped usability inside one tick now starts a new tick first.
+- A band's own `spells` list (the override from the design's band shape) is evaluated now:
+  `RoleInRange(role, unit, spells)` resolves it the way a role's list is resolved (first known,
+  learned rank). It is cached per list table in a weak-keyed table and wiped at rebuild. Writers
+  replace the list rather than mutate it in place: the BandSets writers copy values. D5 must keep
+  doing so.
+- The steady read re-resolves the band. `inst:PollSpells` now also re-asks the band through Resolve
+  for a shown instance with a known or unknown state. An anchor can come into range while the
+  LibRangeCheck bracket stays put (the owner's 35-40 case), and without this no RANGE_UPDATED would
+  ever repaint the band.
+- Previews: a source answers rules through `InRole(role, unit, anchor)`. Sim answers from its distance
+  against the anchor's reported min/max (nil with no max). Test mode answers nil, so a rule band
+  reads its fallback yards and the 20-25 placeholder lands where it always did (with every chip
+  in range, the placeholder would otherwise always read the first spell band).
+- `Resolve`'s only caller is `modules/Container.lua`'s resolveBand, which now passes the unit. The
+  sounds read the renderer's band and the preview draws through the renderer, so neither calls
+  Resolve.
+
 ## D4. Schema v2
 
 - `core/Database.lua` step `to = 2`, every stored profile (savedvariables rules): every band set converted.

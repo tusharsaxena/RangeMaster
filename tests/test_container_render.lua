@@ -497,6 +497,32 @@ test("render: spell chips are colored by each spell's own answer, and only when 
   end)
 end)
 
+test("render: a steady read re-resolves a rule band when its anchor's answer moves", function()
+  -- red under: a steady read that asks the chips alone (the bracket stays 35-40 while the anchor
+  -- comes into range, so no RANGE_UPDATED would ever repaint the band).
+  withRenderer(function()
+    local real = NS.Range.RoleInRange
+    local ans = { melee = false, ranged = false }
+    NS.Range.RoleInRange = function(role) return ans[role] end
+    local ok, err = pcall(function()
+      local setId = NS.BandSets.Create("Rules", {
+        { from = 0, to = 5, label = "MELEE", rule = { type = "spell", role = "melee" } },
+        { from = 5, to = 35, label = "AUTO", rule = { type = "spell", role = "ranged" } },
+        { from = 35, label = "OOR", rule = { type = "beyond" } },
+      })
+      local _, _, inst = newContainer({ bandSet = setId })
+      inst:Update("known", 35, 40)
+      assertEqual(inst.bandIndex, 3, "every anchor out: OOR")
+      ans.ranged = true
+      assertTrue(inst:PollSpells(), "the steady read rendered")
+      assertEqual(inst.bandIndex, 2, "AUTO, the bracket unchanged")
+      assertFalse(inst:PollSpells(), "nothing moved: no render")
+    end)
+    NS.Range.RoleInRange = real
+    if not ok then error(err, 0) end
+  end)
+end)
+
 test("render: test_friendly_uses_friendly_set — a friendly unit reads the friendly override", function()
   withRenderer(function()
     local healer = B.Create("Healer", "healer")

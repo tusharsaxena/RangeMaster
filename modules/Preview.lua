@@ -13,7 +13,8 @@ local _, NS = ...
 -- range engine answers the placeholder for every token (NS.Range.SetSource), the ticker reads and
 -- sends it like a live range, and the renderer shows each container whatever its visibility says,
 -- a `nameplates` container through a stand-in and a container whose frame or plate is missing at its
--- screen point, each with the amber TestStrip. Every spell chip reads in range.
+-- screen point, each with the amber TestStrip. Every spell chip reads in range; a band rule gets no
+-- answer, so a rule band reads its fallback yards and the placeholder lands where it always did.
 --
 -- ONE OWNER OF THE SOURCE. Both modes reach the renderer through Refresh, never on their own: this
 -- file listens for MODE_CHANGED, and modules/Sim.lua calls Refresh when its session starts and stops.
@@ -32,6 +33,7 @@ local PH = Preview.PLACEHOLDER
 local placeholder = {
     Get = function() return PH[1], PH[2], PH[3] end,
     InSpell = function() return true end,
+    InRole = function() return nil end,
 }
 
 local current = nil   -- the source set now, or nil (live)

@@ -573,7 +573,7 @@ end
 local function resolveBand(inst, state, lo, hi)
     local B = NS.BandSets
     local setId = B.ForUnit(inst.container, inst.unit)
-    local band = B.Resolve(setId, state, lo, hi) or "none"
+    local band = B.Resolve(setId, state, lo, hi, inst.unit) or "none"
     if band == inst.bandIndex and setId == inst.setId then return false end
     local ctx, set = inst.ctx, B.Get(setId)
     ctx.set, ctx.band = set, band
@@ -692,17 +692,32 @@ function Instance:Update(state, lo, hi)
     return self:Render(state, lo, hi, res)
 end
 
---- The unit was read again and its triple did not move: ask the chips again, and render only when
---- an answer moved. Answers whether it rendered.
+--- Whether a shown instance's band would move with its triple unchanged: a set's band rules ask
+--- spells, whose answers move with no bracket move (dynamic-bands plan D3). A set with no rule never
+--- moves here, and a hidden or unit-less instance is left to its next render.
+local function bandMoved(inst)
+    local state = inst.state
+    if not inst.shown or (state ~= "known" and state ~= "unknown") then return false end
+    local B = NS.BandSets
+    local setId = B.ForUnit(inst.container, inst.unit)
+    if setId ~= inst.setId then return true end
+    return (B.Resolve(setId, state, inst.lo, inst.hi, inst.unit) or "none") ~= inst.bandIndex
+end
+
+--- The unit was read again and its triple did not move: ask the chips and the band rules again, and
+--- render only when an answer moved. Answers whether it rendered.
 function Instance:PollSpells()
     local list = spellList(self, self.state)
-    if not list then return false end
     local res = self.spells
-    for i, id in ipairs(list) do
+    for i, id in ipairs(list or NO_SPELLS) do
         if NS.Range.InSpellRange(id, self.unit) ~= res[i] then
             self:Update(self.state, self.lo, self.hi)
             return true
         end
+    end
+    if bandMoved(self) then
+        self:Update(self.state, self.lo, self.hi)
+        return true
     end
     return false
 end
@@ -945,9 +960,9 @@ local function onRangeUpdated(_, unit, state, lo, hi)
     if t0 then Perf.Note("container.render", debugprofilestop() - t0, NS.Range.PerfParent()) end
 end
 
---- A steady read (NS.Ticker.OnSteady): the instances on that unit re-ask their spell chips. One that
---- renders is recorded in container.render like a RANGE_UPDATED render; one with no chips costs a
---- field read.
+--- A steady read (NS.Ticker.OnSteady): the instances on that unit re-ask their spell chips and their
+--- band rules. One that renders is recorded in container.render like a RANGE_UPDATED render; one on a
+--- set with no rule and no chips costs its set's yard pick.
 local function onSteady(unit)
     local set = byUnit[unit]
     if not set then return end

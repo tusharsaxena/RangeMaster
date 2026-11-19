@@ -12,6 +12,11 @@ local _, NS = ...
 --   NS.Range.Anchor(role)              -> { id, name, minRange, maxRange } | nil: the anchor spell a
 --                                         band rule of `role` ("melee", "ranged", "friendly") asks,
 --                                         as the last rebuild resolved it (see THE ANCHORS below)
+--   NS.Range.RoleInRange(role, unit, spells?) -> true | false | nil: that anchor's answer for `unit`
+--                                         (a band's own `spells` list in place of the class's),
+--                                         through the per-tick memo the chips share (THE RULES below)
+--   NS.Range.Near(unit, state, maxYd)  -> boolean: a check shorter than the ranged anchor's reach
+--                                         puts `unit` inside that anchor's min range (a dead zone)
 --   NS.Range.BeginTick()               clear the per-tick memo
 --   NS.Range.SetPerfParent(key|false)  the bucket the reads that follow run inside (performance-§3):
 --                                      modules/Ticker.lua names "ticker.tick" for its tick, false after
@@ -21,7 +26,8 @@ local _, NS = ...
 --   NS.Range.RunOwedRebuild()          the stand-up's step (modules/Ticker.lua): an owed rebuild, now
 --   NS.Range.SetSource(src|nil)        the preview modes' fake range (modules/Preview.lua is its one
 --                                      caller): while set, every read answers src.Get(unit) and
---                                      src.InSpell(spellID, unit) instead of the client
+--                                      src.InSpell(spellID, unit) instead of the client, and a band
+--                                      rule src.InRole(role, unit, anchor) (nil: no answer)
 --   NS.Range.HasSource()               whether a fake range is set
 --
 -- THE ESTIMATOR is LibRangeCheck-3.0's GetRange(unit, true, nil, 0), called inside pcall with both
@@ -54,6 +60,16 @@ local _, NS = ...
 -- never asks the old form's strike while the debounce runs. A rebuild sends ANCHORS_CHANGED only
 -- when an anchor, its reported range or the form's pick moved.
 --
+-- THE RULES (dynamic-bands plan D3). A spell answer, a chip's or a band rule's anchor's, is asked of
+-- the client once per spell per unit per tick: the spell memo, keyed by unit token then spell ID,
+-- holds it until BeginTick. modules/BandSets.lua's Resolve asks RoleInRange per rule band and Near
+-- for a dead-zone band. A nil (no anchor, not usable, not applicable, a secret) is never read as
+-- false. A melee true is voided (nil) for every class but the hunter when the bracket's near bound
+-- is MELEE_GUARD_YD or more: a melee spell unusable in the form can answer true from anywhere
+-- (docs/midnight-quirks.md), and the estimator's bracket is the shorter, verified check. A band's own
+-- `spells` list is resolved as a role's list is (the first known, at its learned rank), once per
+-- list until the next rebuild.
+--
 -- THE FAKE SOURCE. Test mode and Sim mode draw through the real render path (design spec 5.5): the
 -- ticker, the memo, RANGE_UPDATED and the renderer are the live ones, and only the answer comes from
 -- a table the preview owns. It answers for any token, so a container with no unit draws too. Setting
@@ -84,6 +100,15 @@ local source               -- the preview's fake range, or nil (live)
 local anchors = {}         -- [role] = anchor, or { forms = { [formKey] = anchor } }; nil unresolved
 local anchorsResolved = false
 local anchorSig = ""       -- the last resolve's signature: a rebuild announces only a move
+local spellTick = {}       -- [unit] = { [spellID] = tickId }: the spell memo's freshness
+local spellAns = {}        -- [unit] = { [spellID] = answer | NO_ANSWER }: the spell memo's answers
+local NO_ANSWER = {}       -- a memoized nil (a nil cannot sit in a table)
+local overrides = setmetatable({}, { __mode = "k" })   -- [a band's spells list] = anchor | false
+
+-- A non-hunter's melee true is voided at this near bound or past it (THE RULES above).
+local MELEE_GUARD_YD = 20
+-- The interact distance a dead zone's "near" may be confirmed by: 3, the duel distance (10 yd).
+local NEAR_INTERACT = 3
 
 -- ---------------------------------------------------------------------------
 -- The Forever ladder walk
@@ -182,13 +207,8 @@ function Range.Get(unit)
     return state, lo, hi
 end
 
---- Whether `unit` is within the spell's range: true, false, or nil when the player does not know
---- the spell, cannot use it right now, the unit does not exist, or the client gave no usable answer.
---- @return boolean|nil
-function Range.InSpellRange(spellID, unit)
-    if type(spellID) ~= "number" then return nil end
-    if source then return source.InSpell(spellID, unit) end
-    if not UnitExists(unit) then return nil end
+--- A chip's read: known (cached until the next rebuild), usable now, then the range answer.
+local function chipRead(spellID, unit)
     local k = known[spellID]
     if k == nil then
         k = Compat.IsSpellKnown(spellID)
@@ -196,6 +216,35 @@ function Range.InSpellRange(spellID, unit)
     end
     if not k or not Compat.IsSpellUsable(spellID) then return nil end
     return Compat.SpellInRange(spellID, unit)
+end
+
+--- `read(spellID, unit)` once per spell per unit per tick: a second ask in the tick, from a chip or
+--- a band rule, reads the first one's answer back. Each token's two tables are reused.
+local function memoSpell(spellID, unit, read)
+    local t, a = spellTick[unit], spellAns[unit]
+    if not t then
+        t, a = {}, {}
+        spellTick[unit], spellAns[unit] = t, a
+    end
+    if t[spellID] == tickId then
+        local v = a[spellID]
+        if v == NO_ANSWER then return nil end
+        return v
+    end
+    local v = read(spellID, unit)
+    t[spellID] = tickId
+    if v == nil then a[spellID] = NO_ANSWER else a[spellID] = v end
+    return v
+end
+
+--- Whether `unit` is within the spell's range: true, false, or nil when the player does not know
+--- the spell, cannot use it right now, the unit does not exist, or the client gave no usable answer.
+--- @return boolean|nil
+function Range.InSpellRange(spellID, unit)
+    if type(spellID) ~= "number" then return nil end
+    if source then return source.InSpell(spellID, unit) end
+    if type(unit) ~= "string" or not UnitExists(unit) then return nil end
+    return memoSpell(spellID, unit, chipRead)
 end
 
 -- ---------------------------------------------------------------------------
@@ -293,6 +342,66 @@ function Range.Anchor(role)
     return inUse(anchors[role])
 end
 
+-- ---------------------------------------------------------------------------
+-- The rules (dynamic-bands plan D3)
+-- ---------------------------------------------------------------------------
+
+--- A band's own spell list as an anchor (its first known spell, at its learned rank), or nil.
+local function overrideAnchor(list)
+    if type(list) ~= "table" then return nil end
+    local a = overrides[list]
+    if a == nil then
+        a = firstKnown(list) or false
+        overrides[list] = a
+    end
+    return a or nil
+end
+
+--- Whether a melee true on `unit` is voided: the player is no hunter and the bracket's near bound
+--- is MELEE_GUARD_YD or more.
+local function meleeVoided(unit)
+    if Compat.PlayerClass() == "HUNTER" then return false end
+    local state, lo = Range.Get(unit)
+    return state == "known" and type(lo) == "number" and lo >= MELEE_GUARD_YD
+end
+
+--- Whether `unit` is within the anchor's range for a band rule of `role`: true, false, or nil when
+--- the role is unresolved here (or `spells`, a band's own list, holds no known spell), the anchor
+--- cannot vouch (NS.Compat.AnchorInRange), the unit does not exist, or a melee true is voided (see
+--- THE RULES in the header). A preview's fake source answers through its InRole.
+--- @param role string "melee" | "ranged" | "friendly"
+--- @param spells table|nil a band's own spell IDs, in place of the class's anchors for `role`
+--- @return boolean|nil
+function Range.RoleInRange(role, unit, spells)
+    if type(unit) ~= "string" then return nil end
+    local a
+    if spells ~= nil then a = overrideAnchor(spells) else a = Range.Anchor(role) end
+    if not a then return nil end
+    local v
+    if source then
+        if source.InRole then v = source.InRole(role, unit, a) end
+        if v ~= true and v ~= false then v = nil end
+    elseif UnitExists(unit) then
+        v = memoSpell(a.id, unit, Compat.AnchorInRange)
+    end
+    if v == true and role == "melee" and meleeVoided(unit) then return nil end
+    return v
+end
+
+--- Whether a check shorter than the ranged anchor's reach puts `unit` inside that anchor's min
+--- range: the bracket's far bound at or under the min, or the duel interact distance in range (not
+--- asked of a preview, nor where the client refuses it: a unit the player cannot attack, in
+--- combat). False when the ranged anchor is unresolved or has no min range, so there is no dead zone.
+--- @return boolean
+function Range.Near(unit, state, maxYd)
+    local a = Range.Anchor("ranged")
+    local min = a and a.minRange
+    if type(min) ~= "number" or min <= 0 then return false end
+    if state == "known" and type(maxYd) == "number" and maxYd <= min then return true end
+    if source or type(unit) ~= "string" or not UnitExists(unit) or spellsOnly(unit) then return false end
+    return Compat.InteractInRange(NEAR_INTERACT, unit) == true
+end
+
 --- Start a new tick: every memo entry from the last one goes stale. Nothing is freed.
 function Range.BeginTick()
     tickId = tickId + 1
@@ -332,6 +441,7 @@ local function rebuildNow()
     rebuildOwed = false
     ladder = nil
     for id in pairs(known) do known[id] = nil end
+    for list in pairs(overrides) do overrides[list] = nil end
     local moved = resolveAnchors()
     Range.BeginTick()
     rebuilds = rebuilds + 1
