@@ -183,14 +183,15 @@ asks for one apply too.
 `NS.Presets.Apply(key)` (`simple`, `text`, `numbers`, `advanced`, `expert`) snapshots, clears and creates through
 `NS.CM`, and answers the snapshot; `Undo` restores it (one level). The Undo slot belongs to the
 profile it was taken on: `adoptProfile` calls `ForgetUndo` on a switch, copy or reset. Every preset puts target, focus, pet and
-mouseover free on screen at their homes (`Presets.HOME`), on the template's frame (background on, the
-band-colored border at 25%) and matte dot; only the elements differ. Simple: the dot. Intermediate
+mouseover free on screen at their homes (`Presets.HOME`), each named by its caption at Outside top,
+on a faint frame (background and band-colored border on, the border and the band tint at 10%, the
+plate containers too) and the matte dot; only the elements differ. Simple: the dot. Intermediate
 (Range Text, `text`): the band's text label. Intermediate (Range Numbers, `numbers`): the range
 number. Advanced: dot + number + text. Expert: Advanced with spell chips, the Healer set as the
 friendly override on target, focus and mouseover (reused by name, else created), sounds on target
 (its set's out-of-range band gets `NS.Presets.OOR_SOUND` through `NS.BandSets.SetBandSound` when it
 has no sound), plus target on its own nameplate (diamond + number) and every hostile nameplate (dot +
-the `max` number), both in combat only. `Describe(key)` feeds the
+the `max` number), both shown whenever their unit is there. `Describe(key)` feeds the
 preset cards on General › Presets. `PickerDue` / `MarkPickerSeen` are the one runtime reader and
 writer of `profile.seeded`, the first-run preset picker's sentinel (`settings/Presets.lua` shows the
 picker and marks it seen as it shows). The picker's picks preview through `BeginPreview` /

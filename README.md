@@ -3,7 +3,7 @@
 ![WoW](https://img.shields.io/badge/WoW-Midnight_12.1.5_and_Forever_1.60.1-purple)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
-![Tests](https://img.shields.io/badge/Tests-675%2F675_passing-green)
+![Tests](https://img.shields.io/badge/Tests-676%2F676_passing-green)
 
 Supports Retail and WoW Forever. Range Master lets you build your own range displays for your
 target, your focus, your pet, whatever is under your mouse, and every enemy nameplate on screen.
@@ -38,7 +38,8 @@ To build one yourself, open the **Containers** page with `/rm` and press New con
 unit, its band set and where it sits, then what it shows. The **Band sets** page holds the distance
 bands every display colors by: where each band ends, its name, its colors and an optional sound.
 Under Display → Label a display can carry a caption, its own name or any text, above, below or beside
-it, in its own font and color. From
+it, inside its border or outside it, in its own font and color (the presets name each screen display
+above it). From
 chat, `/rm new focus` makes a display, `/rm containers` lists them, and `/rm select 2` picks the one
 that `container.` settings change, for example `/rm set container.anchor.mode cursor`.
 
@@ -114,7 +115,7 @@ Please file reports there rather than in comments, so nothing gets lost.
 
 | Version | Date | Highlights |
 |---------|------|------------|
-| 0.1.0 | Unreleased | - Range displays for your target, focus, pet, mouseover and every enemy nameplate, each showing a range bracket as a number, a band name, a colored shape and your own spells<br>- Shared band sets with their own colors and sounds, and a separate set for friendly units<br>- Displays free on screen, on Blizzard or EllesmereUI unit frames or any frame you click, on nameplates, or at the cursor<br>- Five presets (Simple, two Intermediates for range text or range numbers, Advanced and Expert), offered on first run, with Undo<br>- Dot shapes in six styles (plain, matte, glossy, glowing, neon, gem)<br>- An optional caption naming each display, on any side, in its own font and color<br>- Visibility by combat, reaction and missing unit<br>- Test mode and Sim mode for placing and checking your displays<br>- Works on Retail and WoW Forever |
+| 0.1.0 | Unreleased | - Range displays for your target, focus, pet, mouseover and every enemy nameplate, each showing a range bracket as a number, a band name, a colored shape and your own spells<br>- Shared band sets with their own colors and sounds, and a separate set for friendly units<br>- Displays free on screen, on Blizzard or EllesmereUI unit frames or any frame you click, on nameplates, or at the cursor<br>- Five presets (Simple, two Intermediates for range text or range numbers, Advanced and Expert), offered on first run, with Undo<br>- Dot shapes in six styles (plain, matte, glossy, glowing, neon, gem)<br>- An optional caption naming each display, on any side, inside or outside its border, in its own font and color<br>- Visibility by combat, reaction and missing unit<br>- Test mode and Sim mode for placing and checking your displays<br>- Works on Retail and WoW Forever |
 
 ## Credits
 

@@ -41,8 +41,8 @@ The owner's rulings for this run (2026-11-19):
 | M8 | Band preview blocks removed from the settings | done | `f320b14` |
 | M9 | Halo-free styles drawn at the old art's fill | done | `66db5e5` |
 | M10 | Review of M7-M9, fixes, docs, push | done | `7454e0e`, `de2c192` |
-| M11 | Label positions inside and outside on every side | done | (this commit) |
-| M12 | Preset defaults: outside-top captions, faint frames, plate containers always shown | pending | |
+| M11 | Label positions inside and outside on every side | done | `275d1a4` |
+| M12 | Preset defaults: outside-top captions, faint frames, plate containers always shown | done | (this commit) |
 
 ## M1. Indicator art and styles
 

@@ -247,9 +247,10 @@ Total.
 - picker: refused in combat with one gray line, and combat during a pick cancels it
 - picker: Escape cancels
 
-### test_anchors_nameplate.lua (14)
+### test_anchors_nameplate.lua (15)
 
 - plates: test_nameplate_own_plate_follows_target_change — the target container moves to the new target's plate
+- plates: test_expert_plates_out_of_combat — Expert's plate containers show out of combat
 - plates: a target with no plate hides the container, and its plate coming into view shows it
 - plates: a removed plate is told apart by its frame — another plate going leaves the target where it is
 - plates: a pet container on its own nameplate is hidden (a pet has no plate in practice)
@@ -863,7 +864,7 @@ Total.
 | test_container_render.lua | 52 |
 | test_anchors_screen.lua | 13 |
 | test_anchors_frame.lua | 17 |
-| test_anchors_nameplate.lua | 14 |
+| test_anchors_nameplate.lua | 15 |
 | test_anchors_cursor.lua | 7 |
 | test_anchors_mockplate.lua | 5 |
 | test_visibility.lua | 11 |
@@ -909,4 +910,4 @@ Total.
 | test_skin_switch.lua | 6 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **675** |
+| **Total** | **676** |

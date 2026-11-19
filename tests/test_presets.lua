@@ -62,8 +62,17 @@ local function setNamed(name)
   end
 end
 
+--- A preset container's faint frame (plan 2026-11-19 M12): border and background on, the border at 10%
+--- and the background's band tint at 10%.
+local function assertFaintFrame(c, what)
+  assertTrue(c.frame.background.enabled, what .. ": a background")
+  assertTrue(c.frame.border.enabled, what .. ": a border")
+  assertEqual(c.frame.border.alpha, 0.1, what .. ": the border at 10%")
+  assertEqual(c.frame.background.bandAlpha, 0.1, what .. ": the band tint at 10%")
+end
+
 --- Assert the four unit containers of `key` are free on screen at their homes, showing `elements`,
---- on the template's frame (background and border on, the border at its 25% opacity) and matte dot.
+--- on the preset's faint frame, the matte dot, and the caption naming it at Outside top.
 local function assertFourOnScreen(key, elements)
   local units = {}
   for _, unit in ipairs({ "target", "focus", "pet", "mouseover" }) do
@@ -73,10 +82,11 @@ local function assertFourOnScreen(key, elements)
     local home = Presets.__home(unit)
     assertEqual(c.anchor.x .. "," .. c.anchor.y, home.x .. "," .. home.y, key .. ": " .. unit .. " at its home")
     assertEqual(enabledElements(c), elements, key .. ": " .. unit .. "'s elements")
-    assertTrue(c.frame.background.enabled, key .. ": a background")
-    assertTrue(c.frame.border.enabled, key .. ": a border")
-    assertEqual(c.frame.border.alpha, 0.25, key .. ": the border at its default opacity")
+    assertFaintFrame(c, key .. ": " .. unit)
     assertEqual(c.frame.border.colorMode, "band", key .. ": colored by band")
+    assertTrue(c.label.enabled, key .. ": " .. unit .. " shows its caption")
+    assertEqual(c.label.position .. " " .. c.label.align, "outsideTop center", key .. ": outside top, centered")
+    assertEqual(c.label.text, "", key .. ": reading the container's name")
     assertEqual(c.elements.indicator.shape, "dot", key)
     assertEqual(c.elements.indicator.style, "matte", key .. ": the matte dot")
     assertEqual(c.bandSet, B.DefaultId(), key .. ": the class default set")
@@ -147,8 +157,13 @@ test("presets: test_expert_shape — six containers: the four with spell chips, 
     assertEqual(all.visibility.reaction, "hostile")
     assertFalse(all.nameplate.includeFriendly)
     assertFalse(all.sounds.enabled, "never a sound on every plate")
-    assertEqual(plate.visibility.combat, "in")
-    assertEqual(all.visibility.combat, "in")
+    -- Shown at any time (the owner saw none out of combat, plan 2026-11-19 M12); red under "in".
+    assertEqual(plate.visibility.combat, "any")
+    assertEqual(all.visibility.combat, "any")
+    assertTrue(plate.visibility.hideNoUnit and all.visibility.hideNoUnit, "hidden with no unit")
+    assertFaintFrame(plate, "the target plate")
+    assertFaintFrame(all, "every hostile plate")
+    assertFalse(plate.label.enabled or all.label.enabled, "no caption on a nameplate container")
     -- the OOR sound on the target, and on no other
     local target = find("target", "screen")
     assertTrue(target.sounds.enabled, "the target sounds")
@@ -226,7 +241,8 @@ test("presets: Describe answers each preset's name, container count and bullet i
   -- The cards' lines are the only place the player reads what each preset holds; red under a card
   -- copied from another (Simple still listing the range number, Expert missing a line).
   local L = NS.L
-  local onScreen, oneSet = L["Target, Focus, Pet, Mouseover: free on screen"], L["One band set (class default)"]
+  local onScreen, oneSet = L["Target, Focus, Pet, Mouseover: free on screen, each named above it"],
+    L["One band set (class default)"]
   local noSounds = L["No sounds, always visible when the unit exists"]
   local want = {
     simple = { onScreen, L["A dot colored by band"], oneSet, noSounds },
@@ -238,7 +254,7 @@ test("presets: Describe answers each preset's name, container count and bullet i
       L["Healer band set for friendly target, focus and mouseover"],
       L["Target on its own nameplate + dot on all hostile plates"],
       L["Band-change sound on target (out-of-range warning)"],
-      L["Visibility rules: nameplates in combat only, hostile only"],
+      L["Visibility rules: hostile nameplates only"],
     },
   }
   for key, items in pairs(want) do

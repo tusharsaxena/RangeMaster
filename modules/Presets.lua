@@ -38,9 +38,10 @@ local _, NS = ...
 -- nameplate container waits there while the displays are unlocked.
 --
 -- What each preset holds (the owner's rulings of 2026-11-19). Every one puts Target, Focus, Pet and
--- Mouseover FREE ON SCREEN at their homes, on the template's frame (background and band-colored
--- border on, the border at its default opacity) with the template's dot (shape and matte style are
--- the template's, defaults/Profile.lua, so neither is written here); only the elements shown differ:
+-- Mouseover FREE ON SCREEN at their homes, each named by its caption at Outside top, on a faint frame
+-- (background and band-colored border on, the border and the band tint at 10%: every preset container,
+-- the plate ones too) with the template's dot (shape and matte style are the template's,
+-- defaults/Profile.lua, so neither is written here); only the elements shown differ:
 --   Simple                         the dot.
 --   Intermediate (Range Text)      the band's text label.
 --   Intermediate (Range Numbers)   the range number.
@@ -48,7 +49,8 @@ local _, NS = ...
 --   Expert                         dot + number + text + spell chips; the Healer set for friendly
 --                                  target, focus and mouseover, the OOR sound on Target; plus Target
 --                                  on its own nameplate (diamond + number) and every hostile
---                                  nameplate (dot + the short `max` number), both in combat only.
+--                                  nameplate (dot + the short `max` number), both shown whenever
+--                                  their unit is there (no caption on a plate).
 
 NS.Presets = NS.Presets or {}
 local Presets = NS.Presets
@@ -87,11 +89,20 @@ local function home(anchor, slot)
 end
 Presets.__home = function(slot) return home({}, slot) end
 
+--- Every preset container's faint frame (the owner, 2026-11-19 M12): border and background on, the
+--- border at 10% and the background's band tint at 10%. A new table per call.
+local function faintFrame()
+    return { border = { enabled = true, alpha = 0.1 }, background = { enabled = true, bandAlpha = 0.1 } }
+end
+
 --- One of the four unit containers, free on screen at its home, showing the elements `show` names
---- (`dot`, `number`, `text`, `spells`) and no other.
+--- (`dot`, `number`, `text`, `spells`) and no other, named by its caption at Outside top (the caption
+--- reads the container's name: Target, Focus, Pet, Mouseover).
 local function onScreen(unit, show)
     return { unit = unit, opts = {
         anchor = home({ mode = "screen" }, unit),
+        frame = faintFrame(),
+        label = { enabled = true, text = "", position = "outsideTop", align = "center" },
         elements = {
             indicator = { enabled = show.dot == true }, number = { enabled = show.number == true },
             text = { enabled = show.text == true }, spells = { enabled = show.spells == true },
@@ -113,13 +124,15 @@ local function healerSet()
     return NS.BandSets.Create(nil, "healer")
 end
 
---- One nameplate container: indicator `shape` + number in `format`, shown in combat only; `extra`'s
---- keys (a name, a section) replace the opts' own.
+--- One nameplate container: indicator `shape` + number in `format`, on the faint frame, shown at any
+--- time its unit is there (in combat only, the owner saw none out of combat: M12); `extra`'s keys (a
+--- name, a section) replace the opts' own.
 local function plate(unit, slot, shape, format, extra)
     local opts = {
         anchor = home({ mode = "nameplate" }, slot),
+        frame = faintFrame(),
         elements = { indicator = { enabled = true, shape = shape }, number = { format = format } },
-        visibility = { combat = "in", hideNoUnit = true },
+        visibility = { combat = "any", hideNoUnit = true },
     }
     for k, v in pairs(extra or {}) do opts[k] = v end
     return { unit = unit, opts = opts }
@@ -134,7 +147,7 @@ local function expert()
     list[1].opts.sounds = { enabled = true }
     list[#list + 1] = plate("target", "targetPlate", "diamond", "range", { name = L["Target plate"] })
     list[#list + 1] = plate("nameplates", "nameplates", "dot", "max", {
-        visibility = { combat = "in", reaction = "hostile", hideNoUnit = true },
+        visibility = { combat = "any", reaction = "hostile", hideNoUnit = true },
         nameplate = { includeFriendly = false },
     })
     return list
@@ -291,7 +304,7 @@ function Presets.__reset() lastSnapshot, preview = nil, nil end
 -- Describing (the preset cards)
 -- ---------------------------------------------------------------------------
 
-local ON_SCREEN = L["Target, Focus, Pet, Mouseover: free on screen"]
+local ON_SCREEN = L["Target, Focus, Pet, Mouseover: free on screen, each named above it"]
 local ONE_SET = L["One band set (class default)"]
 local NO_SOUNDS = L["No sounds, always visible when the unit exists"]
 
@@ -313,7 +326,7 @@ local DESCRIBE = {
         L["Healer band set for friendly target, focus and mouseover"],
         L["Target on its own nameplate + dot on all hostile plates"],
         L["Band-change sound on target (out-of-range warning)"],
-        L["Visibility rules: nameplates in combat only, hostile only"],
+        L["Visibility rules: hostile nameplates only"],
     } },
 }
 

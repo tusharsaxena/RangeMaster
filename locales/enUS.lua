@@ -85,11 +85,11 @@ L["Dot + range number + text label"] = "Dot + range number + text label"
 L["Everything in Advanced, with spell-range chips (class spells)"] = "Everything in Advanced, with spell-range chips (class spells)"
 L["Healer band set for friendly target, focus and mouseover"] = "Healer band set for friendly target, focus and mouseover"
 L["Band-change sound on target (out-of-range warning)"] = "Band-change sound on target (out-of-range warning)"
-L["Target, Focus, Pet, Mouseover: free on screen"] = "Target, Focus, Pet, Mouseover: free on screen"
+L["Target, Focus, Pet, Mouseover: free on screen, each named above it"] = "Target, Focus, Pet, Mouseover: free on screen, each named above it"
 L["One band set (class default)"] = "One band set (class default)"
 L["No sounds, always visible when the unit exists"] = "No sounds, always visible when the unit exists"
 L["Target on its own nameplate + dot on all hostile plates"] = "Target on its own nameplate + dot on all hostile plates"
-L["Visibility rules: nameplates in combat only, hostile only"] = "Visibility rules: nameplates in combat only, hostile only"
+L["Visibility rules: hostile nameplates only"] = "Visibility rules: hostile nameplates only"
 
 -- modules/Elements_Number.lua
 L["%s yd"] = "%s yd"

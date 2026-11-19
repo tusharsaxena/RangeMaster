@@ -331,10 +331,13 @@ RANGE-1 to RANGE-4 are run through a target container. RANGE-5 needs only the ch
   six containers (target, focus, pet and mouseover free on screen, target on its own plate, one on
   every hostile plate). **Undo last preset** puts the earlier ones back. Result:
 - **PRESET-4. What each preset shows.** Apply each in turn from General → Presets; every one puts
-  target, focus, pet and mouseover free on screen at their homes, on a background with a faint
+  target, focus, pet and mouseover free on screen at their homes, each with its name (Target, Focus,
+  Pet, Mouseover) as a caption above its border, on a faint band-tinted background with a faint
   border, and differs only in what they show: Simple a matte dot; Intermediate (Range Text) the
   band's name (MELEE, LONG, ...); Intermediate (Range Numbers) the range number; Advanced dot, number
-  and name; Expert all three with spell chips, plus the two nameplate containers (in combat only),
+  and name; Expert all three with spell chips, plus the two nameplate containers (shown out of
+  combat too: target a hostile mob out of combat → the target-plate container shows under its plate,
+  and every hostile plate wears a dot; no caption on either),
   the out-of-range chime on target and the Healer set as the friendly override on target, focus and
   mouseover. `/rm preset text`, `/rm preset numbers` and `/rm preset expert` reach the same; `/rm
   preset intermediate` prints the usage line. Result:
@@ -437,3 +440,4 @@ Set the rules on Containers → Visibility.
 | SLASH-5..8, CONT-1..6, BANDS-1..5, PRESET-1..4, PROFILE-3 | the v0.1.0 settings pages and verbs (plan Task 8), 2026-11-18 | no settings page beyond General has been opened in a client yet |
 | INSTALL-4, CONT-2, CONT-7..8, PRESET-1, PRESET-3..4 | the five presets and dot styles (plan 2026-11-19-presets-and-dot-styles), 2026-11-19 | the Dot tab, the style art, Border opacity, the v0 -> v1 migration and the five presets have not been seen in a client yet |
 | INSTALL-4, CONT-1, CONT-7, CONT-9..10, BANDS-2 | the Label tab, the removed band previews and the art fill (the same plan, M7-M9), 2026-11-19 | the caption, the settings without their band previews and the redrawn halo-free art have not been seen in a client yet |
+| CONT-9, PRESET-4 | the outside caption positions and the preset defaults (the same plan, M11-M12), 2026-11-19 | the outside captions, the lifted strips, the faint preset frames and the plate containers out of combat have not been seen in a client yet |

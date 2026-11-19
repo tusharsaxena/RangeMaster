@@ -59,6 +59,29 @@ test("plates: test_nameplate_own_plate_follows_target_change — the target cont
   end)
 end)
 
+test("plates: test_expert_plates_out_of_combat — Expert's plate containers show out of combat", function()
+  -- red under: Expert's plate containers stored with visibility.combat = "in" (the owner, out of
+  -- combat, saw neither; plan 2026-11-19 M12).
+  H.with(function()
+    local a = H.plate("nameplate1", true)
+    M.__plates.target = a
+    H.added("nameplate1")
+    NS.Presets.Apply("expert")
+    NS.CM.FlushPending()
+    local plateInst, eachInst
+    for _, id in ipairs(NS.CM.List()) do
+      local c = NS.CM.Get(id)
+      if c.unit == "target" and c.anchor.mode == "nameplate" then plateInst = Container.Get(id) end
+      if c.unit == "nameplates" then eachInst = platesOf(id).nameplate1 end
+    end
+    assertTrue(plateInst ~= nil and plateInst.anchorPlate == a, "the target plate container sits on its plate")
+    assertFalse(NS.Visibility.InCombat(), "out of combat")
+    assertTrue(plateInst.frame:IsShown(), "and shows")
+    assertTrue(eachInst ~= nil and eachInst.frame:IsShown(), "the hostile plate's instance shows too")
+    NS.Presets.__reset()
+  end)
+end)
+
 test("plates: a target with no plate hides the container, and its plate coming into view shows it", function()
   H.with(function()
     local _, inst = own("target")
