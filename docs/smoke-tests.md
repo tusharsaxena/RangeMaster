@@ -25,7 +25,7 @@ unless a check names one. The anchors are run as a matrix, one result per mode a
 | DRAW-1..5 | Containers drawn | brackets drawn, unknown gray, elements and order, the skin face, disable |
 | CONT-1..11 | Containers page | New container (no band preview), the rail, Position, Duplicate / Delete / Copy settings from, Defaults, Color from, the Dot tab and its Style tiles, Border opacity, the caption's positions, the caption's styling |
 | BANDS-1..11 | Band sets page | the picker, the Bands editor (no band ribbon), shared sets, the friendly override, the unknown label; spell bands: the rule controls, the read-out, the owner's Hawk Eye case, the dead zone, the v1 -> v2 conversion, the band rail |
-| PRESET-1..4 | Presets | the first-run picker, Apply on an empty profile, Apply over containers with Undo, what each of the five shows |
+| PRESET-1..4 | Presets | the first-run picker, Apply on an empty profile, Apply over containers with Undo, what each of the six shows |
 | ANCHOR-1..11 | Anchors | every mode on both clients: screen, unit frames (Blizzard, EllesmereUI, custom, missing), own nameplate, all nameplates, cursor, the picker, all nameplates except target, the drag strip's marks, the cast bar part, Frame strata and Frame level on a plate |
 | VIS-1..3 | Visibility | combat and reaction rules, out-of-combat opacity, the master rows |
 | SOUND-1..2 | Sounds | the debounced band sound, none on nameplates |
@@ -432,7 +432,11 @@ a training dummy for each. The spell IDs are the anchors in `defaults/SpellSeeds
   every hostile plate). **Undo last preset** puts the earlier ones back. Result:
 - **PRESET-4. What each preset shows.** (Since 2026-11-20 every preset container shows for hostile
   units only: a friendly target hides it; the pet always shows, and in Expert target, focus and
-  mouseover show friends too, on the Healer set.) Apply each in turn from General → Presets; every one puts
+  mouseover show friends too, on the Healer set. Every preset container on a nameplate attaches to
+  the cast bar while casting, at offsets 0.) Ka0s: five containers, target, focus, pet and mouseover
+  with the number and band name on one line, every one hostile only (the pet too), the Healer set on
+  friends for target, focus and mouseover, the sound on target, and the target plate showing the
+  number alone. Apply each in turn from General → Presets; every one puts
   target, focus, pet and mouseover free on screen at their homes, each with its name (Target, Focus,
   Pet, Mouseover) as a caption above its border, on a faint band-tinted background with a faint
   border, and differs only in what they show: Simple a matte dot; Intermediate (Range Text) the

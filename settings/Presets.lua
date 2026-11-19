@@ -126,7 +126,7 @@ end
 -- page's Defaults does not reach it. Placed after Master controls and before the Skin tab.
 NS.PRESETS_TAB = {
     key = "Presets", label = L["Presets"],
-    tooltip = L["Start from one of the five presets, and undo it."],
+    tooltip = L["Start from one of the six presets, and undo it."],
     render = function(ctx) renderTab(ctx) end,
 }
 
@@ -184,6 +184,7 @@ local BLURBS = {
     numbers  = L["Target, focus, pet and mouseover, free on screen: the range number."],
     advanced = L["Target, focus, pet and mouseover, free on screen: dot, range number and label."],
     expert   = L["Advanced with spell chips, a healer set for friends, an out-of-range sound and combat nameplate markers."],
+    ka0s     = L["The author's own setup: range number and band name for hostile units, a healer set for friends, an out-of-range sound, and the number on the target's nameplate, moving to its cast bar while it casts."],
 }
 
 -- The window's session state: `sel` what the dropdown shows, `picked` whether the player chose

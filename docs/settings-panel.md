@@ -54,7 +54,7 @@ takes the same route.
 A standalone window (`settings/Presets.lua`, shaped as AuraMaster's `settings/PresetPicker.lua`),
 shown once per profile while `seeded` is false (marked seen as it shows, held through combat) and on
 demand from a bare `/rm preset`. Title **Choose a preset** with the settings and close marks, the
-owner line, a LibKa0s dropdown of the five presets (`Simple - 4 containers`, ..., `Expert - 6 containers`), a one-line
+owner line, a LibKa0s dropdown of the six presets (`Simple - 4 containers`, ..., `Expert - 6 containers`, `Ka0s - 5 containers`), a one-line
 blurb, *The skin picker opens next.* while that one is due, two toggles (**Containers:
 locked/unlocked**, **Test mode: on/off**), **Apply** and **Not now**, and the footer *Change it later
 on General > Presets.* Opening records the lock, unlocks and turns test mode on. A pick previews the

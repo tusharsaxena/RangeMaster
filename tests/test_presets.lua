@@ -94,11 +94,12 @@ local function assertFourOnScreen(key, elements)
   assertEqual(table.concat(units, ","), "target,focus,pet,mouseover")
 end
 
-test("presets: test_five_presets — the picker's five, in order, each with its own elements on the same four homes", function()
-  -- red under: the three presets (Simple number-only, Intermediate on unit frames, Advanced).
-  assertEqual(table.concat(Presets.ORDER, ","), "simple,text,numbers,advanced,expert")
+test("presets: test_six_presets — the picker's six, in order, each with its own elements on the same four homes", function()
+  -- red under: the three presets (Simple number-only, Intermediate on unit frames, Advanced), or no
+  -- Ka0s preset (the owner's own profile, 2026-11-20).
+  assertEqual(table.concat(Presets.ORDER, ","), "simple,text,numbers,advanced,expert,ka0s")
   local want = { simple = "indicator", text = "text", numbers = "number",
-    advanced = "indicator,number,text", expert = "indicator,number,spells,text" }
+    advanced = "indicator,number,text", expert = "indicator,number,spells,text", ka0s = "number,text" }
   for _, key in ipairs(Presets.ORDER) do
     withFreshProfile(function()
       CM.Create("nameplates")
@@ -381,5 +382,45 @@ test("presets: test_hostile_only — every preset shows hostile units only, but 
       assertEqual(c.visibility.reaction, want, "expert: " .. c.name)
     end
     assertEqual(find("target", "nameplate").visibility.reaction, "hostile", "the target plate: hostile")
+  end)
+end)
+
+test("presets: test_plate_containers_cast_bar_flush — every preset container on a nameplate: cast bar while casting, offsets 0", function()
+  -- red under: the template's plate part and its y = -2 (the owner, 2026-11-20).
+  for _, key in ipairs(Presets.ORDER) do
+    withFreshProfile(function()
+      Presets.Apply(key)
+      for _, c in ipairs(containers()) do
+        if c.anchor.mode == "nameplate" or NS.CM.IsPlates(c.unit) then
+          assertEqual(c.nameplate.attachTo, "castbarWhenCasting", key .. ": " .. c.name)
+          assertEqual(c.nameplate.x, 0, key .. ": " .. c.name .. " x")
+          assertEqual(c.nameplate.y, 0, key .. ": " .. c.name .. " y")
+        end
+      end
+    end)
+  end
+end)
+
+test("presets: test_ka0s_shape — the owner's Ka0s profile: five containers, number + text, hostile only", function()
+  withFreshProfile(function()
+    Presets.Apply("ka0s")
+    local list = containers()
+    assertEqual(#list, 5)
+    local healer = setNamed("Healer")
+    for _, c in ipairs(list) do
+      assertEqual(c.visibility.reaction, "hostile", c.name .. ": hostile only, the pet included (as the owner set it)")
+    end
+    for _, unit in ipairs({ "target", "focus", "mouseover" }) do
+      assertEqual(find(unit, "screen").bandSetFriendly, healer, unit .. " reads the Healer set on a friend")
+    end
+    assertNil(find("pet", "screen").bandSetFriendly)
+    assertTrue(find("target", "screen").sounds.enabled, "the out-of-range sound on target")
+    assertFalse(find("focus", "screen").sounds.enabled)
+    local plate = find("target", "nameplate")
+    assertEqual(plate.name, "Target plate")
+    assertEqual(enabledElements(plate), "number", "the number alone: the owner turned its dot off")
+    assertEqual(plate.nameplate.attachTo, "castbarWhenCasting")
+    assertEqual(plate.nameplate.x .. "," .. plate.nameplate.y, "0,0")
+    assertNil(find("nameplatesExceptTarget"), "no every-plate container")
   end)
 end)

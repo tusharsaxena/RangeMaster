@@ -76,7 +76,7 @@ NS.COMMANDS = {
         function() runPick() end},
     {"bands",         L["List the band sets, or select one by number or name \226\128\148 /rm bands 2"],
         function(rest) runBands(rest) end},
-    {"preset",        L["Open the preset picker, apply a preset, or undo the last \226\128\148 /rm preset [simple|text|numbers|advanced|expert|undo]"],
+    {"preset",        L["Open the preset picker, apply a preset, or undo the last \226\128\148 /rm preset [simple|text|numbers|advanced|expert|ka0s|undo]"],
         function(rest) runPreset(rest) end},
     {"test",          L["Toggle Test mode: placeholder ranges on every display \226\128\148 /rm test [on|off]"],
         function(rest) runTest(rest) end},
@@ -315,7 +315,7 @@ function runPreset(rest)
     local word = firstWord(rest)
     if word == nil or word == "" then return NS.ShowPresetPicker() end
     if word == "undo" then return NS.UndoPreset() end
-    if not isPresetKey(word) then return print(L["Usage: /rm preset [simple|text|numbers|advanced|expert|undo]"]) end
+    if not isPresetKey(word) then return print(L["Usage: /rm preset [simple|text|numbers|advanced|expert|ka0s|undo]"]) end
     NS.ConfirmPreset(word)
 end
 
