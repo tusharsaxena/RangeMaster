@@ -36,7 +36,7 @@ The owner's rulings for this run (2026-11-19):
 | M3 | Display tabs: Dot and Spell chips moved, Indicator entry removed | done | `f497230` |
 | M4 | The five presets | done | `b80fa90` |
 | M5 | Review: parallel reviewers, adversarially verified, fixes | done | `2c6518c` |
-| M6 | Docs sweep, test-case list, badge, gate, push | pending | |
+| M6 | Docs sweep, test-case list, badge, gate, push | done | `5d735d9` |
 
 ## M1. Indicator art and styles
 
