@@ -77,11 +77,17 @@ end
 --            interleaving band by band (frame-layering-§3, Peers stack whole). STRIDE is above
 --            HANDLE, so one display's whole band fits under the next one's root, and
 --            BASE + SLOTS * STRIDE + HANDLE stays under the client's 10000 ceiling.
+--            A container with its own Frame level (`anchor.level`, 1..SLOTS; 0 is Auto, the slot)
+--            takes FLOOR + (level - 1) * STRIDE instead: 1 sits at UIParent's own level, under
+--            every Auto container of its strata, and SLOTS stays under the same ceiling.
 --            Inside one container, from its own level L:
 --              L + FILL     the background fill
 --              L + BORDER   the border frame, above the fill
---              L + OVERLAY  the number, text, indicator and spell chips
+--              L + OVERLAY  the overlay; each element's frame (the number, text, indicator and
+--                           spell chips) at the overlay's level + ELEMENT
 --              L + HANDLE   the unlocked drag strip (LibKa0s-Widgets-1.0 DragHandle `level`)
+--            The client resets a frame's level and its children's when its strata is written, so
+--            the renderer lays this ladder again after every strata write (modules/Container.lua).
 --   Launcher MEDIUM, level 8: the LibDBIcon minimap button (LibDBIcon's choice).
 --   Settings HIGH, toplevel: Blizzard's Settings panel; inside it the library's bands.
 --   MODAL    DIALOG, toplevel: the preset picker (settings/Presets.lua); the LibKa0s debug console,
@@ -102,10 +108,13 @@ C.LAYERS = {
         FILL    = 1,
         BORDER  = 2,
         OVERLAY = 4,
+        ELEMENT = 1,
         HANDLE  = 50,
         -- The per-instance base (modules/Container.lua newInstance): BASE + slot * STRIDE.
         BASE    = 10,
         STRIDE  = 60,
         SLOTS   = 100,
+        -- A container's own Frame level (modules/Container.lua levelOffset): FLOOR + (n - 1) * STRIDE.
+        FLOOR   = 0,
     },
 }

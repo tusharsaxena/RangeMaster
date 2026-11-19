@@ -30,6 +30,15 @@ local _, NS = ...
 -- plate is read again, its instances placed on it and its eligibility asked again. The re-check runs
 -- on both clients: it is cheap, and a client-specific branch would sit outside the Compat layer.
 --
+-- ON THE PLATE, OR ON ITS CAST BAR. `nameplate.attachTo` "castbar" pins the container to the plate's
+-- cast bar instead of the plate, in both modes, at the same `nameplate` point and offsets: the cast
+-- bar is NS.FrameProviders.PlateCastBar's (EllesmereUI's for that token, else the client's own), and
+-- with none (or one refusing the anchor) the container stays on the plate. `inst.anchorPlate` is
+-- always the plate, so a removed plate is still told apart by its frame; `inst.anchorPart` is what
+-- the root is pinned to. The part is asked again on every placing, the one-frame re-check after ADDED
+-- included, so EllesmereUI building its plate after this addon heard ADDED moves the container onto
+-- its cast bar a frame later. A hidden cast bar keeps its place, so nothing moves between casts.
+--
 -- FORBIDDEN PLATES ARE NEVER TOUCHED. Every plate comes through NS.Compat.NamePlateForUnit or
 -- NS.Compat.NamePlates, which answer nil for a forbidden one (a friendly plate in an instance), so a
 -- forbidden plate gets no instance and no own-plate container sits on it.
@@ -57,25 +66,44 @@ local plateInsts = {} -- [inst] = true: the per-plate instances
 local function unpin(inst)
     if inst.anchorPlate == nil then return end
     inst.frame:ClearAllPoints()
-    inst.anchorPlate = nil
+    inst.anchorPlate, inst.anchorPart = nil, nil
     inst:RefreshStrips()
 end
 
---- Anchor `inst` on `plate` at container `c`'s nameplate point, unless it already sits there.
---- Answers whether it sits on the plate.
-local function attach(inst, c, plate)
-    if inst.anchorPlate == plate then return true end
-    local np, root = c.nameplate or {}, inst.frame
+--- What container `c` pins `inst` to on `plate`: its cast bar when the container asks for it and
+--- the plate has one, else the plate.
+local function partOf(inst, c, plate)
+    local np = c.nameplate
+    if not (np and np.attachTo == "castbar") then return plate end
+    return NS.FrameProviders.PlateCastBar(plate, inst.plateToken) or plate
+end
+
+--- The root pinned to `target` at the nameplate point; answers whether the client took it.
+local function pin(root, np, target)
     root:ClearAllPoints()
-    local ok = pcall(root.SetPoint, root, Anchors.Point(np.point, "TOP"), plate,
-        Anchors.Point(np.relPoint, "BOTTOM"), Anchors.Offset(np.x), Anchors.Offset(np.y))
+    return (pcall(root.SetPoint, root, Anchors.Point(np.point, "TOP"), target,
+        Anchors.Point(np.relPoint, "BOTTOM"), Anchors.Offset(np.x), Anchors.Offset(np.y)))
+end
+
+--- Anchor `inst` on `plate` (or its cast bar) at container `c`'s nameplate point, unless it already
+--- sits there. A cast bar refusing the anchor leaves it on the plate. Answers whether it sits on the
+--- plate.
+local function attach(inst, c, plate)
+    local part = partOf(inst, c, plate)
+    if inst.anchorPlate == plate and inst.anchorPart == part then return true end
+    local np, root = c.nameplate or {}, inst.frame
+    local ok = pin(root, np, part)
+    if not ok and part ~= plate then
+        part = plate
+        ok = pin(root, np, plate)
+    end
     if not ok then
         root:ClearAllPoints()
-        inst.anchorPlate = nil
+        inst.anchorPlate, inst.anchorPart = nil, nil
         inst:RefreshStrips()
         return false
     end
-    inst.anchorPlate = plate
+    inst.anchorPlate, inst.anchorPart = plate, part
     inst:RefreshStrips()
     return true
 end

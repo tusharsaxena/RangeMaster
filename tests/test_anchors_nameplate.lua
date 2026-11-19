@@ -369,3 +369,266 @@ test("plates: test_except_target_is_a_plates_unit — no sound, no single instan
     assertEqual(sorted, "target,focus,pet,mouseover,nameplates,nameplatesExceptTarget")
   end)
 end)
+
+
+-- ---------------------------------------------------------------------------
+-- Frame strata on a plate, and the cast bar (plan 2026-11-20, plate cast bar)
+-- ---------------------------------------------------------------------------
+
+--- Run `body` with the kit's frame-layer recorder installed, so every frame built in it answers its
+--- strata and level back.
+local function withLayers(body)
+  local restore = dofile("tests/_kit/mock_layers.lua")(M)
+  local ok, err = pcall(H.with, body)
+  restore()
+  if not ok then error(err, 0) end
+end
+
+--- `inst`'s root strata, and whether any of its layers or element frames carries a strata of its own.
+local function strataOf(inst)
+  local kept = false
+  local frames = { inst.fill, inst.border.frame, inst.overlay }
+  for _, el in pairs(inst.elements) do frames[#frames + 1] = el.frame end
+  for _, f in ipairs(frames) do
+    if rawget(f, "__strata") ~= nil then kept = true end
+  end
+  return M.__layers(inst.frame).strata, kept
+end
+
+test("plates: test_strata_reaches_every_plate_instance — a Frame strata write re-seats the per-plate and own-plate roots, and no child keeps one", function()
+  -- The owner's report (2026-11-20): BACKGROUND still drew over EllesmereUI's cast bar. Pins that the
+  -- write reaches both nameplate modes and that nothing under a root holds a strata of its own.
+  withLayers(function()
+    local a = H.plate("nameplate1", true)
+    H.plate("nameplate2", true)
+    M.__plates.target = a
+    H.added("nameplate1")
+    H.added("nameplate2")
+    local each = allPlates()
+    local ownId, ownInst = own("target")
+    NS.CM.SetField(each, "anchor.strata", "BACKGROUND")
+    NS.CM.SetField(ownId, "anchor.strata", "BACKGROUND")
+    NS.CM.FlushPending()
+    local insts = platesOf(each)
+    assertEqual(count(insts), 2)
+    insts.own = ownInst
+    for name, inst in pairs(insts) do
+      local strata, childOwn = strataOf(inst)
+      assertEqual(strata, "BACKGROUND", name .. ": the root takes the write")
+      assertFalse(childOwn, name .. ": no layer or element frame keeps a strata of its own")
+    end
+    -- A plate arriving after the write is built in the stored strata too.
+    H.plate("nameplate3", true)
+    H.added("nameplate3")
+    assertEqual((strataOf(platesOf(each).nameplate3)), "BACKGROUND", "a new plate's instance")
+  end)
+end)
+
+test("plates: test_strata_write_relays_the_levels — the ladder is laid again after the client resets it on a strata write", function()
+  -- red under: applyFrame writing the strata and leaving the levels (the client resets a frame's
+  -- level and its children's on a strata write): the fill, border and overlay collapse together.
+  withLayers(function()
+    H.plate("nameplate1", true)
+    H.added("nameplate1")
+    local id = allPlates()
+    local inst = platesOf(id).nameplate1
+    local LV = NS.Constants.LAYERS.LEVEL
+    local root = inst.frame
+    local frames = { root, inst.fill, inst.border.frame, inst.overlay }
+    for _, el in pairs(inst.elements) do frames[#frames + 1] = el.frame end
+    local realSet = root.SetFrameStrata
+    rawset(root, "SetFrameStrata", function(self, s)
+      realSet(self, s)
+      for _, f in ipairs(frames) do rawset(f, "__level", nil) end   -- what the client does
+    end)
+    NS.CM.SetField(id, "anchor.strata", "LOW")
+    NS.CM.FlushPending()
+    rawset(root, "SetFrameStrata", realSet)
+    local base = M.__layers(root).level
+    assertEqual(base, M.__layers(M.UIParent).level + inst.slotLevel, "the root back on its own slot")
+    assertEqual(M.__layers(inst.fill).level, base + LV.FILL, "fill")
+    assertEqual(M.__layers(inst.border.frame).level, base + LV.BORDER, "border")
+    assertEqual(M.__layers(inst.overlay).level, base + LV.OVERLAY, "overlay")
+    for name, el in pairs(inst.elements) do
+      assertEqual(M.__layers(el.frame).level, base + LV.OVERLAY + LV.ELEMENT, name .. " over the overlay")
+    end
+  end)
+end)
+
+test("plates: test_frame_level_orders_within_the_strata — a Frame level puts the root at a fixed place, 1 under every Auto one", function()
+  withLayers(function()
+    H.plate("nameplate1", true)
+    H.added("nameplate1")
+    local auto = allPlates()
+    local low = allPlates()
+    NS.CM.SetField(low, "anchor.level", 1)
+    NS.CM.FlushPending()
+    local LV = NS.Constants.LAYERS.LEVEL
+    local ui = M.__layers(M.UIParent).level
+    local autoInst, lowInst = platesOf(auto).nameplate1, platesOf(low).nameplate1
+    assertEqual(M.__layers(lowInst.frame).level, ui + LV.FLOOR, "1 is the floor")
+    assertTrue(M.__layers(lowInst.frame).level + LV.HANDLE < M.__layers(autoInst.frame).level,
+      "a level-1 container's whole band sits under an Auto one")
+    assertEqual(M.__layers(lowInst.overlay).level, M.__layers(lowInst.frame).level + LV.OVERLAY, "its ladder follows")
+    NS.CM.SetField(low, "anchor.level", LV.SLOTS)
+    NS.CM.FlushPending()
+    local top = M.__layers(lowInst.frame).level
+    assertEqual(top, ui + LV.FLOOR + (LV.SLOTS - 1) * LV.STRIDE, "the highest place")
+    assertTrue(top + LV.HANDLE < 10000, "under the client's ceiling")
+    NS.CM.SetField(low, "anchor.level", 0)
+    NS.CM.FlushPending()
+    assertEqual(M.__layers(lowInst.frame).level, ui + lowInst.slotLevel, "0 goes back to its own slot")
+    NS.CM.Get(low).anchor.level = 5000          -- hand-edited out of range: Auto
+    NS.CM.RequestApply()
+    NS.CM.FlushPending()
+    assertEqual(M.__layers(lowInst.frame).level, ui + lowInst.slotLevel, "out of range reads as Auto")
+  end)
+end)
+
+--- The client's own cast bar on `plate` (`UnitFrame.<key>`, castBar by default).
+local function blizzardCast(plate, key)
+  local uf, bar = H.frame(nil), H.frame(nil)
+  plate.UnitFrame = uf
+  uf[key or "castBar"] = bar
+  return bar
+end
+
+--- Run `body(map)` with EllesmereUINameplates' global plate map planted (empty), then removed.
+local function withEllesmere(body)
+  local old = rawget(_G, "EllesmereNameplates_NS")
+  local map = {}
+  rawset(_G, "EllesmereNameplates_NS", { plates = map })
+  local ok, err = pcall(body, map)
+  rawset(_G, "EllesmereNameplates_NS", old)
+  if not ok then error(err, 0) end
+end
+
+--- EllesmereUI's plate for `token` sitting on `plate`, with its cast bar.
+local function ellesmerePlate(map, token, plate)
+  local bar = H.frame(nil)
+  map[token] = { nameplate = plate, cast = bar }
+  return bar
+end
+
+local function castOpts(unit)
+  local opts = { nameplate = { attachTo = "castbar" } }
+  if not NS.CM.IsPlates(unit) then opts.anchor = { mode = "nameplate" } end
+  return opts
+end
+
+test("plates: test_castbar_provider — EllesmereUI's cast bar first, then the client's castBar or CastBar, else nil", function()
+  H.with(function()
+    local P = NS.FrameProviders
+    local p = H.plate("nameplate1", true)
+    assertNil(P.PlateCastBar(p), "no cast bar anywhere")
+    assertNil(P.PlateCastBar(nil), "no plate")
+    local blizz = blizzardCast(p)
+    assertTrue(P.PlateCastBar(p) == blizz, "the client's own UnitFrame.castBar")
+    local q = H.plate("nameplate2", true)
+    local upper = blizzardCast(q, "CastBar")
+    assertTrue(P.PlateCastBar(q) == upper, "UnitFrame.CastBar on a client that names it so")
+    withEllesmere(function(map)
+      local eui = ellesmerePlate(map, "nameplate1", p)
+      assertTrue(P.PlateCastBar(p) == eui, "EllesmereUI's plate for the token wins")
+      assertTrue(P.PlateCastBar(p, "nameplate1") == eui, "the token handed in")
+      map.nameplate1.nameplate = q
+      assertTrue(P.PlateCastBar(p) == blizz, "a stale map entry, on another plate, is not used")
+      map.nameplate1 = { nameplate = p, cast = H.frame(nil, true) }
+      assertTrue(P.PlateCastBar(p) == blizz, "a forbidden cast bar is never answered")
+      map.nameplate1 = { nameplate = p, cast = "not a frame" }
+      assertTrue(P.PlateCastBar(p) == blizz, "nor a value that is not a frame")
+    end)
+    p.UnitFrame.castBar = H.frame(nil, true)
+    assertNil(P.PlateCastBar(p), "the client's forbidden cast bar: nil")
+    local raising = setmetatable({}, { __index = function() error("restricted") end })
+    assertNil(P.PlateCastBar(raising), "a plate whose reads raise: nil, nothing escapes")
+  end)
+end)
+
+test("plates: test_castbar_attach_own_plate — a target container set to Cast bar sits on its plate's cast bar", function()
+  H.with(function()
+    local a = H.plate("nameplate1", true)
+    local bar = blizzardCast(a)
+    M.__plates.target = a
+    H.added("nameplate1")
+    local _, inst = own("target", castOpts("target"))
+    assertTrue(inst.anchorPlate == a, "anchorPlate is still the plate (removal compares it)")
+    assertTrue(inst.anchorPart == bar, "pinned to the cast bar")
+    assertTrue(inst.frame:IsShown())
+    local calls = H.points(inst.frame, function()
+      NS.CM.Get(inst.id).nameplate.attachTo = "plate"
+      NS.CM.RequestApply()
+      NS.CM.FlushPending()
+    end)
+    assertTrue(calls[#calls][2] == a, "Nameplate puts it back on the plate")
+    assertTrue(inst.anchorPart == a)
+    H.removed("nameplate1")
+    assertNil(inst.anchorPlate, "the plate going still hides it")
+    assertFalse(inst.frame:IsShown())
+  end)
+end)
+
+test("plates: test_castbar_attach_every_plate — each per-plate instance sits on its own plate's cast bar, EllesmereUI's where it has one", function()
+  H.with(function()
+    withEllesmere(function(map)
+      local p1, p2 = H.plate("nameplate1", true), H.plate("nameplate2", true)
+      local eui = ellesmerePlate(map, "nameplate1", p1)
+      local blizz = blizzardCast(p2)
+      H.added("nameplate1")
+      H.added("nameplate2")
+      for _, unit in ipairs({ "nameplates", "nameplatesExceptTarget" }) do
+        local id = H.container(unit, castOpts(unit))
+        local by = platesOf(id)
+        assertTrue(by.nameplate1.anchorPart == eui, unit .. ": EllesmereUI's cast bar")
+        assertTrue(by.nameplate2.anchorPart == blizz, unit .. ": the client's own on the other plate")
+        assertTrue(by.nameplate1.anchorPlate == p1 and by.nameplate2.anchorPlate == p2, unit .. ": each on its plate")
+        NS.CM.Delete(id)
+        NS.CM.FlushPending()
+      end
+    end)
+  end)
+end)
+
+test("plates: test_castbar_falls_back_to_the_plate — no cast bar, or one refusing the anchor, leaves it on the plate", function()
+  H.with(function()
+    local p = H.plate("nameplate1", true)
+    H.added("nameplate1")
+    local id = H.container("nameplates", castOpts("nameplates"))
+    local inst = platesOf(id).nameplate1
+    assertTrue(inst.anchorPart == p, "no cast bar: on the plate")
+    assertTrue(inst.frame:IsShown(), "and shown")
+    local bar = blizzardCast(p)
+    local realSet = inst.frame.SetPoint
+    rawset(inst.frame, "SetPoint", function(self, point, rel, ...)
+      if rel == bar then error("refused") end
+      return realSet(self, point, rel, ...)
+    end)
+    NS.CM.RequestApply()
+    NS.CM.FlushPending()
+    rawset(inst.frame, "SetPoint", nil)
+    inst = platesOf(id).nameplate1
+    assertTrue(inst.anchorPlate == p and inst.anchorPart == p, "the refusal falls back to the plate")
+    assertTrue(inst.frame:IsShown(), "still shown")
+  end)
+end)
+
+test("plates: test_castbar_found_a_frame_later — EllesmereUI building its plate after ADDED moves the container onto its cast bar on the re-check", function()
+  H.with(function()
+    withEllesmere(function(map)
+      local p = H.plate("nameplate1", true)
+      local id = H.container("nameplates", castOpts("nameplates"))
+      local a = H.plate("nameplate2", true)
+      M.__plates.target = a
+      local _, mine = own("target", castOpts("target"))
+      H.added("nameplate1")
+      H.added("nameplate2")
+      assertTrue(platesOf(id).nameplate1.anchorPart == p, "this addon heard ADDED first: on the plate")
+      assertTrue(mine.anchorPart == a)
+      local eui = ellesmerePlate(map, "nameplate1", p)
+      local euiTarget = ellesmerePlate(map, "nameplate2", a)
+      M.__fireTimers()
+      assertTrue(platesOf(id).nameplate1.anchorPart == eui, "the re-check finds EllesmereUI's cast bar")
+      assertTrue(mine.anchorPart == euiTarget, "and the own-plate container's")
+    end)
+  end)
+end)

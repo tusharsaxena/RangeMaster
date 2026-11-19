@@ -472,3 +472,18 @@ test("database: step 2 on a fresh profile changes nothing, and the load pass the
     end
   end, "HUNTER")
 end)
+
+test("database: test_backfill_plate_part_and_level — a container stored before Attach to part and Frame level reads the plate and Auto", function()
+  -- No migration: the load pass fills both from the template, so a stored container draws as before.
+  local c = D.DeepCopy(NS.CONTAINER_TEMPLATE)
+  c.nameplate.attachTo = nil
+  c.anchor.level = nil
+  c.nameplate.y = -7
+  local p = { containers = { [1] = c }, containerOrder = { 1 } }
+  withProfile(p, function()
+    D.PrepareProfile(p)
+  end)
+  assertEqual(c.nameplate.attachTo, "plate", "on the plate, as before")
+  assertEqual(c.anchor.level, 0, "Auto, as before")
+  assertEqual(c.nameplate.y, -7, "a stored value is kept")
+end)

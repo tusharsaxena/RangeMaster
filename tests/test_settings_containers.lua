@@ -782,3 +782,25 @@ test("settings: test_dot_shape_row — the Shape row offers the seven shapes, Ba
     assertEqual(CM.Get(id).elements.indicator.shape, "star", "a shape that is none is refused")
   end)
 end)
+
+test("settings: test_plate_part_and_level_rows — Attach to part opens On the nameplate wherever it shows; Frame level sits under Attach to in every mode", function()
+  local L = NS.L
+  local byPath = {}
+  for _, row in ipairs(NS.Schema) do byPath[row.path] = row end
+  local part, point = byPath["container.nameplate.attachTo"], byPath["container.nameplate.relPoint"]
+  assertTrue(part ~= nil, "container.nameplate.attachTo is a row")
+  assertEqual(part.label, L["Attach to part"])
+  assertEqual(part.subgroup, point.subgroup, "in On the nameplate")
+  assertTrue(part.order < point.order, "before the anchor points it measures from")
+  assertTrue(part.shownWhen == point.shownWhen, "shown exactly where the nameplate rows are (ON_PLATE)")
+  assertEqual(part.values.plate, L["Nameplate"])
+  assertEqual(part.values.castbar, L["Cast bar"])
+  assertEqual(table.concat(part.sorting, ","), "plate,castbar")
+  local level, strata = byPath["container.anchor.level"], byPath["container.anchor.strata"]
+  assertTrue(level ~= nil, "container.anchor.level is a row")
+  assertEqual(level.label, L["Frame level"])
+  assertNil(level.shownWhen, "every mode draws it")
+  assertEqual(level.subgroup, strata.subgroup, "under Attach to, beside Frame strata")
+  assertTrue(level.order > strata.order)
+  assertEqual(level.min, 0); assertEqual(level.max, NS.Constants.LAYERS.LEVEL.SLOTS); assertEqual(level.step, 1)
+end)
