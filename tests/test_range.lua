@@ -559,3 +559,236 @@ test("range: a rebuild builds no ladder; only a Forever walk does, on first need
   if not ok then error(err, 0) end
   assertEqual(n, 0, "the rebuild drops the ladder and leaves the build to the first walk")
 end)
+
+-- ── the anchor resolver (dynamic-bands plan D2) ──────────────────────────────────────────────
+
+--- Run `body` with this client's seed for the player's class carrying `spec.anchors`, and the spell
+--- client answering from `spec`: `known[id]`, `info[idOrName] = { name, spellID, minRange, maxRange }`,
+--- `override[id]` and `form` (GetShapeshiftFormID, or a function answering it). A synchronous rebuild
+--- runs before `body` and after the restore, raise or not.
+local function withAnchors(spec, body)
+  local client, class = NS.Compat.ClientKey(), M.__context.classToken
+  local seeds = NS.SpellSeeds[client]
+  local realSeed = seeds[class]
+  local book, spell = M.C_SpellBook, M.C_Spell
+  local real = { book.IsSpellKnown, spell.IsSpellUsable, spell.GetSpellInfo, spell.GetOverrideSpell,
+    M.GetShapeshiftFormID }
+  local known, info, override = spec.known or {}, spec.info or {}, spec.override or {}
+  seeds[class] = { chips = {}, ladder = {}, anchors = spec.anchors }
+  book.IsSpellKnown = function(id) return known[id] == true end
+  spell.IsSpellUsable = function() return true, false end
+  spell.GetSpellInfo = function(id)
+    local r = info[id]
+    if r then
+      return { name = r[1], iconID = 1, castTime = 0, spellID = r[2], minRange = r[3] or 0, maxRange = r[4] or 40 }
+    end
+  end
+  spell.GetOverrideSpell = function(id) return override[id] or id end
+  M.GetShapeshiftFormID = function()
+    if type(spec.form) == "function" then return spec.form() end
+    return spec.form
+  end
+  NS.Range.__rebuildNow()
+  local ok, err = pcall(body, spec)
+  seeds[class] = realSeed
+  book.IsSpellKnown, spell.IsSpellUsable, spell.GetSpellInfo, spell.GetOverrideSpell, M.GetShapeshiftFormID =
+    real[1], real[2], real[3], real[4], real[5]
+  NS.Range.__rebuildNow()
+  if not ok then error(err, 0) end
+end
+
+test("anchors: a role resolves to its first KNOWN anchor, with the client's name and range", function()
+  -- red under: a resolver that takes the list's first entry whatever the spellbook says.
+  withAnchors({
+    anchors = { ranged = { 116, 133, 30451 } },
+    known = { [133] = true, [30451] = true },
+    info = { [116] = { "Frostbolt", 116 }, [133] = { "Fireball", 133, 0, 35 }, [30451] = { "Arcane Blast", 30451 },
+      Fireball = { "Fireball", 133, 0, 35 } },
+  }, function()
+    local a = NS.Range.Anchor("ranged")
+    assertTrue(type(a) == "table", "the ranged role resolved")
+    assertEqual(a.id, 133, "the first known anchor, not the list's first")
+    assertEqual(a.name, "Fireball", "the client's own name")
+    assertEqual(a.minRange, 0, "the reported min range")
+    assertEqual(a.maxRange, 35, "the reported max range")
+  end)
+end)
+
+test("anchors: a rank-1 seed resolves to the learned rank, a role with nothing known is nil", function()
+  -- red under: a resolver asking IsSpellKnown of the stored rank-1 ID (critic 10).
+  withAnchors({
+    anchors = { ranged = { 3044 }, melee = { 2973 } },
+    known = { [14281] = true },
+    info = { [3044] = { "Arcane Shot", 3044 }, ["Arcane Shot"] = { "Arcane Shot", 14281, 8, 41 },
+      [14281] = { "Arcane Shot", 14281, 8, 41 }, [2973] = { "Raptor Strike", 2973 } },
+  }, function()
+    local a = NS.Range.Anchor("ranged")
+    assertEqual(a and a.id, 14281, "the current rank's ID")
+    assertEqual(a and a.maxRange, 41, "and its reported range")
+    assertNil(NS.Range.Anchor("melee"), "an unlearned role is unresolved")
+    assertNil(NS.Range.Anchor("friendly"), "a role the class has no list for is unresolved")
+    assertNil(NS.Range.Anchor("nonsense"), "an unknown role is unresolved")
+  end)
+end)
+
+test("anchors: druid melee follows the form, and has no anchor out of Cat and Bear", function()
+  -- red under: a melee role read as one list (the form map's keys taken as anchors), or a form read
+  -- only at rebuild (a shift before the debounce fires would ask the old form's strike).
+  local form = 1
+  withAnchors({
+    anchors = { melee = { cat = { 1082 }, bear = { 6807 } }, ranged = { 5176 } },
+    known = { [1082] = true, [6807] = true, [5176] = true },
+    info = { [1082] = { "Claw", 1082, 0, 5 }, [6807] = { "Maul", 6807, 0, 5 }, [5176] = { "Wrath", 5176 } },
+    form = function() return form end,
+  }, function()
+    assertEqual(NS.Range.Anchor("melee").id, 1082, "Cat Form: Claw")
+    form = 5
+    assertEqual(NS.Range.Anchor("melee").id, 6807, "Bear Form: Maul")
+    form = 0
+    assertNil(NS.Range.Anchor("melee"), "caster form: no melee anchor")
+    form = nil
+    assertNil(NS.Range.Anchor("melee"), "no form answer: no melee anchor")
+    assertEqual(NS.Range.Anchor("ranged").id, 5176, "a role without forms ignores the form")
+  end)
+end)
+
+test("anchors: a secret form or a secret range is no answer", function()
+  local restore = T.installSecretValue()
+  local ok, err = pcall(function()
+    withAnchors({
+      anchors = { melee = { cat = { 1082 } }, ranged = { 133 } },
+      known = { [1082] = true, [133] = true },
+      info = { [1082] = { "Claw", 1082 }, [133] = { "Fireball", 133, 0, T.secret(35) } },
+      form = function() return T.secret(1) end,
+    }, function()
+      assertNil(NS.Range.Anchor("melee"), "a secret form keys nothing")
+      local a = NS.Range.Anchor("ranged")
+      assertEqual(a and a.id, 133, "a secret range still resolves the anchor")
+      assertNil(a.maxRange, "but reports no max range")
+    end)
+  end)
+  restore()
+  if not ok then error(err, 0) end
+end)
+
+--- Count NS.MSG.ANCHORS_CHANGED for the length of `body`.
+local function countAnnouncements(body)
+  local n = 0
+  local target = NS.NewBusTarget()
+  target:RegisterMessage(NS.MSG.ANCHORS_CHANGED, function() n = n + 1 end)
+  local ok, err = pcall(body, function() return n end)
+  target:UnregisterMessage(NS.MSG.ANCHORS_CHANGED)
+  if not ok then error(err, 0) end
+  return n
+end
+
+test("anchors: a rebuild announces only when a resolved anchor or its range moved", function()
+  -- red under: a rebuild that announces on every pass (SPELLS_CHANGED storms repaint every display).
+  local spec = {
+    anchors = { ranged = { 75, 3044 }, melee = { cat = { 1082 } } },
+    known = { [75] = true },
+    info = { [75] = { "Auto Shot", 75, 8, 35 }, [3044] = { "Arcane Shot", 3044 }, [1082] = { "Claw", 1082 } },
+    form = 0,
+  }
+  withAnchors(spec, function()
+    countAnnouncements(function(n)
+      NS.Range.__rebuildNow()
+      assertEqual(n(), 0, "nothing moved: no announcement")
+      spec.info[75] = { "Auto Shot", 75, 8, 41 }
+      NS.Range.__rebuildNow()
+      assertEqual(n(), 1, "the range moved (a talent): one announcement")
+      NS.Range.__rebuildNow()
+      assertEqual(n(), 1, "and none again while it stays")
+      spec.known[75] = false
+      spec.known[3044] = true
+      NS.Range.__rebuildNow()
+      assertEqual(n(), 2, "the anchor moved: one more")
+      spec.known[1082] = true
+      NS.Range.__rebuildNow()
+      assertEqual(n(), 3, "a form's anchor learned: one more")
+      spec.form = 1
+      NS.Range.__rebuildNow()
+      assertEqual(n(), 4, "a shift changes the anchor in use: one more")
+    end)
+  end)
+end)
+
+-- ── the rebuild triggers (dynamic-bands plan D2) ─────────────────────────────────────────────
+
+--- Count NS.Range.Rebuild calls for the length of `body`.
+local function countRebuilds(body)
+  local real, n = NS.Range.Rebuild, 0
+  NS.Range.Rebuild = function() n = n + 1 end
+  local ok, err = pcall(body, function() return n end)
+  NS.Range.Rebuild = real
+  if not ok then error(err, 0) end
+end
+
+local function lifecycleEntry(name)
+  for _, pair in ipairs(NS.__lifecycleEvents) do
+    if pair[1] == name then return pair end
+  end
+end
+
+local TRIGGERS = { "CHARACTER_POINTS_CHANGED", "PLAYER_TALENT_UPDATE", "TRAIT_CONFIG_UPDATED",
+  "ACTIVE_TALENT_GROUP_CHANGED", "PLAYER_SPECIALIZATION_CHANGED", "LEARNED_SPELL_IN_SKILL_LINE",
+  "PLAYER_LEVEL_UP", "UPDATE_SHAPESHIFT_FORM", "PLAYER_EQUIPMENT_CHANGED" }
+
+test("anchors: every trigger event is registered ifValid and asks for one rebuild", function()
+  -- red under: a trigger missing from LIFECYCLE_EVENTS, registered bare (a client without it would
+  -- record a rejection), or whose handler does not reach NS.Range.Rebuild.
+  local spells = lifecycleEntry("SPELLS_CHANGED")
+  assertTrue(spells ~= nil, "SPELLS_CHANGED stays a trigger")
+  countRebuilds(function(n)
+    NS.addon[spells[2]](NS.addon, "SPELLS_CHANGED")
+    assertEqual(n(), 1, "SPELLS_CHANGED: one rebuild")
+  end)
+  for _, name in ipairs(TRIGGERS) do
+    local entry = lifecycleEntry(name)
+    assertTrue(entry ~= nil, name .. " is in the lifecycle list")
+    assertTrue(entry.ifValid == true, name .. " is registered only where the client knows it")
+    countRebuilds(function(n)
+      NS.addon[entry[2]](NS.addon, name, "player")
+      assertEqual(n(), 1, name .. ": one rebuild")
+    end)
+  end
+  assertNil(lifecycleEntry("LEARNED_SPELL_IN_TAB"), "no LEARNED_SPELL_IN_TAB: neither client has it")
+end)
+
+test("anchors: CVAR_UPDATE rebuilds for ShowAllSpellRanks only, UNIT_PET for the player's pet only", function()
+  local cvar = lifecycleEntry("CVAR_UPDATE")
+  assertTrue(cvar ~= nil and cvar.ifValid == true, "CVAR_UPDATE is a trigger, ifValid")
+  countRebuilds(function(n)
+    NS.addon[cvar[2]](NS.addon, "CVAR_UPDATE", "ShowAllSpellRanks", "1")
+    assertEqual(n(), 1, "the rank cvar: one rebuild")
+    NS.addon[cvar[2]](NS.addon, "CVAR_UPDATE", "Sound_EnableAllSound", "1")
+    assertEqual(n(), 1, "any other cvar: none")
+  end)
+  local pet = lifecycleEntry("UNIT_PET")
+  countRebuilds(function(n)
+    NS.addon[pet[2]](NS.addon, "UNIT_PET", "player")
+    assertEqual(n(), 1, "the player's pet: one rebuild")
+    NS.addon[pet[2]](NS.addon, "UNIT_PET", "party1")
+    assertEqual(n(), 1, "another player's pet: none")
+  end)
+end)
+
+test("anchors: LibRangeCheck's CHECKERS_CHANGED rebuilds while up, and is dropped by the stand-down", function()
+  -- red under: no subscription, or one the stand-down leaves live (a stood-down addon hears nothing).
+  assertTrue(LRC.callbacks ~= nil, "the addon subscribed to the library's callbacks")
+  local ok, err = pcall(function()
+    countRebuilds(function(n)
+      LRC.callbacks:Fire(LRC.CHECKERS_CHANGED)
+      assertEqual(n(), 1, "a checker change: one rebuild")
+      NS.addon:UnregisterLifecycleEvents()
+      LRC.callbacks:Fire(LRC.CHECKERS_CHANGED)
+      assertEqual(n(), 1, "unsubscribed with the events")
+      NS.addon:RegisterLifecycleEvents()
+      NS.addon:RegisterLifecycleEvents()
+      LRC.callbacks:Fire(LRC.CHECKERS_CHANGED)
+      assertEqual(n(), 2, "back on the stand-up, once however often it runs")
+    end)
+  end)
+  NS.addon:RegisterLifecycleEvents()
+  if not ok then error(err, 0) end
+end)

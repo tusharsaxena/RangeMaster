@@ -37,6 +37,10 @@ return function()
     -- core/Compat.lua's IsSpellKnown: a fresh character knows nothing.
     IsSpellKnown              = function() return false end,
   }
+  -- The real CallbackHandler-1.0 (tests/run.lua loads it for LibRangeCheck-3.0's callbacks)
+  -- dispatches through securecallfunction. Here it calls straight through, so a callback's error
+  -- raises in the case that caused it.
+  M.securecallfunction = M.securecallfunction or function(fn, ...) return fn(...) end
   M.C_PaperDollInfo = M.C_PaperDollInfo or { GetInventorySlotInfo = function() return 10 end }
   M.CheckInteractDistance = M.CheckInteractDistance or function() return false end
   -- The range engine's client reads (core/Compat.lua), each answering "no answer" until a suite

@@ -186,6 +186,29 @@ test("compat: CurrentSpellID follows a known override and ignores an unknown or 
   if not ok then error(err, 0) end
 end)
 
+test("compat: ShapeshiftFormID answers the form, nil for none, a secret, a raise or no API", function()
+  -- red under: a shim that hands a secret or a 0 (no form) on to the anchor resolver's key lookup.
+  local real = M.GetShapeshiftFormID
+  local restore = T.installSecretValue()
+  local ok, err = pcall(function()
+    M.GetShapeshiftFormID = function() return 5 end
+    assertEqual(NS.Compat.ShapeshiftFormID(), 5, "Bear Form")
+    M.GetShapeshiftFormID = function() return nil end
+    assertNil(NS.Compat.ShapeshiftFormID(), "no form")
+    M.GetShapeshiftFormID = function() return 0 end
+    assertNil(NS.Compat.ShapeshiftFormID(), "a 0 is no form")
+    M.GetShapeshiftFormID = function() return T.secret(1) end
+    assertNil(NS.Compat.ShapeshiftFormID(), "a secret is no answer")
+    M.GetShapeshiftFormID = function() error("refused") end
+    assertNil(NS.Compat.ShapeshiftFormID(), "a raise is no answer")
+    M.GetShapeshiftFormID = nil
+    assertNil(NS.Compat.ShapeshiftFormID(), "no API")
+  end)
+  M.GetShapeshiftFormID = real
+  restore()
+  if not ok then error(err, 0) end
+end)
+
 test("compat: the degraded load's anchor reads answer nil", function()
   local NS2 = dofile("tests/degraded_env.lua")()
   assertNil(NS2.Compat.CurrentSpellID(75), "no spell-info reader: nothing to resolve")

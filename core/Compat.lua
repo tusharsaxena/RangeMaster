@@ -6,8 +6,8 @@ local _, NS = ...
 -- ClientKey, ForClient; clients-§3), the secret-value guards (IsSecret, CanAccess, IsSafeKey;
 -- events-frames-taint-§8) and the spell-info reader (GetSpellInfo). It owns the range engine's client
 -- reads (IsEventValid, IsSpellKnown, SpellInRange, ItemInRange, InteractInRange, CanAttack), the
--- band rules' two anchor-spell reads (CurrentSpellID, AnchorInRange, built on those), the two unit
--- reads the band sets make (IsFriend, PlayerClass), each pcall-wrapped and secret-checked,
+-- band rules' anchor reads (CurrentSpellID and AnchorInRange, built on those, and ShapeshiftFormID),
+-- the two unit reads the band sets make (IsFriend, PlayerClass), each pcall-wrapped and secret-checked,
 -- the anchors' frame reads (NamePlateForUnit, PlateToken, NamePlates, GetMouseFocus), each
 -- forbidden-checked, and the per-client range ladder (RangeLadder). No other file of
 -- this addon reads a WOW_PROJECT_* global or decides the client from an interface number. Every
@@ -202,6 +202,17 @@ end
 function Compat.AnchorInRange(id, unit)
     if not Compat.IsSpellKnown(id) or not Compat.IsSpellUsable(id) then return nil end
     return Compat.SpellInRange(id, unit)
+end
+
+--- The player's shapeshift form ID (GetShapeshiftFormID: 1 Cat, 5 Bear, ...), or nil when the
+--- player is in no form, the client will not say, or the answer is a secret. Read by the anchor
+--- resolver (modules/Range.lua), which keys a druid's melee anchor by form.
+--- @return number|nil
+function Compat.ShapeshiftFormID()
+    if not GetShapeshiftFormID then return nil end
+    local ok, v = pcall(GetShapeshiftFormID)
+    if not ok then return nil end
+    return plainId(v)
 end
 
 --- Whether `unit` is within the item `id`'s use range: true, false, or nil. The client refuses

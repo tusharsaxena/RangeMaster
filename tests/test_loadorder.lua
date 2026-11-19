@@ -171,7 +171,7 @@ test("loadorder: the runner loaded exactly the vendored XML's library files, in 
     "tests/run.lua's library load list has drifted from libs/LibKa0s/LibKa0s.xml")
 end)
 
-test("loadorder: the runner loads LibRangeCheck-3.0 as the TOC does, and it registers whole", function()
+test("loadorder: the runner loads LibRangeCheck-3.0 (after CallbackHandler-1.0) as the TOC does, and it registers whole", function()
   -- The TOC lists it on its own libs\ line, which Loader.tocFiles skips, so the runner names it.
   -- Registered at MINOR 39 and with its public query and its load-time frame, so a load that
   -- raised halfway (LibStub registers the major before the file body runs) is red too.
@@ -180,7 +180,13 @@ test("loadorder: the runner loads LibRangeCheck-3.0 as the TOC does, and it regi
     "the TOC lists the vendored LibRangeCheck-3.0")
   local loaded = T.loadedRangeCheckFiles
   assertTrue(type(loaded) == "table", "tests/run.lua publishes the LibRangeCheck files it loaded")
-  assertEqual(table.concat(loaded, "\n"), "libs/LibRangeCheck-3.0/LibRangeCheck-3.0.lua")
+  assertEqual(table.concat(loaded, "\n"),
+    "libs/CallbackHandler-1.0/CallbackHandler-1.0.lua\nlibs/LibRangeCheck-3.0/LibRangeCheck-3.0.lua",
+    "CallbackHandler-1.0 first, as the TOC's XML line orders it, then the estimator")
+  assertTrue(toc:find("libs\\CallbackHandler-1.0\\CallbackHandler-1.0.xml", 1, true)
+      < toc:find("libs\\LibRangeCheck-3.0\\LibRangeCheck-3.0.lua", 1, true),
+    "the TOC loads CallbackHandler-1.0 before LibRangeCheck-3.0")
+  assertTrue(mocks.LibStub("CallbackHandler-1.0", true) ~= nil, "CallbackHandler-1.0 registered its major")
   local lrc, minor = mocks.LibStub("LibRangeCheck-3.0", true)
   assertTrue(lrc ~= nil, "LibRangeCheck-3.0 registered its major")
   assertEqual(minor, 39, "at the vendored MINOR")

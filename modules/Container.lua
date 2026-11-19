@@ -35,7 +35,8 @@ local _, NS = ...
 --
 -- WHO DRIVES IT. CONTAINERS_CHANGED (modules/ContainerManager.lua, coalesced to the next frame and
 -- held through combat) runs Sync: an instance for every enabled container, back to the pool for a
--- deleted or disabled one. BANDSETS_CHANGED runs Repaint. RANGE_UPDATED (modules/Ticker.lua, only on
+-- deleted or disabled one. BANDSETS_CHANGED runs Repaint, and so does ANCHORS_CHANGED (modules/Range.lua:
+-- a band rule's anchor spell or its range moved). RANGE_UPDATED (modules/Ticker.lua, only on
 -- change) reaches the instances watching that unit and no other: the cost scales with units read,
 -- never with a per-container query. A skin change (the owner's OnLooksChanged) asks ContainerManager
 -- for an apply (NS.CM.RequestApply), so the HUD face follows the skin on the next frame, and a change
@@ -968,6 +969,7 @@ if target then
     target:RegisterMessage(NS.MSG.RANGE_UPDATED, onRangeUpdated)
     target:RegisterMessage(NS.MSG.CONTAINERS_CHANGED, function() Container.Sync() end)
     target:RegisterMessage(NS.MSG.BANDSETS_CHANGED, function() Container.Repaint() end)
+    target:RegisterMessage(NS.MSG.ANCHORS_CHANGED, function() Container.Repaint() end)
 end
 
 NS.Ticker.OnSteady(onSteady)

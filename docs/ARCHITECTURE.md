@@ -133,7 +133,7 @@ angle); the owner is `core/LauncherSetup.lua`, and its writers are LibDBIcon its
 
 ## Message Bus
 
-Four messages, declared once in `core/Bus.lua` through `LibKa0s-Bus-1.0`'s strict `Catalog`; every
+Five messages, declared once in `core/Bus.lua` through `LibKa0s-Bus-1.0`'s strict `Catalog`; every
 receiver registers on its own `NS.NewBusTarget()` (architecture-§4), and the targets are tracked so a
 stand-down takes every subscription down and a stand-up replays it.
 
@@ -142,6 +142,7 @@ stand-down takes every subscription down and a stand-up replays it.
 | `RANGE_UPDATED` | `Ka0s_RangeMaster_RangeUpdated` | `modules/Ticker.lua` | `unit, state, minYd, maxYd` | `modules/Container.lua`: the instances watching that unit |
 | `CONTAINERS_CHANGED` | `Ka0s_RangeMaster_ContainersChanged` | `modules/ContainerManager.lua` (`FlushPending`, coalesced to the next frame, held in combat) | none | the renderer (`NS.Container.Sync`) |
 | `BANDSETS_CHANGED` | `Ka0s_RangeMaster_BandSetsChanged` | `modules/BandSets.lua` (every writer: `Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`, `SetField`, `SetBand`, `AddBand`, `RemoveBand`, `SetBandSound`, `RestoreSnapshot`; never the load pass) | none | the renderer (`Repaint`) and `settings/BandSets.lua` (a redraw of the pages, coalesced to the next frame) |
+| `ANCHORS_CHANGED` | `Ka0s_RangeMaster_AnchorsChanged` | `modules/Range.lua` (the debounced rebuild, only when a band rule's resolved anchor spell, its reported range, or the anchor a druid's form puts in use moved) | none | the renderer (`Repaint`) |
 | `MODE_CHANGED` | `Ka0s_RangeMaster_ModeChanged` | `core/RangeMaster.lua` (`NS.SetTestMode`, `NS.SetSimMode`) | `mode` (`"test"` or `"sim"`), `on`, `why` | `modules/Preview.lua` (what the displays draw) and `modules/Sim.lua` (starts or stops the sweep) |
 
 Ten or fewer messages, so `docs/message-bus.md` is not required; this table is the register.
@@ -171,12 +172,18 @@ Each verb, its arguments and its refusals: `docs/slash-dispatch.md`.
 | `PLAYER_TARGET_CHANGED` | `addon:OnUnitChanged` | a unit change on `"target"`: `NS.Container.UnitChanged`, then `NS.Anchors.UnitChanged` (an own-plate container moves to the new unit's plate, and a plate token's eligibility for the `nameplates` containers is asked again), then `NS.Ticker.Changed` |
 | `PLAYER_FOCUS_CHANGED` | `addon:OnUnitChanged` | the same on `"focus"`; registered only where `NS.Compat.IsEventValid` knows it (`ifValid`) |
 | `UPDATE_MOUSEOVER_UNIT` | `addon:OnUnitChanged` | the same on `"mouseover"` |
-| `UNIT_PET` | `addon:OnPetChanged` | the same on `"pet"`, for the player's own pet only |
+| `UNIT_PET` | `addon:OnPetChanged` | the same on `"pet"`, for the player's own pet only, and `NS.Range.Rebuild()` |
 | `NAME_PLATE_UNIT_ADDED` | `addon:OnNamePlateChanged` | `NS.Plates.Added(token)` (the plate tracked, its instances built, a re-check a frame later), then the same unit change on the plate's token |
 | `UNIT_FACTION` | `addon:OnUnitFaction` | the same on the unit named, a reaction change (the band set follows `bandSetFriendly`, and `NS.Anchors.UnitChanged` moves a plate into or out of a hostile-only `nameplates` container); `ifValid` |
 | `NAME_PLATE_UNIT_REMOVED` | `addon:OnNamePlateChanged` | `NS.Plates.Removed(token)` (its instances parked, an own-plate container on that plate frame hidden), then `NS.Ticker.Removed(token)`: `"none"` is sent outright, because the client still resolves the token while this event dispatches and a re-read would see the plate as live |
-| `SPELLS_CHANGED` | `addon:OnSpellsChanged` | `NS.Range.Rebuild()`, debounced 0.5 s: the known-spell cache is taken again and the ladder dropped, rebuilt on the next Forever walk (Retail builds none) |
+| `SPELLS_CHANGED` | `addon:OnSpellsChanged` | `NS.Range.Rebuild()`, debounced 0.5 s: the known-spell cache is taken again, the ladder dropped (rebuilt on the next Forever walk; Retail builds none), and the band rules' anchors resolved again (`ANCHORS_CHANGED` when they moved) |
+| `CHARACTER_POINTS_CHANGED`, `PLAYER_TALENT_UPDATE`, `TRAIT_CONFIG_UPDATED`, `ACTIVE_TALENT_GROUP_CHANGED`, `PLAYER_SPECIALIZATION_CHANGED`, `LEARNED_SPELL_IN_SKILL_LINE`, `PLAYER_LEVEL_UP`, `UPDATE_SHAPESHIFT_FORM`, `PLAYER_EQUIPMENT_CHANGED` | `addon:OnSpellsChanged` | the same rebuild: a talent, a spec, a new rank or level, a form or gear can move an anchor or its range; each `ifValid`, and `CHARACTER_POINTS_CHANGED` is never filtered on its count |
+| `CVAR_UPDATE` | `addon:OnCVarUpdate` | the same rebuild, for `ShowAllSpellRanks` only (it changes what a spell name resolves to); `ifValid` |
 | `ADDON_LOADED` | `addon:OnAddonLoaded` | `NS.Anchors.Frame.Retry`: a unit frame a container waits for may exist now |
+
+LibRangeCheck-3.0's `CHECKERS_CHANGED` callback (`addon:OnCheckersChanged`, the same rebuild) is
+subscribed with the events and dropped with them (`addon:SubscribeRangeLibrary`, under `pcall`, only
+where the library offers its CallbackHandler surface).
 
 The ticker itself is a `C_Timer.NewTicker`, not an event; the stand-down cancels it with the pending
 rebuild, which stays owed: a `Rebuild` asked while stood down arms nothing, and the stand-up runs an
@@ -280,8 +287,8 @@ generated directories are named once and never enumerated: `docs/audits/`, `docs
 | `perf-analysis/README.md` | Present | The performance harness is wired (`core/PerfSetup.lua`) |
 | `slash-dispatch.md` | Present | 27 commands in `NS.COMMANDS` as measured on 2026-11-18, over the eight-or-more threshold |
 | `midnight-quirks.md` | Present | Always (documentation-§3): the vendored `client-quirks` catalog block, then the addon's own section |
-| `compat-layer.md` | Present | `core/Compat.lua` publishes the range reads, the two band-set unit reads, the anchors' four frame reads, the band rules' two anchor-spell reads and the per-client ladder, 20 shims by documentation-§3's count as measured on 2026-11-19, sixteen of them addon-specific beyond what LibKa0s supplies, over the three-or-more threshold |
-| `message-bus.md` | Not applicable | 4 messages in `NS.MSG` as measured on 2026-11-18 (`RANGE_UPDATED`, `CONTAINERS_CHANGED`, `BANDSETS_CHANGED`, `MODE_CHANGED`); the trigger is more than ten. The table lives in `## Message Bus` above |
+| `compat-layer.md` | Present | `core/Compat.lua` publishes the range reads, the two band-set unit reads, the anchors' four frame reads, the band rules' three anchor reads and the per-client ladder, 21 shims by documentation-§3's count as measured on 2026-11-19, seventeen of them addon-specific beyond what LibKa0s supplies, over the three-or-more threshold |
+| `message-bus.md` | Not applicable | 5 messages in `NS.MSG` as measured on 2026-11-19 (`RANGE_UPDATED`, `CONTAINERS_CHANGED`, `BANDSETS_CHANGED`, `ANCHORS_CHANGED`, `MODE_CHANGED`); the trigger is more than ten. The table lives in `## Message Bus` above |
 | `profiles.md` | Present | AceDB profiles are user-visible: the Profiles sub-page is a profile control in the options UI |
 | `known-limitations.md` | Not applicable | `## Known Limitations` above is under ~60 lines |
 | `taint.md` | Not applicable | `## Taint Notes` above is under ~60 lines |

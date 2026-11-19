@@ -77,8 +77,24 @@ local LIFECYCLE_EVENTS = {
     -- A unit's reaction moved (a mob turning hostile, a duel): the band set a container reads
     -- depends on it (design spec 5.3, bandSetFriendly), so it is a unit change like a retarget.
     { "UNIT_FACTION",          "OnUnitFaction", ifValid = true },
-    -- Learned, unlearned or swapped spells: the ladder and the known-spell cache, debounced.
+    -- Learned, unlearned or swapped spells: the ladder, the known-spell cache and the band rules'
+    -- anchors, debounced (NS.Range.Rebuild).
     { "SPELLS_CHANGED",        "OnSpellsChanged" },
+    -- What else can move an anchor or its range (dynamic-bands plan D2): talents and specs, a new
+    -- rank or a level, a form (a druid's melee anchor), gear (a ranged weapon, a libram, a totem).
+    -- Each is ifValid: a client that lacks one skips it. CHARACTER_POINTS_CHANGED is never filtered
+    -- on its count, so a point spent with points still unspent is heard (research part 2, item 5).
+    { "CHARACTER_POINTS_CHANGED",      "OnSpellsChanged", ifValid = true },
+    { "PLAYER_TALENT_UPDATE",          "OnSpellsChanged", ifValid = true },
+    { "TRAIT_CONFIG_UPDATED",          "OnSpellsChanged", ifValid = true },
+    { "ACTIVE_TALENT_GROUP_CHANGED",   "OnSpellsChanged", ifValid = true },
+    { "PLAYER_SPECIALIZATION_CHANGED", "OnSpellsChanged", ifValid = true },
+    { "LEARNED_SPELL_IN_SKILL_LINE",   "OnSpellsChanged", ifValid = true },
+    { "PLAYER_LEVEL_UP",               "OnSpellsChanged", ifValid = true },
+    { "UPDATE_SHAPESHIFT_FORM",        "OnSpellsChanged", ifValid = true },
+    { "PLAYER_EQUIPMENT_CHANGED",      "OnSpellsChanged", ifValid = true },
+    -- ShowAllSpellRanks changes what a spell name looks up (NS.Compat.CurrentSpellID).
+    { "CVAR_UPDATE",                   "OnCVarUpdate",    ifValid = true },
     -- An addon loaded: a unit frame a container waits for may exist now (modules/Anchors_Frame.lua).
     { "ADDON_LOADED",          "OnAddonLoaded" },
 }
@@ -95,11 +111,27 @@ function addon:RegisterLifecycleEvents()
             end
         end
     end
+    self:SubscribeRangeLibrary(true)
 end
 
 function addon:UnregisterLifecycleEvents()
     for _, pair in ipairs(LIFECYCLE_EVENTS) do
         self:UnregisterEvent(pair[1])
+    end
+    self:SubscribeRangeLibrary(false)
+end
+
+--- LibRangeCheck-3.0's CHECKERS_CHANGED, its own debounced "a checker's range moved": one more
+--- rebuild trigger, held and dropped with the events (a stood-down addon hears nothing). Both calls
+--- go through pcall and only where the library offers its CallbackHandler surface; a registration
+--- is keyed by this addon, so a second stand-up replaces the first rather than adding one.
+function addon:SubscribeRangeLibrary(on)
+    local lrc = LibStub and LibStub("LibRangeCheck-3.0", true)
+    if not lrc or not lrc.CHECKERS_CHANGED then return end
+    if on and type(lrc.RegisterCallback) == "function" then
+        pcall(lrc.RegisterCallback, self, lrc.CHECKERS_CHANGED, "OnCheckersChanged")
+    elseif not on and type(lrc.UnregisterCallback) == "function" then
+        pcall(lrc.UnregisterCallback, self, lrc.CHECKERS_CHANGED)
     end
 end
 
@@ -126,9 +158,13 @@ function addon:OnUnitChanged(event)
     if unit then unitChanged(unit) end
 end
 
---- UNIT_PET names the OWNER whose pet changed; only the player's is the `pet` token.
+--- UNIT_PET names the OWNER whose pet changed; only the player's is the `pet` token, and only the
+--- player's pet can move what the range engine resolves (its known-spell cache and the anchors).
 function addon:OnPetChanged(_, owner)
-    if owner == "player" then unitChanged("pet") end
+    if owner == "player" then
+        unitChanged("pet")
+        NS.Range.Rebuild()
+    end
 end
 
 --- UNIT_FACTION names the unit whose reaction moved; only a watched one reaches anything.
@@ -159,6 +195,15 @@ function addon:OnAddonLoaded(_, name)
 end
 
 function addon:OnSpellsChanged()
+    NS.Range.Rebuild()
+end
+
+--- Only the rank cvar moves what a spell name resolves to (LibRangeCheck-3.0 filters it the same way).
+function addon:OnCVarUpdate(_, name)
+    if name == "ShowAllSpellRanks" then NS.Range.Rebuild() end
+end
+
+function addon:OnCheckersChanged()
     NS.Range.Rebuild()
 end
 

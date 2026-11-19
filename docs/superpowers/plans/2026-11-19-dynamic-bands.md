@@ -101,6 +101,28 @@ D1 decisions (taken in the build):
 - Tests: resolution picks the first known anchor, the current rank, form switching, a rebuild after each
   trigger, no announcement when nothing moved.
 
+D2 decisions (taken in the build):
+
+- The resolver stays in `modules/Range.lua` (now 370 lines, far under layout-§1's 1500-line cap).
+  `NS.Range.Anchor(role)` answers `{ id, name, minRange, maxRange }` or nil; a secret or non-number
+  range is nil, the anchor still resolved. It resolves lazily on the first read when no rebuild ran.
+- The announcement is a NEW message, `ANCHORS_CHANGED` (sender `modules/Range.lua`), not
+  `BANDSETS_CHANGED`, whose register names `modules/BandSets.lua` as its one sender. The renderer
+  repaints on it; the Bands page's read-out subscribes in D5. Five messages, still under the ten that
+  would require `docs/message-bus.md`.
+- Druid form: every form's anchor is resolved at rebuild, and the one in use is picked on each read
+  from `NS.Compat.ShapeshiftFormID()` (a new shim, 13; the frame reads are now 14 to 17, 21 shims),
+  so a shift is followed before the debounce fires. Form IDs 1 = cat, 5 and 8 = bear (8 is Dire Bear
+  where a client tells it apart); any other form has no melee anchor. The form's pick is part of the
+  change signature, so `UPDATE_SHAPESHIFT_FORM`'s rebuild announces a shift.
+- Triggers: the nine new events all route to `OnSpellsChanged` (ifValid). `CVAR_UPDATE` rebuilds only
+  for `ShowAllSpellRanks`, as LibRangeCheck-3.0 filters it. `UNIT_PET` rebuilds for the player's pet
+  only. `CHARACTER_POINTS_CHANGED` is never filtered on its count (critic 5).
+- LibRangeCheck's `CHECKERS_CHANGED` is subscribed in `RegisterLifecycleEvents` and dropped in
+  `UnregisterLifecycleEvents` (`addon:SubscribeRangeLibrary`, pcall), so a stood-down addon hears
+  nothing. The harness now loads the real vendored `CallbackHandler-1.0` before the estimator, as the
+  TOC does, with a call-through `securecallfunction` in `tests/wow_mock.lua`.
+
 ## D3. Rule evaluation
 
 - `NS.Range.RoleInRange(role, unit)` through the per-tick memo (and the chips share it).

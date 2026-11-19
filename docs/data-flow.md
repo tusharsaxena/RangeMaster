@@ -35,7 +35,9 @@ the ticker (one C_Timer.NewTicker, 10 Hz idle / 20 Hz in combat, stopped while n
         text changed        → SetText (else nothing); a cell's width moved → re-layout
         sounds on           → NS.Sounds.OnBand(inst, band, GetTime()) (also on each steady read)
 the combat edge, a General visibility or Master opacity write ─► NS.Container.RefreshVisibility
-SPELLS_CHANGED ─► NS.Range.Rebuild()  0.5 s after the last one: the known-spell cache again, the ladder dropped (rebuilt on the next Forever walk)
+SPELLS_CHANGED ─► NS.Range.Rebuild()  0.5 s after the last one: the known-spell cache again, the ladder dropped (rebuilt on the next Forever walk),
+                                      the anchors resolved again (ANCHORS_CHANGED ─► Container.Repaint, only when they moved); the talent, spec,
+                                      level, form, gear, rank-cvar and pet events and LibRangeCheck's CHECKERS_CHANGED ask for the same rebuild
 ```
 
 Every container instance watches its unit through `NS.Ticker.Watch` when it is acquired and

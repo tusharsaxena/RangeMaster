@@ -1,10 +1,10 @@
 # Compat layer — Ka0s Range Master
 
-`core/Compat.lua` is the whole compat family (compat) and publishes **20** shims on `NS.Compat`,
+`core/Compat.lua` is the whole compat family (compat) and publishes **21** shims on `NS.Compat`,
 counted with the command documentation-§3 fixes:
 
 ```sh
-cat core/Compat*.lua | grep -cE '^\s*function\s+[A-Za-z_][A-Za-z0-9_]*\.'    # 20
+cat core/Compat*.lua | grep -cE '^\s*function\s+[A-Za-z_][A-Za-z0-9_]*\.'    # 21
 ```
 
 Four of them (`IsForever`, `IsRetail`, `ClientKey`, `ForClient`) only route `LibKa0s-Compat-1.0`'s
@@ -12,7 +12,7 @@ answer to "which client is this" (clients-§3), each with a library-absent stand
 Retail. The secret guards (`IsSecret`, `CanAccess`, `IsSafeKey`) and the spell-info reader
 (`GetSpellInfo`) are the library's members handed over by reference, with the one-rung bodies the
 library's degradation rule asks for; they are LibKa0s's and are not documented again here. The
-sixteen below are this addon's own.
+seventeen below are this addon's own.
 
 ## The range reads and the ladder
 
@@ -24,7 +24,7 @@ secret, or a value that is neither a boolean nor 1/0 answers `nil`, "no answer",
 | # | Shim | Wraps | Absent or refused | Why it exists | Called from |
 |---|---|---|---|---|---|
 | 1 | `IsEventValid(name)` | `C_EventUtils.IsEventValid` (pcall) | `true`: the refusal is left to `NS.SafeRegisterEvent` | `PLAYER_FOCUS_CHANGED` may not exist on WoW Forever (design spec 3); the event list's `ifValid` rows ask before registering | `core/RangeMaster.lua` (`RegisterLifecycleEvents`) |
-| 2 | `IsSpellKnown(id)` | `C_SpellBook.IsSpellKnown` (pcall, secret-checked) | `false` | Only a known spell is range-checked: an unlearned one can report "in range" from anywhere | `modules/Range.lua` (`InSpellRange`, cached until `SPELLS_CHANGED`), shim 8 |
+| 2 | `IsSpellKnown(id)` | `C_SpellBook.IsSpellKnown` (pcall, secret-checked) | `false` | Only a known spell is range-checked: an unlearned one can report "in range" from anywhere | `modules/Range.lua` (`InSpellRange`, cached until `SPELLS_CHANGED`; the anchor resolver), shims 8 and 11 |
 | 3 | `IsSpellUsable(id)` | `C_Spell.IsSpellUsable` (pcall, both answers secret-checked) | `false` | The other half of research lesson 9: a known spell unusable in the current form or stance can report "in range" from anywhere. Short of power still counts as usable | `modules/Range.lua` (`InSpellRange` and the ladder walk's spell rungs, asked per call and never cached: a shapeshift fires no `SPELLS_CHANGED`) |
 | 4 | `SpellInRange(id, unit)` | `C_Spell.IsSpellInRange` | `nil` | The spell chips and the ladder's spell rungs | `modules/Range.lua` |
 | 5 | `ItemInRange(id, unit)` | `C_Item.IsItemInRange` | `nil` | Forever's item rungs. The client refuses it on a unit the player cannot attack in combat; the caller skips it there | `modules/Range.lua` (the ladder walk) |
@@ -37,14 +37,15 @@ secret, or a value that is neither a boolean nor 1/0 answers `nil`, "no answer",
 ## The anchor-spell reads (band rules)
 
 A band's spell rule (dynamic-bands plan) asks its role's anchor spell "in range?". The anchors per
-class per client are `defaults/SpellSeeds.lua`'s `anchors` lists. Both reads are built on shims 2 to 4
-and wrap no client call a second time; only `C_Spell.GetOverrideSpell` is new, called inside `pcall`
-with its answer secret-checked.
+class per client are `defaults/SpellSeeds.lua`'s `anchors` lists. The two spell reads are built on
+shims 2 to 4 and wrap no client call a second time; only `C_Spell.GetOverrideSpell` is new, called
+inside `pcall` with its answer secret-checked. The form read keys a druid's melee anchor.
 
 | # | Shim | Wraps | Absent or refused | Why it exists | Called from |
 |---|---|---|---|---|---|
-| 11 | `CurrentSpellID(id)` | `GetSpellInfo(id)`'s name, `GetSpellInfo(name)`'s spellID, `C_Spell.GetOverrideSpell` (pcall, secret-checked), shim 2 | `nil` when the client has no such spell or no spell-info reader; the ID itself when the name lookup answers nothing; an override only when the player knows it | A Forever seed is rank 1, and asking rank 1 once a higher rank is learned is unverified: resolve to the learned rank by the client's own localized name, as LibRangeCheck-3.0's `findSpellIdx` does (research part 2, correction 10), then to a hero-talent override | the anchor resolver, at rebuild (dynamic-bands plan D2) |
+| 11 | `CurrentSpellID(id)` | `GetSpellInfo(id)`'s name, `GetSpellInfo(name)`'s spellID, `C_Spell.GetOverrideSpell` (pcall, secret-checked), shim 2 | `nil` when the client has no such spell or no spell-info reader; the ID itself when the name lookup answers nothing; an override only when the player knows it | A Forever seed is rank 1, and asking rank 1 once a higher rank is learned is unverified: resolve to the learned rank by the client's own localized name, as LibRangeCheck-3.0's `findSpellIdx` does (research part 2, correction 10), then to a hero-talent override | `modules/Range.lua` (the anchor resolver, at rebuild) |
 | 12 | `AnchorInRange(id, unit)` | shims 2, 3 and 4 | `nil` unless the spell is known and usable now; the client's `nil`, a raise or a secret stay `nil`, never `false` | A band's spell rule reads a nil as "cannot say", and the band falls back to its yards | the rule evaluation (dynamic-bands plan D3) |
+| 13 | `ShapeshiftFormID()` | `GetShapeshiftFormID` (pcall, secret-checked) | `nil`: no form, which keys no form's anchor | A druid's melee anchor is keyed by form (Cat, Bear), and a form's strike answers only in that form | `modules/Range.lua` (`Anchor`, on each read, so a shift is followed before the rebuild's debounce fires) |
 
 ## The frame reads the anchors make
 
@@ -54,10 +55,10 @@ forbidden, and a forbidden plate is answered as `nil`, so no caller ever touches
 
 | # | Shim | Wraps | Absent or refused | Why it exists | Called from |
 |---|---|---|---|---|---|
-| 13 | `NamePlateForUnit(unit)` | `C_NamePlate.GetNamePlateForUnit` (pcall, forbidden-checked) | `nil` | A plate token's plate, and the own-plate containers' "target" / "focus" / "mouseover" plate | `modules/Anchors_Nameplate.lua` |
-| 14 | `PlateToken(plate)` | the plate's `namePlateUnitToken` (pcall, forbidden- and secret-checked) | `nil` | The token a scanned plate serves | shim 15 |
-| 15 | `NamePlates()` | `C_NamePlate.GetNamePlates` (pcall), shim 14 per plate | `{}` | The stand-up's rescan: a stood-down addon heard no `NAME_PLATE_UNIT_ADDED` for the plates shown | `modules/Anchors_Nameplate.lua` (`StandUp`) |
-| 16 | `GetMouseFocus()` | `GetMouseFoci()[1]` (pcall) | `nil` | The frame picker's frame under the cursor; both clients carry `GetMouseFoci` | `modules/FramePicker.lua` |
+| 14 | `NamePlateForUnit(unit)` | `C_NamePlate.GetNamePlateForUnit` (pcall, forbidden-checked) | `nil` | A plate token's plate, and the own-plate containers' "target" / "focus" / "mouseover" plate | `modules/Anchors_Nameplate.lua` |
+| 15 | `PlateToken(plate)` | the plate's `namePlateUnitToken` (pcall, forbidden- and secret-checked) | `nil` | The token a scanned plate serves | shim 16 |
+| 16 | `NamePlates()` | `C_NamePlate.GetNamePlates` (pcall), shim 15 per plate | `{}` | The stand-up's rescan: a stood-down addon heard no `NAME_PLATE_UNIT_ADDED` for the plates shown | `modules/Anchors_Nameplate.lua` (`StandUp`) |
+| 17 | `GetMouseFocus()` | `GetMouseFoci()[1]` (pcall) | `nil` | The frame picker's frame under the cursor; both clients carry `GetMouseFoci` | `modules/FramePicker.lua` |
 
 The unit-frame names the `ellesmere` provider reads (`modules/FrameProviders.lua`) are no client
 read and live there, not here: `EllesmereUIUnitFrames_Target`, `EllesmereUIUnitFrames_Focus` and
