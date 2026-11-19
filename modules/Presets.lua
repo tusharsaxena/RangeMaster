@@ -186,8 +186,8 @@ Presets.__classSet = classSet
 --- The owner's own setup (the "Ka0s" profile on WoW Forever, 2026-11-20): the four on screen with the
 --- range number and the band's label (one line), hostile only but the pet (always friendly, so it
 --- would never show); the class's own band set (Hunter on a hunter), the Healer set on friends for
---- target, focus and mouseover; the out-of-range sound on target; the target's own plate with the
---- number alone (the owner turned its dot off). No every-plate container.
+--- target, focus and mouseover; the target's own plate with the number alone (the owner turned its
+--- dot off). No every-plate container, and no sound (only Expert sounds, the owner, 2026-11-20).
 local function ka0s()
     local list = four({ number = true, text = true })
     local healer, own = healerSet(), classSet()
@@ -195,7 +195,6 @@ local function ka0s()
         list[i].opts.bandSet = own
         if list[i].unit ~= "pet" then list[i].opts.bandSetFriendly = healer end
     end
-    list[1].opts.sounds = { enabled = true }
     local tp = plate("target", "targetPlate", "diamond", "range", { name = L["Target plate"],
         visibility = { combat = "any", reaction = "hostile", hideNoUnit = true } })
     tp.opts.elements.indicator.enabled = false
@@ -384,7 +383,7 @@ local DESCRIBE = {
         L["Target, Focus, Pet, Mouseover: range number and band name on one line"],
         L["Healer band set for friendly target, focus and mouseover"],
         L["Target on its own nameplate: the range number, on the cast bar while casting"],
-        L["Band-change sound on target (out-of-range warning)"],
+        L["No sounds"],
         L["Hostile units only (the pet: always), on the class's own band set"],
     } },
 }
