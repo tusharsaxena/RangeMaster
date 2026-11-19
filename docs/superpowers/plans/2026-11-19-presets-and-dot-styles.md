@@ -37,7 +37,7 @@ The owner's rulings for this run (2026-11-19):
 | M4 | The five presets | done | `b80fa90` |
 | M5 | Review: parallel reviewers, adversarially verified, fixes | done | `2c6518c` |
 | M6 | Docs sweep, test-case list, badge, gate, push | done | `5d735d9` |
-| M7 | Display > Label tab: a name caption on each container | pending | |
+| M7 | Display > Label tab: a name caption on each container | done | `799130d` |
 | M8 | Band preview blocks removed from the settings | pending | |
 | M9 | Halo-free styles drawn at the old art's fill | pending | |
 | M10 | Review of M7-M9, fixes, docs, push | pending | |
