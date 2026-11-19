@@ -25,17 +25,21 @@ the ticker (one C_Timer.NewTicker, 10 Hz idle / 20 Hz in combat, stopped while n
         still no answer                → "unknown"
         otherwise                      → "known", minYd, maxYd (maxYd nil: open-ended)
   ─► RANGE_UPDATED (unit, state, minYd, maxYd)   sent only when the triple moved (or on Changed)
-  ─► else NS.Ticker.OnSteady(unit)    the renderer: an instance with spell chips asks each again and
-                                      renders only when an answer moved (an edge inside a bracket)
+  ─► else NS.Ticker.OnSteady(unit)    the renderer: an instance asks its spell chips and its band
+                                      rules again and renders only when an answer or the band moved
+                                      (an edge inside a bracket)
   ─► modules/Container.lua: the instances watching that unit, and no other (bucket container.render)
         NS.Range.InSpellRange per spell chip → inst:Render(state, minYd, maxYd, spellResults)
         the anchor's say, then NS.Visibility.Evaluate → shown, alpha (hidden: stop here)
-        NS.BandSets.ForUnit (the friendly override) → NS.BandSets.Resolve → band index
+        NS.BandSets.ForUnit (the friendly override) → NS.BandSets.Resolve(…, unit) → band index
+          (a rule band asks NS.Range.RoleInRange / NS.Range.Near; the spell memo, one ask a tick)
         band or set changed → recolor the border, the fill and every element (else nothing)
         text changed        → SetText (else nothing); a cell's width moved → re-layout
         sounds on           → NS.Sounds.OnBand(inst, band, GetTime()) (also on each steady read)
 the combat edge, a General visibility or Master opacity write ─► NS.Container.RefreshVisibility
-SPELLS_CHANGED ─► NS.Range.Rebuild()  0.5 s after the last one: the known-spell cache again, the ladder dropped (rebuilt on the next Forever walk)
+SPELLS_CHANGED ─► NS.Range.Rebuild()  0.5 s after the last one: the known-spell cache again, the ladder dropped (rebuilt on the next Forever walk),
+                                      the anchors resolved again (ANCHORS_CHANGED ─► Container.Repaint, only when they moved); the talent, spec,
+                                      level, form, gear, rank-cvar and pet events and LibRangeCheck's CHECKERS_CHANGED ask for the same rebuild
 ```
 
 Every container instance watches its unit through `NS.Ticker.Watch` when it is acquired and
@@ -132,7 +136,9 @@ LibRangeCheck answers nothing for a unit that exists, the Compat ladder is walke
 (`NS.Compat.RangeLadder()`: items at the three reliable yards 20/30/35, the duel and follow interact
 distances race-adjusted, known seed spells); in combat on a unit the player cannot attack it asks the
 spell rungs only, because the client refuses item and interact checks there. `NS.Range.InSpellRange`
-asks `C_Spell.IsSpellInRange` only for a spell the player knows.
+asks `C_Spell.IsSpellInRange` only for a spell the player knows. A spell answer, a chip's or a band
+rule's (`NS.Range.RoleInRange`, the role's anchor through `NS.Compat.AnchorInRange`), is asked once
+per spell per unit per tick: the spell memo, keyed by unit token then spell ID.
 
 `NS.Ticker` holds the watch list (a count per unit token) and the one `C_Timer.NewTicker`: 10 Hz out of
 combat, 20 Hz in combat (re-armed on the combat edge), stopped while no watched unit exists and
@@ -147,7 +153,7 @@ rebuild; the stand-up re-reads and re-announces every watched unit. Pipeline: `d
 ### Band sets
 
 A band set is a named, ordered list of yard bands shared by every container that picks it
-(`modules/BandSets.lua`, `NS.BandSets`). `Resolve(setId, state, minYd, maxYd)` turns a range triple
+(`modules/BandSets.lua`, `NS.BandSets`). `Resolve(setId, state, minYd, maxYd, unit)` turns a range triple
 into a band index: `"none"` answers nil, `"unknown"` answers `"unknown"` (the set's own label and
 gray), `"known"` picks by the far bound (`matchBy = "max"`, a band holds `(from, to]`, an open-ended
 bracket reads as infinitely far) or the near one (`"min"`, `[from, to)`). Every stored set is
@@ -159,7 +165,14 @@ first-run seed puts the class default there (`NS.BandSetPresets.DefaultFor`). De
 every container on it to the named replacement or the default (a friendly override on it falls away
 unless a replacement was named), and the last set cannot be deleted. Names stay unique, case-blind:
 `Create`, `Duplicate` (`"<name> copy"`) and `Rename` all go through `UniqueName` (`Caster 40 copy`,
-`Caster 40 copy 2`), as containers do, so `/rm bands <name>` names one set. The Hunter preset is two lists,
+`Caster 40 copy 2`), as containers do, so `/rm bands <name>` names one set. A band may carry a rule
+(dynamic-bands plan): `spell(role)` holds on its anchor's true, `gap` when the ranged anchor says
+false, the melee one does not say true and a shorter check confirms near (`NS.Range.Near`), and
+`beyond` when every spell band's anchor said false, unless the bracket's far bound lies short of the
+beyond band's fallback `from` (the yards rule it out). `Resolve` walks the bands in order and takes the
+first that holds, a yard band or a spell band with no answer holding by its yards; with none, the
+yards' band unless its own anchor contradicts it, else `"unknown"`, never out of range. A
+non-hunter's melee true is voided when the bracket's near bound is 20 yd or more. The Hunter preset is two lists,
 one per client, picked once at load (clients-§5): WoW Forever's has the 5-8 yd Auto Shot dead zone.
 
 ### Containers and presets
@@ -216,8 +229,9 @@ a new focus, mouseover or pet, a plate token handed to a new plate, `UNIT_FACTIO
 `NS.Container.UnitChanged`, which makes the instances on that token forget what they drew, then
 `NS.Ticker.Changed`, so the band set is resolved again for the new unit's reaction, the class color
 is the new unit's and every chip is asked again, whatever the bracket did. On a read whose triple did
-not move (`NS.Ticker.OnSteady`) an instance with chips asks each again and renders only when an
-answer moved, because a spell's range edge can fall inside one LibRangeCheck bracket.
+not move (`NS.Ticker.OnSteady`) an instance asks its chips and its band rules again and renders only
+when an answer or the band moved, because a spell's range edge can fall inside one LibRangeCheck
+bracket.
 
 A render resolves the band (`NS.BandSets.ForUnit`, then `Resolve`) and recolors the border, the fill
 and every element only when the band index or the set changed; an element sets its text only when

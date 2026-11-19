@@ -20,7 +20,7 @@ Total.
 - loadorder: tests/perf.lua derives its list from the TOC too
 - loadorder: xmlFiles returns every LibKa0s script the vendored XML lists, in its order
 - loadorder: the runner loaded exactly the vendored XML's library files, in its order
-- loadorder: the runner loads LibRangeCheck-3.0 as the TOC does, and it registers whole
+- loadorder: the runner loads LibRangeCheck-3.0 (after CallbackHandler-1.0) as the TOC does, and it registers whole
 - loadorder: the loaded library registered — NS.Perf is the lib, not the degradation stub
 - loadorder: tests/perf.lua derives its library half from the vendored XML too
 - loadorder: LibStub raises for a missing major without the silent flag
@@ -66,10 +66,10 @@ Total.
 - degraded Schema stub: Get forwards the instance id to a row's own get
 - degraded Schema stub: ApplyDefault forwards the instance id to Set
 
-### test_database.lua (18)
+### test_database.lua (23)
 
 - database: the account-wide schemaVersion default is 0 (savedvariables-§1)
-- database: the ladder holds one step, v0 -> v1 (the frame defaults), and a fresh install is stamped 1
+- database: the ladder holds two steps, v0 -> v1 (the frame defaults) and v1 -> v2 (band rules), and a fresh install is stamped 2
 - database: RunMigrations is a safe no-op when the DB is absent
 - database: the runner climbs every step, stamps each, and is idempotent
 - database: a step that raises leaves the stamp unmoved and says so once in chat
@@ -86,8 +86,13 @@ Total.
 - database: step 1 runs once, and a container made after it takes the new defaults
 - database: step 1 through the real InitDB, against a stored v0 RangeMasterDB with two profiles
 - database: a new container's frame defaults are a 25% border and a background
+- database: step 2 turns each v1 preset shape into rule bands and keeps its yards
+- database: step 2 converts a custom set, and reads a friendly-only set as friendly, in every profile
+- database: step 2 is idempotent and keeps a rule a band already carries
+- database: step 2 runs on a profile with no usable order and a container with no set (review D6)
+- database: step 2 on a fresh profile changes nothing, and the load pass then seeds rule presets
 
-### test_bandsets.lua (22)
+### test_bandsets.lua (24)
 
 - bandsets: test_resolve_by_max — (20, 25) in Melee / Ranged lands in MID 20-30
 - bandsets: test_resolve_by_min — matchBy min reads the near bound
@@ -111,6 +116,8 @@ Total.
 - bandsets: DefaultFor picks a class's preset, and an unknown class gets Melee / Ranged
 - bandsets: SetBandSound writes one band's sound, announces, and refuses a bad set or band
 - bandsets: a restore never rewinds the id counter, so a later Create mints an id never used
+- bandsets: SetBandRule writes a band's rule as a copy, nil makes a yard band, and announces
+- bandsets: SetBandRule refuses a bad set, band, type, role or spell list, and announces nothing
 
 ### test_container_manager.lua (17)
 
@@ -156,7 +163,7 @@ Total.
 - number: no unit reads nothing, and an unknown format reads as range
 - number: a known state with no far bound and no near bound reads unknown, not 0
 
-### test_container_render.lua (52)
+### test_container_render.lua (53)
 
 - render: an enabled container gets one pooled instance, watching its unit, drawn at once
 - render: Release returns the frame to the pool cleanly, and the next Acquire reuses it
@@ -181,6 +188,7 @@ Total.
 - render: the default indicator style is matte
 - render: the bar indicator is LibKa0s-Widgets' data bar, fuller the nearer the band
 - render: spell chips are colored by each spell's own answer, and only when it changes
+- render: a steady read re-resolves a rule band when its anchor's answer moves
 - render: test_friendly_uses_friendly_set — a friendly unit reads the friendly override
 - render: a band set edit repaints every instance on it
 - render: RANGE_UPDATED reaches every instance on that unit, and only those
@@ -312,7 +320,7 @@ Total.
 - sounds: a hidden container plays nothing
 - sounds: the out-of-range key the Expert preset uses is built in
 
-### test_compat.lua (6)
+### test_compat.lua (14)
 
 - compat: the client answer follows the kit profile this run uses
 - compat: ForClient serves nil and both everywhere, this client's token, and raises on a typo
@@ -320,8 +328,16 @@ Total.
 - compat: the guards follow the client's issecretvalue
 - compat: the degraded load answers Retail and keeps the guards' one-rung bodies
 - compat: no file outside the library reads a WOW_PROJECT global or an interface number
+- compat: AnchorInRange answers the client's true and false for a known, usable spell
+- compat: AnchorInRange answers nil for an unknown, unusable, non-number or unanswered spell
+- compat: AnchorInRange answers nil, never false, on a secret or a raise
+- compat: CurrentSpellID resolves a rank-1 ID to the learned rank by name
+- compat: CurrentSpellID keeps the ID when the name lookup has nothing, and nil for an unknown spell
+- compat: CurrentSpellID follows a known override and ignores an unknown or secret one
+- compat: ShapeshiftFormID answers the form, nil for none, a secret, a raise or no API
+- compat: the degraded load's anchor reads answer nil
 
-### test_range.lua (24)
+### test_range.lua (48)
 
 - range: test_known_bracket — a 20 to 25 yd answer reads known 20, 25
 - range: the library is asked with no cache of its own (maxCacheAge 0)
@@ -346,7 +362,31 @@ Total.
 - range: Rebuild is debounced to one rebuild after the last call
 - range: a Rebuild asked while stood down arms nothing and runs at the stand-up
 - range: every class seed table is well-formed on both clients
+- range: every class has anchors on both clients, a non-empty ranged role, roles from the three
+- range: the anchors carry the critic's corrections
 - range: a rebuild builds no ladder; only a Forever walk does, on first need
+- anchors: a role resolves to its first KNOWN anchor, with the client's name and range
+- anchors: a rank-1 seed resolves to the learned rank, a role with nothing known is nil
+- anchors: druid melee follows the form, and has no anchor out of Cat and Bear
+- anchors: a secret form or a secret range is no answer
+- anchors: a rebuild announces only when a resolved anchor or its range moved
+- anchors: a rebuild announces when a band's own spell list resolves to another spell (review D6)
+- anchors: every trigger event is registered ifValid and asks for one rebuild
+- anchors: CVAR_UPDATE rebuilds for ShowAllSpellRanks only, UNIT_PET for the player's pet only
+- anchors: LibRangeCheck's CHECKERS_CHANGED rebuilds while up, and is dropped by the stand-down
+- rules: the owner's case: a 35-40 bracket with Auto Shot in range reads AUTO, not OOR
+- rules: the dead zone holds only when a shorter check confirms the target is near
+- rules: an unlearned anchor falls back to its band's yards, and unknown stays unknown
+- rules: a nil or secret answer is no answer: the yards decide, or unknown
+- rules: yards that contradict a band's own anchor read unknown
+- rules: a non-hunter's melee true is voided when the bracket puts the unit 20 yd or more away
+- rules: a druid's melee band follows the form, and reads its yards out of Cat and Bear
+- rules: a friendly spell band reads its anchor's answer on a friendly unit (review D6)
+- rules: a ranged anchor with no min range has no dead zone, so a gap band never holds by rule (review D6)
+- rules: one range call per spell per unit per tick, shared by the bands and the chips
+- rules: a spell band's own list overrides the class's anchors for its role
+- rules: a malformed rule reads as a yard band
+- anchors: AnchorFor names the anchor a band asks, its own list's or the role's (the editor's read-out)
 
 ### test_ticker.lua (13)
 
@@ -473,7 +513,7 @@ Total.
 - sending a message with no subscribers is a harmless no-op
 - the bus record is LibKa0s-Bus-1.0's, built under the folder name
 - the catalog is strict: an undeclared key raises at the call site
-- the catalog is exactly the four declared messages, each one prefixed for this addon
+- the catalog is exactly the five declared messages, each one prefixed for this addon
 - with LibKa0s absent, receivers still get a private working target
 
 ### test_layers.lua (5)
@@ -521,7 +561,7 @@ Total.
 
 - launcher descriptor passes openSkinPicker, which runs the skin verb
 
-### test_modes.lua (20)
+### test_modes.lua (23)
 
 - modes: each writer sets its mode, announces once on a change, and a repeat is silent
 - modes: test_refuse_in_combat — a start is refused in combat with one gray line, and nothing changes
@@ -543,6 +583,9 @@ Total.
 - modes: entering combat stops the sim session and puts the live range back
 - modes: /rm sim passes any other word to the simulator's own verbs
 - modes: the simulator's seam leaves no Compat member unwrapped
+- modes: Sim mode answers band rules from its distance and the anchors' reported ranges
+- modes: Sim reads a melee anchor reported at 0 yd as melee reach, and walks through the dead zone (review D6)
+- modes: Test mode draws its placeholder band on a set of band rules
 
 ### test_optionssetup.lua (16)
 
@@ -606,7 +649,7 @@ Total.
 - settings: test_dot_style_tiles_onrelease — a release the page does not see still takes the tiles off their slot
 - settings: test_dot_shape_row — the Shape row offers the seven shapes, Bar and Spell icon, and /rm set takes the new ones
 
-### test_settings_bandsets.lua (6)
+### test_settings_bandsets.lua (11)
 
 - bandsets: test_bandset_paths_get_set — /rm set bandSet.matchBy changes the selected band set
 - bandsets: SetBand moves an edge and the next band follows; an edge that would leave no width is refused
@@ -614,6 +657,11 @@ Total.
 - bandsets: SetField refuses what is not a band-set field, and the name is Rename's
 - bandsets: deleting the selected band set selects its neighbor and moves its containers to the default
 - bandsets: the Band sets page draws General and Bands, and the editor's controls reach the writers
+- bandsets: Defined by writes the band's rule, and a spell band gets a role from its place
+- bandsets: a spell band's Role and Spell IDs write its rule; a bad list is refused
+- bandsets: the read-out names the anchor in use and its reported range, or the fallback yards
+- bandsets: the Bands tab draws the rule controls, Fallback on rule bands, and the rule in each heading
+- bandsets: a rebuild that moves an anchor redraws the page (the read-out)
 
 ### test_settings_presets.lua (14)
 
@@ -856,12 +904,12 @@ Total.
 |-------|------:|
 | test_loadorder.lua | 16 |
 | test_schema.lua | 36 |
-| test_database.lua | 18 |
-| test_bandsets.lua | 22 |
+| test_database.lua | 23 |
+| test_bandsets.lua | 24 |
 | test_container_manager.lua | 17 |
 | test_presets.lua | 13 |
 | test_number_format.lua | 5 |
-| test_container_render.lua | 52 |
+| test_container_render.lua | 53 |
 | test_anchors_screen.lua | 13 |
 | test_anchors_frame.lua | 17 |
 | test_anchors_nameplate.lua | 15 |
@@ -869,8 +917,8 @@ Total.
 | test_anchors_mockplate.lua | 5 |
 | test_visibility.lua | 11 |
 | test_sounds.lua | 12 |
-| test_compat.lua | 6 |
-| test_range.lua | 24 |
+| test_compat.lua | 14 |
+| test_range.lua | 48 |
 | test_ticker.lua | 13 |
 | test_envsetup.lua | 6 |
 | test_coresetup.lua | 8 |
@@ -883,11 +931,11 @@ Total.
 | test_layers.lua | 5 |
 | test_launcher.lua | 30 |
 | test_launcher_skin_entry.lua | 1 |
-| test_modes.lua | 20 |
+| test_modes.lua | 23 |
 | test_optionssetup.lua | 16 |
 | test_realpages.lua | 7 |
 | test_settings_containers.lua | 30 |
-| test_settings_bandsets.lua | 6 |
+| test_settings_bandsets.lua | 11 |
 | test_settings_presets.lua | 14 |
 | test_skinsetup.lua | 12 |
 | test_skin_picker.lua | 16 |
@@ -910,4 +958,4 @@ Total.
 | test_skin_switch.lua | 6 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **676** |
+| **Total** | **724** |

@@ -14,7 +14,10 @@ local addonName, NS = ...
 -- a pass (NS.Ticker.Refresh), so every container hears RANGE_UPDATED and renders through the live
 -- path: band changes repaint, and band sounds settle and play (modules/Sounds.lua). The range is the
 -- bracket one yard either side of the distance, `50+` at the far end, and a spell chip reads in range
--- while the distance is inside the spell's own range (NS.Compat.GetSpellInfo). Nothing is read from
+-- while the distance is inside the spell's own range (NS.Compat.GetSpellInfo). A band rule reads in
+-- range while the distance is inside its anchor's range as the client reported it at the last
+-- rebuild (NS.Range.Anchor: Hawk Eye's 41 yd, not the 35 stored); an anchor with no reported max
+-- range gives no answer, and the band reads its yards (dynamic-bands plan D3). Nothing is read from
 -- the client for it, so the seam wraps nothing (an empty compat table, as AbsorbTracker's), and
 -- nothing is stored: the panel's position is session-only and no setting is written.
 --
@@ -45,6 +48,8 @@ local Lib = LibStub and LibStub("LibKa0s-Sim-1.0", true)
 local session, seam
 local distance = 0
 local chatty = false
+-- The reach a melee anchor stands for in the fake world (the client's 5 yd combat range).
+local MELEE_REACH_YD = 5
 
 -- ---------------------------------------------------------------------------
 -- The fake range
@@ -62,9 +67,20 @@ local function inSpell(id)
     return distance >= (tonumber(minRange) or 0) and distance <= maxRange
 end
 
+--- A band rule's answer: the distance inside the anchor's reported range, or nil with no max. A
+--- reported max of 0 or less is a melee spell's (the client gives no number for melee reach), read as
+--- MELEE_REACH_YD.
+local function inRole(anchor)
+    local maxRange = anchor and anchor.maxRange
+    if type(maxRange) ~= "number" then return nil end
+    if maxRange <= 0 then maxRange = MELEE_REACH_YD end
+    return distance >= (tonumber(anchor.minRange) or 0) and distance <= maxRange
+end
+
 Sim.Source = {
     Get = function() return bracket() end,
     InSpell = function(id) return inSpell(id) end,
+    InRole = function(_, _, anchor) return inRole(anchor) end,
 }
 
 -- ---------------------------------------------------------------------------

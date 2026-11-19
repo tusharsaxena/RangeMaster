@@ -5,8 +5,11 @@ local _, NS = ...
 --     strip  [ General ][ Bands ]
 --     General  [Name] [Match band by] / -- Unknown range -- [Unknown label] [Unknown color]
 --              Used by: Target, Pet            [Duplicate band set] [Delete band set…]
---     Bands    -- Band 1: 0–5 MELEE --  [Up to (yards)] [Label] / [Frame color] [Text color] /
---                                       [Dot color] [Sound on enter] / [Remove band]
+--     Bands    -- Band 1: 0–5 yd MELEE (Spell: Melee) --
+--                  [Defined by] [Role] / [Spell IDs] [Fallback (yards)] /
+--                  Now: Raptor Strike (2973), melee range   (the read-out; a spell band only)
+--                  [Label] [Frame color] / [Text color] [Dot color] / [Sound on enter] [Remove band]
+--              -- Band 2: 5–8 yd DEAD (Dead zone) --  [Defined by] [Fallback (yards)] / [Label] ...
 --              ...                      [Add band]
 --
 -- The General tab's rows are selection-relative, `bandSet.<field>` (settings/Schema.lua), so `/rm
@@ -19,6 +22,13 @@ local _, NS = ...
 -- THE BANDS ARE ORDERED BY DISTANCE, NOT BY HAND. modules/BandSets.lua keeps every set sorted by its
 -- edges, contiguous from 0 and open-ended, so a band's place in the list is its `Up to` and nothing
 -- else: the editor moves a band by moving its edge, and offers no reorder control.
+--
+-- A BAND'S RULE (dynamic-bands plan D5): Defined by picks Yards (no rule), Spell, Dead zone or Beyond
+-- the last spell band, written through NS.BandSets.SetBandRule. A spell band also takes a role and an
+-- optional list of spell IDs in place of the class's anchors, and shows a read-out of the anchor in
+-- use (NS.Range.AnchorFor) with the range the client reports, or the yards it falls back to when none
+-- is learned. On a band with a rule the edge slider is its Fallback (yards). ANCHORS_CHANGED redraws
+-- the page with BANDSETS_CHANGED, so the read-out follows a talent, form or level change.
 --
 -- THE BAND COLORS ARE A PALETTE (options-ui-§17): each identifies a band, not a player, so none takes
 -- a class-color companion. Class color is the container's own Color from (the Containers page).
@@ -146,12 +156,17 @@ local function soundValues()
 end
 local SOUNDS = soundValues()
 
---- A band's far edge, as a slider between its start and the next band's far edge.
+--- A band's far edge, as a slider between its start and the next band's far edge. On a band with a
+--- rule the yards are its fallback (used while its spell cannot answer), and the label says so.
 local function edgeItem(id, i, b, nextBand)
     local max = nextBand.to and (nextBand.to - 1) or math.max(100, b.from + 50)
+    local fallback = type(b.rule) == "table"
     return {
-        type = "number", label = L["Up to (yards)"], min = b.from + 1, max = max, step = 1,
-        tooltip = L["Where this band ends. The next band starts here."],
+        type = "number", label = fallback and L["Fallback (yards)"] or L["Up to (yards)"],
+        min = b.from + 1, max = max, step = 1,
+        tooltip = fallback
+            and L["Where this band ends while its rule cannot decide (a spell not learned, unusable or with no answer), and for its label. The next band starts here."]
+            or L["Where this band ends. The next band starts here."],
         get = function() return NS.BandSets.Get(id).bands[i].to end,
         set = function(v) NS.BandSets.SetBand(id, i, "to", v) end,
     }
@@ -189,11 +204,118 @@ local function removeItem(id, i)
     end }
 end
 
---- One band's controls, two to a line.
-local function bandItems(id, set, i)
-    local b, nextBand = set.bands[i], set.bands[i + 1]
+-- ── the band's rule (dynamic-bands plan D5) ──────────────────────────────────────────────────
+
+local DEFINED_BY = { yards = L["Yards"], spell = L["Spell"], gap = L["Dead zone"],
+    beyond = L["Beyond the last spell band"] }
+local DEFINED_BY_SORT = { "yards", "spell", "gap", "beyond" }
+local ROLES = { melee = L["Melee"], ranged = L["Ranged"], friendly = L["Friendly"] }
+local ROLES_SORT = { "melee", "ranged", "friendly" }
+
+--- The band's rule type as Defined by reads it: "yards" for none, or for one Resolve cannot read (an
+--- unknown type, a spell rule whose role is not one of the three).
+local function ruleType(b)
+    local r = b.rule
+    if type(r) ~= "table" or r.type == "yards" or not DEFINED_BY[r.type] then return "yards" end
+    if r.type == "spell" and not ROLES[r.role] then return "yards" end
+    return r.type
+end
+
+--- A band's span in yards, "0–5" or "40+".
+local function spanText(b)
+    return b.to and ("%d\226\128\147%d"):format(b.from, b.to) or ("%d+"):format(b.from)
+end
+
+--- The spell band's read-out: the anchor in use and the range the client reports for it, or the
+--- fallback yards when nothing is learned. Nil for a band that is not a spell band.
+local function readout(b)
+    if ruleType(b) ~= "spell" then return nil end
+    local a = NS.Range.AnchorFor(b.rule.role, b.rule.spells)
+    if not a then return L["Not learned: using %s yd"]:format(spanText(b)) end
+    local name = a.name and L["%s (%d)"]:format(a.name, a.id) or L["spell %d"]:format(a.id)
+    local range
+    if type(a.maxRange) ~= "number" then
+        range = L["range not reported"]
+    elseif a.maxRange <= 0 then
+        range = L["melee range"]
+    else
+        range = L["%s yd"]:format(("%d\226\128\147%d"):format(a.minRange or 0, a.maxRange))
+    end
+    return L["Now: %s, %s"]:format(name, range)
+end
+NS.__bandReadout = readout
+
+--- Write band `i`'s Defined by: a spell band keeps its role and list, and a new one takes melee in
+--- the first band and ranged elsewhere. Yards clears the rule; the band's yards never move.
+local function setDefinedBy(id, i, v)
+    local b = NS.BandSets.Get(id).bands[i]
+    if v == "yards" then return NS.BandSets.SetBandRule(id, i, nil) end
+    if v ~= "spell" then return NS.BandSets.SetBandRule(id, i, { type = v }) end
+    if ruleType(b) == "spell" then return true end
+    return NS.BandSets.SetBandRule(id, i, { type = "spell", role = i == 1 and "melee" or "ranged" })
+end
+
+--- The spell IDs in `text` ("3044, 14281"), nil for none, or false when a part is not a whole ID.
+local function parseIds(text)
+    local ids = {}
+    for part in tostring(text or ""):gmatch("[^,%s]+") do
+        local n = tonumber(part)
+        if not n or n < 1 or n % 1 ~= 0 then return false end
+        ids[#ids + 1] = n
+    end
+    if #ids == 0 then return nil end
+    return ids
+end
+
+local function definedByItem(id, i)
     return {
-        nextBand and edgeItem(id, i, b, nextBand) or openEndItem(),
+        type = "string", values = DEFINED_BY, sorting = DEFINED_BY_SORT, label = L["Defined by"],
+        tooltip = L["What puts the unit in this band. Yards: its range reading. Spell: a spell of the role saying the unit is in range, which follows talents, gear and auras. Dead zone: too close for the ranged spell and too far for melee. Beyond the last spell band: every spell band's spell says out of range."],
+        get = function() return ruleType(NS.BandSets.Get(id).bands[i]) end,
+        set = function(v) setDefinedBy(id, i, v) end,
+    }
+end
+
+local function roleItem(id, i)
+    return {
+        type = "string", values = ROLES, sorting = ROLES_SORT, label = L["Role"],
+        tooltip = L["Which of your class's spells this band asks: a melee strike, a ranged attack, or a spell cast on friends."],
+        get = function() return NS.BandSets.Get(id).bands[i].rule.role end,
+        set = function(v)
+            local r = NS.BandSets.Get(id).bands[i].rule
+            NS.BandSets.SetBandRule(id, i, { type = "spell", role = v, spells = r.spells })
+        end,
+    }
+end
+
+local function spellIdsItem(id, i)
+    return {
+        type = "string", dialogControl = "EditBox", maxLetters = 80, label = L["Spell IDs"],
+        tooltip = L["Spells this band asks in place of your class's, by ID, separated by commas; the first one you know is used. Empty: your class's spells for the role. Press Enter to apply."],
+        get = function()
+            local spells = NS.BandSets.Get(id).bands[i].rule.spells
+            if type(spells) ~= "table" then return "" end
+            local parts = {}
+            for k, v in ipairs(spells) do parts[k] = tostring(v) end
+            return table.concat(parts, ", ")
+        end,
+        set = function(v)
+            local ids = parseIds(v)
+            if ids == false then return print(L["Spell IDs are whole numbers, separated by commas."]) end
+            local r = NS.BandSets.Get(id).bands[i].rule
+            NS.BandSets.SetBandRule(id, i, { type = "spell", role = r.role, spells = ids })
+        end,
+    }
+end
+
+--- The read-out, dim on a line of its own (a note row: no path, no value).
+local function readoutItem(b)
+    return { type = "note", text = readout(b) or "" }
+end
+
+--- The controls every band has after its yards.
+local function bandTail(id, i)
+    return {
         { type = "string", dialogControl = "EditBox", maxLetters = 12, label = L["Label"],
           tooltip = L["The band's name, which the text label shows."],
           get = function() return NS.BandSets.Get(id).bands[i].label end,
@@ -209,10 +331,30 @@ local function bandItems(id, set, i)
     }
 end
 
---- One band's heading text: its place, its span and its label.
+--- One band's controls, two to a line: Defined by first, then (a spell band) its role, its spell
+--- override and the read-out, then the yards, the label, the colors, the sound and Remove.
+local function bandItems(id, set, i)
+    local b, nextBand = set.bands[i], set.bands[i + 1]
+    local items = { definedByItem(id, i) }
+    local spell = ruleType(b) == "spell"
+    if spell then
+        items[#items + 1] = roleItem(id, i)
+        items[#items + 1] = spellIdsItem(id, i)
+    end
+    items[#items + 1] = nextBand and edgeItem(id, i, b, nextBand) or openEndItem()
+    if spell then items[#items + 1] = readoutItem(b) end
+    for _, item in ipairs(bandTail(id, i)) do items[#items + 1] = item end
+    return items
+end
+
+--- One band's heading text: its place, its span, its label and, on a band with a rule, the rule.
 local function bandHeading(i, b)
-    local span = b.to and ("%d\226\128\147%d"):format(b.from, b.to) or ("%d+"):format(b.from)
-    return L["Band %d: %s yd %s"]:format(i, span, b.label)
+    local text = L["Band %d: %s yd %s"]:format(i, spanText(b), b.label)
+    local kind = ruleType(b)
+    if kind == "yards" then return text end
+    local rule = kind == "spell" and L["Spell: %s"]:format(ROLES[b.rule.role] or tostring(b.rule.role))
+        or DEFINED_BY[kind]
+    return L["%s (%s)"]:format(text, rule)
 end
 
 local function renderBands(ctx)
@@ -252,7 +394,7 @@ end
 local render
 
 local OPTS = {
-    tabs = { { key = BANDS, label = BANDS, tooltip = L["Each band's edge, label, colors and sound."],
+    tabs = { { key = BANDS, label = BANDS, tooltip = L["Each band's rule, edge, label, colors and sound."],
                render = function(ctx) renderBands(ctx) end } },
     rerender = function(ctx) render(ctx) end,
 }
@@ -278,7 +420,12 @@ NS.__bandItems = bandItems
 -- A band-set write from anywhere (this page, a preset, `/rm set bandSet.*`) redraws the pages on the
 -- next frame: the band headings and the Containers page's band-set pickers all read it.
 local target = NS.NewBusTarget and NS.NewBusTarget()
-if target then target:RegisterMessage(NS.MSG.BANDSETS_CHANGED, function() NS.RequestPanelRefresh() end) end
+-- A rebuild that moved an anchor (ANCHORS_CHANGED, modules/Range.lua) redraws them too: a spell
+-- band's read-out names the anchor in use and the range the client reports for it.
+if target then
+    target:RegisterMessage(NS.MSG.BANDSETS_CHANGED, function() NS.RequestPanelRefresh() end)
+    target:RegisterMessage(NS.MSG.ANCHORS_CHANGED, function() NS.RequestPanelRefresh() end)
+end
 
 local function build(mainCategory)
     if not (Settings and Settings.RegisterCanvasLayoutSubcategory) then return nil end

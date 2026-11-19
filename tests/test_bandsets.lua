@@ -44,6 +44,16 @@ local function labels(bands)
   return table.concat(out, ",")
 end
 
+--- A preset's rules, one word a band: yards, melee, ranged, friendly, gap or beyond.
+local function rules(bands)
+  local out = {}
+  for i, b in ipairs(bands) do
+    local r = b.rule
+    out[i] = r == nil and "yards" or (r.type == "spell" and r.role or r.type)
+  end
+  return table.concat(out, ",")
+end
+
 --- Count BANDSETS_CHANGED sends while `fn` runs.
 local function countChanged(fn)
   local target, n = NS.NewBusTarget(), 0
@@ -353,18 +363,32 @@ test("bandsets: test_hunter_preset_per_client — Forever has the 5-8 dead zone,
   for _, b in ipairs(byClient.retail.bands) do assertTrue(b.label ~= "DEAD", "retail has no dead zone") end
   assertEqual(byClient.retail.bands[2].to, 40)
   assertTrue(P.hunter == byClient[NS.Compat.ClientKey()], "the hunter preset is the running client's")
+  -- The rules (plan 2026-11-19-dynamic-bands, D4); the yards above are each band's fallback.
+  assertEqual(rules(byClient.forever.bands), "melee,gap,ranged,beyond", "MELEE, DEAD, AUTO, OOR")
+  assertEqual(rules(byClient.retail.bands), "melee,ranged,beyond", "MELEE, RANGED, OOR")
 end)
 
 test("bandsets: the four presets have the spec's shape, every one well formed", function()
   assertEqual(labels(P.melee_ranged.bands), "MELEE,CLOSE,MID,LONG,OOR")
+  assertEqual(rules(P.melee_ranged.bands), "melee,yards,yards,ranged,beyond")
+  assertEqual(labels(P.caster40.bands), "CLOSE,CAST,OOR", "a caster: a yard first band, CAST, OOR")
+  assertEqual(rules(P.caster40.bands), "yards,ranged,beyond")
+  assertEqual(P.caster40.bands[1].to, 8)
+  assertEqual(P.caster40.bands[2].to, 40)
   assertEqual(labels(P.healer.bands), "NEAR,FAR,OOR")
+  assertEqual(rules(P.healer.bands), "yards,friendly,beyond")
   assertEqual(P.healer.bands[1].to, 30)
   withFreshProfile(function()
     for _, key in ipairs(P.ORDER) do
       local preset = P[key]
       assertEqual(type(preset.name), "string", key)
       assertEqual(preset.matchBy, "max", key)
-      assertWellFormed(B.Create(preset.name, key))
+      local id = B.Create(preset.name, key)
+      assertWellFormed(id)
+      assertEqual(rules(B.Get(id).bands), rules(preset.bands), key .. ": the stored copy carries the rules")
+      for i, b in ipairs(B.Get(id).bands) do
+        assertTrue(b.rule == nil or b.rule ~= preset.bands[i].rule, key .. ": a rule is copied, never shared")
+      end
     end
   end)
 end)
@@ -401,5 +425,55 @@ test("bandsets: a restore never rewinds the id counter, so a later Create mints 
     local used = { [B.Create("A")] = true, [B.Create("B")] = true }
     assertTrue(B.RestoreSnapshot(snap))
     assertFalse(used[B.Create("C")] == true)
+  end)
+end)
+
+-- ── the band rule writer (dynamic-bands plan D5) ─────────────────────────────────────────────
+
+test("bandsets: SetBandRule writes a band's rule as a copy, nil makes a yard band, and announces", function()
+  -- red under: no SetBandRule (the Band sets page's Defined by, role and spell override write here).
+  withFreshProfile(function()
+    local id = B.Create("Rules", { { from = 0, to = 5, label = "A" }, { from = 5, to = 30, label = "B" },
+      { from = 30, label = "C" } })
+    local spells = { 3044, 14281 }
+    assertEqual(countChanged(function()
+      assertTrue(B.SetBandRule(id, 2, { type = "spell", role = "ranged", spells = spells }))
+    end), 1, "one BANDSETS_CHANGED")
+    local rule = B.Get(id).bands[2].rule
+    assertEqual(rule.type, "spell")
+    assertEqual(rule.role, "ranged")
+    assertEqual(rule.spells[2], 14281)
+    assertTrue(rule.spells ~= spells, "the list is a copy, never the caller's table (D3's per-list cache)")
+    assertTrue(B.SetBandRule(id, 1, { type = "gap" }))
+    assertEqual(B.Get(id).bands[1].rule.type, "gap")
+    assertTrue(B.SetBandRule(id, 3, { type = "beyond" }))
+    assertEqual(B.Get(id).bands[3].rule.type, "beyond")
+    assertTrue(B.SetBandRule(id, 3, nil), "nil: a yard band")
+    assertNil(B.Get(id).bands[3].rule)
+    assertTrue(B.SetBandRule(id, 2, { type = "spell", role = "melee" }))
+    assertNil(B.Get(id).bands[2].rule.spells, "no list: the class's anchors for the role")
+    assertEqual(B.Get(id).bands[2].from, 5, "the yards never move")
+    assertEqual(B.Get(id).bands[2].to, 30)
+  end)
+end)
+
+test("bandsets: SetBandRule refuses a bad set, band, type, role or spell list, and announces nothing", function()
+  withFreshProfile(function()
+    local id = B.DefaultId()
+    local before = NS.Database.DeepCopy(B.Get(id).bands[1].rule)
+    assertEqual(countChanged(function()
+      assertFalse(B.SetBandRule(999, 1, { type = "gap" }), "an unknown set")
+      assertFalse(B.SetBandRule(id, 99, { type = "gap" }), "a band the set does not have")
+      assertFalse(B.SetBandRule(id, 1, { type = "mark" }), "an unknown type")
+      assertFalse(B.SetBandRule(id, 1, "gap"), "a rule that is not a table")
+      assertFalse(B.SetBandRule(id, 1, { type = "spell" }), "a spell rule with no role")
+      assertFalse(B.SetBandRule(id, 1, { type = "spell", role = "long" }), "a role outside the three")
+      assertFalse(B.SetBandRule(id, 1, { type = "spell", role = "melee", spells = {} }), "an empty list")
+      assertFalse(B.SetBandRule(id, 1, { type = "spell", role = "melee", spells = { 0 } }), "an ID under 1")
+      assertFalse(B.SetBandRule(id, 1, { type = "spell", role = "melee", spells = { 1.5 } }), "a fraction")
+      assertFalse(B.SetBandRule(id, 1, { type = "spell", role = "melee", spells = { "x" } }), "not a number")
+    end), 0, "a refusal announces nothing")
+    local after = B.Get(id).bands[1].rule
+    assertEqual(after and after.type, before and before.type, "and leaves the rule as it was")
   end)
 end)

@@ -22,8 +22,11 @@ Loader.addonName = "RangeMaster"
 local LIB_FILES = Loader.xmlFiles("libs/LibKa0s/LibKa0s.xml")
 -- LibRangeCheck-3.0, which the TOC lists by its own line rather than through an XML, so neither
 -- derivation above reaches it. Loaded after LibKa0s, as the TOC orders it, so a suite reaches the
--- vendored estimator through LibStub; tests/wow_mock.lua answers what it reads at load.
-local RANGECHECK_FILES = { "libs/LibRangeCheck-3.0/LibRangeCheck-3.0.lua" }
+-- vendored estimator through LibStub; tests/wow_mock.lua answers what it reads at load. The real
+-- CallbackHandler-1.0 loads first (the TOC loads it through its XML, before the estimator): the
+-- estimator's CHECKERS_CHANGED callback, a rebuild trigger (core/RangeMaster.lua), is built on it.
+local RANGECHECK_FILES = { "libs/CallbackHandler-1.0/CallbackHandler-1.0.lua",
+  "libs/LibRangeCheck-3.0/LibRangeCheck-3.0.lua" }
 
 -- The addon's own files come from the TOC, so this runner cannot drift from what the client loads.
 local ADDON_FILES = Loader.tocFiles("RangeMaster.toc")

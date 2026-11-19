@@ -6,7 +6,8 @@ local _, NS = ...
 -- ClientKey, ForClient; clients-§3), the secret-value guards (IsSecret, CanAccess, IsSafeKey;
 -- events-frames-taint-§8) and the spell-info reader (GetSpellInfo). It owns the range engine's client
 -- reads (IsEventValid, IsSpellKnown, SpellInRange, ItemInRange, InteractInRange, CanAttack), the
--- two unit reads the band sets make (IsFriend, PlayerClass), each pcall-wrapped and secret-checked,
+-- band rules' anchor reads (CurrentSpellID and AnchorInRange, built on those, and ShapeshiftFormID),
+-- the two unit reads the band sets make (IsFriend, PlayerClass), each pcall-wrapped and secret-checked,
 -- the anchors' frame reads (NamePlateForUnit, PlateToken, NamePlates, GetMouseFocus), each
 -- forbidden-checked, and the per-client range ladder (RangeLadder). No other file of
 -- this addon reads a WOW_PROJECT_* global or decides the client from an interface number. Every
@@ -159,6 +160,59 @@ end
 function Compat.SpellInRange(id, unit)
     if not (C_Spell and C_Spell.IsSpellInRange) then return nil end
     return rangeAnswer(pcall(C_Spell.IsSpellInRange, id, unit))
+end
+
+-- ---------------------------------------------------------------------------
+-- The anchor reads (dynamic-bands plan D1; docs/compat-layer.md)
+-- ---------------------------------------------------------------------------
+-- A band's spell rule asks its role's anchor spell "in range?". The anchor is resolved once per
+-- rebuild (CurrentSpellID: the learned rank, then a known override) and asked per tick
+-- (AnchorInRange). Both are built on the shims above, so no client call is wrapped twice.
+
+--- A plain positive spell ID, or nil (a secret, a non-number, 0 or less).
+local function plainId(v)
+    if Compat.IsSecret(v) or type(v) ~= "number" or v <= 0 then return nil end
+    return v
+end
+
+--- The ID to ask for the spell `id` now: the rank the spellbook holds under its name (a Forever
+--- seed is rank 1; LibRangeCheck-3.0's findSpellIdx also asks by name), then that spell's override
+--- when the player knows the override (a hero-talent swap). nil when the client has no such spell
+--- (or no spell-info reader); the ID itself when the name lookup answers nothing. The name is the
+--- client's own localized one, never a hard-coded string. Asked at rebuild, never per tick.
+--- @return number|nil
+function Compat.CurrentSpellID(id)
+    if type(id) ~= "number" then return nil end
+    local name = Compat.GetSpellInfo(id)
+    if name == nil or Compat.IsSecret(name) then return nil end
+    local cur = plainId(select(6, Compat.GetSpellInfo(name))) or id
+    if C_Spell and C_Spell.GetOverrideSpell then
+        local ok, ov = pcall(C_Spell.GetOverrideSpell, cur)
+        ov = ok and plainId(ov) or nil
+        if ov and ov ~= cur and Compat.IsSpellKnown(ov) then cur = ov end
+    end
+    return cur
+end
+
+--- Whether `unit` is within the anchor spell `id`'s range: true, false, or nil when the anchor
+--- cannot vouch (not known, not usable right now, not applicable, a raise or a secret). A nil is
+--- never read as false: the band falls back to its yards (dynamic-bands plan, the owner's rulings).
+--- `id` is the rebuild's CurrentSpellID answer.
+--- @return boolean|nil
+function Compat.AnchorInRange(id, unit)
+    if not Compat.IsSpellKnown(id) or not Compat.IsSpellUsable(id) then return nil end
+    return Compat.SpellInRange(id, unit)
+end
+
+--- The player's shapeshift form ID (GetShapeshiftFormID: 1 Cat, 5 Bear, ...), or nil when the
+--- player is in no form, the client will not say, or the answer is a secret. Read by the anchor
+--- resolver (modules/Range.lua), which keys a druid's melee anchor by form.
+--- @return number|nil
+function Compat.ShapeshiftFormID()
+    if not GetShapeshiftFormID then return nil end
+    local ok, v = pcall(GetShapeshiftFormID)
+    if not ok then return nil end
+    return plainId(v)
 end
 
 --- Whether `unit` is within the item `id`'s use range: true, false, or nil. The client refuses

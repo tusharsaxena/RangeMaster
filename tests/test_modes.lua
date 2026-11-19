@@ -596,3 +596,92 @@ test("modes: the simulator's seam leaves no Compat member unwrapped", function()
   assertTrue(seam ~= nil, "the seam exists")
   assertEqual(#seam:Unwrapped(), 0)
 end)
+
+-- ---------------------------------------------------------------------------
+-- The previews and the band rules (dynamic-bands plan D3)
+-- ---------------------------------------------------------------------------
+
+local RULE_BANDS = {
+  { from = 0, to = 5, label = "MELEE", rule = { type = "spell", role = "melee" } },
+  { from = 5, to = 8, label = "DEAD", rule = { type = "gap" } },
+  { from = 8, to = 35, label = "AUTO", rule = { type = "spell", role = "ranged" } },
+  { from = 35, label = "OOR", rule = { type = "beyond" } },
+}
+
+--- Run `body` with NS.Range.Anchor answering a hunter's anchors as the client reports them (Auto
+--- Shot 8-41, a Hawk Eye range), restored however it ends.
+local function withHunterAnchors(body)
+  local real = NS.Range.Anchor
+  local A = { melee = { id = 2973, minRange = 0, maxRange = 5 }, ranged = { id = 75, minRange = 8, maxRange = 41 } }
+  NS.Range.Anchor = function(role) return A[role] end
+  local ok, err = pcall(body)
+  NS.Range.Anchor = real
+  if not ok then error(err, 0) end
+end
+
+test("modes: Sim mode answers band rules from its distance and the anchors' reported ranges", function()
+  -- red under: a sweep whose rule bands read their yards (40 yd is past AUTO's 35 yd edge) or every
+  -- chip's in-range answer (Auto Shot in range at 0 yd would never read MELEE first).
+  off()
+  withEnv(function()
+    withHunterAnchors(function()
+      local setId = NS.BandSets.Create("Sim rules", RULE_BANDS)
+      local _, inst = H.container("target", { bandSet = setId })
+      assertTrue(NS.SetSimMode(true, "test"))
+      assertEqual(NS.Range.RoleInRange("ranged", "target"), false, "at 0 yd, inside Auto Shot's 8 yd min: false")
+      local session = NS.Sim.Session()
+      local bands = { inst.bandIndex }
+      for _ = 1, 30 do
+        session:Step()
+        if not session:IsActive() then break end
+        bands[#bands + 1] = inst.bandIndex
+      end
+      assertEqual(table.concat(bands, ","), "1,1,3,3,3,3,3,3,3,4,4,4,3,3,3,3,3,3,3,1,1",
+        "melee to 5 yd, Auto Shot to 41 yd, then beyond, out and back")
+    end)
+  end)
+  off()
+end)
+
+test("modes: Sim reads a melee anchor reported at 0 yd as melee reach, and walks through the dead zone (review D6)", function()
+  -- red under: a reported max of 0 read as a real reach (MELEE false past 0 yd, DEAD from 1 to 7 yd).
+  off()
+  local realAnchor, realStep = NS.Range.Anchor, NS.Sim.STEP_YD
+  local A = { melee = { id = 2973, minRange = 0, maxRange = 0 }, ranged = { id = 75, minRange = 8, maxRange = 41 } }
+  NS.Range.Anchor = function(role) return A[role] end
+  NS.Sim.STEP_YD = 1
+  local ok, err = pcall(withEnv, function()
+    local setId = NS.BandSets.Create("Sim melee 0", RULE_BANDS)
+    local _, inst = H.container("target", { bandSet = setId })
+    assertTrue(NS.SetSimMode(true, "test"))
+    local session = NS.Sim.Session()
+    local byYd = { [0] = inst.bandIndex }
+    for yd = 1, 44 do
+      session:Step()
+      byYd[yd] = inst.bandIndex
+    end
+    local got = {}
+    for yd = 0, 44 do got[#got + 1] = byYd[yd] end
+    assertEqual(table.concat(got, ","), "1,1,1,1,1,1,2,2" .. string.rep(",3", 34) .. ",4,4,4",
+      "MELEE to 5 yd, DEAD at 6-7, AUTO 8-41, OOR past it")
+    NS.SetSimMode(false, "test")
+  end)
+  NS.Range.Anchor, NS.Sim.STEP_YD = realAnchor, realStep
+  off()
+  if not ok then error(err, 0) end
+end)
+
+test("modes: Test mode draws its placeholder band on a set of band rules", function()
+  -- red under: a Test-mode rule read through its every-spell-in-range chip answer (MELEE at 20-25).
+  off()
+  withEnv(function()
+    withHunterAnchors(function()
+      local setId = NS.BandSets.Create("Test rules", RULE_BANDS)
+      local _, inst = H.container("target", { bandSet = setId })
+      assertTrue(NS.SetTestMode(true, "test"))
+      assertEqual(inst.bandIndex, 3, "the 20-25 placeholder reads AUTO by its yards")
+      NS.SetTestMode(false, "test")
+    end)
+  end)
+  off()
+end)

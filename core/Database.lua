@@ -236,8 +236,60 @@ local function keepStoredLook(db)
     end)
 end
 
+--- Whether a stored set name is the Healer preset's, in the running locale or in English.
+local function isHealerName(name)
+    if type(name) ~= "string" then return false end
+    name = name:match("^%s*(.-)%s*$"):lower()
+    return name == "healer" or name == tostring(NS.L["Healer"]):lower()
+end
+
+--- The sets of one profile used only as a friendly override: some container's bandSetFriendly, no
+--- container's own bandSet (a container with none reads the default set, the first in the order; with
+--- no usable order, as in a hand-edited profile the load pass has not repaired yet, it counts for none).
+local function friendlyOnlySets(p)
+    local own, friendly = {}, {}
+    local default
+    for _, id in ipairs(type(p.bandSetOrder) == "table" and p.bandSetOrder or {}) do
+        if p.bandSets[id] ~= nil then
+            default = id
+            break
+        end
+    end
+    for _, c in pairs(type(p.containers) == "table" and p.containers or {}) do
+        if type(c) == "table" then
+            local key = c.bandSet
+            if key == nil then key = default end
+            if key ~= nil then own[key] = true end
+            if c.bandSetFriendly ~= nil then friendly[c.bandSetFriendly] = true end
+        end
+    end
+    local out = {}
+    for id in pairs(friendly) do
+        if not own[id] then out[id] = true end
+    end
+    return out
+end
+
+--- v1 -> v2, band rules (plan 2026-11-19-dynamic-bands, D4): every stored band set, custom ones
+--- included, in every profile, gets the rules its yards suggest (NS.BandSets.ConvertSet), spell(friendly)
+--- in place of spell(ranged) for a set used only as a friendly override or named Healer. The yards stay,
+--- as each band's fallback. A fresh install climbs it against a profile with no band set (the load pass
+--- then seeds the presets, which carry their rules).
+local function convertBandRules(db)
+    eachProfile(db, function(p)
+        if type(p.bandSets) ~= "table" then return end
+        local friendlyOnly = friendlyOnlySets(p)
+        for id, set in pairs(p.bandSets) do
+            if type(set) == "table" then
+                NS.BandSets.ConvertSet(set, friendlyOnly[id] or isHealerName(set.name))
+            end
+        end
+    end)
+end
+
 local SCHEMA_STEPS = {
     { to = 1, apply = keepStoredLook },
+    { to = 2, apply = convertBandRules },
 }
 
 --- The runner's target: the highest step's `to`, or 0 with no step.

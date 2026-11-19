@@ -55,8 +55,9 @@ declared, or declared but missing. Every kit suite is declared by its directory.
 It proves what can be proved without a client: the setup files' descriptors and their degradation
 stubs (loaded for real with LibKa0s absent, `tests/degraded_env.lua`), the schema and its write seam,
 the latch and the disabled state, the range engine over a scripted LibRangeCheck and Compat ladder
-(secrets, raises, a unit vanishing mid-tick), the ticker's rate and stop, the band-set normalizer and
-resolver, the container registry and the presets, the renderer's elements, the four anchor modes
+(secrets, raises, a unit vanishing mid-tick), the ticker's rate and stop, the anchor resolver and its
+rebuild triggers, the band-set normalizer and resolver with its spell, dead-zone and beyond rules (the
+owner's Hawk Eye case among them), the v1 -> v2 band-rule migration, the container registry and the presets, the renderer's elements, the four anchor modes
 (screen drag, unit frames missing and then loaded, combat-held writes, nameplate recycling, the
 cursor), the visibility and sound rules, Test mode and Sim mode, the slash surface, the launcher, the
 skin seam, the settings pages and their selection-relative rows, and the documentation gates. The

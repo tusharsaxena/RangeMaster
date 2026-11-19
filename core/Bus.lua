@@ -98,6 +98,10 @@ NS.MSG = Bus.Catalog(addonName, {
     -- Sender: modules/BandSets.lua. Payload: none. A band set was created, deleted, renamed or
     -- edited.
     BANDSETS_CHANGED   = "Ka0s_RangeMaster_BandSetsChanged",
+    -- Sender: modules/Range.lua (the debounced rebuild, dynamic-bands plan D2). Payload: none. A
+    -- band rule's resolved anchor spell, its reported range, or the one a druid's form puts in use
+    -- moved; sent only on change.
+    ANCHORS_CHANGED    = "Ka0s_RangeMaster_AnchorsChanged",
     -- Sender: core/RangeMaster.lua (NS.SetTestMode / NS.SetSimMode). Payload: (mode, on, why), mode
     -- one of "test" or "sim", why the writer's reason ("combat started", "stood down", a surface).
     -- Test mode or Sim mode started or ended.

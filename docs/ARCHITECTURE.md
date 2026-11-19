@@ -16,8 +16,11 @@ addon shares (the Ace3 addon object, AceDB with its migration runner, the LibKa0
 slash surface, the launcher, the stand-down latch and the diagnostics report), and on it the range
 engine, the band sets, the container registry and its presets, the renderer, the four anchor modes,
 the visibility and sound rules, Test mode and Sim mode, and the settings pages (General with its
-Presets tab, Containers, Band sets, Profiles). The addon has not been run in a client yet: every
-in-game check in `docs/smoke-tests.md` is still owed.
+Presets tab, Containers, Band sets, Profiles). On top of it the spell-driven dynamic bands
+(`docs/superpowers/plans/2026-11-19-dynamic-bands.md`): a band may carry a spell rule decided each
+tick by the class's anchor spells, with its yards as the fallback, and schema v2 converts every
+stored set. The addon has not been run in a client yet: every in-game check in
+`docs/smoke-tests.md` is still owed.
 
 **The design is dictated by one client fact.** The game answers "is this unit within reach of
 spell or item X", never "how far". The range engine asks LibRangeCheck-3.0 (vendored,
@@ -29,8 +32,8 @@ change. A secret or failed answer reads as *unknown*, never as out of range.
 
 | Component | Files | What it does |
 |---|---|---|
-| Range engine | `modules/Range.lua` (`NS.Range`), `modules/Ticker.lua` (`NS.Ticker`), `core/Compat.lua` | A guarded, memoized bracket per unit token per tick; one adaptive ticker that sends `RANGE_UPDATED` on change |
-| Band sets | `modules/BandSets.lua` (`NS.BandSets`), `defaults/BandSetPresets.lua` | Named, shared, normalized yard bands; `Resolve` turns a bracket into a band, `ForUnit` picks the friendly override |
+| Range engine | `modules/Range.lua` (`NS.Range`), `modules/Ticker.lua` (`NS.Ticker`), `core/Compat.lua` | A guarded, memoized bracket per unit token per tick; the per-class anchor spells resolved at rebuild and asked once per spell per unit per tick (shared with the chips); one adaptive ticker that sends `RANGE_UPDATED` on change |
+| Band sets | `modules/BandSets.lua` (`NS.BandSets`), `defaults/BandSetPresets.lua` | Named, shared, normalized bands of yards, each of which may carry a spell, dead-zone or beyond rule (its yards then the fallback); `Resolve` turns a bracket into a band, `ForUnit` picks the friendly override |
 | Containers and presets | `modules/ContainerManager.lua` (`NS.CM`), `modules/Presets.lua` (`NS.Presets`) | The container registry's one writer and its coalesced, combat-held apply; Simple, Intermediate (Range Text), Intermediate (Range Numbers), Advanced and Expert, with a one-level Undo |
 | Rendering | `modules/Container.lua` (`NS.Container`), `modules/Style.lua`, `modules/Elements_*.lua` | One pooled instance per enabled container (one per plate for `nameplates`), repainted only on a band or text change |
 | Anchors | `modules/Anchors.lua` (`NS.Anchors`), `modules/Anchors_*.lua`, `modules/FrameProviders.lua`, `modules/FramePicker.lua` | Free on screen, on a unit frame, on a nameplate (own plate or every plate), at the cursor |
@@ -106,14 +109,16 @@ band set, seeds the four preset band sets on a profile with none, points a conta
 set when its `bandSet` names none, and sets `seeded` to `false` when absent.
 
 - **Band sets**: `bandSets`, `bandSetOrder`, `nextBandSetId`. Runtime writer `modules/BandSets.lua`
-  (`Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`, `SetBandSound`, `RestoreSnapshot`); its
+  (`Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`, `SetBandSound`, `SetBandRule`, `RestoreSnapshot`); its
   seed routine `BandSets.Seed` and its
-  per-set repair `BandSets.NormalizeSet` are shared with the load pass. `Delete` also moves the
+  per-set repair `BandSets.NormalizeSet` are shared with the load pass, and its v1 -> v2 conversion
+  `BandSets.ConvertSet` with the migration ladder (`docs/schema.md`). `Delete` also moves the
   `bandSet` / `bandSetFriendly` references of the containers that used the deleted set, through the
   container registry's writer `NS.CM.SetField` (architecture-§5). The Band
   sets page writes through `SetField` (match rule, unknown label and color), `SetBand` (an edge, a
   label, a color; an edge that would leave a band without width is refused), `AddBand` and
-  `RemoveBand`, each normalizing after the write.
+  `RemoveBand`, each normalizing after the write, and `SetBandRule` (a band's rule: Defined by, Role,
+  Spell IDs), which touches no edge and so normalizes nothing.
 - **Containers**: `containers`, `containerOrder`, `nextContainerId`, and the first-run sentinel
   `seeded`. Runtime writer `modules/ContainerManager.lua` (`NS.CM`: `Create`, `Delete`, `Duplicate`,
   `Rename`, `CopySettings`, `Clear`, `RestoreSnapshot`, `SetField` for one dotted field, which
@@ -133,7 +138,7 @@ angle); the owner is `core/LauncherSetup.lua`, and its writers are LibDBIcon its
 
 ## Message Bus
 
-Four messages, declared once in `core/Bus.lua` through `LibKa0s-Bus-1.0`'s strict `Catalog`; every
+Five messages, declared once in `core/Bus.lua` through `LibKa0s-Bus-1.0`'s strict `Catalog`; every
 receiver registers on its own `NS.NewBusTarget()` (architecture-§4), and the targets are tracked so a
 stand-down takes every subscription down and a stand-up replays it.
 
@@ -141,7 +146,8 @@ stand-down takes every subscription down and a stand-up replays it.
 |---|---|---|---|---|
 | `RANGE_UPDATED` | `Ka0s_RangeMaster_RangeUpdated` | `modules/Ticker.lua` | `unit, state, minYd, maxYd` | `modules/Container.lua`: the instances watching that unit |
 | `CONTAINERS_CHANGED` | `Ka0s_RangeMaster_ContainersChanged` | `modules/ContainerManager.lua` (`FlushPending`, coalesced to the next frame, held in combat) | none | the renderer (`NS.Container.Sync`) |
-| `BANDSETS_CHANGED` | `Ka0s_RangeMaster_BandSetsChanged` | `modules/BandSets.lua` (every writer: `Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`, `SetField`, `SetBand`, `AddBand`, `RemoveBand`, `SetBandSound`, `RestoreSnapshot`; never the load pass) | none | the renderer (`Repaint`) and `settings/BandSets.lua` (a redraw of the pages, coalesced to the next frame) |
+| `BANDSETS_CHANGED` | `Ka0s_RangeMaster_BandSetsChanged` | `modules/BandSets.lua` (every writer: `Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`, `SetField`, `SetBand`, `AddBand`, `RemoveBand`, `SetBandSound`, `SetBandRule`, `RestoreSnapshot`; never the load pass) | none | the renderer (`Repaint`) and `settings/BandSets.lua` (a redraw of the pages, coalesced to the next frame) |
+| `ANCHORS_CHANGED` | `Ka0s_RangeMaster_AnchorsChanged` | `modules/Range.lua` (the debounced rebuild, only when a band rule's resolved anchor spell, its reported range, or the anchor a druid's form puts in use moved) | none | the renderer (`Repaint`); the Band sets page (`settings/BandSets.lua`, a redraw for the spell bands' read-out) |
 | `MODE_CHANGED` | `Ka0s_RangeMaster_ModeChanged` | `core/RangeMaster.lua` (`NS.SetTestMode`, `NS.SetSimMode`) | `mode` (`"test"` or `"sim"`), `on`, `why` | `modules/Preview.lua` (what the displays draw) and `modules/Sim.lua` (starts or stops the sweep) |
 
 Ten or fewer messages, so `docs/message-bus.md` is not required; this table is the register.
@@ -171,12 +177,18 @@ Each verb, its arguments and its refusals: `docs/slash-dispatch.md`.
 | `PLAYER_TARGET_CHANGED` | `addon:OnUnitChanged` | a unit change on `"target"`: `NS.Container.UnitChanged`, then `NS.Anchors.UnitChanged` (an own-plate container moves to the new unit's plate, and a plate token's eligibility for the `nameplates` containers is asked again), then `NS.Ticker.Changed` |
 | `PLAYER_FOCUS_CHANGED` | `addon:OnUnitChanged` | the same on `"focus"`; registered only where `NS.Compat.IsEventValid` knows it (`ifValid`) |
 | `UPDATE_MOUSEOVER_UNIT` | `addon:OnUnitChanged` | the same on `"mouseover"` |
-| `UNIT_PET` | `addon:OnPetChanged` | the same on `"pet"`, for the player's own pet only |
+| `UNIT_PET` | `addon:OnPetChanged` | the same on `"pet"`, for the player's own pet only, and `NS.Range.Rebuild()` |
 | `NAME_PLATE_UNIT_ADDED` | `addon:OnNamePlateChanged` | `NS.Plates.Added(token)` (the plate tracked, its instances built, a re-check a frame later), then the same unit change on the plate's token |
 | `UNIT_FACTION` | `addon:OnUnitFaction` | the same on the unit named, a reaction change (the band set follows `bandSetFriendly`, and `NS.Anchors.UnitChanged` moves a plate into or out of a hostile-only `nameplates` container); `ifValid` |
 | `NAME_PLATE_UNIT_REMOVED` | `addon:OnNamePlateChanged` | `NS.Plates.Removed(token)` (its instances parked, an own-plate container on that plate frame hidden), then `NS.Ticker.Removed(token)`: `"none"` is sent outright, because the client still resolves the token while this event dispatches and a re-read would see the plate as live |
-| `SPELLS_CHANGED` | `addon:OnSpellsChanged` | `NS.Range.Rebuild()`, debounced 0.5 s: the known-spell cache is taken again and the ladder dropped, rebuilt on the next Forever walk (Retail builds none) |
+| `SPELLS_CHANGED` | `addon:OnSpellsChanged` | `NS.Range.Rebuild()`, debounced 0.5 s: the known-spell cache is taken again, the ladder dropped (rebuilt on the next Forever walk; Retail builds none), and the band rules' anchors resolved again (`ANCHORS_CHANGED` when they moved) |
+| `CHARACTER_POINTS_CHANGED`, `PLAYER_TALENT_UPDATE`, `TRAIT_CONFIG_UPDATED`, `ACTIVE_TALENT_GROUP_CHANGED`, `PLAYER_SPECIALIZATION_CHANGED`, `LEARNED_SPELL_IN_SKILL_LINE`, `PLAYER_LEVEL_UP`, `UPDATE_SHAPESHIFT_FORM`, `PLAYER_EQUIPMENT_CHANGED` | `addon:OnSpellsChanged` | the same rebuild: a talent, a spec, a new rank or level, a form or gear can move an anchor or its range; each `ifValid`, and `CHARACTER_POINTS_CHANGED` is never filtered on its count |
+| `CVAR_UPDATE` | `addon:OnCVarUpdate` | the same rebuild, for `ShowAllSpellRanks` only (it changes what a spell name resolves to); `ifValid` |
 | `ADDON_LOADED` | `addon:OnAddonLoaded` | `NS.Anchors.Frame.Retry`: a unit frame a container waits for may exist now |
+
+LibRangeCheck-3.0's `CHECKERS_CHANGED` callback (`addon:OnCheckersChanged`, the same rebuild) is
+subscribed with the events and dropped with them (`addon:SubscribeRangeLibrary`, under `pcall`, only
+where the library offers its CallbackHandler surface).
 
 The ticker itself is a `C_Timer.NewTicker`, not an event; the stand-down cancels it with the pending
 rebuild, which stays owed: a `Rebuild` asked while stood down arms nothing, and the stand-up runs an
@@ -233,7 +245,7 @@ never a real plate, and nothing measures it.
   so an alt of another class on the shared Default profile sees its own spells) and the icon
   indicator's spell (`elements.indicator.spellID`, nil = the first chip). They keep their stored
   values and are copied by Duplicate and Copy settings from.
-- A band's own fields (its edge, label, three colors and sound) and Add band / Remove band are the
+- A band's own fields (its edge, label, three colors, sound and rule) and Add band / Remove band are the
   Band sets page's Bands editor only: a band is one of a list the player grows, which no schema path
   can name, so `/rm get|set` reaches a band set's name, match rule and unknown label and color, not
   its bands (design spec 5.6 records this).
@@ -254,6 +266,22 @@ never a real plate, and nothing measures it.
 - Forever's interact rungs (duel 10 yd, follow 28 yd, race-adjusted) and both clients' seed spell IDs
   (`defaults/SpellSeeds.lua`) are not yet confirmed in a client; `docs/smoke-tests.md` carries the
   checks.
+- A spell band trusts the anchor's own answer, and whether `C_Spell.IsSpellInRange` follows range
+  talents, and whether `C_Spell.GetSpellInfo` reports the talented range, are undocumented on both
+  clients (WoW Forever's reported range was measured talented: 41 yd with Hawk Eye 3/3, RANGE-6;
+  Retail and RANGE-7 still open). If the reported range is the base one, the Bands page read-out and Sim show the base
+  number while the band still follows the spell (`docs/midnight-quirks.md`; smoke checks RANGE-6,
+  RANGE-7, RANGE-10).
+- A dead-zone (gap) band holds by rule only where the ranged anchor reports a minimum range (the
+  WoW Forever hunter's 8 yd); on Retail no ranged anchor has one, so a gap band there falls to its
+  yards. In combat on a unit the player cannot attack the interact check is refused, so the dead
+  zone is confirmed by LibRangeCheck's bracket alone.
+- Harmful anchors give no answer on a friendly unit, so a friendly container reads its yards unless
+  its set has a friendly spell band. Melee reach is the client's own, so against a large boss or a
+  player the melee band follows the spell, not 5 yd.
+- `beyond` gives way to the yards when the bracket ends short of the beyond band's fallback edge (the
+  D6 review fix): a known near bracket with every anchor saying false can read *unknown*, not out of
+  range. Whether beyond should ever yield to the yards is the owner's call (the plan, D6).
 
 ## Documentation map
 
@@ -280,8 +308,8 @@ generated directories are named once and never enumerated: `docs/audits/`, `docs
 | `perf-analysis/README.md` | Present | The performance harness is wired (`core/PerfSetup.lua`) |
 | `slash-dispatch.md` | Present | 27 commands in `NS.COMMANDS` as measured on 2026-11-18, over the eight-or-more threshold |
 | `midnight-quirks.md` | Present | Always (documentation-§3): the vendored `client-quirks` catalog block, then the addon's own section |
-| `compat-layer.md` | Present | `core/Compat.lua` publishes the range reads, the two band-set unit reads, the anchors' four frame reads and the per-client ladder, 18 shims by documentation-§3's count as measured on 2026-11-18, fourteen of them addon-specific beyond what LibKa0s supplies, over the three-or-more threshold |
-| `message-bus.md` | Not applicable | 4 messages in `NS.MSG` as measured on 2026-11-18 (`RANGE_UPDATED`, `CONTAINERS_CHANGED`, `BANDSETS_CHANGED`, `MODE_CHANGED`); the trigger is more than ten. The table lives in `## Message Bus` above |
+| `compat-layer.md` | Present | `core/Compat.lua` publishes the range reads, the two band-set unit reads, the anchors' four frame reads, the band rules' three anchor reads and the per-client ladder, 21 shims by documentation-§3's count as measured on 2026-11-19, seventeen of them addon-specific beyond what LibKa0s supplies, over the three-or-more threshold |
+| `message-bus.md` | Not applicable | 5 messages in `NS.MSG` as measured on 2026-11-19 (`RANGE_UPDATED`, `CONTAINERS_CHANGED`, `BANDSETS_CHANGED`, `ANCHORS_CHANGED`, `MODE_CHANGED`); the trigger is more than ten. The table lives in `## Message Bus` above |
 | `profiles.md` | Present | AceDB profiles are user-visible: the Profiles sub-page is a profile control in the options UI |
 | `known-limitations.md` | Not applicable | `## Known Limitations` above is under ~60 lines |
 | `taint.md` | Not applicable | `## Taint Notes` above is under ~60 lines |

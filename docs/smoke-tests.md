@@ -21,10 +21,10 @@ unless a check names one. The anchors are run as a matrix, one result per mode a
 | DIAG-1..3 | Diagnostics | the console, the report, the perf verb |
 | DEGRADED-1 | Degraded | the library-absent install |
 | LOC-1 | Non-English client | a deDE or frFR client |
-| RANGE-1..5 | Range engine | brackets, unknown, the Forever ladder, the ticker's rate and stop, the seed spells |
+| RANGE-1..11 | Range engine | brackets, unknown, the Forever ladder, the ticker's rate and stop, the seed spells; the anchor probes: reported ranges under talents, rank IDs, the talent event, overrides, Auto Shot unarmed |
 | DRAW-1..5 | Containers drawn | brackets drawn, unknown gray, elements and order, the skin face, disable |
 | CONT-1..10 | Containers page | New container (no band preview), the rail, Position, Duplicate / Delete / Copy settings from, Defaults, Color from, the Dot tab and its Style tiles, Border opacity, the caption's positions, the caption's styling |
-| BANDS-1..5 | Band sets page | the picker, the Bands editor (no band ribbon), shared sets, the friendly override, the unknown label |
+| BANDS-1..10 | Band sets page | the picker, the Bands editor (no band ribbon), shared sets, the friendly override, the unknown label; spell bands: the rule controls, the read-out, the owner's Hawk Eye case, the dead zone, the v1 -> v2 conversion |
 | PRESET-1..4 | Presets | the first-run picker, Apply on an empty profile, Apply over containers with Undo, what each of the five shows |
 | ANCHOR-1..8 | Anchors | every mode on both clients: screen, unit frames (Blizzard, EllesmereUI, custom, missing), own nameplate, all nameplates, cursor, the picker |
 | VIS-1..3 | Visibility | combat and reaction rules, out-of-combat opacity, the master rows |
@@ -213,6 +213,42 @@ RANGE-1 to RANGE-4 are run through a target container. RANGE-5 needs only the ch
   `/run for _, id in ipairs({ 133, 116 }) do print(id, C_Spell.GetSpellName(id)) end` → every ID
   prints a spell name, none prints `nil`. Result:
 
+RANGE-6 to RANGE-11 are the anchor probes of the dynamic-bands plan (2026-11-19, D7): each answers a
+question the headless suite cannot, and the answer is written on the `Result:` line as printed. Target
+a training dummy for each. The spell IDs are the anchors in `defaults/SpellSeeds.lua` (`anchors`).
+
+- **RANGE-6. Reported range under Hawk Eye (WoW Forever, Hunter).** With Hawk Eye at 0/3, run
+  `/dump C_Spell.GetSpellInfo(3044).maxRange, C_Spell.GetSpellInfo(75).maxRange`; spend all three
+  points and run it again → write both pairs down. 35, 35 then 41, 41 means the client reports the
+  talented range; 35 both times means it reports the base range only, and the Bands page read-out
+  shows the base number while the band itself still follows the spell. Result: 2026-11-19, the
+  owner's level-27ish hunter at Hawk Eye 3/3 printed `41` for both (0/3 not measured): WoW Forever
+  reports the talented range. Pass.
+- **RANGE-7. Auto Shot reaches 41 yd with Hawk Eye (WoW Forever, Hunter).** Hawk Eye 3/3, stand about
+  38 yd from the dummy (the bracket reads `35–40`) and run `/dump C_Spell.IsSpellInRange(75, "target")`
+  → `true`; with Hawk Eye 0/3 at the same spot → `false`. This is the answer the AUTO band rests on.
+  Result:
+- **RANGE-8. Rank IDs (WoW Forever).** On a hunter who has learned Arcane Shot rank 2, run
+  `/dump C_Spell.GetSpellInfo("Arcane Shot").spellID` (the current rank's ID), then
+  `/dump C_SpellBook.IsSpellKnown(3044), C_Spell.IsSpellInRange(3044, "target")` and the same with the
+  printed ID, in range of the dummy → write down all four answers. The addon asks by the current
+  rank's ID (`Compat.CurrentSpellID`), so the printed ID must answer `true, true`; the rank-1 answers
+  show whether the old ID still works. Result:
+- **RANGE-9. Which event a talent point fires (WoW Forever).** Before spending a Hawk Eye point, run
+  `/run local f=CreateFrame("Frame") for _,e in ipairs({"CHARACTER_POINTS_CHANGED","PLAYER_TALENT_UPDATE","TRAIT_CONFIG_UPDATED","SPELLS_CHANGED"}) do pcall(f.RegisterEvent,f,e) end f:SetScript("OnEvent",function(_,e,a) print(e,a) end)`,
+  then spend the point → write down every event name it prints, in order. The addon rebuilds on all
+  four; at least one must print. Result:
+- **RANGE-10. Astral Influence (Retail, Balance Druid).** Without Astral Influence (197524), run
+  `/dump C_Spell.GetSpellInfo(5176).maxRange`; take the talent and run it again → write down both
+  (the base is 40). Then, with the talent, stand about 43 yd from the dummy and run
+  `/dump C_Spell.IsSpellInRange(5176, "target")` → `true`. Result:
+- **RANGE-11. Overrides and an unarmed Auto Shot.** Retail: on a class whose ranged anchor has an
+  override (a talent that replaces the spell), run `/dump C_Spell.GetOverrideSpell(<anchor ID>)` and
+  `/dump C_SpellBook.IsSpellKnown(<that ID>)` → write down whether the override counts as known (the
+  addon uses an override only when it does). WoW Forever, Hunter: unequip the ranged weapon and run
+  `/dump C_Spell.IsSpellUsable(75)` → write down the answer (false means the ranged band falls back
+  to Arcane Shot, which a hunter under level 6 does not have). Result:
+
 ## Containers drawn
 
 - **DRAW-1. Brackets, never a distance.** Target a dummy and walk away → the number steps through
@@ -307,6 +343,30 @@ RANGE-1 to RANGE-4 are run through a target container. RANGE-5 needs only the ch
   enemy and then a friendly player → the bands switch to Healer's on the friendly one. Result:
 - **BANDS-5. Unknown label.** Set Unknown label to `--` and Unknown color to blue, target a unit the
   client will not range → `--` in blue. Result:
+- **BANDS-6. The rule controls.** Bands → every band shows **Defined by** first (Yards, Spell, Dead
+  zone, Beyond the last spell band); pick Spell on a yard band → **Role** and **Spell IDs** appear, the
+  heading gains `(Spell: Ranged)` (`(Spell: Melee)` on the first band) and the slider reads **Fallback
+  (yards)**; type `abc` in Spell IDs → a chat line refuses it and the stored list is kept; clear the
+  box → the class's own anchors are used again. Result:
+- **BANDS-7. The read-out follows the spellbook.** On a spell band the read-out reads `Now: <spell>
+  (<ID>), <min>–<max> yd`; on a band whose role this character has no learned anchor for it reads
+  `Not learned: using <yards> yd`. Shift a druid out of Cat Form with the page open → the melee band's
+  read-out turns to `Not learned` without a reload; learn a spell or spend a talent point → it
+  updates the same way. Result:
+- **BANDS-8. The owner's case: Hawk Eye at 35–41 yd paints AUTO (WoW Forever, Hunter).** Hawk Eye 3/3,
+  a target container on the Hunter set (MELEE, DEAD, AUTO, OOR). Back away from the dummy from 30 yd
+  → the display stays AUTO through the `35–40` bracket out to about 41 yd, and turns OOR only past
+  that; with Hawk Eye 0/3 the same walk turns OOR at about 35 yd. The yards on the set never change.
+  Result:
+- **BANDS-9. Melee and the dead zone (WoW Forever, Hunter).** Same container: stand at the dummy →
+  MELEE; step back to about 6 yd → DEAD; past 8 yd → AUTO. Target a friendly player in combat at 6 yd
+  → the display never reads DEAD on a guess (the interact check is refused there): it reads its
+  fallback band or `?`. Result:
+- **BANDS-10. The v1 -> v2 conversion.** With a profile saved on a build before the dynamic bands
+  (schema 1), log in on this build → every band set is still there with the same edges, labels,
+  colors and sounds; the Hunter, Caster 40 and Melee / Ranged sets show Spell and Dead zone rules on
+  their bands, a custom set's last band reads Beyond the last spell band, and a set used only as a
+  Friendly band set has a `(Spell: Friendly)` band. Result:
 
 ## Presets
 
@@ -441,3 +501,4 @@ Set the rules on Containers → Visibility.
 | INSTALL-4, CONT-2, CONT-7..8, PRESET-1, PRESET-3..4 | the five presets and dot styles (plan 2026-11-19-presets-and-dot-styles), 2026-11-19 | the Dot tab, the style art, Border opacity, the v0 -> v1 migration and the five presets have not been seen in a client yet |
 | INSTALL-4, CONT-1, CONT-7, CONT-9..10, BANDS-2 | the Label tab, the removed band previews and the art fill (the same plan, M7-M9), 2026-11-19 | the caption, the settings without their band previews and the redrawn halo-free art have not been seen in a client yet |
 | CONT-9, PRESET-4 | the outside caption positions and the preset defaults (the same plan, M11-M12), 2026-11-19 | the outside captions, the lifted strips, the faint preset frames and the plate containers out of combat have not been seen in a client yet |
+| RANGE-6..11, BANDS-6..10 | the spell-driven dynamic bands (plan 2026-11-19-dynamic-bands, D1-D7), 2026-11-19 | whether the client reports talented ranges and answers by rank ID, which event a talent point fires, the rule controls, the owner's Hawk Eye case and the v1 -> v2 conversion have not been seen in a client yet |

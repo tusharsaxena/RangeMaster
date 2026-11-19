@@ -4,13 +4,20 @@ local _, NS = ...
 -- never handed out by reference.
 --
 --   NS.BandSetPresets[key] = { name, matchBy, bands = { { from, to, label, frameColor, textColor,
---                              indicatorColor }, ... } }   key ∈ NS.BandSetPresets.ORDER
+--                              indicatorColor, rule? }, ... } }   key ∈ NS.BandSetPresets.ORDER
 --   NS.BandSetPresets.DefaultFor(classFile) -> key         the class default the seed puts first
 --
 -- THE HUNTER SET IS PER CLIENT (clients-§5: two lists, picked once). WoW Forever's Auto Shot has the
 -- vanilla dead zone, so its set is 0-5 MELEE, 5-8 DEAD, 8-35 AUTO, 35+ OOR; Retail's hunter has none,
 -- so its set is 0-5 MELEE, 5-40 RANGED, 40+ OOR. Both lists live in HUNTER_BY_CLIENT and `hunter` is
 -- the one NS.Compat.ClientKey() picks at load (core/Compat.lua loads before this file).
+--
+-- EVERY PRESET CARRIES BAND RULES (schema v2, plan 2026-11-19-dynamic-bands D4): a band asks its
+-- role's anchor spell (`spell(role)`), is the dead zone (`gap`) or lies past the last spell band
+-- (`beyond`); its yards are the fallback. A rule names a role, never a spell, so one set serves every
+-- class. A caster's first band stays a yard band: no baseline melee spell to ask. The presets are the
+-- shape step 2 of core/Database.lua's ladder gives a stored v1 set (modules/BandSets.lua's
+-- ConvertSet), apart from the caster set, which is CLOSE, CAST, OOR.
 --
 -- Colors come from the design ramp, nearest band first (core/Constants.lua's BAND_RAMP), each band its
 -- own tables. Labels are localized at load; once copied into a profile they are the player's text.
@@ -21,48 +28,62 @@ local L = NS.L
 local GREEN, LIME, YELLOW, ORANGE, RED = C.BAND_RAMP[1], C.BAND_RAMP[2], C.BAND_RAMP[3], C.BAND_RAMP[4],
     C.BAND_RAMP[5]
 
---- One band, every color its own table. `to` nil is open-ended.
-local function band(from, to, label, hex)
+--- One band, every color its own table. `to` nil is open-ended; `rule` nil is a yard band.
+local function band(from, to, label, hex, rule)
     return { from = from, to = to, label = label, frameColor = C.HexColor(hex), textColor = C.HexColor(hex),
-             indicatorColor = C.HexColor(hex) }
+             indicatorColor = C.HexColor(hex), rule = rule }
 end
+
+--- The rules, each call its own table.
+local function spell(role) return { type = "spell", role = role } end
+local function gap() return { type = "gap" } end
+local function beyond() return { type = "beyond" } end
 
 local Presets = {}
 
 Presets.melee_ranged = {
     name = L["Melee / Ranged"], matchBy = "max",
     bands = {
-        band(0, 5, L["MELEE"], GREEN), band(5, 20, L["CLOSE"], LIME), band(20, 30, L["MID"], YELLOW),
-        band(30, 40, L["LONG"], ORANGE), band(40, nil, L["OOR"], RED),
+        band(0, 5, L["MELEE"], GREEN, spell("melee")), band(5, 20, L["CLOSE"], LIME),
+        band(20, 30, L["MID"], YELLOW), band(30, 40, L["LONG"], ORANGE, spell("ranged")),
+        band(40, nil, L["OOR"], RED, beyond()),
     },
 }
 
--- A 40 yd caster: too close is a warning, the working band is green, the edge of 40 yd is yellow.
+-- A caster: too close is a warning (yards: no melee spell to ask), CAST is wherever the ranged anchor
+-- reaches (40 yd as its fallback), past it is out of range.
 Presets.caster40 = {
     name = L["Caster 40"], matchBy = "max",
     bands = {
-        band(0, 8, L["CLOSE"], ORANGE), band(8, 30, L["MID"], GREEN), band(30, 40, L["LONG"], YELLOW),
-        band(40, nil, L["OOR"], RED),
+        band(0, 8, L["CLOSE"], ORANGE), band(8, 40, L["CAST"], GREEN, spell("ranged")),
+        band(40, nil, L["OOR"], RED, beyond()),
     },
 }
 
--- For friendly units (a container's bandSetFriendly): inside 30, the 30-40 edge, out of 40.
+-- For friendly units (a container's bandSetFriendly): inside 30, then wherever the friendly anchor
+-- reaches (40 yd as its fallback), then out of range.
 Presets.healer = {
     name = L["Healer"], matchBy = "max",
-    bands = { band(0, 30, L["NEAR"], GREEN), band(30, 40, L["FAR"], YELLOW), band(40, nil, L["OOR"], RED) },
+    bands = {
+        band(0, 30, L["NEAR"], GREEN), band(30, 40, L["FAR"], YELLOW, spell("friendly")),
+        band(40, nil, L["OOR"], RED, beyond()),
+    },
 }
 
 local HUNTER_BY_CLIENT = {
     forever = {
         name = L["Hunter"], matchBy = "max",
         bands = {
-            band(0, 5, L["MELEE"], YELLOW), band(5, 8, L["DEAD"], ORANGE), band(8, 35, L["AUTO"], GREEN),
-            band(35, nil, L["OOR"], RED),
+            band(0, 5, L["MELEE"], YELLOW, spell("melee")), band(5, 8, L["DEAD"], ORANGE, gap()),
+            band(8, 35, L["AUTO"], GREEN, spell("ranged")), band(35, nil, L["OOR"], RED, beyond()),
         },
     },
     retail = {
         name = L["Hunter"], matchBy = "max",
-        bands = { band(0, 5, L["MELEE"], LIME), band(5, 40, L["RANGED"], GREEN), band(40, nil, L["OOR"], RED) },
+        bands = {
+            band(0, 5, L["MELEE"], LIME, spell("melee")), band(5, 40, L["RANGED"], GREEN, spell("ranged")),
+            band(40, nil, L["OOR"], RED, beyond()),
+        },
     },
 }
 Presets.HUNTER_BY_CLIENT = HUNTER_BY_CLIENT

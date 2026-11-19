@@ -3,7 +3,7 @@
 ![WoW](https://img.shields.io/badge/WoW-Midnight_12.1.5_and_Forever_1.60.1-purple)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
-![Tests](https://img.shields.io/badge/Tests-676%2F676_passing-green)
+![Tests](https://img.shields.io/badge/Tests-724%2F724_passing-green)
 
 Supports Retail and WoW Forever. Range Master lets you build your own range displays for your
 target, your focus, your pet, whatever is under your mouse, and every enemy nameplate on screen.
@@ -11,8 +11,10 @@ target, your focus, your pet, whatever is under your mouse, and every enemy name
 Each display is a container. You pick its unit, then what it shows: the distance as a number, a
 word such as "Melee" or "Out of range", a colored dot or shape, and a row of your own spells that
 light up when that spell would reach, with a caption naming it if you want one. The distance is split into bands, and every band has its own
-color, so a glance tells you whether you can hit the thing in front of you. Band sets are shared, so
-one change to your caster bands updates every display that uses them.
+color, so a glance tells you whether you can hit the thing in front of you. A band can follow one of
+your own spells instead of a fixed distance, so a talent such as Hawk Eye, or gear that adds range,
+moves it with no setting to change. Band sets are shared, so one change to your caster bands updates
+every display that uses them.
 
 A display can sit anywhere on screen, hang off a unit frame (Blizzard's or EllesmereUI's, or any
 frame you point at), ride on a nameplate, or follow your cursor.
@@ -36,7 +38,8 @@ preset asks first, and **Undo last preset** (or `/rm preset undo`) puts them bac
 
 To build one yourself, open the **Containers** page with `/rm` and press New container. Pick its
 unit, its band set and where it sits, then what it shows. The **Band sets** page holds the distance
-bands every display colors by: where each band ends, its name, its colors and an optional sound.
+bands every display colors by: what decides each band (a distance, one of your spells, the hunter's
+dead zone or "past every spell"), its name, its colors and an optional sound.
 Under Display → Label a display can carry a caption, its own name or any text, above, below or beside
 it, inside its border or outside it, in its own font and color (the presets name each screen display
 above it). From
@@ -72,6 +75,10 @@ Everything else is under Settings → AddOns → Ka0s Range Master, and `/rm hel
   only for units a display is watching. It stops when nothing needs it.
 - Each display looks the bracket up in its band set and colors itself by the band it lands in. It
   only redraws when the band or the text changes.
+- A band can instead be defined by a spell: "Auto Shot reaches it" rather than "8 to 35 yards". Range
+  Master then asks the game whether your own spell for that role (melee, ranged or a heal) would
+  reach the unit, so the band follows your talents, gear and form. Its yards stay as a fallback for
+  when the spell is not learned yet or the game will not answer.
 - When the game will not answer, for example because the unit is out of sight or the value is
   hidden from addons, the display shows a gray "?" rather than guessing.
 
@@ -82,6 +89,7 @@ Everything else is under Settings → AddOns → Ka0s Range Master, and `/rm hel
 | Does it show the exact distance? | No addon can. The game only answers "in range of this spell or not", so Range Master shows the narrowest bracket the answers allow. |
 | Does it work on WoW Forever? | Yes, from the same download. Range Master uses each client's own spells and items to measure distance. |
 | Can I have a different band set for friends? | Yes. Each display has a Friendly band set, used whenever its unit is friendly. The Expert preset sets it to Healer. |
+| Does it follow range talents such as Hawk Eye? | Yes, on bands defined by a spell. The preset band sets use them, so a hunter with Hawk Eye sees Auto Shot's band reach past 35 yards without changing anything. A band you set to yards stays at its yards. |
 | Will it slow my game down? | It does one small pass ten or twenty times a second, only while a display is watching a unit, and none at all when the addon is turned off. |
 
 ## Troubleshooting
@@ -115,7 +123,7 @@ Please file reports there rather than in comments, so nothing gets lost.
 
 | Version | Date | Highlights |
 |---------|------|------------|
-| 0.1.0 | Unreleased | - Range displays for your target, focus, pet, mouseover and every enemy nameplate, each showing a range bracket as a number, a band name, a colored shape and your own spells<br>- Shared band sets with their own colors and sounds, and a separate set for friendly units<br>- Displays free on screen, on Blizzard or EllesmereUI unit frames or any frame you click, on nameplates, or at the cursor<br>- Five presets (Simple, two Intermediates for range text or range numbers, Advanced and Expert), offered on first run, with Undo<br>- Dot shapes in six styles (plain, matte, glossy, glowing, neon, gem)<br>- An optional caption naming each display, on any side, inside or outside its border, in its own font and color<br>- Visibility by combat, reaction and missing unit<br>- Test mode and Sim mode for placing and checking your displays<br>- Works on Retail and WoW Forever |
+| 0.1.0 | Unreleased | - Range displays for your target, focus, pet, mouseover and every enemy nameplate, each showing a range bracket as a number, a band name, a colored shape and your own spells<br>- Shared band sets with their own colors and sounds, and a separate set for friendly units<br>- Bands that follow your own spells, so range talents, gear and forms move them; saved band sets are converted on first login<br>- Displays free on screen, on Blizzard or EllesmereUI unit frames or any frame you click, on nameplates, or at the cursor<br>- Five presets (Simple, two Intermediates for range text or range numbers, Advanced and Expert), offered on first run, with Undo<br>- Dot shapes in six styles (plain, matte, glossy, glowing, neon, gem)<br>- An optional caption naming each display, on any side, inside or outside its border, in its own font and color<br>- Visibility by combat, reaction and missing unit<br>- Test mode and Sim mode for placing and checking your displays<br>- Works on Retail and WoW Forever |
 
 ## Credits
 

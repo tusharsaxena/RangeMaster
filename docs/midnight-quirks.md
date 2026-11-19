@@ -294,8 +294,37 @@ the catalog's (sections 2 and 4) and are not restated here.
   case), both (the form case). *Cost:* a container, a chip or a ladder rung that reads in range
   everywhere. *Do:* trust `C_Spell.IsSpellInRange` only for a spell that is known and usable, ask
   usability on every check (a shapeshift fires no `SPELLS_CHANGED`), and take a ladder rung only from
-  a spell with a max range above 0 and no min range (`modules/Range.lua`, `core/Compat.lua`).
-  *Source:* the research, *Lessons* 9.
+  a spell with a max range above 0 and no min range (`modules/Range.lua`, `core/Compat.lua`). A band
+  anchor is asked the same way (`Compat.AnchorInRange`: known and usable first), and a non-hunter's
+  melee anchor answering true is voided when LibRangeCheck's bracket starts at 20 yd or more (the
+  melee guard, `modules/Range.lua`). *Source:* the research, *Lessons* 9, and the dynamic-bands
+  research (`docs/superpowers/specs/2026-11-19-dynamic-bands-research.md`).
+- **Whether a spell's reported range includes talents is undocumented.** `C_Spell.GetSpellInfo(id)`'s
+  `minRange` / `maxRange` may be the base range (Auto Shot's 35 yd on WoW Forever) or the talented one
+  (41 yd with Hawk Eye 3/3); whether `C_Spell.IsSpellInRange` itself follows the talent is equally
+  undocumented for the `C_Spell` form. *Measured:* WoW Forever 2026-11-19, the owner's hunter at Hawk
+  Eye 3/3: `GetSpellInfo(3044).maxRange` and `(75)` both answer 41, so Forever reports the talented
+  range (smoke RANGE-6). Retail not measured; `IsSpellInRange` following the talent is still unmeasured
+  on both (RANGE-7). The wiki pages are silent (the dynamic-bands research, part 2). *Client:* both. *Cost:* a band
+  read-out naming the base number, or, if `IsSpellInRange` ignored the talent, a spell band ending at
+  the base range. *Do:* decide a spell band by the spell's answer, never by its reported number, and
+  use the number only for the read-out and Sim; the stored yards stay the fallback
+  (`modules/BandSets.lua`, `modules/Range.lua`). Smoke checks RANGE-6, RANGE-7 and RANGE-10.
+  *Source:* the dynamic-bands research, part 1 section 3 and part 2.
+- **On WoW Forever a spell has one ID per rank.** Whether a rank-1 ID still answers
+  `C_SpellBook.IsSpellKnown` and `C_Spell.IsSpellInRange` once a higher rank is learned is unknown.
+  *Measured:* not measured. *Client:* Forever. *Cost:* an anchor that reads as not learned, or a band
+  that never holds, after a rank is trained. *Do:* resolve every seed to the current rank by name at
+  rebuild (`Compat.CurrentSpellID`: `C_Spell.GetSpellInfo(name).spellID`) and rebuild on
+  `LEARNED_SPELL_IN_SKILL_LINE`, `SPELLS_CHANGED` and `PLAYER_LEVEL_UP`. Smoke check RANGE-8.
+  *Source:* the dynamic-bands research, part 2, correction 10.
+- **Which event a WoW Forever talent point fires is unknown.** The client lists
+  `CHARACTER_POINTS_CHANGED`, `PLAYER_TALENT_UPDATE`, `TRAIT_CONFIG_UPDATED` and
+  `TRAIT_CONFIG_LIST_UPDATED`, and being listed does not mean firing. *Measured:* not measured.
+  *Client:* Forever. *Cost:* a read-out that lags a spent point until the next rebuild. *Do:* rebuild
+  on the first three wherever the client has them (`ifValid`, `core/RangeMaster.lua`'s
+  `LIFECYCLE_EVENTS`) and on `SPELLS_CHANGED`, and never filter `CHARACTER_POINTS_CHANGED` on its points argument. Smoke check RANGE-9.
+  *Source:* the dynamic-bands research, part 2, *Gaps* and correction 5.
 - **`NAME_PLATE_UNIT_ADDED` can fire before the plate is populated.** *Measured:* not measured here;
   RangeLens's `OnPlateAdded` re-runs a frame later for it. *Client:* Forever. *Cost:* a container
   drawn at the screen's corner, or on no plate, until the next event. *Do:* re-check every added

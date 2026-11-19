@@ -73,18 +73,23 @@ Recipes for the changes made most often here. Each names the real files; run the
   on (`retail` or `forever`) and the class token. A ladder spell becomes a rung only when the player
   knows it and it has a max range with no min range, so a melee or min-range spell belongs in
   `chips`, not `ladder`. Add a RANGE-5 run for it in `docs/smoke-tests.md`.
+- A band rule's anchor: add the ID to that class's `anchors.<role>` list (`melee`, `ranged` or
+  `friendly`) in fallback order, the first the player knows winning. Never a reactive spell (one
+  usable only after a dodge or a crit); druid melee is keyed by form (`cat`, `bear`).
 - A Forever item or interact rung: add it to `FOREVER_ITEMS` or `FOREVER_INTERACT` in
   `core/Compat.lua`, only at a yard Forever answers reliably, and update the table in
   `docs/compat-layer.md`. `tests/test_range.lua`'s `test_forever_ladder` holds the yards.
 
 ## Change a preset band set
 
-- Edit `defaults/BandSetPresets.lua`: bands are `band(from, to, label, rampColor)`, `to` nil for
-  open-ended, colors from `NS.Constants.BAND_RAMP`. A per-client difference goes in two lists, as
+- Edit `defaults/BandSetPresets.lua`: bands are `band(from, to, label, rampColor, rule)`, `to` nil for
+  open-ended, colors from `NS.Constants.BAND_RAMP`, `rule` nil for a yard band or one of `spell(role)`,
+  `gap()`, `beyond()` (the yards are then the band's fallback). A per-client difference goes in two lists, as
   `HUNTER_BY_CLIENT` does (clients-§5). A new preset key joins `ORDER`, its name and labels join
   `locales/enUS.lua`, and the table in `docs/schema.md` follows. Presets are copied into a profile
   only on a fresh profile (the seed) or by `NS.BandSets.Create(name, key)`; a stored set is the
-  player's and is never rewritten. `tests/test_bandsets.lua` holds the shapes.
+  player's and is never rewritten (the one exception is the v1 -> v2 step, which gave every stored
+  band the rule its yards suggest, `docs/schema.md`). `tests/test_bandsets.lua` holds the shapes.
 
 ## Add a locale string
 

@@ -75,9 +75,10 @@ test("the catalog is strict: an undeclared key raises at the call site", functio
     "adding a key after load must raise too")
 end)
 
-test("the catalog is exactly the four declared messages, each one prefixed for this addon", function()
+test("the catalog is exactly the five declared messages, each one prefixed for this addon", function()
   -- red under: a message added, renamed or dropped without this list moving with it.
   local want = {
+    ANCHORS_CHANGED    = "Ka0s_RangeMaster_AnchorsChanged",
     BANDSETS_CHANGED   = "Ka0s_RangeMaster_BandSetsChanged",
     CONTAINERS_CHANGED = "Ka0s_RangeMaster_ContainersChanged",
     MODE_CHANGED       = "Ka0s_RangeMaster_ModeChanged",
