@@ -495,6 +495,60 @@ test("range: every class seed table is well-formed on both clients", function()
   assertNil(NS.SpellSeeds.forever.EVOKER, "Forever is a vanilla world: no Evoker")
 end)
 
+--- The IDs of one anchor role: an array, or (druid melee) a map of form key to array, flattened.
+local function anchorIds(list, where)
+  assertEqual(type(list), "table", where)
+  if #list > 0 then return list end
+  local out = {}
+  for form, ids in pairs(list) do
+    assertEqual(type(form), "string", where .. ": a form key")
+    assertTrue(type(ids) == "table" and #ids > 0, where .. "." .. tostring(form) .. " is a non-empty list")
+    for _, id in ipairs(ids) do out[#out + 1] = id end
+  end
+  return out
+end
+
+test("range: every class has anchors on both clients, a non-empty ranged role, roles from the three", function()
+  -- red under: a class seed with no `anchors`, or an empty ranged role (dynamic-bands plan D1).
+  local ROLES = { melee = true, ranged = true, friendly = true }
+  for _, client in ipairs({ "retail", "forever" }) do
+    for classFile, seed in pairs(NS.SpellSeeds[client]) do
+      local where = client .. "." .. classFile .. ".anchors"
+      assertEqual(type(seed.anchors), "table", where)
+      assertTrue(type(seed.anchors.ranged) == "table" and #seed.anchors.ranged > 0, where .. ".ranged")
+      for role, list in pairs(seed.anchors) do
+        assertTrue(ROLES[role] == true, where .. ": unknown role " .. tostring(role))
+        local ids = anchorIds(list, where .. "." .. role)
+        assertTrue(#ids > 0, where .. "." .. role .. " is non-empty")
+        for _, id in ipairs(ids) do assertEqual(type(id), "number", where .. "." .. role) end
+      end
+    end
+  end
+end)
+
+test("range: the anchors carry the critic's corrections", function()
+  local function has(list, id)
+    for _, v in ipairs(list) do if v == id then return true end end
+    return false
+  end
+  local fh = NS.SpellSeeds.forever.HUNTER.anchors
+  assertEqual(fh.melee[1], 2973, "Forever hunter melee starts at Raptor Strike")
+  assertFalse(has(fh.melee, 1495), "no Mongoose Bite: it is reactive")
+  assertEqual(fh.ranged[1], 75, "Forever hunter ranged starts at Auto Shot")
+  local fd = NS.SpellSeeds.forever.DRUID.anchors.melee
+  assertEqual(fd.cat[1], 1082, "Forever cat melee: Claw")
+  assertEqual(fd.bear[1], 6807, "Forever bear melee: Maul")
+  local dh = NS.SpellSeeds.retail.DEMONHUNTER
+  assertTrue(has(dh.anchors.melee, 183752), "Disrupt is a melee anchor (0-5 yd in 12.1.5)")
+  assertFalse(has(dh.anchors.ranged, 183752), "and not a ranged one")
+  assertFalse(has(dh.ladder, 183752), "nor a ladder rung: the stale 20 yd entry is gone")
+  for _, client in ipairs({ "retail", "forever" }) do
+    for classFile, seed in pairs(NS.SpellSeeds[client]) do
+      assertNil(seed.anchors.long, client .. "." .. classFile .. ": no long (Hunter's Mark) role")
+    end
+  end
+end)
+
 test("range: a rebuild builds no ladder; only a Forever walk does, on first need", function()
   -- red under: rebuildNow calling NS.Compat.RangeLadder() eagerly (Retail builds a ladder it never
   -- walks: it has no ladder fallback).

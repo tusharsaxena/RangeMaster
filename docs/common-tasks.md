@@ -73,6 +73,9 @@ Recipes for the changes made most often here. Each names the real files; run the
   on (`retail` or `forever`) and the class token. A ladder spell becomes a rung only when the player
   knows it and it has a max range with no min range, so a melee or min-range spell belongs in
   `chips`, not `ladder`. Add a RANGE-5 run for it in `docs/smoke-tests.md`.
+- A band rule's anchor: add the ID to that class's `anchors.<role>` list (`melee`, `ranged` or
+  `friendly`) in fallback order, the first the player knows winning. Never a reactive spell (one
+  usable only after a dodge or a crit); druid melee is keyed by form (`cat`, `bear`).
 - A Forever item or interact rung: add it to `FOREVER_ITEMS` or `FOREVER_INTERACT` in
   `core/Compat.lua`, only at a yard Forever answers reliably, and update the table in
   `docs/compat-layer.md`. `tests/test_range.lua`'s `test_forever_ladder` holds the yards.

@@ -1,10 +1,10 @@
 # Compat layer — Ka0s Range Master
 
-`core/Compat.lua` is the whole compat family (compat) and publishes **18** shims on `NS.Compat`,
+`core/Compat.lua` is the whole compat family (compat) and publishes **20** shims on `NS.Compat`,
 counted with the command documentation-§3 fixes:
 
 ```sh
-cat core/Compat*.lua | grep -cE '^\s*function\s+[A-Za-z_][A-Za-z0-9_]*\.'    # 18
+cat core/Compat*.lua | grep -cE '^\s*function\s+[A-Za-z_][A-Za-z0-9_]*\.'    # 20
 ```
 
 Four of them (`IsForever`, `IsRetail`, `ClientKey`, `ForClient`) only route `LibKa0s-Compat-1.0`'s
@@ -12,7 +12,7 @@ answer to "which client is this" (clients-§3), each with a library-absent stand
 Retail. The secret guards (`IsSecret`, `CanAccess`, `IsSafeKey`) and the spell-info reader
 (`GetSpellInfo`) are the library's members handed over by reference, with the one-rung bodies the
 library's degradation rule asks for; they are LibKa0s's and are not documented again here. The
-fourteen below are this addon's own.
+sixteen below are this addon's own.
 
 ## The range reads and the ladder
 
@@ -34,6 +34,18 @@ secret, or a value that is neither a boolean nor 1/0 answers `nil`, "no answer",
 | 9 | `IsFriend(unit)` | `UnitIsFriend("player", unit)` (pcall, secret-checked) | `nil`, which the caller reads as "not friendly": the container stays on its own band set | A band set's friendly override applies only to a unit the client says is friendly | `modules/BandSets.lua` (`ForUnit`) |
 | 10 | `PlayerClass()` | `UnitClass("player")`'s class token (pcall, secret-checked) | `nil`: the seed picks Melee / Ranged | The first-run band-set seed puts the class default first | `modules/BandSets.lua` (the seed routine) |
 
+## The anchor-spell reads (band rules)
+
+A band's spell rule (dynamic-bands plan) asks its role's anchor spell "in range?". The anchors per
+class per client are `defaults/SpellSeeds.lua`'s `anchors` lists. Both reads are built on shims 2 to 4
+and wrap no client call a second time; only `C_Spell.GetOverrideSpell` is new, called inside `pcall`
+with its answer secret-checked.
+
+| # | Shim | Wraps | Absent or refused | Why it exists | Called from |
+|---|---|---|---|---|---|
+| 11 | `CurrentSpellID(id)` | `GetSpellInfo(id)`'s name, `GetSpellInfo(name)`'s spellID, `C_Spell.GetOverrideSpell` (pcall, secret-checked), shim 2 | `nil` when the client has no such spell or no spell-info reader; the ID itself when the name lookup answers nothing; an override only when the player knows it | A Forever seed is rank 1, and asking rank 1 once a higher rank is learned is unverified: resolve to the learned rank by the client's own localized name, as LibRangeCheck-3.0's `findSpellIdx` does (research part 2, correction 10), then to a hero-talent override | the anchor resolver, at rebuild (dynamic-bands plan D2) |
+| 12 | `AnchorInRange(id, unit)` | shims 2, 3 and 4 | `nil` unless the spell is known and usable now; the client's `nil`, a raise or a secret stay `nil`, never `false` | A band's spell rule reads a nil as "cannot say", and the band falls back to its yards | the rule evaluation (dynamic-bands plan D3) |
+
 ## The frame reads the anchors make
 
 A nameplate can be forbidden (a friendly plate in an instance on 12.x), and any method call on one
@@ -42,10 +54,10 @@ forbidden, and a forbidden plate is answered as `nil`, so no caller ever touches
 
 | # | Shim | Wraps | Absent or refused | Why it exists | Called from |
 |---|---|---|---|---|---|
-| 11 | `NamePlateForUnit(unit)` | `C_NamePlate.GetNamePlateForUnit` (pcall, forbidden-checked) | `nil` | A plate token's plate, and the own-plate containers' "target" / "focus" / "mouseover" plate | `modules/Anchors_Nameplate.lua` |
-| 12 | `PlateToken(plate)` | the plate's `namePlateUnitToken` (pcall, forbidden- and secret-checked) | `nil` | The token a scanned plate serves | shim 13 |
-| 13 | `NamePlates()` | `C_NamePlate.GetNamePlates` (pcall), shim 12 per plate | `{}` | The stand-up's rescan: a stood-down addon heard no `NAME_PLATE_UNIT_ADDED` for the plates shown | `modules/Anchors_Nameplate.lua` (`StandUp`) |
-| 14 | `GetMouseFocus()` | `GetMouseFoci()[1]` (pcall) | `nil` | The frame picker's frame under the cursor; both clients carry `GetMouseFoci` | `modules/FramePicker.lua` |
+| 13 | `NamePlateForUnit(unit)` | `C_NamePlate.GetNamePlateForUnit` (pcall, forbidden-checked) | `nil` | A plate token's plate, and the own-plate containers' "target" / "focus" / "mouseover" plate | `modules/Anchors_Nameplate.lua` |
+| 14 | `PlateToken(plate)` | the plate's `namePlateUnitToken` (pcall, forbidden- and secret-checked) | `nil` | The token a scanned plate serves | shim 15 |
+| 15 | `NamePlates()` | `C_NamePlate.GetNamePlates` (pcall), shim 14 per plate | `{}` | The stand-up's rescan: a stood-down addon heard no `NAME_PLATE_UNIT_ADDED` for the plates shown | `modules/Anchors_Nameplate.lua` (`StandUp`) |
+| 16 | `GetMouseFocus()` | `GetMouseFoci()[1]` (pcall) | `nil` | The frame picker's frame under the cursor; both clients carry `GetMouseFoci` | `modules/FramePicker.lua` |
 
 The unit-frame names the `ellesmere` provider reads (`modules/FrameProviders.lua`) are no client
 read and live there, not here: `EllesmereUIUnitFrames_Target`, `EllesmereUIUnitFrames_Focus` and

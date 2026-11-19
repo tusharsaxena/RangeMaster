@@ -76,6 +76,21 @@ overrides part 1 where they disagree).
 - Tests under both kit profiles: the shim's answers (true/false/nil, secret = nil, unknown spell = nil),
   the current-rank lookup, every anchor list non-empty for its class's ranged role.
 
+D1 decisions (taken in the build):
+
+- `CurrentSpellID` takes an override (`C_Spell.GetOverrideSpell`) only when `IsSpellKnown` says the
+  player knows the override, so whatever ID it returns can pass `AnchorInRange`'s known gate. Whether
+  the client calls an override ID "known" is unverified (an in-game probe for D7). It answers nil when
+  the client has no such spell, and the seed ID itself when the name lookup answers nothing.
+- `AnchorInRange(id, unit)` takes the ID `CurrentSpellID` resolved at rebuild and does no name lookup
+  per tick. It answers nil unless the spell is known and usable right now.
+- Anchor roles are melee, ranged and friendly only. There is no `long` role, because the owner ruled out
+  a MARK band. Druid melee is a map of form key to list, `{ cat = {...}, bear = {...} }`. D2 maps
+  `GetShapeshiftFormID` to those keys.
+- Forever Paladin has no melee anchor: Judgement 20271 is 0-10 yd, too far for a melee band. Its first
+  band stays a yard band, as for the casters. Retail Bear drops Growl, a 30 yd taunt there.
+- Retail DH: Disrupt 183752 is a melee anchor and still a chip. The ladder drops it for Torment 185245.
+
 ## D2. Anchor resolver and triggers
 
 - `modules/Range.lua` (or a new `modules/Anchors_Spells.lua`-style file if Range.lua would pass its size

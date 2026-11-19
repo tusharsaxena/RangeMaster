@@ -280,7 +280,7 @@ generated directories are named once and never enumerated: `docs/audits/`, `docs
 | `perf-analysis/README.md` | Present | The performance harness is wired (`core/PerfSetup.lua`) |
 | `slash-dispatch.md` | Present | 27 commands in `NS.COMMANDS` as measured on 2026-11-18, over the eight-or-more threshold |
 | `midnight-quirks.md` | Present | Always (documentation-§3): the vendored `client-quirks` catalog block, then the addon's own section |
-| `compat-layer.md` | Present | `core/Compat.lua` publishes the range reads, the two band-set unit reads, the anchors' four frame reads and the per-client ladder, 18 shims by documentation-§3's count as measured on 2026-11-18, fourteen of them addon-specific beyond what LibKa0s supplies, over the three-or-more threshold |
+| `compat-layer.md` | Present | `core/Compat.lua` publishes the range reads, the two band-set unit reads, the anchors' four frame reads, the band rules' two anchor-spell reads and the per-client ladder, 20 shims by documentation-§3's count as measured on 2026-11-19, sixteen of them addon-specific beyond what LibKa0s supplies, over the three-or-more threshold |
 | `message-bus.md` | Not applicable | 4 messages in `NS.MSG` as measured on 2026-11-18 (`RANGE_UPDATED`, `CONTAINERS_CHANGED`, `BANDSETS_CHANGED`, `MODE_CHANGED`); the trigger is more than ten. The table lives in `## Message Bus` above |
 | `profiles.md` | Present | AceDB profiles are user-visible: the Profiles sub-page is a profile control in the options UI |
 | `known-limitations.md` | Not applicable | `## Known Limitations` above is under ~60 lines |
