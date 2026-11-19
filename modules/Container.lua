@@ -303,7 +303,7 @@ local function applyCaption(inst, c)
     end
     local size = Style.Font(cap.fs, lab)
     local text = captionText(c)
-    cap.text = text
+    cap.text, cap.size = text, size
     cap.fs:SetText(text)
     cap.w = Style.TextWidth(cap.fs, text, size)
     cap.h = cap.w > 0 and size or 0
@@ -475,7 +475,8 @@ end
 -- Rendering
 -- ---------------------------------------------------------------------------
 
---- Every color: the border, the fill, the caption, then each element. Answers whether a cell's width moved.
+--- Every color: the border, the fill, the caption, then each element. Answers whether a cell's or the
+--- caption's width moved.
 function Instance:Paint(ctx)
     local c = self.container
     local bd, bg = c.frame.border, c.frame.background
@@ -496,6 +497,12 @@ function Instance:Paint(ctx)
         cap.fs:SetTextColor(Style.Color(lab.colorMode, lab.color, ctx, "textColor"))
     end
     local moved = false
+    if cap and cap.on then
+        -- Measured again, as the Number and Text elements are: a face not loaded at the apply's
+        -- measure (the estimate stood in) is corrected on the next band change.
+        local w = Style.TextWidth(cap.fs, cap.text, cap.size)
+        if w > 0 and w ~= cap.w then cap.w, moved = w, true end
+    end
     for name, mod in pairs(ELEMENT) do
         local el = self.elements[name]
         if el and el.on and mod.Paint(el, c.elements[name], ctx) then moved = true end

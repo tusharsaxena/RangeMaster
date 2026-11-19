@@ -519,8 +519,13 @@ test("settings: test_label_tab — the Label tab's rows, in order: show, text, p
   assertEqual(text.default, "", "empty by default: the container's name")
   assertEqual(table.concat(rows["container.label.position"].sorting, ","), "top,bottom,left,right")
   assertEqual(table.concat(rows["container.label.align"].sorting, ","), "left,center,right")
-  assertEqual(rows["container.label.align"].shownWhen.path, "container.label.position",
-    "Align is drawn for Top and Bottom only")
+  -- Red under an Align shownWhen that matches Left / Right, or nothing (the path alone was checked).
+  local when = rows["container.label.align"].shownWhen
+  assertEqual(when.path, "container.label.position", "Align follows Position")
+  local eq = {}
+  for i, v in ipairs(type(when.equals) == "table" and when.equals or { when.equals }) do eq[i] = v end
+  table.sort(eq)
+  assertEqual(table.concat(eq, ","), "bottom,top", "Align is drawn for Top and Bottom only")
   assertEqual(table.concat(rows["container.label.colorMode"].sorting or {}, ","), "band,fixed,class",
     "the color mode is the elements' three")
   E.with(function()

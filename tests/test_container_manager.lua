@@ -188,9 +188,12 @@ test("cm: CopySettings copies the named sections deep, and never identity or pla
     local a, b = CM.Create("target"), CM.Create("focus")
     local src = CM.Get(a)
     src.layout.direction, src.visibility.combat, src.anchor.mode = "column", "in", "cursor"
-    src.label.enabled, src.label.position = true, "left"
+    src.label.enabled, src.label.position, src.label.text = true, "left", "TARGET"
+    CM.Get(b).label.text = "Mine"
     assertTrue(CM.CopySettings(a, b))
     local dst = CM.Get(b)
+    -- Red under a copy of label.text (it names the container, as its name does; plan 2026-11-19 M10).
+    assertEqual(dst.label.text, "Mine", "the caption's own text is the destination's")
     assertEqual(dst.layout.direction, "column")
     assertTrue(dst.label.enabled and dst.label.position == "left", "the caption is copied (plan 2026-11-19 M7)")
     assertEqual(dst.visibility.combat, "in")

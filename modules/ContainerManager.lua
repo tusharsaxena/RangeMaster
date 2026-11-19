@@ -49,7 +49,8 @@ CM.UNITS = { "target", "focus", "pet", "mouseover", "nameplates" }
 
 --- What CopySettings copies when no list is given: how a container looks and behaves. Never its
 --- identity (name, enabled, unit) or its placement (anchor), which are what make it this container.
---- The caption (`label`) is copied whole: an empty text still reads each container's own name.
+--- The caption (`label`) is copied but for its `text`, which names the container as its name does: the
+--- destination keeps its own.
 CM.COPY_SECTIONS = { "bandSet", "bandSetFriendly", "layout", "frame", "label", "elements", "visibility",
     "sounds", "nameplate" }
 local COPYABLE = {}
@@ -368,7 +369,11 @@ function CM.CopySettings(fromId, toId, sections)
     for _, key in ipairs(sections) do
         if not COPYABLE[key] then return false end
     end
-    for _, key in ipairs(sections) do dst[key] = copy(src[key]) end
+    for _, key in ipairs(sections) do
+        local own = key == "label" and type(dst.label) == "table" and dst.label.text or nil
+        dst[key] = copy(src[key])
+        if own ~= nil and type(dst.label) == "table" then dst.label.text = own end
+    end
     NS.Debug("Containers", "copied %d section(s) %s -> %s", #sections, fromId, toId)
     CM.RequestApply()
     return true

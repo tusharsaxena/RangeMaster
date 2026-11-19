@@ -23,7 +23,7 @@ unless a check names one. The anchors are run as a matrix, one result per mode a
 | LOC-1 | Non-English client | a deDE or frFR client |
 | RANGE-1..5 | Range engine | brackets, unknown, the Forever ladder, the ticker's rate and stop, the seed spells |
 | DRAW-1..5 | Containers drawn | brackets drawn, unknown gray, elements and order, the skin face, disable |
-| CONT-1..8 | Containers page | New container, the rail, Position, Duplicate / Delete / Copy settings from, Defaults, Color from, the Dot tab and its Style tiles, Border opacity |
+| CONT-1..9 | Containers page | New container, the rail, Position, Duplicate / Delete / Copy settings from, Defaults, Color from, the Dot tab and its Style tiles, Border opacity, the Label tab's caption |
 | BANDS-1..5 | Band sets page | the picker, the Bands editor, shared sets, the friendly override, the unknown label |
 | PRESET-1..4 | Presets | the first-run picker, Apply on an empty profile, Apply over containers with Undo, what each of the five shows |
 | ANCHOR-1..8 | Anchors | every mode on both clients: screen, unit frames (Blizzard, EllesmereUI, custom, missing), own nameplate, all nameplates, cursor, the picker |
@@ -247,13 +247,13 @@ RANGE-1 to RANGE-4 are run through a target container. RANGE-5 needs only the ch
   and Friendly nameplates too. Result:
 - **CONT-4. Duplicate, Delete, Copy settings from.** **Duplicate container** makes `<name> copy`
   next to it, offset on screen; **Delete container…** asks first and deletes the one it named; Copy
-  settings from copies the look and rules onto the selected container but keeps its name, unit and
-  placement. Result:
+  settings from copies the look and rules onto the selected container but keeps its name, its label
+  text, unit and placement. Result:
 - **CONT-5. Defaults.** Change a row on Display and one on Visibility, press **Defaults** on the
   Display entry → only Display's tabs reset, only for the container in the banner. Result:
 - **CONT-6. Color from.** Set Frame's Color from to Class color and target a player of another class →
   the border takes that player's class color; a target with no class keeps the swatch. Result:
-- **CONT-7. The Dot tab.** Display's tabs read Layout, Frame, Number, Text, Dot, Spell chips. Dot
+- **CONT-7. The Dot tab.** Display's tabs read Layout, Frame, Number, Text, Label, Dot, Spell chips. Dot
   shows Show dot, Shape, Size (px), Dot color and Color from, then **Style**: six tiles (Plain, Matte,
   Glossy, Glowing, Neon, Gem), each the stored shape in that style tinted as the dot draws, the stored
   one edged in gold (Matte on a new container). Click Gem → the on-screen dot turns gem and the tile
@@ -264,6 +264,15 @@ RANGE-1 to RANGE-4 are run through a target container. RANGE-5 needs only the ch
 - **CONT-8. Border opacity.** On a new container, Frame → Border shows **Border opacity** at 25%, the
   border drawn faint over a background; drag it to 100% → the border is solid, in every Color from
   mode. Result:
+- **CONT-9. The Label tab.** Display → Label: tick **Show label** → a caption reading the
+  container's name shows above its elements, inside its border; rename the container on General →
+  the caption follows. Type a Label text and press Enter → the caption reads it; clear it → the name
+  again. Position Bottom, Left, Right → the caption moves to that side and the container grows to
+  hold it; Align shows only for Top and Bottom, and Left / Right moves the caption along the edge.
+  Raise Gap (px) → the space between the caption and the elements widens. Change the Font block's
+  size and color → the caption follows. Set Layout's Size to Fixed size → the box keeps its width
+  and height, the caption inside it. Untick Show label → the caption goes and the container shrinks
+  back. Result:
 
 ## Band sets page
 

@@ -297,6 +297,11 @@ test("slash: /rm bands lists the band sets with the selection marked, and select
     local ids = NS.BandSets.List()
     local out = rm("bands")
     assertTrue(E.said(out, "* 1. " .. NS.BandSets.Get(ids[1]).name), "the default set is marked: " .. table.concat(out, " | "))
+    -- Red under a /rm bands that drops the selected set's band ribbon (plan 2026-11-19 M8 keeps it:
+    -- command output, not a settings preview), or under NS.BandRibbon removed.
+    assertEqual(type(NS.BandRibbon), "function", "the band ribbon still has its one caller")
+    local ribbon = NS.BandRibbon((NS.SelectedBandSet())):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+    assertTrue(E.said(out, ribbon), "the selected set's ribbon is printed: " .. table.concat(out, " | "))
     rm("bands 2")
     local _, selected = NS.SelectedBandSet()
     assertEqual(selected, ids[2])

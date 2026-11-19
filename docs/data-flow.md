@@ -170,7 +170,7 @@ opts?)` (a deep copy of the template on the default band set, the class's spell-
 screen container staggered by id), `Delete`,
 `Duplicate` (after its source, `"<name> copy"`, a screen copy offset), `Rename`, `UniqueName`
 (`Target`, `Target 2`, case-insensitive), `SetField` (one dotted field; `elements.order` only as an
-arrangement of the four elements, `IsElementOrder`), `CopySettings` (never name, enabled, unit or anchor),
+arrangement of the four elements, `IsElementOrder`), `CopySettings` (never name, enabled, unit or anchor, nor the caption's own `label.text`),
 `Clear`, and `Snapshot` / `RestoreSnapshot`, which carry both registries, ids included, the band-set
 half through `NS.BandSets.Snapshot` / `RestoreSnapshot`. A restore never rewinds either id counter
 (each keeps the higher of its own and the snapshot's), so an id is never reused. Every write calls `RequestApply`, which
@@ -226,8 +226,13 @@ with no unit. Colors read `band` (the band's frame, text or indicator color), `f
 `class` (the TRACKED unit's class color, the swatch's alpha kept, an unresolvable class falling
 through to the swatch; options-ui-§17, because a range container describes its unit; the
 color rows declare `classColorSource = "unit"`). The elements follow
-`elements.order` along `layout.direction`, from the padding, `spacing` apart, centered across; only
-an enabled element is ever built, and one turned off is hidden. The number writes the bracket in one
+`elements.order` along `layout.direction`, `spacing` apart, centered across; only an enabled element
+is ever built, and one turned off is hidden. The caption (`label`, while enabled; no element of the
+order) sits between the padding and the elements' block on its side (top, bottom, left or right),
+`gap` px from it (no gap with no element shown), and the cells are offset by it: the block and the
+caption are centered on each other, and the root grows to hold both (a fixed-size box keeps its size,
+the caption inside it). Paint colors the caption with the frame and measures it again, so a width
+that moved lays the container out again. The number writes the bracket in one
 of six formats and `40+` for an open-ended one, never an invented far bound. The indicator draws
 this addon's shape art in the stored style (`media/textures/indicators/<shape>_<style>`, matte by
 default), LibKa0s-Widgets' data bar (fuller the nearer

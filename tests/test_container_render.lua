@@ -969,6 +969,76 @@ test("render: test_caption_hidden — off by default and while disabled, the roo
     relabel(id, { enabled = false })
     assertFalse(inst.caption.fs:IsShown(), "turned off, it hides")
     assertEqual(inst.width .. "x" .. inst.height, w0 .. "x" .. h0, "and the root shrinks back")
+    -- Red under an applyCaption that never shows the FontString again after an off / on cycle.
+    relabel(id, { enabled = true })
+    assertTrue(inst.caption.fs:IsShown(), "turned on again, it shows")
+  end)
+end)
+
+test("render: test_caption_no_text — an enabled caption with no text and no name draws nothing", function()
+  -- red under: a caption that grows the root by its gap, or shows an empty FontString, when its text
+  -- and the container's name both read "" (a hand-edited SavedVariables with no name).
+  withRenderer(function()
+    local id, _, inst = newContainer({ label = { gap = 6 } })
+    local w0, h0 = inst.width, inst.height
+    CM.Get(id).name = nil
+    relabel(id, { enabled = true, text = "" })
+    assertTrue(inst.caption == nil or not inst.caption.fs:IsShown(), "no caption shows")
+    assertEqual(inst.width .. "x" .. inst.height, w0 .. "x" .. h0, "the root keeps the elements' size")
+    CM.Get(id).name = ""
+    relabel(id, { text = "  " })
+    assertTrue(inst.caption == nil or not inst.caption.fs:IsShown(), "an empty name: still nothing")
+    assertEqual(inst.width .. "x" .. inst.height, w0 .. "x" .. h0)
+  end)
+end)
+
+test("render: test_caption_wider_taller — a caption larger than the elements centers them on it", function()
+  -- red under: a Layout that sizes a top caption's root from the elements alone, or drops the
+  -- block's centering on the caption (across for top / bottom, down for left / right).
+  withRenderer(function()
+    local id, _, inst = newContainer({ layout = { padding = 4 },
+      label = { enabled = true, gap = 3, size = 30, text = string.rep("W", 30) } })
+    local cap, num = inst.caption, inst.elements.number
+    local cw, chh, bw, bh = cap.w, cap.h, num.w, num.h
+    assertTrue(cw > bw and chh > bh, "the caption is the wider and the taller")
+    assertEqual(inst.width, cw + 8, "top: the root as wide as the caption")
+    assertEqual(inst.layout[1].x, 4 + (cw - bw) / 2, "the number centered across under it")
+    assertEqual(inst.layout[1].y, 4 + chh + 3)
+    relabel(id, { position = "bottom" })
+    assertEqual(inst.width, cw + 8, "bottom: the same width")
+    assertEqual(inst.layout[1].x, 4 + (cw - bw) / 2, "the number centered across over it")
+    relabel(id, { position = "left" })
+    assertEqual(inst.height, chh + 8, "left: the root as tall as the caption")
+    assertEqual(inst.layout[1].y, 4 + (chh - bh) / 2, "the number centered down beside it")
+    relabel(id, { position = "right" })
+    assertEqual(inst.layout[1].y, 4 + (chh - bh) / 2, "right: the same")
+    assertEqual(inst.layout[1].x, 4)
+  end)
+end)
+
+test("render: test_caption_alone — with every element off the caption is drawn with no gap", function()
+  -- red under: a captionBox that adds the gap with no cell beside it.
+  withRenderer(function()
+    local _, _, inst = newContainer({ layout = { padding = 4 }, elements = { number = { enabled = false } },
+      label = { enabled = true, gap = 9 } })
+    assertEqual(#inst.layout, 0, "no element is laid out")
+    local cap = inst.caption
+    assertTrue(cap.fs:IsShown() and cap.w > 0)
+    assertEqual(inst.height, cap.h + 8, "the caption and the padding, no gap")
+    assertEqual(inst.width, cap.w + 8)
+  end)
+end)
+
+test("render: test_caption_remeasured — a caption measured short at the apply is corrected on a band change", function()
+  -- red under: a caption measured on Apply only (a face not loaded yet at login keeps the estimate's
+  -- width until a setting change).
+  withRenderer(function()
+    local _, _, inst = newContainer({ layout = { padding = 4 }, label = { enabled = true } })
+    local num = inst.elements.number
+    rawset(inst.caption.fs, "GetStringWidth", function() return 300 end)
+    inst:Update("known", 0, 5)
+    assertEqual(inst.caption.w, 300, "measured again on the band change")
+    assertEqual(inst.width, math.max(300, num.w) + 8, "and the root laid out again to it")
   end)
 end)
 

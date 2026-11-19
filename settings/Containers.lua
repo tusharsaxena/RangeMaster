@@ -383,7 +383,7 @@ local function renderCopy(ctx)
     H.RenderGrid(ctx, { { make = sourceCell } })
     H.InlineButtonPair(ctx, {
         text = L["Copy onto this container"],
-        tooltip = L["Replace how the selected container looks and behaves with the source's: its band sets, layout, frame, elements, visibility and sounds. Its name, unit and position are never copied."],
+        tooltip = L["Replace how the selected container looks and behaves with the source's: its band sets, layout, frame, label, elements, visibility and sounds. Its name, label text, unit and position are never copied."],
         onClick = doCopy,
     }, nil)
 end

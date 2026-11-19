@@ -123,7 +123,7 @@ test("bandsets: the Band sets page draws General and Bands, and the editor's con
     end
     local set, id = NS.SelectedBandSet()
     -- Red under the Bands tab still drawing the band ribbon over the list (plan M8).
-    assertNil(labels[NS.BandRibbon(set)], "and no band ribbon over the list")
+    assertNil(NS.BandRibbon and labels[NS.BandRibbon(set)] or nil, "and no band ribbon over the list")
     local items = NS.__bandItems(id, set, 1)
     local was = set.bands[1].to
     items[1].set(was + 1)

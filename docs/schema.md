@@ -80,13 +80,17 @@ the template holds nil:
 |---|---|---|
 | `container.bandSet` | `0` = the default band set | the template's `nil` is filled with `DefaultId()` on create and on load |
 | `container.bandSetFriendly` | `0` = none (`nil` stored) | nil uses `bandSet` for every reaction |
-| `container.elements.number.font`, `container.elements.text.font` | `Skin` = `""` stored | `""` is the skin's face (`modules/Style.lua`) |
+| `container.elements.number.font`, `container.elements.text.font`, `container.label.font` | `Skin` = `""` stored | `""` is the skin's face (`modules/Style.lua`) |
 | `container.frame.border.texture` | `Solid` = `""` stored | `""` draws the solid edge strips |
 
 The selection itself (`NS.State.selectedContainer`, `selectedBandSet`) is session state; an unset or
 stale one reads the first container, or the default band set. `NS.ValidateSchema` resolves every such
 path against its template. The template gained `elements.number.shadow` and `elements.text.shadow`
-(`false`) for the composed Font block's Font shadow; the load pass backfills them.
+(`false`) for the composed Font block's Font shadow, and the `label` section (the caption naming the
+container, plan 2026-11-19 M7): `enabled = false`, `text = ""` (the container's name), `position =
+"top"`, `align = "center"`, `gap = 2`, `font = ""`, `size = 12`, `outline = "OUTLINE"`, `shadow =
+false`, `colorMode = "fixed"`, `color` white. The load pass backfills them; the caption is off, so a
+stored container draws as before and no migration step is needed.
 
 ## The global store (`db.global`)
 
