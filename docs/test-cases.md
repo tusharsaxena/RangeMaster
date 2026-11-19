@@ -337,7 +337,7 @@ Total.
 - compat: ShapeshiftFormID answers the form, nil for none, a secret, a raise or no API
 - compat: the degraded load's anchor reads answer nil
 
-### test_range.lua (48)
+### test_range.lua (57)
 
 - range: test_known_bracket — a 20 to 25 yd answer reads known 20, 25
 - range: the library is asked with no cache of its own (maxCacheAge 0)
@@ -376,10 +376,13 @@ Total.
 - anchors: LibRangeCheck's CHECKERS_CHANGED rebuilds while up, and is dropped by the stand-down
 - rules: the owner's case: a 35-40 bracket with Auto Shot in range reads AUTO, not OOR
 - rules: the dead zone holds only when a shorter check confirms the target is near
+- rules: every spell out of range reads OOR, short of beyond's yards too (owner, 2026-11-19)
+- rules: no melee spell (a Forever paladin) still reads OOR once the ranged spell is out
 - rules: an unlearned anchor falls back to its band's yards, and unknown stays unknown
 - rules: a nil or secret answer is no answer: the yards decide, or unknown
-- rules: yards that contradict a band's own anchor read unknown
-- rules: a non-hunter's melee true is voided when the bracket puts the unit 20 yd or more away
+- rules: yards that contradict a band's own anchor never paint that band
+- rules: a melee true is voided, for every class, when the bracket puts the unit 8 yd or more away
+- rules: a melee true is voided while a min-range ranged anchor says true, with no bracket
 - rules: a druid's melee band follows the form, and reads its yards out of Cat and Bear
 - rules: a friendly spell band reads its anchor's answer on a friendly unit (review D6)
 - rules: a ranged anchor with no min range has no dead zone, so a gap band never holds by rule (review D6)
@@ -387,6 +390,12 @@ Total.
 - rules: a spell band's own list overrides the class's anchors for its role
 - rules: a malformed rule reads as a yard band
 - anchors: AnchorFor names the anchor a band asks, its own list's or the role's (the editor's read-out)
+- anchors: a talented later seed reaching farther is asked first (Shadow Reach Mind Blast over Smite)
+- rules: an unusable anchor passes to the next (Charge in combat, Throw answers)
+- anchors: a melee seed reported past 8 yd is no melee anchor (Improved Disrupt)
+- rules: a melee true is voided while a buff's override reaches past 8 yd (Aspect of the Eagle)
+- rules: a min-range anchor's false inside its min is not OOR (a 5-8 bracket, no gap band)
+- rules: every spell out of range beats a yard band's yards (owner, 2026-11-19: Evoker healer NEAR)
 
 ### test_ticker.lua (13)
 
@@ -918,7 +927,7 @@ Total.
 | test_visibility.lua | 11 |
 | test_sounds.lua | 12 |
 | test_compat.lua | 14 |
-| test_range.lua | 48 |
+| test_range.lua | 57 |
 | test_ticker.lua | 13 |
 | test_envsetup.lua | 6 |
 | test_coresetup.lua | 8 |
@@ -958,4 +967,4 @@ Total.
 | test_skin_switch.lua | 6 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **724** |
+| **Total** | **733** |

@@ -39,13 +39,16 @@ secret, or a value that is neither a boolean nor 1/0 answers `nil`, "no answer",
 A band's spell rule (dynamic-bands plan) asks its role's anchor spell "in range?". The anchors per
 class per client are `defaults/SpellSeeds.lua`'s `anchors` lists. The two spell reads are built on
 shims 2 to 4 and wrap no client call a second time; only `C_Spell.GetOverrideSpell` is new, called
-inside `pcall` with its answer secret-checked. The form read keys a druid's melee anchor.
+inside `pcall` with its answer secret-checked. The form read keys a druid's melee anchor. Shims 18
+and 19 joined this table in the cross-validation round (2026-11-19), after the frame reads were numbered.
 
 | # | Shim | Wraps | Absent or refused | Why it exists | Called from |
 |---|---|---|---|---|---|
 | 11 | `CurrentSpellID(id)` | `GetSpellInfo(id)`'s name, `GetSpellInfo(name)`'s spellID, `C_Spell.GetOverrideSpell` (pcall, secret-checked), shim 2 | `nil` when the client has no such spell or no spell-info reader; the ID itself when the name lookup answers nothing; an override only when the player knows it | A Forever seed is rank 1, and asking rank 1 once a higher rank is learned is unverified: resolve to the learned rank by the client's own localized name, as LibRangeCheck-3.0's `findSpellIdx` does (research part 2, correction 10), then to a hero-talent override | `modules/Range.lua` (the anchor resolver, at rebuild) |
 | 12 | `AnchorInRange(id, unit)` | shims 2, 3 and 4 | `nil` unless the spell is known and usable now; the client's `nil`, a raise or a secret stay `nil`, never `false` | A band's spell rule reads a nil as "cannot say", and the band falls back to its yards | `modules/Range.lua` (`RoleInRange`, through the per-tick spell memo) |
 | 13 | `ShapeshiftFormID()` | `GetShapeshiftFormID` (pcall, secret-checked) | `nil`: no form, which keys no form's anchor | A druid's melee anchor is keyed by form (Cat, Bear), and a form's strike answers only in that form | `modules/Range.lua` (`Anchor`, on each read, so a shift is followed before the rebuild's debounce fires) |
+| 18 | `OverrideSpell(id)` | `C_Spell.GetOverrideSpell` (pcall, secret-checked) | `nil`: no override, or the client will not say | What stands in for a spell now: CurrentSpellID's override step at rebuild, and the melee guard's live check (Aspect of the Eagle's 40 yd Raptor Strike, Ascendance's Windstrike) | `core/Compat.lua` (CurrentSpellID), `modules/Range.lua` (the melee guard) |
+| 19 | `PlayerSpecID()` | LibKa0s-Compat `GetSpecialization` and `GetSpecializationInfo` (pcall, secret-checked) | `nil` on a client with no specs (WoW Forever) or a partial install | The first-run seed's spec-aware default (Devourer reads as a caster) | `modules/BandSets.lua` (Seed) |
 
 ## The frame reads the anchors make
 

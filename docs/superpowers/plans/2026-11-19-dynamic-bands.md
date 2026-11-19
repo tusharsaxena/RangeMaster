@@ -298,3 +298,32 @@ docs), each finding adversarially verified, one fix pass; then every doc that na
 engine (docs/schema.md, settings-panel.md, data-flow.md, module-map.md, ARCHITECTURE.md, compat-layer.md,
 midnight-quirks.md, smoke-tests.md with the owner's in-game probes, README), test-cases.md regenerated, the
 badge, a 20-plate perf scenario, the gate, push.
+
+## Follow-up (2026-11-19, after the merge): beyond shows OOR
+
+The owner ruled that when every spell says out of range the display reads OOR, not unknown, wherever the
+yards put the bracket (the band-matrix workbook showed 30-40 yd unknown on most classes). `beyondHolds`
+no longer yields to the beyond band's fallback yards; it still yields while the bracket reaches into a gap
+band's yards, so the hunter dead zone is never called OOR on a guess. Branch
+`fix/2026-11-19-beyond-shows-oor`.
+The same ruling covers a class with no melee spell (a Forever paladin, a druid in caster form): beyond
+now needs no spell band in range and the FARTHEST spell band out of range; a nearer band with no answer
+no longer blocks it.
+
+## Follow-up: the cross-validation round (2026-11-19)
+
+A 53-agent review checked every anchor spell against two or more outside sources (warcraft.wiki.gg,
+the SimulationCraft 12.1.5 spell dump, wowdb, classicdb, murlok.io, the DB2 tables), replayed the
+workbook's distance map through the real Lua engine, and tried to break the rule; each finding faced
+a refuting agent. The owner ruled on four (all as recommended), and a fifth came from the owner's own
+screenshot:
+
+| Change | Why | Where |
+|---|---|---|
+| A role's anchor is a candidate list: ranged and friendly longest reported reach first, the first usable one answers | Charge unusable in combat silenced Throw and Intercept; Shadow Reach's 36 yd Mind Blast was never asked behind a 30 yd Smite, a false OOR | `modules/Range.lua` |
+| Melee true voided for every class at a bracket near bound of 8 yd or more, while a min-range ranged anchor says true, or when the spell or its live override reaches past 8 yd; melee seeds reported past 8 yd skipped | A Forever hunter read MELEE at 41-100 yd (the owner); Improved Disrupt, Guile, Aspect of the Eagle and Windstrike stretch "melee" spells | `modules/Range.lua`, `core/Compat.lua` (`OverrideSpell`) |
+| Beyond trusts a min-range anchor's false only past its min, and is asked before the walk, beating yard bands | OOR at 6 yd with no bracket; an Evoker's 25-30 yd friend read NEAR | `modules/BandSets.lua` |
+| Seeds: Vengeance strikes before Disrupt, Devourer 25 yd spells, Resto Healing Wave 77472, Holy Fire 14914, Forever Paladin Holy Strike 679, Shoot Crossbow 7919 | missing or replaced spells | `defaults/SpellSeeds.lua` |
+| Devourer defaults to Caster 40 | a 25 yd Intellect spec | `defaults/BandSetPresets.lua`, `core/Compat.lua` (`PlayerSpecID`) |
+
+In-game checks: `docs/smoke-tests.md` RANGE-12 to RANGE-17.

@@ -21,7 +21,7 @@ unless a check names one. The anchors are run as a matrix, one result per mode a
 | DIAG-1..3 | Diagnostics | the console, the report, the perf verb |
 | DEGRADED-1 | Degraded | the library-absent install |
 | LOC-1 | Non-English client | a deDE or frFR client |
-| RANGE-1..11 | Range engine | brackets, unknown, the Forever ladder, the ticker's rate and stop, the seed spells; the anchor probes: reported ranges under talents, rank IDs, the talent event, overrides, Auto Shot unarmed |
+| RANGE-1..17 | Range engine | brackets, unknown, the Forever ladder, the ticker's rate and stop, the seed spells; the anchor probes: reported ranges under talents, rank IDs, the talent event, overrides, Auto Shot unarmed |
 | DRAW-1..5 | Containers drawn | brackets drawn, unknown gray, elements and order, the skin face, disable |
 | CONT-1..10 | Containers page | New container (no band preview), the rail, Position, Duplicate / Delete / Copy settings from, Defaults, Color from, the Dot tab and its Style tiles, Border opacity, the caption's positions, the caption's styling |
 | BANDS-1..10 | Band sets page | the picker, the Bands editor (no band ribbon), shared sets, the friendly override, the unknown label; spell bands: the rule controls, the read-out, the owner's Hawk Eye case, the dead zone, the v1 -> v2 conversion |
@@ -248,6 +248,26 @@ a training dummy for each. The spell IDs are the anchors in `defaults/SpellSeeds
   addon uses an override only when it does). WoW Forever, Hunter: unequip the ranged weapon and run
   `/dump C_Spell.IsSpellUsable(75)` → write down the answer (false means the ranged band falls back
   to Arcane Shot, which a hunter under level 6 does not have). Result:
+- **RANGE-12. A melee true far away (WoW Forever, Hunter).** Target a mob at 10, 25, 45 and 80 yd →
+  never MELEE (the owner saw MELEE at 41-45 and 45-100 before the fix); walk into melee → MELEE. Also
+  on a Warrior or Rogue: never MELEE past 8 yd. Result:
+- **RANGE-13. An unusable anchor passes on (WoW Forever, Warrior).** With a thrown weapon equipped,
+  in combat (Charge unusable), a target at 32 yd reads OOR, and at 20 yd MID; out of combat in Battle
+  Stance the same. Rogue with a bow and Throw known: 32 yd reads OOR. Result:
+- **RANGE-14. Talented reach on a later spell (WoW Forever).** Shadow Priest with Shadow Reach (or
+  Warlock with Grim Reach): `/rm bands` read-out names Mind Blast (Corruption) at 36 yd; a target at
+  33 yd reads CAST, not OOR. Result:
+- **RANGE-15. Retail melee spells that reach (Demon Hunter, Hunter, Shaman).** Vengeance with
+  Improved Disrupt: the read-out names Fracture or Shear, and a target at 9 yd is not MELEE. Survival
+  in Aspect of the Eagle: a target at 30 yd is not MELEE. Enhancement in Ascendance: a target at
+  15 yd is not MELEE. Result:
+- **RANGE-16. Spell IDs added in the review.** `/dump C_SpellBook.IsSpellKnown(<id>)` on the class
+  that should know it: Forever Paladin L6+ 679 (Holy Strike); Retail Resto Shaman 77472; Holy Priest
+  14914; Devourer 473662 and 1226019; Vengeance 263642 or 203782, and 228477. A new Devourer profile
+  starts on Caster 40. Result:
+- **RANGE-17. Dead targets and restricted content.** A dead hostile target and a dead friend: write
+  down what the container shows (OOR would mean the anchor answered false on a corpse). In a Mythic+
+  key or an encounter on Retail, the bands still change with distance. Result:
 
 ## Containers drawn
 

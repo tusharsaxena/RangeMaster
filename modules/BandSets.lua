@@ -37,8 +37,15 @@ local _, NS = ...
 --   spell(role) holds on its anchor's true (NS.Range.RoleInRange); on a nil it is a yard band;
 --   gap holds when the ranged anchor says false, the melee anchor does not say true and a shorter
 --     check confirms the unit is near (NS.Range.Near);
---   beyond holds when every spell band's anchor said false and no gap holds, unless the bracket lies
---     wholly short of its fallback yards (its far bound under the band's `from`).
+--   beyond holds when no spell band's anchor said true, the farthest one said false past its reach
+--     (a min-range anchor's false counts only once the bracket's near bound is at its min: inside it,
+--     "false" may mean too close), a nearer one with no answer (a class with no melee spell) does not
+--     stop it, and no gap holds, whatever its fallback yards say (the owner, 2026-11-19: a 30 yd spell
+--     out of range reads OOR, not unknown), unless the bracket still reaches into a gap band's yards
+--     (its near bound under that band's `to`): a dead zone the shorter check could not confirm is
+--     never called out of range on a guess. Beyond is asked BEFORE the walk: when it holds it wins
+--     over a yard band whose yards match too (the owner, 2026-11-19: an Evoker's 25-30 yd friend is
+--     not NEAR when Living Flame cannot reach).
 -- When none holds, the band the yards pick is taken unless that band's own anchor contradicts it
 -- (a spell band whose anchor said false, a gap band while an anchor says true): then, as with no
 -- bracket, the answer is "unknown", never out of range. A set with no rule reads its yards alone
@@ -238,14 +245,16 @@ end
 -- One Resolve's reading, reused (Resolve never re-enters): each spell band's answer, NONE for nil.
 local NONE = {}
 local answers = {}
-local cur = { bands = nil, unit = nil, state = nil, maxYd = nil, gap = nil }
+local answeredBy = {}   -- [i] = the anchor that gave band i's answer (its min range matters)
+local cur = { bands = nil, unit = nil, state = nil, minYd = nil, maxYd = nil, gap = nil }
 
 local function answerOf(i, rule)
     local v = answers[i]
     if v == nil then
-        v = NS.Range.RoleInRange(rule.role, cur.unit, rule.spells)
+        local a
+        v, a = NS.Range.RoleInRange(rule.role, cur.unit, rule.spells)
         if v == nil then v = NONE end
-        answers[i] = v
+        answers[i], answeredBy[i] = v, a or false
     end
     if v == NONE then return nil end
     return v
@@ -261,28 +270,46 @@ local function gapHolds()
     return cur.gap
 end
 
---- Whether the bracket lies wholly short of band `i`'s fallback yards (its far bound under the band's
---- `from`; a bracket ending at `from` may still reach it): the yards then rule the band out, whatever
---- the spells say.
-local function shortOf(i)
-    local from = cur.bands[i].from
-    return cur.state == "known" and type(cur.maxYd) == "number" and type(from) == "number" and cur.maxYd < from
+--- Whether the bracket may still lie in a gap band's yards (its near bound under that band's `to`):
+--- the unit may be in the dead zone, so beyond may not call it out of range.
+local function inGapYards()
+    if cur.state ~= "known" then return false end
+    local lo = type(cur.minYd) == "number" and cur.minYd or 0
+    local bands = cur.bands
+    for i = 1, #bands do
+        local r, to = ruleOf(bands[i]), bands[i].to
+        if r and r.type == "gap" and type(to) == "number" and lo < to then return true end
+    end
+    return false
 end
 
---- Whether the beyond band at index `at` holds.
-local function beyondHolds(at)
-    if shortOf(at) then return false end
-    local bands, any = cur.bands, false
+--- Whether band `i`'s false means beyond its anchor's reach, not inside its min range: an anchor with
+--- no min range, or a bracket whose near bound is at that min or past it. Without a bracket a min-range
+--- spell's false (Auto Shot, Throw, Charge at 6 yd) may only mean "too close".
+local function outPastReach(i)
+    local a = answeredBy[i]
+    local min = a and a.minRange
+    if type(min) ~= "number" or min <= 0 then return true end
+    return cur.state == "known" and type(cur.minYd) == "number" and cur.minYd >= min
+end
+
+--- Whether the beyond band holds (see the header): no spell band in range, the farthest spell band's
+--- anchor out of range past its reach (a nearer one with no answer, such as a class with no melee
+--- spell, does not stop it), no gap holding, and no dead-zone yards in reach.
+local function beyondHolds()
+    if inGapYards() then return false end
+    local bands, last, lastAt = cur.bands, nil, nil
     for i = 1, #bands do
         local r = ruleOf(bands[i])
         if r and r.type == "spell" then
-            if answerOf(i, r) ~= false then return false end
-            any = true
+            local v = answerOf(i, r)
+            if v == true then return false end
+            last, lastAt = v, i
         elseif r and r.type == "gap" and gapHolds() then
             return false
         end
     end
-    return any
+    return last == false and outPastReach(lastAt)
 end
 
 --- Whether band `i`'s own rule says the unit is not in it, so its yards may not be taken.
@@ -306,16 +333,27 @@ local function holds(i, pick)
     elseif r and r.type == "gap" then
         return gapHolds()
     elseif r then
-        return beyondHolds(i)
+        return beyondHolds()
     end
     return pick == i
 end
 
-local function resolveRules(bands, pick, state, maxYd, unit)
-    for i = 1, #bands do answers[i] = nil end
-    cur.bands, cur.unit, cur.state, cur.maxYd, cur.gap = bands, unit, state, maxYd, nil
-    local out = "unknown"
+--- The beyond band's index when it holds, before any band is walked: every spell out of range is
+--- out of range, whatever a yard band's yards say (the owner, 2026-11-19: an Evoker's 25-30 yd friend
+--- is not NEAR when Living Flame cannot reach).
+local function beyondFirst(bands)
     for i = 1, #bands do
+        local r = ruleOf(bands[i])
+        if r and r.type == "beyond" then return beyondHolds() and i or nil end
+    end
+    return nil
+end
+
+local function resolveRules(bands, pick, state, minYd, maxYd, unit)
+    for i = 1, #bands do answers[i], answeredBy[i] = nil, nil end
+    cur.bands, cur.unit, cur.state, cur.minYd, cur.maxYd, cur.gap = bands, unit, state, minYd, maxYd, nil
+    local out = beyondFirst(bands) or "unknown"
+    for i = 1, out == "unknown" and #bands or 0 do
         if holds(i, pick) then
             out = i
             break
@@ -338,7 +376,7 @@ function BandSets.Resolve(setId, state, minYd, maxYd, unit)
     if not set or #set.bands == 0 then return "unknown" end
     local pick = state == "known" and yardPick(set, minYd, maxYd) or nil
     if not hasRule(set.bands) then return pick or "unknown" end
-    return resolveRules(set.bands, pick, state, maxYd, unit)
+    return resolveRules(set.bands, pick, state, minYd, maxYd, unit)
 end
 
 --- The set a container uses for `unit`: its friendly override when one is set, exists and the client
@@ -626,7 +664,7 @@ end
 --- @return number  how many sets were seeded
 function BandSets.Seed(p)
     if defaultIdOf(p) then return 0 end
-    local first = NS.BandSetPresets.DefaultFor(NS.Compat.PlayerClass())
+    local first = NS.BandSetPresets.DefaultFor(NS.Compat.PlayerClass(), NS.Compat.PlayerSpecID())
     local n = 0
     local keys = { first }
     for _, key in ipairs(NS.BandSetPresets.ORDER) do

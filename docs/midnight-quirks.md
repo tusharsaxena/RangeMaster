@@ -295,9 +295,11 @@ the catalog's (sections 2 and 4) and are not restated here.
   everywhere. *Do:* trust `C_Spell.IsSpellInRange` only for a spell that is known and usable, ask
   usability on every check (a shapeshift fires no `SPELLS_CHANGED`), and take a ladder rung only from
   a spell with a max range above 0 and no min range (`modules/Range.lua`, `core/Compat.lua`). A band
-  anchor is asked the same way (`Compat.AnchorInRange`: known and usable first), and a non-hunter's
-  melee anchor answering true is voided when LibRangeCheck's bracket starts at 20 yd or more (the
-  melee guard, `modules/Range.lua`). *Source:* the research, *Lessons* 9, and the dynamic-bands
+  anchor is asked the same way (`Compat.AnchorInRange`: known and usable first), and a melee anchor
+  answering true is voided, for every class, when LibRangeCheck's bracket starts at 8 yd or more,
+  when a min-range ranged anchor says true, or when the spell or its live override reaches past 8 yd
+  (the melee guard, `modules/Range.lua`). *Measured (2026-11-19, the owner):* a Forever hunter's
+  Raptor Strike answered true at 41-45 and 45-100 yd, so hunters are guarded too. *Source:* the research, *Lessons* 9, and the dynamic-bands
   research (`docs/superpowers/specs/2026-11-19-dynamic-bands-research.md`).
 - **Whether a spell's reported range includes talents is undocumented.** `C_Spell.GetSpellInfo(id)`'s
   `minRange` / `maxRange` may be the base range (Auto Shot's 35 yd on WoW Forever) or the talented one

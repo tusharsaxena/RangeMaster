@@ -168,11 +168,16 @@ unless a replacement was named), and the last set cannot be deleted. Names stay 
 `Caster 40 copy 2`), as containers do, so `/rm bands <name>` names one set. A band may carry a rule
 (dynamic-bands plan): `spell(role)` holds on its anchor's true, `gap` when the ranged anchor says
 false, the melee one does not say true and a shorter check confirms near (`NS.Range.Near`), and
-`beyond` when every spell band's anchor said false, unless the bracket's far bound lies short of the
-beyond band's fallback `from` (the yards rule it out). `Resolve` walks the bands in order and takes the
-first that holds, a yard band or a spell band with no answer holding by its yards; with none, the
-yards' band unless its own anchor contradicts it, else `"unknown"`, never out of range. A
-non-hunter's melee true is voided when the bracket's near bound is 20 yd or more. The Hunter preset is two lists,
+`beyond` when no spell band's anchor said true and the farthest one said false past its reach (a
+min-range anchor's false counts only once the bracket's near bound reaches its min), whatever its
+fallback yards say, unless the bracket's near bound still lies inside a gap band's yards (an
+unconfirmed dead zone). `Resolve` asks beyond first, so it wins over a yard band whose yards match
+too; otherwise it walks the bands in order and takes the first that holds, a yard band or a spell
+band with no answer holding by its yards; with none, the yards' band unless its own anchor
+contradicts it, else `"unknown"`, never out of range. A role's anchor is a list of candidates
+(longest reported reach first; the first usable one answers), and a melee true is voided for every
+class at a bracket near bound of 8 yd or more, while a min-range ranged anchor says true, or when the
+melee spell (or its live override) reaches past 8 yd. The Hunter preset is two lists,
 one per client, picked once at load (clients-§5): WoW Forever's has the 5-8 yd Auto Shot dead zone.
 
 ### Containers and presets
