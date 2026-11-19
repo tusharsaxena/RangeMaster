@@ -37,7 +37,8 @@ local _, NS = ...
 --   spell(role) holds on its anchor's true (NS.Range.RoleInRange); on a nil it is a yard band;
 --   gap holds when the ranged anchor says false, the melee anchor does not say true and a shorter
 --     check confirms the unit is near (NS.Range.Near);
---   beyond holds when every spell band's anchor said false and no gap holds, whatever its fallback
+--   beyond holds when no spell band's anchor said true, the farthest one said false (a nearer one
+--     with no answer, a class with no melee spell, does not stop it) and no gap holds, whatever its fallback
 --     yards say (the owner, 2026-11-19: a 30 yd spell out of range reads OOR, not unknown), unless the
 --     bracket still reaches into a gap band's yards (its near bound under that band's `to`): a dead
 --     zone the shorter check could not confirm is never called out of range on a guess.
@@ -276,20 +277,23 @@ local function inGapYards()
     return false
 end
 
---- Whether the beyond band holds (see the header: every spell band out, no gap, no dead-zone yards).
+--- Whether the beyond band holds (see the header): no spell band in range, the farthest spell band's
+--- anchor out of range (a nearer one with no answer, such as a class with no melee spell, does not
+--- stop it), no gap holding, and no dead-zone yards in reach.
 local function beyondHolds()
     if inGapYards() then return false end
-    local bands, any = cur.bands, false
+    local bands, last = cur.bands, nil
     for i = 1, #bands do
         local r = ruleOf(bands[i])
         if r and r.type == "spell" then
-            if answerOf(i, r) ~= false then return false end
-            any = true
+            local v = answerOf(i, r)
+            if v == true then return false end
+            last = v
         elseif r and r.type == "gap" and gapHolds() then
             return false
         end
     end
-    return any
+    return last == false
 end
 
 --- Whether band `i`'s own rule says the unit is not in it, so its yards may not be taken.

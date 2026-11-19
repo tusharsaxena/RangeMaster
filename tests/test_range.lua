@@ -943,6 +943,25 @@ test("rules: every spell out of range reads OOR, short of beyond's yards too (ow
   end)
 end)
 
+test("rules: no melee spell (a Forever paladin) still reads OOR once the ranged spell is out", function()
+  -- red under: a beyond that needs every spell band's answer (the unlearned melee band left 30-40 unknown).
+  local bands = {
+    { from = 0, to = 5, label = "MELEE", rule = { type = "spell", role = "melee" } },
+    { from = 5, to = 20, label = "CLOSE" }, { from = 20, to = 30, label = "MID" },
+    { from = 30, to = 40, label = "LONG", rule = { type = "spell", role = "ranged" } },
+    { from = 40, label = "OOR", rule = { type = "beyond" } },
+  }
+  local spec = { bands = bands, class = "PALADIN", anchors = { ranged = { 879 } }, known = { [879] = true },
+    info = { [879] = { "Exorcism", 879, 0, 30 } }, bracket = { 30, 35 }, inRange = { [879] = false } }
+  withRules(spec, function(setId)
+    assertNil(NS.Range.RoleInRange("melee", "target"), "no melee anchor: no answer")
+    assertEqual(resolve(setId, spec), 5, "the farthest spell band out, the melee band silent: OOR")
+    spec.bracket = { 0, 5 }
+    spec.inRange[879] = true
+    assertEqual(resolve(setId, spec), 1, "close in: MELEE by its yards")
+  end)
+end)
+
 test("rules: an unlearned anchor falls back to its band's yards, and unknown stays unknown", function()
   -- red under: an unresolved role read as out of range (a fresh level 1 would read OOR everywhere).
   local spec = hunter({ known = { [2973] = true }, bracket = { 20, 25 }, inRange = { [2973] = false, [75] = true } })
@@ -973,11 +992,11 @@ test("rules: a nil or secret answer is no answer: the yards decide, or unknown",
   if not ok then error(err, 0) end
 end)
 
-test("rules: yards that contradict a band's own anchor read unknown", function()
+test("rules: yards that contradict a band's own anchor never paint that band", function()
   -- red under: a fallback that paints AUTO while Auto Shot says the target is out of its range.
   local spec = hunter({ known = { [75] = true }, bracket = { 20, 25 }, inRange = { [75] = false } })
   withRules(spec, function(setId)
-    assertEqual(resolve(setId, spec), "unknown", "the yards say AUTO, the anchor says no")
+    assertEqual(resolve(setId, spec), 4, "the yards say AUTO, the farthest anchor says no: the spell wins, OOR")
   end)
 end)
 

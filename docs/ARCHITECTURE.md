@@ -279,7 +279,8 @@ never a real plate, and nothing measures it.
 - Harmful anchors give no answer on a friendly unit, so a friendly container reads its yards unless
   its set has a friendly spell band. Melee reach is the client's own, so against a large boss or a
   player the melee band follows the spell, not 5 yd.
-- `beyond` holds whenever every spell band's anchor says false, even while the bracket is short of the
+- `beyond` holds whenever no spell band's anchor says true and the farthest one says false (a nearer
+  band with no answer, a class with no melee spell, does not stop it), even while the bracket is short of the
   beyond band's fallback edge (the owner's ruling, 2026-11-19: a Forever caster's 30 yd spell out of
   range reads OOR at 30-40, not unknown). The one exception is a bracket that still reaches into a gap
   band's yards: an unconfirmed dead zone reads *unknown*, never out of range on a guess.

@@ -306,3 +306,6 @@ yards put the bracket (the band-matrix workbook showed 30-40 yd unknown on most 
 no longer yields to the beyond band's fallback yards; it still yields while the bracket reaches into a gap
 band's yards, so the hunter dead zone is never called OOR on a guess. Branch
 `fix/2026-11-19-beyond-shows-oor`.
+The same ruling covers a class with no melee spell (a Forever paladin, a druid in caster form): beyond
+now needs no spell band in range and the FARTHEST spell band out of range; a nearer band with no answer
+no longer blocks it.
