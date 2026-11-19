@@ -805,6 +805,72 @@ test("render: every indicator shape x style ships as a white 128x128 uncompresse
   end
 end)
 
+--- A 128x128 indicator tile's pixels (TGA BGRA quads, after the 18-byte header).
+local function artPixels(shape, style)
+  local fh = assert(io.open("media/textures/indicators/" .. shape .. "_" .. style .. ".tga", "rb"))
+  fh:read(18)
+  local data = fh:read("*a")
+  fh:close()
+  return data
+end
+
+--- The bounding box of the pixels over half opaque, as its width and height, and the most opaque
+--- pixel on the tile's outer edge.
+local function artExtent(data)
+  local x0, y0, x1, y1, edge = 128, 128, -1, -1, 0
+  for y = 0, 127 do
+    for x = 0, 127 do
+      local a = data:byte((y * 128 + x) * 4 + 4)
+      if a > 127 then
+        if x < x0 then x0 = x end
+        if x > x1 then x1 = x end
+        if y < y0 then y0 = y end
+        if y > y1 then y1 = y end
+      end
+      if (x == 0 or x == 127 or y == 0 or y == 127) and a > edge then edge = a end
+    end
+  end
+  return x1 - x0 + 1, y1 - y0 + 1, edge
+end
+
+test("render: the halo-free styles draw each shape at the old art's fill, glowing and neon smaller", function()
+  -- The v0.1.0 single-file art (64x64, cb7ca0a) filled the box: dot and ring 56 of 64, square 52,
+  -- diamond 58, triangle 54 x 49 (over-half-opaque extent), so a migrated container (style plain)
+  -- must draw that size at the same Size. Doubled for the 128 tiles; hexagon and star are new and
+  -- take the dot's extent on their long side. Red under the M1 art, which drew every style at about
+  -- 70% of the box (the dot 90 px wide), and under halo styles drawn at the full fill (their halo
+  -- clips the border).
+  local old = { dot = { 112, 112 }, ring = { 112, 112 }, square = { 104, 104 },
+    diamond = { 116, 116 }, triangle = { 108, 98 } }
+  local shapes, styles = artChoices()
+  for _, shape in ipairs(shapes) do
+    local fullW, fullH
+    for _, style in ipairs(styles) do
+      local w, h, edge = artExtent(artPixels(shape, style))
+      local tile = shape .. "_" .. style
+      assertTrue(edge <= 1, tile .. ": the border is transparent (alpha " .. edge .. "), nothing clips")
+      if style ~= "glowing" and style ~= "neon" then
+        if old[shape] then
+          assertTrue(math.abs(w - old[shape][1]) <= 3 and math.abs(h - old[shape][2]) <= 3,
+            tile .. ": " .. w .. "x" .. h .. " is the old art's " .. old[shape][1] .. "x" .. old[shape][2])
+        else
+          local long = math.max(w, h)
+          assertTrue(math.abs(long - 112) <= 3, tile .. ": its long side " .. long .. " is the dot's 112")
+        end
+        if fullW then
+          assertEqual(w .. "x" .. h, fullW .. "x" .. fullH, tile .. ": every halo-free style the same size")
+        end
+        fullW, fullH = w, h
+      end
+    end
+    for _, style in ipairs({ "glowing", "neon" }) do
+      local w, h = artExtent(artPixels(shape, style))
+      assertTrue(w <= fullW - 10 and h <= fullH - 6,
+        shape .. "_" .. style .. ": a smaller core (" .. w .. "x" .. h .. ") with room for its halo")
+    end
+  end
+end)
+
 -- ---------------------------------------------------------------------------
 -- The first draw
 -- ---------------------------------------------------------------------------

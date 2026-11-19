@@ -7,8 +7,12 @@ alpha. The client tints it with SetVertexColor, so the gray is the shading the b
 multiplied by and the alpha is the shape.
 
 Every tile is drawn at 4x and box-filtered down, premultiplied, so the edges are clean and a
-transparent pixel never carries a dark color into the client's bilinear filter. The shape sits at
-about 70% of the box (radius 0.35) so the glowing and neon halos fit inside it; the script fails if
+transparent pixel never carries a dark color into the client's bilinear filter.
+
+Two sizes. The styles with no halo (plain, matte, glossy, gem) draw each shape at the fill the old
+v0.1.0 single-file art had (FILL below, measured from git `cb7ca0a:media/textures/indicators/`), so a
+migrated container (style plain) draws the same size at the same Size. Glowing and neon keep a
+smaller core, about 70% of the box (radius 0.35), so their halos fit inside it. The script fails if
 any tile's border is not transparent.
 
 Deterministic: the same Pillow gives the same bytes on every run (no randomness, no timestamps,
@@ -31,7 +35,17 @@ SIZE = 128              # the shipped tile
 SS = 4                  # supersampling factor
 W = SIZE * SS           # the working canvas
 C = W / 2.0             # its center
-R = 0.35 * W            # the shape's radius
+R = 0.35 * W            # the shape's radius under a halo (glowing, neon)
+
+# The radius each shape takes in a halo-free style, as a fraction of the box, picked so the shape's
+# extent matches the old art's (64x64 tiles at cb7ca0a; alpha > 50% bounding box, in tile pixels):
+# dot and ring 56 of 64 (87.5%), square 52, diamond 58, triangle 54 wide by 49 high. Hexagon and star
+# are new and take the dot's radius.
+FILL = {
+    "dot": 0.4375, "ring": 0.4375, "square": 0.4724, "diamond": 0.4196,
+    "triangle": 0.4150, "hexagon": 0.4375, "star": 0.4375,
+}
+HALO_STYLES = ("glowing", "neon")
 
 SHAPES = ["dot", "ring", "square", "diamond", "triangle", "hexagon", "star"]
 STYLES = ["plain", "matte", "glossy", "glowing", "neon", "gem"]
@@ -105,9 +119,9 @@ def vertical(top, bottom):
 # Shapes: a white-on-black L mask at the working size.
 # --------------------------------------------------------------------------------------------
 
-def _poly(points):
+def _poly(points, r):
     img = Image.new("L", (W, W), 0)
-    ImageDraw.Draw(img).polygon([(C + x * R, C + y * R) for x, y in points], fill=255)
+    ImageDraw.Draw(img).polygon([(C + x * r, C + y * r) for x, y in points], fill=255)
     return img
 
 
@@ -116,7 +130,7 @@ def _regular(n, radius, phase):
             for i in range(n)]
 
 
-def shape_mask(shape):
+def shape_mask(shape, R):
     img = Image.new("L", (W, W), 0)
     d = ImageDraw.Draw(img)
     if shape == "dot":
@@ -129,20 +143,20 @@ def shape_mask(shape):
         h = R * 0.86
         d.rounded_rectangle([C - h, C - h, C + h, C + h], radius=R * 0.14, fill=255)
     elif shape == "diamond":
-        img = _poly([(0, -1.08), (1.08, 0), (0, 1.08), (-1.08, 0)])
+        img = _poly([(0, -1.08), (1.08, 0), (0, 1.08), (-1.08, 0)], R)
     elif shape == "triangle":
         # Point up, the centroid on the box's center so it sits level with the others.
-        img = _poly([(0, -1.08), (1.04, 0.72), (-1.04, 0.72)])
+        img = _poly([(0, -1.08), (1.04, 0.72), (-1.04, 0.72)], R)
         img = img.transform(img.size, Image.AFFINE, (1, 0, 0, 0, 1, -0.06 * R), Image.NEAREST)
     elif shape == "hexagon":
-        img = _poly(_regular(6, 1.0, -math.pi / 2))
+        img = _poly(_regular(6, 1.0, -math.pi / 2), R)
     elif shape == "star":
         pts = []
         for i in range(10):
             rad = 1.08 if i % 2 == 0 else 1.08 * 0.47
             a = -math.pi / 2 + math.pi * i / 5
             pts.append((rad * math.cos(a), rad * math.sin(a) + 0.04))
-        img = _poly(pts)
+        img = _poly(pts, R)
     else:
         raise ValueError(shape)
     return img
@@ -157,11 +171,11 @@ def rim(mask, width):
     return clamp(fx("(m - b) / 127.5", m=mask, b=blur(mask, width)), 0.0, 1.0)
 
 
-def style_plain(m):
+def style_plain(m, R):
     return const(255), m.convert("F")
 
 
-def style_matte(m):
+def style_matte(m, R):
     # Soft radial light from the upper left, a dark rim, no highlight.
     r = clamp(radial(C - 0.28 * R, C - 0.32 * R, 1.75 * R), 0.0, 1.0)
     e = rim(m, 0.16 * R)
@@ -169,7 +183,7 @@ def style_matte(m):
     return g, m.convert("F")
 
 
-def style_glossy(m):
+def style_glossy(m, R):
     # A body darker toward the bottom, a faint bounce light at the bottom edge, and a white shine
     # clipped to the upper half.
     bbox = m.getbbox()
@@ -189,7 +203,7 @@ def style_glossy(m):
     return clamp(g), m.convert("F")
 
 
-def style_glowing(m):
+def style_glowing(m, R):
     # A solid, faintly shaded core and a soft halo around it.
     e = rim(m, 0.10 * R)
     core = fx("255.0 - 30.0 * e", e=e)
@@ -201,7 +215,7 @@ def style_glowing(m):
     return g, alpha
 
 
-def style_neon(m):
+def style_neon(m, R):
     # A bright outline, a blurred glow off it, a faint fill.
     inner = erode(m, 0.20 * R)
     line = clamp(fx("m - i", m=m, i=inner))
@@ -210,7 +224,7 @@ def style_neon(m):
     return const(255), alpha
 
 
-def style_gem(m):
+def style_gem(m, R):
     # Two hard facets split on the falling diagonal (light upper left, dark lower right), each
     # graded a little, and a thin light edge.
     split = Image.new("L", (W, W), 0)
@@ -267,9 +281,15 @@ def check_border(alpha, name):
         sys.exit("%s: its border is not transparent (alpha %d); the art clips" % (name, worst))
 
 
+def radius(shape, style):
+    """The shape's radius in working pixels: the halo core, or the old art's fill."""
+    return R if style in HALO_STYLES else FILL[shape] * W
+
+
 def render(shape, style):
-    m = shape_mask(shape)
-    gray, alpha = STYLE_FN[style](m)
+    r = radius(shape, style)
+    m = shape_mask(shape, r)
+    gray, alpha = STYLE_FN[style](m, r)
     gray, alpha = downsample(gray, alpha)
     check_border(alpha, shape + "_" + style)
     return gray, alpha

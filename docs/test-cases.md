@@ -156,7 +156,7 @@ Total.
 - number: no unit reads nothing, and an unknown format reads as range
 - number: a known state with no far bound and no near bound reads unknown, not 0
 
-### test_container_render.lua (39)
+### test_container_render.lua (45)
 
 - render: an enabled container gets one pooled instance, watching its unit, drawn at once
 - render: Release returns the frame to the pool cleanly, and the next Acquire reuses it
@@ -195,8 +195,14 @@ Total.
 - render: an element's shadow turns the font string's shadow offset on and off
 - render: a LibSharedMedia border draws on a backdrop of its own, band-colored, its tiling tracked
 - render: every indicator shape x style ships as a white 128x128 uncompressed 32-bit TGA
+- render: the halo-free styles draw each shape at the old art's fill, glowing and neon smaller
 - render: a stored container draws at login, whatever the skin settings are
 - render: a container with no stored chip list draws the logged-in character's class chips
+- render: test_caption_text — the caption reads the container's name until it has its own, and follows a rename
+- render: test_caption_hidden — off by default and while disabled, the root sized as before
+- render: test_caption_positions — top, bottom, left and right, inside the padding, the root grown to hold it
+- render: test_caption_fixed_size — a fixed-size container keeps its box, the caption inside it
+- render: test_caption_color_modes — band, fixed and class, as the elements
 
 ### test_anchors_screen.lua (12)
 
@@ -558,7 +564,7 @@ Total.
 - the General page draws Master controls first, then Presets, and the Skin tab last
 - the General page is covered in combat on the sidebar path, and the window stays open (options-ui-§2)
 
-### test_settings_containers.lua (29)
+### test_settings_containers.lua (30)
 
 - settings: surface parity — every Containers and Band sets row answers /rm get and /rm set, through its registry's writer
 - settings: surface parity — every Containers row is drawn on its rail entry's tab
@@ -579,7 +585,8 @@ Total.
 - settings: the element order list is canceled before the next render draws anything (options-ui-§18)
 - settings: test_position_rows — each attach mode reads as AuraMaster's: its anchor point, this container's, then X and Y
 - settings: Display > Frame > Border ends with Border opacity, a percent slider after the color pair
-- settings: test_display_tabs — Display carries Layout, Frame, Number, Text, Dot and Spell chips; the rail has no Indicator
+- settings: test_display_tabs — Display carries Layout, Frame, Number, Text, Label, Dot and Spell chips; the rail has no Indicator
+- settings: test_label_tab — the Label tab's rows, in order: show, text, position, align, gap, the Font block
 - settings: test_element_order_dot — the element order list calls the indicator Dot
 - settings: test_dot_style_row — the Style row is a dropdown in the schema, reached by /rm set, disabled for Bar and Spell icon
 - settings: test_dot_style_tiles — the Dot tab draws a tile per style in the stored shape, and a click writes the style
@@ -845,7 +852,7 @@ Total.
 | test_container_manager.lua | 17 |
 | test_presets.lua | 13 |
 | test_number_format.lua | 5 |
-| test_container_render.lua | 39 |
+| test_container_render.lua | 45 |
 | test_anchors_screen.lua | 12 |
 | test_anchors_frame.lua | 17 |
 | test_anchors_nameplate.lua | 14 |
@@ -870,7 +877,7 @@ Total.
 | test_modes.lua | 20 |
 | test_optionssetup.lua | 16 |
 | test_realpages.lua | 7 |
-| test_settings_containers.lua | 29 |
+| test_settings_containers.lua | 30 |
 | test_settings_bandsets.lua | 6 |
 | test_settings_presets.lua | 14 |
 | test_skinsetup.lua | 12 |
@@ -894,4 +901,4 @@ Total.
 | test_skin_switch.lua | 6 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **660** |
+| **Total** | **667** |

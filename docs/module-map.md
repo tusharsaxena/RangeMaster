@@ -94,8 +94,9 @@ is per module): Tooltip, Role, Item, Glow, Callout, Charts, IconBrowser, Toast a
 `media/logos/` (the addon logo, layout-§4) and `media/textures/indicators/` (the indicator art:
 `<shape>_<style>` for the shapes `dot`, `ring`, `square`, `diamond`, `triangle`, `hexagon`, `star` and
 the styles `plain`, `matte`, `glossy`, `glowing`, `neon`, `gem`, each a white 128x128 uncompressed
-32-bit TGA tinted at draw time, drawn by `tools/indicator_art.py`; `tests/test_container_render.lua`
-checks the headers).
+32-bit TGA tinted at draw time, drawn by `tools/indicator_art.py`; plain, matte, glossy and gem fill
+the box as the v0.1.0 single-file art did (the dot 87.5%), glowing and neon draw a smaller core (about
+70%) so their halo fits; `tests/test_container_render.lua` checks the headers and the fill).
 
 ## Tests
 
