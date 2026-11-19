@@ -4,14 +4,14 @@ local _, NS = ...
 --     band   [Container v picker ]                [ New container ]     <- above the rail and the strip
 --     rail   | General    |  [ General ][ Position ]                     <- the selected entry's tabs
 --            | Display    |  [Name]               [Enable this container]
---            | Indicator  |  -- What it tracks --
---            | Visibility |  [Unit]               [Band set]
---            | Sounds     |  [Friendly band set]
+--            | Visibility |  -- What it tracks --
+--            | Sounds     |  [Unit]               [Band set]
+--                            [Friendly band set]
 --                            [Duplicate container] [Delete container…]
 --                            -- Copy settings from --  [Source v] [Copy onto this container]
 --                            -- Preview --  every band of the band set, in its own color
 --
--- ONE PAGE, A RAIL OF FIVE ENTRIES (options-ui-§13, §14; design spec 5.6). The band carries the page's
+-- ONE PAGE, A RAIL OF FOUR ENTRIES (options-ui-§13, §14; design spec 5.6). The band carries the page's
 -- only picker and its create act (O.PageBanner with `action`); the rail chooses which part of the
 -- selected container is shown, never which container. Each rail entry is a page key of its own
 -- (`containers`, `containers_display`, ...) whose rows carry it, so the header's Defaults restores
@@ -545,9 +545,10 @@ end
 --- order: PageBanner, NavRail, TabStrip; options-ui-§13, §14).
 function render(ctx)
     ctx.sectionTabs = ctx.sectionTabs or {}
-    -- Before the clear, never after (options-ui-§18): the Display entry's drag list holds frames on
-    -- AceGUI widgets the clear hands back to the pool.
+    -- Before the clear, never after (options-ui-§18): the Display entry's drag list and its Dot tab's
+    -- style tiles hold frames on AceGUI widgets the clear hands back to the pool.
     if NS.CancelElementOrder then NS.CancelElementOrder(ctx) end
+    if NS.ReleaseStyleTiles then NS.ReleaseStyleTiles(ctx) end
     H.ClearScroll(ctx)
     local scroll = H.EnsureScroll(ctx)
     local c, id = NS.SelectedContainer()

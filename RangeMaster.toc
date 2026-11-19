@@ -160,7 +160,6 @@ settings\General.lua
 settings\Containers.lua
 # Conventional: the Containers page's other rail entries, in rail order (each registers at load).
 settings\Containers_Display.lua
-settings\Containers_Indicator.lua
 settings\Containers_Visibility.lua
 settings\Containers_Sounds.lua
 # Conventional: the Band sets page, third in the sidebar; reads NS.RequestPanelRefresh and NS.BandRibbon

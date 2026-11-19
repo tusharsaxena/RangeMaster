@@ -12,7 +12,7 @@ local E = dofile("tests/settings_env.lua")
 local CM = NS.CM
 
 local CONTAINER_PAGES = {
-  containers = "General", containers_display = "Display", containers_indicator = "Indicator",
+  containers = "General", containers_display = "Display",
   containers_visibility = "Visibility", containers_sounds = "Sounds",
 }
 
@@ -199,12 +199,12 @@ test("settings: test_sounds_section_hidden_for_nameplates — the rail lists no 
     ctx.activeSection = "containers_sounds"
     NS.__renderContainersPage(ctx)
     local rail = table.concat(E.railLabels(ctx), ",")
-    assertEqual(rail, "General,Display,Indicator,Visibility,Sounds", "a target container lists all five")
+    assertEqual(rail, "General,Display,Visibility,Sounds", "a target container lists all four")
     assertEqual(ctx.activeSection, "containers_sounds", "and the page is on Sounds")
     NS.SelectContainer(plates)
     NS.__renderContainersPage(ctx)
     rail = table.concat(E.railLabels(ctx), ",")
-    assertEqual(rail, "General,Display,Indicator,Visibility", "a nameplates container lists no Sounds")
+    assertEqual(rail, "General,Display,Visibility", "a nameplates container lists no Sounds")
     assertEqual(ctx.activeSection, "containers", "the page heals to General")
   end)
 end)
@@ -454,4 +454,155 @@ test("settings: Display > Frame > Border ends with Border opacity, a percent sli
   assertEqual(border[#border - 1].path, "container.frame.border.colorMode", "right after the color pair")
   assertTrue(opacity.isPercent, "shown as a percent")
   assertEqual(opacity.min, 0); assertEqual(opacity.max, 1); assertEqual(opacity.step, 0.05)
+end)
+
+-- ── the Display entry's Dot and Spell chips tabs (plan 2026-11-19, M3) ──────────────────────
+
+--- The rows of the Display entry, by path.
+local function displayRows()
+  local out = {}
+  for _, row in ipairs(NS.SchemaForPage("containers_display")) do out[row.path] = row end
+  return out
+end
+
+test("settings: test_display_tabs — Display carries Layout, Frame, Number, Text, Dot and Spell chips; the rail has no Indicator", function()
+  -- red under: the v0.1.0 rail, whose Indicator entry held the dot and the spell chips.
+  local L = NS.L
+  local groups, seen = {}, {}
+  for _, row in ipairs(NS.SchemaForPage("containers_display")) do
+    if not seen[row.group] then seen[row.group] = true; groups[#groups + 1] = row.group end
+  end
+  assertEqual(table.concat(groups, ","), table.concat({ L["Layout"], L["Frame"], L["Number"], L["Text"],
+    L["Dot"], L["Spell chips"] }, ","), "the tabs, in order")
+  for _, row in ipairs(NS.Schema) do
+    assertTrue(row.page ~= "containers_indicator", tostring(row.path) .. " still names the Indicator entry")
+  end
+  local rows = displayRows()
+  for path, group in pairs({
+    ["container.elements.indicator.enabled"] = "Dot", ["container.elements.indicator.shape"] = "Dot",
+    ["container.elements.indicator.style"] = "Dot", ["container.elements.indicator.size"] = "Dot",
+    ["container.elements.indicator.color"] = "Dot", ["container.elements.indicator.colorMode"] = "Dot",
+    ["container.elements.spells.enabled"] = "Spell chips", ["container.elements.spells.style"] = "Spell chips",
+    ["container.elements.spells.size"] = "Spell chips",
+  }) do
+    assertTrue(rows[path] ~= nil, path .. " is on the Display entry")
+    assertEqual(rows[path].group, L[group], path .. " on the " .. group .. " tab")
+  end
+  assertEqual(rows["container.elements.indicator.enabled"].label, L["Show dot"])
+  local dot = {}
+  for _, row in ipairs(NS.SchemaForPage("containers_display")) do
+    if row.group == L["Dot"] then dot[#dot + 1] = row.path:match("indicator%.(%a+)$") end
+  end
+  assertEqual(table.concat(dot, ","), "enabled,shape,size,color,colorMode,style",
+    "Show dot, Shape, Size, the color pair, then the Style tiles")
+  E.with(function()
+    NS.SelectContainer(CM.Create("target"))
+    local ctx = E.page("containers", "Containers")
+    NS.__renderContainersPage(ctx)
+    assertEqual(table.concat(E.railLabels(ctx), ","), "General,Display,Visibility,Sounds")
+  end)
+end)
+
+test("settings: test_element_order_dot — the element order list calls the indicator Dot", function()
+  -- red under: the list naming it Indicator, after its rail entry is gone.
+  E.with(function()
+    NS.SelectContainer(CM.Create("target"))
+    local ctx = layoutTab()
+    local label
+    for i, row in ipairs(ctx.rmOrderRows) do
+      if row.rmName == "indicator" then label = ctx.rmOrderList.rows[i].ghostText end
+    end
+    assertEqual(label, NS.L["Dot"])
+  end)
+end)
+
+test("settings: test_dot_style_row — the Style row is a dropdown in the schema, reached by /rm set, disabled for Bar and Spell icon", function()
+  -- red under: no container.elements.indicator.style row (the style only reachable by a raw store).
+  E.with(function()
+    local id = CM.Create("target")
+    NS.SelectContainer(id)
+    local row = displayRows()["container.elements.indicator.style"]
+    assertTrue(row ~= nil, "the style row exists")
+    assertEqual(table.concat(row.sorting, ","), "plain,matte,glossy,glowing,neon,gem")
+    assertEqual(row.default, "matte", "matte is the default")
+    assertTrue(row.skipRender, "the tiles are its surface")
+    slash("set container.elements.indicator.style gem")
+    assertEqual(CM.Get(id).elements.indicator.style, "gem", "/rm set reaches it")
+    slash("set container.elements.indicator.style chrome")
+    assertEqual(CM.Get(id).elements.indicator.style, "gem", "a style that is none is refused")
+    for shape, off in pairs({ dot = false, ring = false, star = false, hexagon = false, bar = true, icon = true }) do
+      CM.SetField(id, "elements.indicator.shape", shape)
+      assertEqual(row.disabledIf(row), off, shape .. (off and " takes no style" or " takes a style"))
+    end
+  end)
+end)
+
+--- The Display entry's Dot tab, drawn for the selected container: its ctx.
+local function dotTab()
+  local ctx = E.page("containers", "Containers")
+  ctx.activeSection, ctx.sectionTabs = "containers_display", { containers_display = NS.L["Dot"] }
+  NS.__renderContainersPage(ctx)
+  return ctx
+end
+
+test("settings: test_dot_style_tiles — the Dot tab draws a tile per style in the stored shape, and a click writes the style", function()
+  -- red under: a Dot tab with no tiles (the style only on the CLI), or tiles drawing the old art.
+  E.with(function()
+    local id = CM.Create("target")
+    NS.SelectContainer(id)
+    CM.SetField(id, "elements.indicator.shape", "hexagon")
+    local ctx = dotTab()
+    local labels = E.labels(ctx)
+    assertTrue(labels[NS.L["Style"]], "the Style heading is drawn")
+    assertTrue(labels[NS.L["Show dot"]] and labels[NS.L["Shape"]], "with the rows above it")
+    local tiles = ctx.rmStyleTiles or {}
+    assertEqual(#tiles, 6, "one tile per style")
+    local keys = {}
+    for i, tile in ipairs(tiles) do
+      keys[i] = tile.rmStyle
+      local art = tostring(tile.rmArtPath)
+      assertTrue(art:find("indicators\\hexagon_" .. tile.rmStyle, 1, true) ~= nil,
+        tile.rmStyle .. " draws the stored shape in that style: " .. art)
+    end
+    assertEqual(table.concat(keys, ","), "plain,matte,glossy,glowing,neon,gem")
+    tiles[5]:__fire("OnClick")
+    assertEqual(CM.Get(id).elements.indicator.style, "neon", "a click writes the style")
+  end)
+end)
+
+test("settings: test_dot_style_tiles_off — for Bar and Spell icon the tiles gray and take no click", function()
+  -- red under: tiles that still write a style the bar and the spell icon never draw.
+  E.with(function()
+    local id = CM.Create("target")
+    NS.SelectContainer(id)
+    CM.SetField(id, "elements.indicator.shape", "bar")
+    local ctx = dotTab()
+    assertTrue(E.labels(ctx)[NS.L["Bar and Spell icon take no style. Pick a shape to choose its finish."]],
+      "the tab says why")
+    local tiles = ctx.rmStyleTiles or {}
+    assertEqual(#tiles, 6)
+    assertTrue(tiles[1].rmOff and tiles[6].rmOff, "grayed")
+    tiles[3]:__fire("OnClick")
+    assertEqual(CM.Get(id).elements.indicator.style, "matte", "a click stores nothing")
+  end)
+end)
+
+test("settings: the style tiles are handed back before the next render clears the scroll", function()
+  E.with(function()
+    NS.SelectContainer(CM.Create("target"))
+    local ctx = dotTab()
+    local first = ctx.rmStyleTiles[1]
+    local savedClear = NS.Helpers.ClearScroll
+    local released
+    NS.Helpers.ClearScroll = function(...)
+      released = #ctx.rmStyleTiles == 0
+      return savedClear(...)
+    end
+    local ok, err = pcall(NS.__renderContainersPage, ctx)
+    NS.Helpers.ClearScroll = savedClear
+    if not ok then error(err, 0) end
+    assertTrue(released, "the old tiles are released before the clear")
+    assertEqual(#ctx.rmStyleTiles, 6, "and the new render drew six")
+    assertTrue(first ~= nil)
+  end)
 end)
