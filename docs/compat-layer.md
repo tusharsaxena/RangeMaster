@@ -12,7 +12,7 @@ answer to "which client is this" (clients-§3), each with a library-absent stand
 Retail. The secret guards (`IsSecret`, `CanAccess`, `IsSafeKey`) and the spell-info reader
 (`GetSpellInfo`) are the library's members handed over by reference, with the one-rung bodies the
 library's degradation rule asks for; they are LibKa0s's and are not documented again here. The
-twenty below are this addon's own.
+nineteen below are this addon's own.
 
 ## The range reads and the ladder
 
@@ -29,10 +29,10 @@ secret, or a value that is neither a boolean nor 1/0 answers `nil`, "no answer",
 | 4 | `SpellInRange(id, unit)` | `C_Spell.IsSpellInRange` | `nil` | The spell chips and the ladder's spell rungs | `modules/Range.lua`, shim 12 |
 | 5 | `ItemInRange(id, unit)` | `C_Item.IsItemInRange` | `nil` | Forever's item rungs. The client refuses it on a unit the player cannot attack in combat; the caller skips it there | `modules/Range.lua` (the ladder walk) |
 | 6 | `InteractInRange(index, unit)` | `CheckInteractDistance(unit, index)` | `nil` | Forever's interact rungs. Protected on a friendly unit in combat; skipped there | `modules/Range.lua` (the ladder walk) |
-| 7 | `CanAttack(unit)` | `UnitCanAttack("player", unit)` | `nil`, which the caller reads as "cannot", the side that never asks a blocked check | The combat restriction's one question | `modules/Range.lua` (the ladder walk) |
-| 8 | `RangeLadder()` | `ClientKey`, `UnitRace`, `UnitClass`, shim 2, `GetSpellInfo` | Retail: spell rungs only; no class or race read: no spell rungs, no race offset | The per-client rung list, sorted by yd (below) | `modules/Range.lua`, built on first use and again on `SPELLS_CHANGED` |
-| 9 | `IsFriend(unit)` | `UnitIsFriend("player", unit)` (pcall, secret-checked) | `nil`, which the caller reads as "not friendly": the container stays on its own band set | A band set's friendly override applies only to a unit the client says is friendly | `modules/BandSets.lua` (`ForUnit`) |
-| 10 | `PlayerClass()` | `UnitClass("player")`'s class token (pcall, secret-checked) | `nil`: the seed picks Melee / Ranged | The first-run band-set seed puts the class default first | `modules/BandSets.lua` (the seed routine) |
+| 7 | `CanAttack(unit)` | `UnitCanAttack("player", unit)` | `nil`, which the caller reads as "cannot", the side that never asks a blocked check | The combat restriction's one question, the hostile visibility rule and the hostile-plate filter | `modules/Range.lua` (the ladder walk), `modules/Visibility.lua` (`hostile`), `modules/Anchors_Nameplate.lua` (which plates a plate container serves) |
+| 8 | `RangeLadder()` | `ClientKey`, `UnitRace`, `UnitClass`, shim 2, `GetSpellInfo` | Retail: spell rungs only; no class or race read: no spell rungs, no race offset | The per-client rung list, sorted by yd (below) | `modules/Range.lua`, built on the first Forever walk and again after a `SPELLS_CHANGED` rebuild drops it |
+| 9 | `IsFriend(unit)` | `UnitIsFriend("player", unit)` (pcall, secret-checked) | `nil`, which the caller reads as "not friendly": the container stays on its own band set | A band set's friendly override and the friendly visibility rule apply only to a unit the client says is friendly | `modules/BandSets.lua` (`ForUnit`), `modules/Visibility.lua` (`friendly`) |
+| 10 | `PlayerClass()` | `UnitClass("player")`'s class token (pcall, secret-checked) | `nil`: the seed picks Melee / Ranged, and no class seeds apply | The class default band set (first-run seed and the presets' class set), the class's spell chips and anchor seeds | `modules/BandSets.lua` (the seed routine), `modules/Presets.lua` (`classSet`), `modules/ContainerManager.lua` (`SpellChips`), `modules/Range.lua` (the anchor rebuild) |
 
 ## The anchor-spell reads (band rules)
 
@@ -48,7 +48,7 @@ and 19 joined this table in the cross-validation round (2026-11-19), after the f
 | 12 | `AnchorInRange(id, unit)` | shims 2, 3 and 4 | `nil` unless the spell is known and usable now; the client's `nil`, a raise or a secret stay `nil`, never `false` | A band's spell rule reads a nil as "cannot say", and the band falls back to its yards | `modules/Range.lua` (`RoleInRange`, through the per-tick spell memo) |
 | 13 | `ShapeshiftFormID()` | `GetShapeshiftFormID` (pcall, secret-checked) | `nil`: no form, which keys no form's anchor | A druid's melee anchor is keyed by form (Cat, Bear), and a form's strike answers only in that form | `modules/Range.lua` (`Anchor`, on each read, so a shift is followed before the rebuild's debounce fires) |
 | 18 | `OverrideSpell(id)` | `C_Spell.GetOverrideSpell` (pcall, secret-checked) | `nil`: no override, or the client will not say | What stands in for a spell now: CurrentSpellID's override step at rebuild, and the melee guard's live check (Aspect of the Eagle's 40 yd Raptor Strike, Ascendance's Windstrike) | `core/Compat.lua` (CurrentSpellID), `modules/Range.lua` (the melee guard) |
-| 19 | `PlayerSpecID()` | LibKa0s-Compat `GetSpecialization` and `GetSpecializationInfo` (pcall, secret-checked) | `nil` on a client with no specs (WoW Forever) or a partial install | The first-run seed's spec-aware default (Devourer reads as a caster) | `modules/BandSets.lua` (Seed) |
+| 19 | `PlayerSpecID()` | LibKa0s-Compat `GetSpecialization` and `GetSpecializationInfo` (pcall, secret-checked) | `nil` on a client with no specs (WoW Forever) or a partial install | The spec-aware class default (Devourer reads as a caster), for the first-run seed and the presets' class set | `modules/BandSets.lua` (Seed), `modules/Presets.lua` (`classSet`) |
 
 ## The frame reads the anchors make
 
@@ -61,7 +61,7 @@ cast bar's own OnShow / OnHide decide "while casting" now (`modules/Anchors_Name
 | # | Shim | Wraps | Absent or refused | Why it exists | Called from |
 |---|---|---|---|---|---|
 | 14 | `NamePlateForUnit(unit)` | `C_NamePlate.GetNamePlateForUnit` (pcall, forbidden-checked) | `nil` | A plate token's plate, and the own-plate containers' "target" / "focus" / "mouseover" plate | `modules/Anchors_Nameplate.lua` |
-| 15 | `PlateToken(plate)` | the plate's `namePlateUnitToken` (pcall, forbidden- and secret-checked) | `nil` | The token a scanned plate serves | shim 16 |
+| 15 | `PlateToken(plate)` | the plate's `namePlateUnitToken` (pcall, forbidden- and secret-checked) | `nil` | The token a scanned plate serves | shim 16, `modules/Anchors_Nameplate.lua` (a plate's token), `modules/FrameProviders.lua` (`PlateCastBar`) |
 | 16 | `NamePlates()` | `C_NamePlate.GetNamePlates` (pcall), shim 15 per plate | `{}` | The stand-up's rescan: a stood-down addon heard no `NAME_PLATE_UNIT_ADDED` for the plates shown | `modules/Anchors_Nameplate.lua` (`StandUp`) |
 | 17 | `GetMouseFocus()` | `GetMouseFoci()[1]` (pcall) | `nil` | The frame picker's frame under the cursor; both clients carry `GetMouseFoci` | `modules/FramePicker.lua` |
 
@@ -96,7 +96,7 @@ anchor holds either way.
 | Interact | none | index 3 (duel) at 10 yd and index 4 (follow) at 28 yd, the vanilla distances; Tauren −2 / −3 and Scourge −1 / −1, the offsets LibRangeCheck-3.0 measured for the two large-hitbox races |
 | Spells | the player's class `ladder` seeds from `defaults/SpellSeeds.lua` that the player knows, with a max range above 0 and no min range, at that max range | the same, from the `forever` seeds |
 
-Retail's ladder is built but not walked today: `modules/Range.lua` walks it only on Forever, and only
+Retail's ladder is never built: `modules/Range.lua` builds and walks it only on Forever, and only
 when LibRangeCheck answered nothing for a unit that exists. In combat on a unit the player cannot
 attack (shim 7), the walk asks the spell rungs only.
 

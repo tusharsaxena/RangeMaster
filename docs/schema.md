@@ -64,8 +64,7 @@ yards, then its rule in brackets; a band with no bracket is a yard band:
 | `healer` | 0-30 NEAR, 30-40 FAR [spell(friendly)], 40+ OOR [beyond] (meant as a friendly override) |
 | `hunter` | WoW Forever: 0-5 MELEE [spell(melee)], 5-8 DEAD [gap], 8-35 AUTO [spell(ranged)], 35+ OOR [beyond]. Retail: 0-5 MELEE [spell(melee)], 5-40 RANGED [spell(ranged)], 40+ OOR [beyond] |
 
-Class defaults (`NS.BandSetPresets.DefaultFor`): Hunter → `hunter`; Mage, Warlock, Priest, Evoker →
-`caster40`; every other class, or an unreadable one → `melee_ranged`.
+Class defaults (`NS.BandSetPresets.DefaultFor(classFile, specID)`, the spec from `NS.Compat.PlayerSpecID`): a spec that plays unlike its class comes first, so Devourer (the Demon Hunter's 25 yd Intellect spec, 1480) → `caster40`; then Hunter → `hunter`; Mage, Warlock, Priest, Evoker → `caster40`; every other class, or an unreadable one → `melee_ranged`.
 
 **What the load pass repairs.** A member that is not a table, or is stored under a key that is not a
 positive integer, is dropped (a numeric string key is moved to its number); every member is backfilled
@@ -104,6 +103,14 @@ stored container draws as before and no migration step is needed. `label.positio
 values: `top`, `bottom`, `left`, `right` are INSIDE the container (what M7 stored, so a stored value
 keeps its meaning) and `outsideTop`, `outsideBottom`, `outsideLeft`, `outsideRight` sit beyond its
 border; an unknown value reads as inside top (`NS.Container.CaptionSide`).
+
+Later template fields, backfilled by the load pass with no migration step: `anchor.level = 0`
+(Frame level; 0 is Auto, 1..100 a fixed place in the strata), `layout.sizing = "fit"` with
+`width = 120` and `height = 28`, `layout.joinText = true` (the number writes the band's label on its
+line, so a stored container showing both Number and Text draws them as one line after the
+backfill), `layout.align = "center"` (`left`, `center`, `right`), and `nameplate.attachTo = "plate"`
+(`plate`, `castbar`, `castbarWhenCasting`). `unit` also takes `nameplatesExceptTarget`, and
+`elements.number.format` takes `band` (the drawn band's span).
 
 ## The global store (`db.global`)
 

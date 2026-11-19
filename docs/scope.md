@@ -4,7 +4,7 @@
 
 Range Master shows how far away a unit is, as the narrowest bracket the game's range checks allow,
 on displays the player builds. Each display (a **container**) watches one unit: `target`, `focus`,
-`pet`, `mouseover`, or every enemy nameplate at once. It can show the bracket as a number, a band
+`pet`, `mouseover`, or every enemy nameplate at once (or every one but the target's). It can show the bracket as a number, a band
 label, a colored indicator and a row of the player's own spells that light when in reach, all colored
 by a shared **band set**, with an optional caption naming the display. A band is a yard range or
 a spell rule (the class's melee, ranged or friendly spell is in reach, the hunter's dead zone, or past
@@ -12,7 +12,7 @@ every spell band), so a band follows talents, gear and forms; its yards are the 
 any named frame), on a nameplate, or at the cursor. It can play a sound when the band changes, and it
 can hide by combat state, reaction or a missing unit.
 
-Five presets (Simple, Intermediate (Range Text), Intermediate (Range Numbers), Advanced, Expert)
+Six presets (Simple, Intermediate (Range Text), Intermediate (Range Numbers), Advanced, Expert, Ka0s)
 build a starter set, Test mode shows placeholders for
 placing and styling, and Sim mode walks a simulated target through the bands. It runs on Retail and
 WoW Forever from one codebase. The full feature list is the design spec,

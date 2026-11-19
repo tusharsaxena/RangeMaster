@@ -74,7 +74,9 @@ Recipes for the changes made most often here. Each names the real files; run the
   knows it and it has a max range with no min range, so a melee or min-range spell belongs in
   `chips`, not `ladder`. Add a RANGE-5 run for it in `docs/smoke-tests.md`.
 - A band rule's anchor: add the ID to that class's `anchors.<role>` list (`melee`, `ranged` or
-  `friendly`) in fallback order, the first the player knows winning. Never a reactive spell (one
+  `friendly`). Every known seed is a candidate: a ranged or friendly list is asked longest reported
+  reach first (seed order among equals), a melee list in seed order without any seed reported past
+  8 yd, and the first candidate that can vouch (known and usable now) answers. Never a reactive spell (one
   usable only after a dodge or a crit); druid melee is keyed by form (`cat`, `bear`).
 - A Forever item or interact rung: add it to `FOREVER_ITEMS` or `FOREVER_INTERACT` in
   `core/Compat.lua`, only at a yard Forever answers reliably, and update the table in

@@ -156,7 +156,7 @@ NS.DebugLog = lib:New({
     font  = NS.Constants.FONT_MONO,
     slash = "/rm",
 
-    -- The flag stays ours. NS.State.debug is session-only and is read by
+    -- The flag stays ours. NS.State.debug is session-only and is read by core/Bus.lua's rejected-key debug line
     -- and by the settings panel, so a second copy inside the library would be a second truth.
     isEnabled  = function() return NS.State and NS.State.debug or false end,
     setEnabled = function(on) if NS.State then NS.State.debug = on end end,

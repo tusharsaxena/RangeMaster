@@ -33,8 +33,7 @@ What the addon logs, one gated line each:
 
 The range engine, the ticker and the renderer log nothing per tick: a line per read at 20 Hz would
 bury everything else, and the perf harness (`docs/performance.md`) is how their cost is seen. The library writes its own lines through the same sink: the
-dispatcher's refusals (`[Cmd]`), the options combat lock (`[Cfg]`), the launcher's registration
-(`[Launcher]`, held until logging is on) and every stand-down and stand-up edge (`[Lifecycle]`).
+dispatcher's refusals (`[Cmd]`), the options combat lock (`[Cfg]`), Add a table row: | `[Launcher]` | `core/LauncherSetup.lua` | a launcher menu entry whose `/rm` verb has no handler | and every stand-down and stand-up edge (`[Lifecycle]`).
 
 ## The diagnostics report (debug-logging-§14)
 
