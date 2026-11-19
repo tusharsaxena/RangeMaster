@@ -288,6 +288,16 @@ the catalog's (sections 2 and 4) and are not restated here.
   1.60.1. *Client:* Forever. *Cost:* a bracket edge at a yard the client does not honor. *Do:* keep
   Forever's item rungs at those three yards (`core/Compat.lua`, `FOREVER_ITEMS`). *Source:* the
   research, *WoW Forever*.
+- **A nameplate sits on WORLD strata, under every UI strata.** *Measured (2026-11-20, the owner,
+  WoW Forever, EllesmereUI nameplates):* `C_NamePlate.GetNamePlateForUnit("target")` answered strata
+  WORLD at level 100 (101 with EllesmereUI's Casts In Front of Nameplates on), and EllesmereUI
+  parents its own plate, cast bar included, into that frame. *Client:* Forever (Retail not measured).
+  *Cost:* a container (a UIParent child) at any Frame strata, Background included, draws over the
+  plate's cast bar. *Do:* draw under the cast bar only by EllesmereUI's Casts In Front of Nameplates
+  (it lifts the bar out to HIGH; then Medium or lower works, confirmed by the owner), or move the
+  container off it (Attach to part: Cast bar, or Cast bar while casting). The owner's probe also
+  found no EllesmereUI map entry under the plate's token, so the cast bar lookup falls back to the
+  entry hosted on that plate (`modules/FrameProviders.lua`).
 - **A spell can report "in range" from any distance.** On WoW Forever a melee spell whose range is
   0 to 0 does; on both clients a known spell that is unusable in the current form or stance can.
   *Measured:* not measured here; RangeLens and AppelSwingsForever. *Client:* Forever (the 0 to 0

@@ -98,11 +98,26 @@ end
 P.ELLESMERE_PLATES = "EllesmereNameplates_NS"
 P.CAST_BAR_KEYS = { "castBar", "CastBar" }
 
---- EllesmereUINameplates' cast bar for `token`, while its plate sits on `plate`.
+--- EllesmereUINameplates' cast bar on `plate`: its map entry for `token` while that entry sits on
+--- `plate`, else the entry whose host is `plate` (the owner's WoW Forever probe, 2026-11-20, found no
+--- entry under the plate's token; the frame comparison needs no token at all).
 local function ellesmereCast(plate, token)
-    if type(token) ~= "string" then return nil end
-    local own = field(field(field(_G, P.ELLESMERE_PLATES), "plates"), token)
-    if type(own) ~= "table" or field(own, "nameplate") ~= plate then return nil end
+    local map = field(field(_G, P.ELLESMERE_PLATES), "plates")
+    if type(map) ~= "table" then return nil end
+    local own = type(token) == "string" and field(map, token) or nil
+    if type(own) ~= "table" or field(own, "nameplate") ~= plate then
+        own = nil
+        local ok = pcall(function()
+            for _, entry in pairs(map) do
+                if type(entry) == "table" and entry.nameplate == plate then
+                    own = entry
+                    return
+                end
+            end
+        end)
+        if not ok then own = nil end
+    end
+    if type(own) ~= "table" then return nil end
     return usable(field(own, "cast"))
 end
 

@@ -531,7 +531,10 @@ test("plates: test_castbar_provider — EllesmereUI's cast bar first, then the c
       local eui = ellesmerePlate(map, "nameplate1", p)
       assertTrue(P.PlateCastBar(p) == eui, "EllesmereUI's plate for the token wins")
       assertTrue(P.PlateCastBar(p, "nameplate1") == eui, "the token handed in")
-      map.nameplate1.nameplate = q
+      map.nameplate1, map.other = nil, { nameplate = p, cast = eui }
+      assertTrue(P.PlateCastBar(p, "nameplate1") == eui,
+        "no entry under the token: the entry hosted on this plate (the owner's Forever probe)")
+      map.other, map.nameplate1 = nil, { nameplate = q, cast = eui }
       assertTrue(P.PlateCastBar(p) == blizz, "a stale map entry, on another plate, is not used")
       map.nameplate1 = { nameplate = p, cast = H.frame(nil, true) }
       assertTrue(P.PlateCastBar(p) == blizz, "a forbidden cast bar is never answered")
