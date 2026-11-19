@@ -57,7 +57,7 @@ local Presets = NS.Presets
 
 local L = NS.L
 
-Presets.ORDER = { "simple", "text", "numbers", "advanced", "expert" }
+Presets.ORDER = { "simple", "text", "numbers", "advanced", "expert", "ka0s" }
 
 --- The LSM sound key Expert puts on the out-of-range band. Registered with LibSharedMedia by the
 --- band sounds (modules/Sounds.lua's BUILTIN, the raid warning chime), so it plays without LSM too.
@@ -126,15 +126,24 @@ local function healerSet()
     return NS.BandSets.Create(nil, "healer")
 end
 
+--- Every preset's nameplate attachment (the owner, 2026-11-20): on the cast bar while the unit
+--- casts, else on the plate, flush with it (no offset). `more`'s keys (includeFriendly) join it.
+local function onPlate(more)
+    local np = { attachTo = "castbarWhenCasting", x = 0, y = 0 }
+    for k, v in pairs(more or {}) do np[k] = v end
+    return np
+end
+
 --- One nameplate container: indicator `shape` + number in `format`, on the faint frame, shown at any
---- time its unit is there (in combat only, the owner saw none out of combat: M12); `extra`'s keys (a
---- name, a section) replace the opts' own.
+--- time its unit is there (in combat only, the owner saw none out of combat: M12), attached by
+--- onPlate; `extra`'s keys (a name, a section) replace the opts' own.
 local function plate(unit, slot, shape, format, extra)
     local opts = {
         anchor = home({ mode = "nameplate" }, slot),
         frame = faintFrame(),
         elements = { indicator = { enabled = true, shape = shape }, number = { format = format } },
         visibility = { combat = "any", hideNoUnit = true },
+        nameplate = onPlate(),
     }
     for k, v in pairs(extra or {}) do opts[k] = v end
     return { unit = unit, opts = opts }
@@ -156,8 +165,42 @@ local function expert()
         visibility = { combat = "any", reaction = "hostile", hideNoUnit = true } })
     list[#list + 1] = plate("nameplatesExceptTarget", "nameplates", "dot", "max", {
         visibility = { combat = "any", reaction = "hostile", hideNoUnit = true },
-        nameplate = { includeFriendly = false },
+        nameplate = onPlate({ includeFriendly = false }),
     })
+    return list
+end
+
+--- The band set of this character's class (and spec) default preset (defaults/BandSetPresets.lua
+--- DefaultFor): the stored set named so, else a new one, whichever set is the profile's default.
+local function classSet()
+    local key = NS.BandSetPresets.DefaultFor(NS.Compat.PlayerClass(), NS.Compat.PlayerSpecID())
+    local preset = NS.BandSetPresets[key]
+    local name = type(preset) == "table" and preset.name
+    for _, id in ipairs(NS.BandSets.List()) do
+        if NS.BandSets.Get(id).name == name then return id end
+    end
+    return NS.BandSets.Create(nil, key)
+end
+Presets.__classSet = classSet
+
+--- The owner's own setup (the "Ka0s" profile on WoW Forever, 2026-11-20): the four on screen with the
+--- range number and the band's label (one line), hostile only but the pet (always friendly, so it
+--- would never show); the class's own band set (Hunter on a hunter), the Healer set on friends for
+--- target, focus and mouseover; the out-of-range sound on target; the target's own plate with the
+--- number alone (the owner turned its dot off). No every-plate container.
+local function ka0s()
+    local list = four({ number = true, text = true })
+    local healer, own = healerSet(), classSet()
+    for i = 1, #list do
+        list[i].opts.bandSet = own
+        if list[i].unit ~= "pet" then list[i].opts.bandSetFriendly = healer end
+    end
+    list[1].opts.sounds = { enabled = true }
+    local tp = plate("target", "targetPlate", "diamond", "range", { name = L["Target plate"],
+        visibility = { combat = "any", reaction = "hostile", hideNoUnit = true } })
+    tp.opts.elements.indicator.enabled = false
+    tp.opts.bandSet = own
+    list[#list + 1] = tp
     return list
 end
 
@@ -167,6 +210,7 @@ local BUILD = {
     numbers  = function() return four({ number = true }) end,
     advanced = function() return four({ dot = true, number = true, text = true }) end,
     expert   = expert,
+    ka0s     = ka0s,
 }
 
 -- ---------------------------------------------------------------------------
@@ -335,6 +379,13 @@ local DESCRIBE = {
         L["Target on its own nameplate + dot on all hostile plates"],
         L["Band-change sound on target (out-of-range warning)"],
         L["Visibility rules: hostile only, but the friendly-set displays and the pet"],
+    } },
+    ka0s = { name = L["Ka0s"], count = 5, items = {
+        L["Target, Focus, Pet, Mouseover: range number and band name on one line"],
+        L["Healer band set for friendly target, focus and mouseover"],
+        L["Target on its own nameplate: the range number, on the cast bar while casting"],
+        L["Band-change sound on target (out-of-range warning)"],
+        L["Hostile units only (the pet: always), on the class's own band set"],
     } },
 }
 

@@ -284,7 +284,7 @@ test("slash: test_preset_verb — /rm preset confirms, applies, undoes and refus
     rm("preset undo")
     assertEqual(#NS.CM.List(), 0, "undo puts back the empty profile the first preset replaced")
     local out = rm("preset bogus")
-    assertTrue(E.said(out, "Usage: /rm preset [simple|text|numbers|advanced|expert|undo]"))
+    assertTrue(E.said(out, "Usage: /rm preset [simple|text|numbers|advanced|expert|ka0s|undo]"))
     rm("preset")
     local f = NS.PresetPicker.frame
     assertTrue(f and f:IsShown(), "a bare /rm preset opens the preset picker")

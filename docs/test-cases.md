@@ -140,9 +140,9 @@ Total.
 - cm: MarkSeeded is the first-run sentinel's one runtime writer
 - cm: spell chips follow the character until a list is stored (a shared profile, two classes)
 
-### test_presets.lua (14)
+### test_presets.lua (17)
 
-- presets: test_five_presets — the picker's five, in order, each with its own elements on the same four homes
+- presets: test_six_presets — the picker's six, in order, each with its own elements on the same four homes
 - presets: test_simple_to_advanced_plain — the four lighter presets hold four containers, no sound, no friendly set
 - presets: test_expert_shape — six containers: the four with spell chips, both plates, the sound and the Healer set
 - presets: Expert creates the Healer set when the profile has none, and reuses one it has
@@ -156,6 +156,9 @@ Total.
 - presets: Expert puts the OOR sound on through the band-set writer, which announces it
 - presets: test_preset_homes — each unit has one home on screen, the same in every preset, none shared
 - presets: test_hostile_only — every preset shows hostile units only, but the pet and the Healer-set displays
+- presets: test_plate_containers_cast_bar_flush — every preset container on a nameplate: cast bar while casting, offsets 0
+- presets: test_ka0s_shape — the owner's Ka0s profile: five containers, number + text, hostile only but the pet
+- presets: test_ka0s_class_set — Ka0s finds the class's own set by name, whichever set is the default
 
 ### test_number_format.lua (5)
 
@@ -713,7 +716,7 @@ Total.
 - presets: test_first_run_picker_once — the picker shows once per profile, marks it seen as it shows, and waits out combat
 - presets: the picker opens unlocked in test mode, a pick previews, and Not now restores
 - presets: the picker's Apply asks over the player's containers, keeps the pick and locks
-- presets: test_picker_lists_five — the picker's dropdown offers the five presets, each pick previewed with its blurb
+- presets: test_picker_lists_six — the picker's dropdown offers the six presets, each pick previewed with its blurb
 - presets: test_picker_previews_on_empty_profile — a new profile's picker puts Simple on screen as it opens
 - presets: Apply over an empty profile keeps the pick at once; with no pick it keeps what is there
 - presets: taking the picker down offers no skin picker and restores; a replaced profile is not restored
@@ -950,7 +953,7 @@ Total.
 | test_database.lua | 24 |
 | test_bandsets.lua | 24 |
 | test_container_manager.lua | 17 |
-| test_presets.lua | 14 |
+| test_presets.lua | 17 |
 | test_number_format.lua | 5 |
 | test_container_render.lua | 60 |
 | test_anchors_screen.lua | 14 |
@@ -1001,4 +1004,4 @@ Total.
 | test_skin_switch.lua | 6 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **767** |
+| **Total** | **770** |

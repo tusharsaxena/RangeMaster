@@ -147,13 +147,14 @@ test("presets: the picker's Apply asks over the player's containers, keeps the p
   end)
 end)
 
-test("presets: test_picker_lists_five — the picker's dropdown offers the five presets, each pick previewed with its blurb", function()
+test("presets: test_picker_lists_six — the picker's dropdown offers the six presets, each pick previewed with its blurb", function()
   -- red under: the three-preset dropdown (simple, intermediate, advanced).
   withPicker(function()
     NS.MaybeShowPresetPicker()
     local values, labels = {}, {}
     for i, o in ipairs(P.frame.dd._options or {}) do values[i], labels[i] = o.value, o.label end
-    assertEqual(table.concat(values, ","), "simple,text,numbers,advanced,expert")
+    assertEqual(table.concat(values, ","), "simple,text,numbers,advanced,expert,ka0s")
+    assertEqual(labels[6], "Ka0s - 5 containers")
     assertEqual(labels[2], "Intermediate (Range Text) - 4 containers")
     assertEqual(labels[3], "Intermediate (Range Numbers) - 4 containers")
     assertEqual(labels[5], "Expert - 6 containers")
