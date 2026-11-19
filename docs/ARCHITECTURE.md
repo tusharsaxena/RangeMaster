@@ -180,6 +180,7 @@ Each verb, its arguments and its refusals: `docs/slash-dispatch.md`.
 | `UNIT_PET` | `addon:OnPetChanged` | the same on `"pet"`, for the player's own pet only, and `NS.Range.Rebuild()` |
 | `NAME_PLATE_UNIT_ADDED` | `addon:OnNamePlateChanged` | `NS.Plates.Added(token)` (the plate tracked, its instances built, a re-check a frame later), then the same unit change on the plate's token |
 | `UNIT_FACTION` | `addon:OnUnitFaction` | the same on the unit named, a reaction change (the band set follows `bandSetFriendly`, and `NS.Anchors.UnitChanged` moves a plate into or out of a hostile-only `nameplates` container); `ifValid` |
+| `UNIT_SPELLCAST_START`, `_STOP`, `_FAILED`, `_INTERRUPTED`, `_SUCCEEDED`, `_CHANNEL_START`, `_CHANNEL_STOP`, `_EMPOWER_START`, `_EMPOWER_STOP` | `addon:OnPlateCast` | `NS.Plates.CastChanged(unit, started)`: for a tracked plate token only (anything else returns after one table read), the cast word is kept and every container on that plate set to *Cast bar while casting, else nameplate* is placed again, per-plate and own-plate, in combat too (no secure frame). Event-driven, never polled; each `ifValid` (the empower pair is Retail's) |
 | `NAME_PLATE_UNIT_REMOVED` | `addon:OnNamePlateChanged` | `NS.Plates.Removed(token)` (its instances parked, an own-plate container on that plate frame hidden), then `NS.Ticker.Removed(token)`: `"none"` is sent outright, because the client still resolves the token while this event dispatches and a re-read would see the plate as live |
 | `SPELLS_CHANGED` | `addon:OnSpellsChanged` | `NS.Range.Rebuild()`, debounced 0.5 s: the known-spell cache is taken again, the ladder dropped (rebuilt on the next Forever walk; Retail builds none), and the band rules' anchors resolved again (`ANCHORS_CHANGED` when they moved) |
 | `CHARACTER_POINTS_CHANGED`, `PLAYER_TALENT_UPDATE`, `TRAIT_CONFIG_UPDATED`, `ACTIVE_TALENT_GROUP_CHANGED`, `PLAYER_SPECIALIZATION_CHANGED`, `LEARNED_SPELL_IN_SKILL_LINE`, `PLAYER_LEVEL_UP`, `UPDATE_SHAPESHIFT_FORM`, `PLAYER_EQUIPMENT_CHANGED` | `addon:OnSpellsChanged` | the same rebuild: a talent, a spec, a new rank or level, a form or gear can move an anchor or its range; each `ifValid`, and `CHARACTER_POINTS_CHANGED` is never filtered on its count |
@@ -254,8 +255,20 @@ never a real plate, and nothing measures it.
   presets do not have; a disabled addon that is enabled later is not offered it on first run.
 - Sim mode's sweep moves every container through one simulated distance; it does not simulate a
   unit's reaction, class or existence.
-- A container on a nameplate is anchored to the plate but stays a child of `UIParent`: it does not
-  take the plate's scale or fade, and it draws in the HUD strata over the plates.
+- A container on a nameplate is anchored to the plate (or, with Attach to part on Cast bar, to the
+  plate's cast bar) but stays a child of `UIParent`: it does not take the plate's scale or fade, and
+  it draws in its own strata, outside the plate. A nameplate composites as one unit (EllesmereUI's
+  `EllesmereUINameplates_CastOverlay.lua` and `EUI_MythicTimer_KickPlates.lua` record it, live-verified
+  there), so no strata or level on a `UIParent` frame can slip between a plate and that plate's own
+  cast bar: with EllesmereUI's cast bar left on its plate, Frame strata Background has been seen to
+  draw over it (the owner, 2026-11-20). With EllesmereUI's **Casts In Front of Nameplates** on, the
+  cast bar leaves the plate for a `UIParent` frame at `HIGH`, and any Frame strata below High puts the
+  container under it. Whether Frame level 1 at Background reaches under a plate drawn in the same
+  strata is unconfirmed (smoke check ANCHOR-11 records it). Attach to part on Cast bar (or Cast bar
+  while casting, else nameplate) moves the container off the bar instead.
+- *Cast bar while casting* reads the cast events and `UnitCastingInfo` / `UnitChannelInfo`. WoW Forever
+  has neither read, so there a plate shown mid-cast is judged by whether its cast bar is shown until
+  the next cast event. The unlocked preview nameplate draws no cast bar.
 - Without LibKa0s-Widgets-1.0 the bar indicator draws as a flat strip in the band color, not a fill.
 - The built-in out-of-range chime is a stock game sound by file id (567397, the raid warning); it is
   not yet heard on WoW Forever (`docs/smoke-tests.md`, SOUND-1).

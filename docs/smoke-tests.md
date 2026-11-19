@@ -26,7 +26,7 @@ unless a check names one. The anchors are run as a matrix, one result per mode a
 | CONT-1..10 | Containers page | New container (no band preview), the rail, Position, Duplicate / Delete / Copy settings from, Defaults, Color from, the Dot tab and its Style tiles, Border opacity, the caption's positions, the caption's styling |
 | BANDS-1..11 | Band sets page | the picker, the Bands editor (no band ribbon), shared sets, the friendly override, the unknown label; spell bands: the rule controls, the read-out, the owner's Hawk Eye case, the dead zone, the v1 -> v2 conversion, the band rail |
 | PRESET-1..4 | Presets | the first-run picker, Apply on an empty profile, Apply over containers with Undo, what each of the five shows |
-| ANCHOR-1..10 | Anchors | every mode on both clients: screen, unit frames (Blizzard, EllesmereUI, custom, missing), own nameplate, all nameplates, cursor, the picker, all nameplates except target, the drag strip's marks |
+| ANCHOR-1..11 | Anchors | every mode on both clients: screen, unit frames (Blizzard, EllesmereUI, custom, missing), own nameplate, all nameplates, cursor, the picker, all nameplates except target, the drag strip's marks, the cast bar part, Frame strata and Frame level on a plate |
 | VIS-1..3 | Visibility | combat and reaction rules, out-of-combat opacity, the master rows |
 | SOUND-1..2 | Sounds | the debounced band sound, none on nameplates |
 
@@ -505,6 +505,37 @@ it), or from chat with `/rm set container.anchor.mode frame` (`screen`, `frame`,
   Click the gear → the settings panel opens on Containers with that display selected. Click the X →
   that display disappears with one chat line; on Containers its Enable is off and every other
   setting is as it was; turning Enable back on brings it back where it was, looking the same.
+- **ANCHOR-11. The cast bar part, and strata on a plate.** Run it with EllesmereUI Nameplates on, its
+  Casts In Front of Nameplates (Cast Overlay) first off, then on, and once with EllesmereUI
+  Nameplates off (Blizzard plates).
+  1. A target container on Nameplate and an All nameplates container: Containers → Position →
+     On the nameplate shows **Attach to part** for both, offering Nameplate, Cast bar and Cast bar
+     while casting, else nameplate (and not for a container on screen, a unit frame or the cursor).
+     **Nameplate** (the default): each sits under its plate's health bar, as before.
+  2. **Cast bar** → each sits under its plate's cast bar (TOP to BOTTOM, 2 px), not under the health
+     bar; with the cast bar hidden between casts it stays in the same place and does not jump. The
+     same with Cast Overlay on (the bar lifted out of the plate) and on Blizzard plates (the game's
+     own cast bar). Retarget, pull a pack and kill it (plates recycling): each copy stays on its own
+     plate's cast bar, no error.
+  3. **Cast bar while casting, else nameplate** → between casts each sits under its plate; the moment
+     the mob starts a cast or a channel its copy drops under the cast bar, and when the cast ends,
+     is interrupted (kick it) or fails, it goes back under the plate, with no lag of a frame or more
+     and no flicker on the other plates. In combat, in a pack where several mobs cast at once, each
+     copy follows its own mob. Target a mob that is already casting → the target container appears
+     on the cast bar. !!AddonProfiler shows Range Master's cost only as casts start and stop, none per frame. On WoW Forever (no
+     cast read in the client) the same, and a plate that comes into view mid-cast starts on the bar.
+  4. A plate with no cast bar EllesmereUI or the game knows of (a friendly name-only plate with
+     Friendly nameplates too) keeps its copy on the plate under every choice, no error.
+  5. Frame strata **Background** on a container on a plate, a cast overlapping it: with Cast
+     Overlay **on**, the cast bar draws over the container; record what draws with Cast Overlay
+     **off** (expected: the container over the bar; see `docs/ARCHITECTURE.md` Known Limitations).
+     Then Frame level **1** with Background, Cast Overlay off, and record again. The probe below,
+     with the target's plate casting, records the numbers:
+     `/run local p=C_NamePlate.GetNamePlateForUnit("target") local e=EllesmereNameplates_NS and EllesmereNameplates_NS.plates[p.namePlateUnitToken] print(p:GetFrameStrata(),p:GetFrameLevel(),e and e.cast:GetFrameStrata(),e and e.cast:GetFrameLevel())`
+  6. Frame level: two screen containers overlapping in one strata, the older one on **1** → it draws
+     under the newer Auto one; **100** → over it; **0** → back to Auto. Changing Frame strata on a
+     container with every element on keeps the number, text and chips over the fill and the border
+     (nothing drops behind the background).
 
 | Check | Mode | Retail result | WoW Forever result |
 |---|---|---|---|
@@ -518,6 +549,7 @@ it), or from chat with `/rm set container.anchor.mode frame` (`screen`, `frame`,
 | ANCHOR-8 | the frame picker (`frame`, custom) | | |
 | ANCHOR-9 | All nameplates except target | | |
 | ANCHOR-10 | the drag strip's marks (`screen`) | | |
+| ANCHOR-11 | the three Attach to part choices, strata and level on a plate (`nameplate`, All nameplates) | | |
 
 ## Visibility
 
@@ -553,4 +585,5 @@ Set the rules on Containers → Visibility.
 | INSTALL-4, CONT-1, CONT-7, CONT-9..10, BANDS-2 | the Label tab, the removed band previews and the art fill (the same plan, M7-M9), 2026-11-19 | the caption, the settings without their band previews and the redrawn halo-free art have not been seen in a client yet |
 | CONT-9, PRESET-4 | the outside caption positions and the preset defaults (the same plan, M11-M12), 2026-11-19 | the outside captions, the lifted strips, the faint preset frames and the plate containers out of combat have not been seen in a client yet |
 | ANCHOR-10 | the LibKa0s v1.107.0 re-vendor and the strip wiring (Ka0sAddonsCommonTasks 2026-11-19-ADOPTION_FEEDBACK, AF-RV-RM and AF-STRIP-RM), 2026-11-19 | the strip's new mark order, pitch, tints and the tooltip above the strip have not been seen in a client yet |
+| ANCHOR-11 | the plate cast bar part and Frame level (branch feat/2026-11-20-plate-castbar), 2026-11-20 | the cast bar lookup (EllesmereUI's map, the game's `UnitFrame.castBar`), the cast events moving *Cast bar while casting*, Cast Overlay on and off, and where Background draws against a plate's cast bar have not been seen in a client yet |
 | RANGE-6..11, BANDS-6..10 | the spell-driven dynamic bands (plan 2026-11-19-dynamic-bands, D1-D7), 2026-11-19 | whether the client reports talented ranges and answers by rank ID, which event a talent point fires, the rule controls, the owner's Hawk Eye case and the v1 -> v2 conversion have not been seen in a client yet |
