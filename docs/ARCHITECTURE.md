@@ -268,7 +268,8 @@ never a real plate, and nothing measures it.
   checks.
 - A spell band trusts the anchor's own answer, and whether `C_Spell.IsSpellInRange` follows range
   talents, and whether `C_Spell.GetSpellInfo` reports the talented range, are undocumented on both
-  clients. If the reported range is the base one, the Bands page read-out and Sim show the base
+  clients (WoW Forever's reported range was measured talented: 41 yd with Hawk Eye 3/3, RANGE-6;
+  Retail and RANGE-7 still open). If the reported range is the base one, the Bands page read-out and Sim show the base
   number while the band still follows the spell (`docs/midnight-quirks.md`; smoke checks RANGE-6,
   RANGE-7, RANGE-10).
 - A dead-zone (gap) band holds by rule only where the ranged anchor reports a minimum range (the

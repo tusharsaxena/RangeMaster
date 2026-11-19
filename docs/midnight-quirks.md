@@ -302,8 +302,10 @@ the catalog's (sections 2 and 4) and are not restated here.
 - **Whether a spell's reported range includes talents is undocumented.** `C_Spell.GetSpellInfo(id)`'s
   `minRange` / `maxRange` may be the base range (Auto Shot's 35 yd on WoW Forever) or the talented one
   (41 yd with Hawk Eye 3/3); whether `C_Spell.IsSpellInRange` itself follows the talent is equally
-  undocumented for the `C_Spell` form. *Measured:* not measured; the wiki pages are silent, and the
-  reference addons disagree (the dynamic-bands research, part 2). *Client:* both. *Cost:* a band
+  undocumented for the `C_Spell` form. *Measured:* WoW Forever 2026-11-19, the owner's hunter at Hawk
+  Eye 3/3: `GetSpellInfo(3044).maxRange` and `(75)` both answer 41, so Forever reports the talented
+  range (smoke RANGE-6). Retail not measured; `IsSpellInRange` following the talent is still unmeasured
+  on both (RANGE-7). The wiki pages are silent (the dynamic-bands research, part 2). *Client:* both. *Cost:* a band
   read-out naming the base number, or, if `IsSpellInRange` ignored the talent, a spell band ending at
   the base range. *Do:* decide a spell band by the spell's answer, never by its reported number, and
   use the number only for the read-out and Sim; the stored yards stay the fallback

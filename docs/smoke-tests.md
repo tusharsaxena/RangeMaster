@@ -221,7 +221,9 @@ a training dummy for each. The spell IDs are the anchors in `defaults/SpellSeeds
   `/dump C_Spell.GetSpellInfo(3044).maxRange, C_Spell.GetSpellInfo(75).maxRange`; spend all three
   points and run it again → write both pairs down. 35, 35 then 41, 41 means the client reports the
   talented range; 35 both times means it reports the base range only, and the Bands page read-out
-  shows the base number while the band itself still follows the spell. Result:
+  shows the base number while the band itself still follows the spell. Result: 2026-11-19, the
+  owner's level-27ish hunter at Hawk Eye 3/3 printed `41` for both (0/3 not measured): WoW Forever
+  reports the talented range. Pass.
 - **RANGE-7. Auto Shot reaches 41 yd with Hawk Eye (WoW Forever, Hunter).** Hawk Eye 3/3, stand about
   38 yd from the dummy (the bracket reads `35–40`) and run `/dump C_Spell.IsSpellInRange(75, "target")`
   → `true`; with Hawk Eye 0/3 at the same spot → `false`. This is the answer the AUTO band rests on.
