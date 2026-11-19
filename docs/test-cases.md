@@ -295,8 +295,8 @@ Total.
 - plates: test_castbar_falls_back_to_the_plate — no cast bar, or one refusing the anchor, leaves it on the plate
 - plates: test_castbar_found_a_frame_later — EllesmereUI building its plate after ADDED moves the container onto its cast bar on the re-check
 - plates: test_attach_part_three_choices — Nameplate, Cast bar, and Cast bar while casting (the plate between casts)
-- plates: test_cast_start_stop_flips_the_part — the cast events move a while-casting container onto the cast bar and back, per-plate and own-plate
-- plates: test_cast_mid_cast_plate_and_no_cast_read — a plate shown mid-cast starts on its bar; without the client's cast read the events and the bar decide
+- plates: test_cast_event_before_the_bar — the owner's order: the event first, the bar shown or hidden after
+- plates: test_cast_bar_already_shown — a plate placed mid-cast starts on its shown bar; an event re-reads it
 - plates: test_cast_with_no_cast_bar — while casting, a plate with no cast bar keeps the container on the plate
 - plates: test_cast_events_registered_ifvalid — every cast event is in the lifecycle list, ifValid, on one handler
 

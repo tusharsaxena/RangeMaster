@@ -201,16 +201,11 @@ function addon:OnNamePlateChanged(event, token)
     end
 end
 
---- The cast events that start a cast; every other one only asks again whether the unit still casts.
-local CAST_START = {
-    UNIT_SPELLCAST_START = true, UNIT_SPELLCAST_CHANNEL_START = true, UNIT_SPELLCAST_EMPOWER_START = true,
-}
-
 --- A unit's cast moved. Every unit's casts arrive here; the plate registry returns at once for any
 --- token it does not track, so the cost is one table read for the player's, the party's and the rest.
-function addon:OnPlateCast(event, unit)
+function addon:OnPlateCast(_, unit)
     if type(unit) ~= "string" or not NS.Compat.IsSafeKey(unit) then return end
-    NS.Plates.CastChanged(unit, CAST_START[event] == true)
+    NS.Plates.CastChanged(unit)
 end
 
 --- Any addon loading may have created a unit frame a container waits for.

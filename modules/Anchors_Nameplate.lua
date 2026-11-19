@@ -41,13 +41,14 @@ local _, NS = ...
 -- included, so EllesmereUI building its plate after this addon heard ADDED moves the container onto
 -- its cast bar a frame later. A hidden cast bar keeps its place, so nothing moves between casts.
 --
--- WHILE CASTING IS EVENT-DRIVEN, never polled. The UNIT_SPELLCAST_* events (core/RangeMaster.lua,
--- each ifValid) reach Plates.CastChanged for a tracked plate token only: a start marks the token
--- casting, any other kind asks NS.Compat.IsCasting again (a channel can follow a cast), and the
--- "castbarWhenCasting" instances on that plate, per-plate and own-plate, are placed again. A token no
--- event has spoken for (a plate shown mid-cast) asks NS.Compat.IsCasting, and where the client has no
--- cast read (WoW Forever has no UnitCastingInfo), whether the cast bar is shown. Our frames are no
--- secure frames, so this re-anchors in combat as the rest of this file does.
+-- WHILE CASTING FOLLOWS THE CAST BAR ITSELF, never polled: "casting" is whether the plate's cast bar
+-- is shown. The bar's own OnShow and OnHide (hooked once per bar, HookScript) place the instances
+-- pinned by it again, so the switch lands AFTER the nameplate addon has shown or hidden it. The
+-- UNIT_SPELLCAST_* events (core/RangeMaster.lua, each ifValid) still re-place a plate's instances,
+-- but only as a nudge: an event can reach this addon before EllesmereUI's handler shows or hides the
+-- bar (the owner, 2026-11-20: the container stayed under the lifted bar during the cast and was left
+-- on the bar's spot after it, when the event read asked a cast read first). Our frames are no secure
+-- frames, so this re-anchors in combat as the rest of this file does.
 --
 -- FORBIDDEN PLATES ARE NEVER TOUCHED. Every plate comes through NS.Compat.NamePlateForUnit or
 -- NS.Compat.NamePlates, which answer nil for a forbidden one (a friendly plate in an instance), so a
@@ -64,7 +65,7 @@ local Anchors = NS.Anchors
 local tokens = {}     -- [token] = plate frame: the tracked, not forbidden plates
 local rechecks = {}   -- [token] = timer handle: the one-frame re-check after ADDED
 local ownRecheck      -- the timer re-placing own-plate containers a frame after a REMOVED
-local casting = {}    -- [token] = boolean: the last cast event's word on the plate's unit
+local hookedBars = setmetatable({}, { __mode = "k" })   -- [cast bar] = true: OnShow/OnHide hooked
 local own = {}        -- [inst] = true: the own-plate instances
 local plateInsts = {} -- [inst] = true: the per-plate instances
 
@@ -89,14 +90,22 @@ local function barShown(bar)
     return ok and v == true
 end
 
---- Whether the unit behind plate `token` casts now: the last cast event's word, else the client's
---- cast read, else whether its cast bar `bar` is shown.
-local function castingOn(token, bar)
-    local known = token and casting[token]
-    if known ~= nil then return known end
-    local asked = token and NS.Compat.IsCasting(token)
-    if asked ~= nil then return asked end
-    return barShown(bar)
+local barToggled   -- below: the hooks' handler
+
+--- Hook `bar`'s OnShow and OnHide once, so its own showing moves the containers pinned by it.
+local function watchBar(bar)
+    if hookedBars[bar] then return end
+    hookedBars[bar] = true
+    pcall(bar.HookScript, bar, "OnShow", function(self) barToggled(self) end)
+    pcall(bar.HookScript, bar, "OnHide", function(self) barToggled(self) end)
+end
+
+--- The tracked token whose plate is `plate`, else the one the plate names (Compat.PlateToken).
+local function tokenOf(plate)
+    for token, p in pairs(tokens) do
+        if p == plate then return token end
+    end
+    return NS.Compat.PlateToken(plate)
 end
 
 --- What container `c` pins `inst` to on `plate`: its cast bar when the container asks for it (and,
@@ -105,10 +114,14 @@ local function partOf(inst, c, plate)
     local np = c.nameplate
     local mode = np and np.attachTo
     if not CAST_PARTS[mode] then return plate end
-    local token = inst.plateToken or NS.Compat.PlateToken(plate)
+    local token = inst.plateToken or tokenOf(plate)
     local bar = NS.FrameProviders.PlateCastBar(plate, token)
+    inst.castBar = bar
     if not bar then return plate end
-    if mode == "castbarWhenCasting" and not castingOn(token, bar) then return plate end
+    if mode == "castbarWhenCasting" then
+        watchBar(bar)
+        if not barShown(bar) then return plate end
+    end
     return bar
 end
 
@@ -315,7 +328,6 @@ end
 function Plates.Removed(token)
     if type(token) ~= "string" then return end
     cancelRecheck(token)
-    casting[token] = nil
     local plate = tokens[token] or NS.Compat.NamePlateForUnit(token)
     tokens[token] = nil
     for _, id in ipairs(NS.CM.List()) do NS.Container.ReleasePlate(id, token) end
@@ -333,17 +345,13 @@ local function whileCasting(c)
     return c ~= nil and c.nameplate ~= nil and c.nameplate.attachTo == "castbarWhenCasting"
 end
 
---- A cast started (`started`) or moved on the unit behind `token` (core/RangeMaster.lua's
---- UNIT_SPELLCAST_* handler): its word is kept, and every "castbarWhenCasting" instance on that
---- plate, per-plate and own-plate, is placed again. Anything but a tracked plate token returns at once.
-function Plates.CastChanged(token, started)
+--- A cast started or moved on the unit behind `token` (core/RangeMaster.lua's UNIT_SPELLCAST_*
+--- handler): every "castbarWhenCasting" instance on that plate, per-plate and own-plate, is placed
+--- again from its cast bar's shown state (the bar's own hooks settle it if the event came first).
+--- Anything but a tracked plate token returns at once.
+function Plates.CastChanged(token)
     local plate = type(token) == "string" and tokens[token]
     if not plate or NS.IsStoodDown() then return end
-    if started then
-        casting[token] = true
-    else
-        casting[token] = NS.Compat.IsCasting(token) == true
-    end
     for _, id in ipairs(NS.CM.List()) do
         local c = NS.CM.Get(id)
         if isPlates(c) and whileCasting(c) then
@@ -356,8 +364,20 @@ function Plates.CastChanged(token, started)
     end
 end
 
+--- Cast bar `bar` was shown or hidden: every "castbarWhenCasting" instance it pins (or would pin)
+--- is placed again.
+barToggled = function(bar)
+    if NS.IsStoodDown() then return end
+    for inst in pairs(plateInsts) do
+        local c = inst.container
+        if inst.castBar == bar and whileCasting(c) then placeOn(inst, c, tokens[inst.plateToken]) end
+    end
+    for inst in pairs(own) do
+        if inst.castBar == bar and whileCasting(inst.container) then placeOwn(inst) end
+    end
+end
+
 function Plates.StandDown()
-    for token in pairs(casting) do casting[token] = nil end
     for token in pairs(rechecks) do cancelRecheck(token) end
     if ownRecheck then ownRecheck:Cancel() end
     ownRecheck = nil

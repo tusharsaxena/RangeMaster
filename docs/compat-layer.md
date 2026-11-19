@@ -1,10 +1,10 @@
 # Compat layer — Ka0s Range Master
 
-`core/Compat.lua` is the whole compat family (compat) and publishes **24** shims on `NS.Compat`,
+`core/Compat.lua` is the whole compat family (compat) and publishes **23** shims on `NS.Compat`,
 counted with the command documentation-§3 fixes:
 
 ```sh
-cat core/Compat*.lua | grep -cE '^\s*function\s+[A-Za-z_][A-Za-z0-9_]*\.'    # 24
+cat core/Compat*.lua | grep -cE '^\s*function\s+[A-Za-z_][A-Za-z0-9_]*\.'    # 23
 ```
 
 Four of them (`IsForever`, `IsRetail`, `ClientKey`, `ForClient`) only route `LibKa0s-Compat-1.0`'s
@@ -55,8 +55,8 @@ and 19 joined this table in the cross-validation round (2026-11-19), after the f
 A nameplate can be forbidden (a friendly plate in an instance on 12.x), and any method call on one
 raises. Each read below asks `IsForbidden` first, under `pcall`; a raise or a secret answer counts as
 forbidden, and a forbidden plate is answered as `nil`, so no caller ever touches one.
-Shim 20, the cast read, joined this table with the plate cast bar part (2026-11-20); it reads a unit,
-not a frame.
+Shim 20, a cast read, joined this table with the plate cast bar part and left it the same day: the
+cast bar's own OnShow / OnHide decide "while casting" now (`modules/Anchors_Nameplate.lua`).
 
 | # | Shim | Wraps | Absent or refused | Why it exists | Called from |
 |---|---|---|---|---|---|
@@ -64,7 +64,6 @@ not a frame.
 | 15 | `PlateToken(plate)` | the plate's `namePlateUnitToken` (pcall, forbidden- and secret-checked) | `nil` | The token a scanned plate serves | shim 16 |
 | 16 | `NamePlates()` | `C_NamePlate.GetNamePlates` (pcall), shim 15 per plate | `{}` | The stand-up's rescan: a stood-down addon heard no `NAME_PLATE_UNIT_ADDED` for the plates shown | `modules/Anchors_Nameplate.lua` (`StandUp`) |
 | 17 | `GetMouseFocus()` | `GetMouseFoci()[1]` (pcall) | `nil` | The frame picker's frame under the cursor; both clients carry `GetMouseFoci` | `modules/FramePicker.lua` |
-| 20 | `IsCasting(unit)` | `UnitCastingInfo`, then `UnitChannelInfo` (each presence-tested, pcall; only `type()` of the answer is read, which a secret allows) | `nil` when neither read exists (WoW Forever) or both raised | A nameplate container's *Cast bar while casting* part: whether a plate's unit casts when no cast event has spoken for it yet, and after a stop-kind event (a channel can follow a cast) | `modules/Anchors_Nameplate.lua` |
 
 The unit-frame names the `ellesmere` provider reads (`modules/FrameProviders.lua`) are no client
 read and live there, not here: `EllesmereUIUnitFrames_Target`, `EllesmereUIUnitFrames_Focus` and

@@ -312,13 +312,14 @@ is missing (`inst:SetAnchorHidden`), and the renderer tells the anchors each sho
   again on every placing, so the one-frame re-check after `ADDED` moves it onto a cast bar EllesmereUI
   built after this addon heard the event. A hidden cast bar keeps its place, so nothing moves between
   casts. The unlocked preview nameplate does not draw a cast bar: it shows the plate's point.
-  `castbarWhenCasting` is event-driven, never polled: `UNIT_SPELLCAST_*` (start, stop, failed,
-  interrupted, succeeded, the channel and empower pairs; each `ifValid`) → `addon:OnPlateCast` →
-  `NS.Plates.CastChanged(token, started)`, which returns at once for a token it does not track. A
-  start marks the token casting, any other kind asks `NS.Compat.IsCasting` again, and every such
-  instance on that plate is placed again. A token no event has spoken for (a plate shown mid-cast)
-  asks `NS.Compat.IsCasting`, and where the client has no cast read (WoW Forever), whether the cast
-  bar is shown. `REMOVED` and the stand-down forget the word.
+  `castbarWhenCasting` follows the cast bar itself, never polled: "casting" is whether the plate's
+  cast bar is shown, and the bar's own OnShow and OnHide (hooked once per bar) place the instances it
+  pins again, after the nameplate addon has shown or hidden it. `UNIT_SPELLCAST_*` (start, stop,
+  failed, interrupted, succeeded, the channel and empower pairs; each `ifValid`) →
+  `addon:OnPlateCast` → `NS.Plates.CastChanged(token)` still re-places a tracked plate's instances,
+  as a nudge only: the event can arrive before EllesmereUI shows or hides the bar (the owner,
+  2026-11-20: deciding at the event left the container under the lifted bar mid-cast and on the
+  bar's spot after it).
 - **plates**: a `nameplates` container's per-plate instance, on its plate. `NS.Plates` tracks every
   plate token from `NAME_PLATE_UNIT_ADDED` / `_REMOVED`; a plate is hostile through
   `NS.Compat.CanAttack`, and a container with `nameplate.includeFriendly` takes every plate. A
