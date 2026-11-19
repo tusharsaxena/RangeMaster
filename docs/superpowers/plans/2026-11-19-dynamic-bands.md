@@ -58,7 +58,7 @@ overrides part 1 where they disagree).
 | # | Milestone | Status | Commit |
 |---|---|---|---|
 | D0 | Research doc, this plan | done | `6a76078`, this commit |
-| D1 | Compat anchor shim and per-class anchor seeds, both clients | todo | |
+| D1 | Compat anchor shim and per-class anchor seeds, both clients | done | `6ef1336` |
 | D2 | Anchor resolver and the rebuild triggers | todo | |
 | D3 | Rule evaluation in the range memo; Resolve's rule path; Sim | todo | |
 | D4 | Schema v2: band rules, convert-everything migration, rule-based class presets | todo | |
