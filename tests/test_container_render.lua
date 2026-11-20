@@ -800,8 +800,26 @@ test("render: an element font naming a LibSharedMedia key draws that face at the
       local font = M.__paint(inst.elements.number.fs).font
       assertEqual(font[1], FAKE_FONT, "LSM's path for the key")
       assertEqual(font[2], 17, "at the stored size")
-      -- red under: the v0.1.0 fontPath, which answered Fonts\FRIZQT__.TTF (SD-SK-RM.11).
-      local _, _, inst2 = newContainer({ elements = { number = { font = "Unknown" } } })
+      -- red under: the v0.1.0 fontPath, which answered Fonts\FRIZQT__.TTF (SD-SK-RM.11). The harness's
+      -- skin face falls back to that same path, so the drawn face cannot tell the two apart: the face
+      -- handed to S.HudFont can (nil is the skin's face, a path the host's own).
+      local S, faces = NS.Skin, {}
+      local realHudFont = S.HudFont
+      S.HudFont = function(fs, opts)
+        faces[#faces + 1] = { fs = fs, face = opts and opts.face or "(the skin's)" }
+        return realHudFont(fs, opts)
+      end
+      local ok, inst2 = pcall(function() return select(3, newContainer({ elements = { number = { font = "Unknown" } } })) end)
+      S.HudFont = realHudFont
+      if not ok then error(inst2, 0) end
+      local number, drawn = inst2.elements.number.fs, 0
+      for _, call in ipairs(faces) do
+        if call.fs == number then
+          drawn = drawn + 1
+          assertEqual(call.face, "(the skin's)", "no face of the host's own reaches S.HudFont for an unknown key")
+        end
+      end
+      assertTrue(drawn > 0, "the number was drawn through S.HudFont")
       local _, _, own = newContainer()
       assertEqual(M.__paint(inst2.elements.number.fs).font[1], M.__paint(own.elements.number.fs).font[1],
         "a key LSM does not know draws the skin's face")
