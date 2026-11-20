@@ -22,7 +22,7 @@ unless a check names one. The anchors are run as a matrix, one result per mode a
 | DEGRADED-1 | Degraded | the library-absent install |
 | LOC-1 | Non-English client | a deDE or frFR client |
 | RANGE-1..17 | Range engine | brackets, unknown, the Forever ladder, the ticker's rate and stop, the seed spells; the anchor probes: reported ranges under talents, rank IDs, the talent event, overrides, Auto Shot unarmed |
-| DRAW-1..5 | Containers drawn | brackets drawn, unknown gray, elements and order, the skin face, disable |
+| DRAW-1..6 | Containers drawn | brackets drawn, unknown gray, elements and order, the skin face, disable, the Bar dot's border and gloss |
 | CONT-1..11 | Containers page | New container (no band preview), the rail, Position, Duplicate / Delete / Copy settings from, Defaults, Color from, the Dot tab and its Style tiles, Border opacity, the caption's positions, the caption's styling |
 | BANDS-1..11 | Band sets page | the picker, the Bands editor (no band ribbon), shared sets, the friendly override, the unknown label; spell bands: the rule controls, the read-out, the owner's Hawk Eye case, the dead zone, the v1 -> v2 conversion, the band rail |
 | PRESET-1..4 | Presets | the first-run picker, Apply on an empty profile, Apply over containers with Undo, what each of the six shows |
@@ -289,6 +289,12 @@ a training dummy for each. The spell IDs are the anchors in `defaults/SpellSeeds
   → the number's face follows at once, with no reload. Result:
 - **DRAW-5. Disable.** `/rm disable` → every container disappears; `/rm enable` → they come back.
   Result:
+- **DRAW-6. The Bar dot wears the skin's border and gloss.** Show the dot with Shape **Bar** and
+  target a dummy. Under Ka0s Default the bar has no border, as before. Switch the skin (General →
+  Skin) to Azeroth, High Contrast, WoW Default and WoW Midnight in turn → the bar draws that skin's
+  border at once, with no reload. Under Glass → a soft shine lies over the filled part only, and it
+  grows and shrinks with the fill. The fill keeps the band's color under every skin (LibKa0s v1.108.0,
+  SD-RV-RM). Result:
 
 ## Containers page
 
@@ -600,4 +606,5 @@ Set the rules on Containers → Visibility.
 | CONT-9, PRESET-4 | the outside caption positions and the preset defaults (the same plan, M11-M12), 2026-11-19 | the outside captions, the lifted strips, the faint preset frames and the plate containers out of combat have not been seen in a client yet |
 | ANCHOR-10 | the LibKa0s v1.107.0 re-vendor and the strip wiring (Ka0sAddonsCommonTasks 2026-11-19-ADOPTION_FEEDBACK, AF-RV-RM and AF-STRIP-RM), 2026-11-19 | the strip's new mark order, pitch, tints and the tooltip above the strip have not been seen in a client yet |
 | ANCHOR-11 | the plate cast bar part and Frame level (branch feat/2026-11-20-plate-castbar), 2026-11-20 | the cast bar lookup (EllesmereUI's map, the game's `UnitFrame.castBar`), the cast events moving *Cast bar while casting*, Cast Overlay on and off, and where Background draws against a plate's cast bar have not been seen in a client yet |
+| DRAW-6 | the LibKa0s v1.108.0 re-vendor (Ka0sAddonsCommonTasks 2026-11-20-LIBKA0S_94_97_99_100, SD-RV-RM), 2026-11-20 | the Bar dot's skin border and Glass gloss have not been seen in a client yet |
 | RANGE-6..11, BANDS-6..10 | the spell-driven dynamic bands (plan 2026-11-19-dynamic-bands, D1-D7), 2026-11-19 | whether the client reports talented ranges and answers by rank ID, which event a talent point fires, the rule controls, the owner's Hawk Eye case and the v1 -> v2 conversion have not been seen in a client yet |

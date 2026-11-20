@@ -128,9 +128,12 @@ end
 
 -- ── Frame ───────────────────────────────────────────────────────────────────────────────────
 
+-- LibKa0s v1.108.0 (OptionsCompose minor 20) emits each block's skin companions unless the host
+-- passes `fromSkin = false`. Held at minor 19's blocks until SD-SK-RM wires the readers and the
+-- stored containers' move (Ka0sAddonsCommonTasks docs/2026-11-20-LIBKA0S_94_97_99_100).
 add(H.BorderGroup({
     prefix = "container.frame.border.", page = PAGE, group = FRAME, subgroup = L["Border"], order = 10,
-    show = true, classColor = UNIT_CLASS,
+    show = true, classColor = UNIT_CLASS, fromSkin = false,
     keys = { borderShow = "enabled", borderStyle = "texture", borderSize = "size", borderColor = "color",
              useClassColorBorder = "colorMode" },
     extra = {
@@ -147,7 +150,7 @@ add({
 add(H.ColorPair({
     prefix = "container.frame.background.", page = PAGE, group = FRAME, subgroup = L["Background"],
     order = 110, key = "color", companionKey = "colorMode", label = L["Background color"],
-    classColor = UNIT_CLASS,
+    classColor = UNIT_CLASS, fromSkin = false,
 }))
 add({
     { path = "container.frame.background.bandAlpha", page = PAGE, group = FRAME, subgroup = L["Background"],
@@ -165,7 +168,7 @@ local FONT_KEYS = { font = "font", fontSize = "size", fontColor = "color", useCl
 local function fontBlock(prefix, group, order)
     local block = H.FontGroup({
         prefix = prefix, page = PAGE, group = group, subgroup = L["Font"], order = order,
-        classColor = UNIT_CLASS, keys = FONT_KEYS,
+        classColor = UNIT_CLASS, keys = FONT_KEYS, fromSkin = false,
     })
     for _, row in ipairs(block) do
         if row.path == prefix .. "font" then
@@ -261,7 +264,7 @@ add({
 })
 add(H.ColorPair({
     prefix = "container.elements.indicator.", page = PAGE, group = DOT, order = 40, key = "color",
-    companionKey = "colorMode", label = L["Dot color"], classColor = UNIT_CLASS,
+    companionKey = "colorMode", label = L["Dot color"], classColor = UNIT_CLASS, fromSkin = false,
 }))
 local styleRow = {
     path = "container.elements.indicator.style", page = PAGE, group = DOT, subgroup = S_STYLE, order = 100,

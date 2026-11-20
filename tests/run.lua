@@ -82,8 +82,18 @@ Kit.diagnostics = {
   end,
 }
 
--- The kit's typed-value gate (skinning-§1): no allowance of this addon's own.
-Kit.skinValues = {}
+-- The kit's typed-value gate (skinning-§1). Two rows, each a kit row category (test kit revision 58,
+-- the owner's U-6): values the scanner reads as colors that no player ever sees.
+Kit.skinValues = {
+  rows = {
+    { file = "modules/Elements_Indicator.lua", substring = "colors = { { 1, 1, 1, 1 }, { 1, 1, 1, 1 } }",
+      why = "the bar's two color slots, filled from Style.Color on every Paint before the bar reads one",
+      category = "unreachable default" },
+    { file = "settings/Containers_Display.lua", substring = "if type(col) ~= \"table\" then return 1, 1, 1 end",
+      why = "a dot color the load pass always stores as a table; white tints the tile's art as it is",
+      category = "unreachable default" },
+  },
+}
 
 -- The kit's skin-switch test (skinning-§1): the surfaces this addon draws through the skin: the
 -- library windows it opens, and a range container's number, whose HUD face is the skin's
