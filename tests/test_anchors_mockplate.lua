@@ -8,6 +8,7 @@ local test, assertEqual, assertTrue, assertFalse =
   T.test, T.assertEqual, T.assertTrue, T.assertFalse
 
 local H = dofile("tests/anchors_env.lua")
+local installPaint = dofile("tests/_kit/mock_paint.lua")
 local Mock = NS.Anchors.Mockplate
 
 local function unlock(on) NS.SetByPath("locked", not on) end
@@ -124,4 +125,33 @@ test("mockplate: test_combat_ends_preview_plate — combat puts the container ba
     assertTrue(p:IsShown())
     unlock(false)
   end)
+end)
+
+test("mockplate: test_preview_plate_keeps_stock_look — the stand-in keeps a nameplate's look under every skin", function()
+  -- red under: the stand-in reading bar.bg, bar.border and sem.bad and repainting on OnLooksChanged
+  -- (skinning-§9 Preview stand-ins, owner ruling U-24 of 2026-11-20).
+  local restorePaint = installPaint(M)
+  local S = NS.Skin
+  local realColor = S.Color
+  local ok, err = pcall(H.with, function()
+    S.Color = function() return 0.3, 0.6, 0.9, 1 end
+    local _, inst = H.container("target", { anchor = { mode = "nameplate" } })
+    unlock(true)
+    local p = Mock.__plate(inst)
+    M.LibStub("LibKa0s-Skin-1.0"):__NotifyLooks("RangeMaster")
+    NS.CM.FlushPending()
+    local function same(got, want, what)
+      for i = 1, 4 do assertEqual(got and got[i], want[i], what .. " component " .. i) end
+    end
+    same(M.__paint(p.bg).color, { 0.05, 0.05, 0.05, 0.85 }, "the plate's ground")
+    same(M.__paint(p.fill).color, { 0.78, 0.16, 0.16, 1 }, "an enemy plate's health")
+    same(M.__paint(p.edges[1]).color, { 0, 0, 0, 1 }, "the plate's edge")
+    local name = M.__paint(p.name)
+    assertEqual(name.font, nil, "the name line keeps the client's font object")
+    assertEqual(name.textColor, nil, "and its color")
+    unlock(false)
+  end)
+  S.Color = realColor
+  restorePaint()
+  if not ok then error(err, 0) end
 end)

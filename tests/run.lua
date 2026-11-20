@@ -83,9 +83,17 @@ Kit.diagnostics = {
 }
 
 -- The kit's typed-value gate (skinning-§1). Two rows, each a kit row category (test kit revision 58,
--- the owner's U-6): values the scanner reads as colors that no player ever sees.
+-- the owner's U-6): values the scanner reads as colors that no player ever sees. Two rows for the
+-- preview nameplate, which cite skinning-§9's Preview stand-ins (owner ruling U-24 of 2026-11-20,
+-- plan item SD-RULE of Ka0sAddonsCommonTasks docs/2026-11-20-LIBKA0S_94_97_99_100).
+local STANDIN = "the unlocked preview's stand-in nameplate keeps an enemy nameplate's look under every "
+  .. "skin, so offsets tuned against it match a real plate (skinning-§9 Preview stand-ins, owner U-24, 2026-11-20)"
 Kit.skinValues = {
   rows = {
+    { file = "modules/Anchors_Mockplate.lua", substring = "p.bg:SetColorTexture(0.05, 0.05, 0.05, 0.85)",
+      why = STANDIN .. ": its ground", cause = "SD-RULE" },
+    { file = "modules/Anchors_Mockplate.lua", substring = "p.fill:SetColorTexture(0.78, 0.16, 0.16, 1)",
+      why = STANDIN .. ": its health fill", cause = "SD-RULE" },
     { file = "modules/Elements_Indicator.lua", substring = "colors = { { 1, 1, 1, 1 }, { 1, 1, 1, 1 } }",
       why = "the bar's two color slots, filled from Style.Color on every Paint before the bar reads one",
       category = "unreachable default" },
@@ -105,9 +113,10 @@ Kit.skinValues = {
 -- color is the range's meaning); a Fixed part follows through its `colorFromSkin` companion.
 --
 -- NOT DECLARED: the mock nameplate the unlocked displays stand beside (modules/Anchors_Mockplate.lua).
--- skinning-§9's Preview stand-ins (owner ruling U-24 of 2026-11-20) keep the look of the frame they
--- imitate under every skin, while the audit's SD-SK-RM.7 and RM.8 asked this one to follow the skin
--- further; that pair is the lead's to settle with the owner before the stand-in is declared.
+-- It is a preview stand-in for a client nameplate (skinning-§9 Preview stand-ins, owner ruling U-24
+-- of 2026-11-20), so it keeps a nameplate's look under every skin and has nothing to move; the
+-- standard's class supersedes the audit's SD-SK-RM.7 and RM.8, which asked it to follow the skin.
+-- tests/test_anchors_mockplate.lua's test_preview_plate_keeps_stock_look holds that look.
 local skinContainer
 
 --- A container made for one surface, applied now; answers its renderer instance. It shows with no

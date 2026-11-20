@@ -321,13 +321,14 @@ Total.
 - cursor: the stand-down leaves the follow disarmed, and the stand-up arms it again
 - cursor: a new cursor container sits at the cursor default offset, whatever its id or screen point
 
-### test_anchors_mockplate.lua (5)
+### test_anchors_mockplate.lua (6)
 
 - mockplate: test_unlock_draws_preview_plate — an own-plate container sits beside a stand-in plate while unlocked
 - mockplate: test_preview_plate_follows_settings — a nameplate point or offset written while unlocked re-places it
 - mockplate: test_strip_clears_preview_plate — the drag strip is lifted over a plate above the container
 - mockplate: test_nameplates_stand_in — an All nameplates container's stand-in sits beside a stand-in plate
 - mockplate: test_combat_ends_preview_plate — combat puts the container back on its plate
+- mockplate: test_preview_plate_keeps_stock_look — the stand-in keeps a nameplate's look under every skin
 
 ### test_visibility.lua (11)
 
@@ -982,7 +983,7 @@ Total.
 | test_anchors_frame.lua | 18 |
 | test_anchors_nameplate.lua | 33 |
 | test_anchors_cursor.lua | 7 |
-| test_anchors_mockplate.lua | 5 |
+| test_anchors_mockplate.lua | 6 |
 | test_visibility.lua | 11 |
 | test_sounds.lua | 12 |
 | test_compat.lua | 14 |
@@ -1026,4 +1027,4 @@ Total.
 | test_skin_switch.lua | 20 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **792** |
+| **Total** | **793** |

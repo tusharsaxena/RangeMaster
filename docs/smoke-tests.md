@@ -605,6 +605,12 @@ it), or from chat with `/rm set container.anchor.mode frame` (`screen`, `frame`,
      under the newer Auto one; **100** → over it; **0** → back to Auto. Changing Frame strata on a
      container with every element on keeps the number, text and chips over the fill and the border
      (nothing drops behind the background).
+- **ANCHOR-12. The preview nameplate keeps a nameplate's look.** A target container on Nameplate,
+  `/rm unlock`: the red preview nameplate beside it has a dark ground, a black edge, a red health
+  fill and the client's small white name line. General → Skin → pick each of two other skins (say
+  WoW Default, then a dark one), with Ignore fonts off: the container beside it repaints in each
+  skin, the preview nameplate does not change at all (skinning-§9 Preview stand-ins, owner U-24,
+  2026-11-20). Result:
 
 | Check | Mode | Retail result | WoW Forever result |
 |---|---|---|---|
@@ -619,6 +625,7 @@ it), or from chat with `/rm set container.anchor.mode frame` (`screen`, `frame`,
 | ANCHOR-9 | All nameplates except target | | |
 | ANCHOR-10 | the drag strip's marks (`screen`) | | |
 | ANCHOR-11 | the three Attach to part choices, strata and level on a plate (`nameplate`, All nameplates) | | |
+| ANCHOR-12 | the preview nameplate under a skin switch (`mockplate`) | | |
 
 ## Visibility
 
@@ -656,5 +663,6 @@ Set the rules on Containers → Visibility.
 | ANCHOR-10 | the LibKa0s v1.107.0 re-vendor and the strip wiring (Ka0sAddonsCommonTasks 2026-11-19-ADOPTION_FEEDBACK, AF-RV-RM and AF-STRIP-RM), 2026-11-19 | the strip's new mark order, pitch, tints and the tooltip above the strip have not been seen in a client yet |
 | ANCHOR-11 | the plate cast bar part and Frame level (branch feat/2026-11-20-plate-castbar), 2026-11-20 | the cast bar lookup (EllesmereUI's map, the game's `UnitFrame.castBar`), the cast events moving *Cast bar while casting*, Cast Overlay on and off, and where Background draws against a plate's cast bar have not been seen in a client yet |
 | INSTALL-5, DRAW-7..10, CONT-10, CONT-12..14 | the skin-defaults fixes (Ka0sAddonsCommonTasks 2026-11-20-LIBKA0S_94_97_99_100, SD-SK-RM: SD-SK-RM.1 to RM.6, RM.9 to RM.12, the owner's R-2 and U-30), 2026-11-20 | the HUD companions, the From skin outline, the skin's shadow and border, the chips' meaning colors, the one-time move, the tiles' Scope and the picker's label have not been seen in a client yet |
+| ANCHOR-12 | the review of SD-SK-RM (Ka0sAddonsCommonTasks 2026-11-20-LIBKA0S_94_97_99_100; skinning-§9 Preview stand-ins, owner U-24, in place of SD-SK-RM.7 and RM.8), 2026-11-21 | the preview nameplate's stock look under a skin switch has not been seen in a client yet |
 | DRAW-6 | the LibKa0s v1.108.0 re-vendor (Ka0sAddonsCommonTasks 2026-11-20-LIBKA0S_94_97_99_100, SD-RV-RM), 2026-11-20 | the Bar dot's skin border and Glass gloss have not been seen in a client yet |
 | RANGE-6..11, BANDS-6..10 | the spell-driven dynamic bands (plan 2026-11-19-dynamic-bands, D1-D7), 2026-11-19 | whether the client reports talented ranges and answers by rank ID, which event a talent point fires, the rule controls, the owner's Hawk Eye case and the v1 -> v2 conversion have not been seen in a client yet |
