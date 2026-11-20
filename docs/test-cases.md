@@ -155,9 +155,9 @@ Total.
 - presets: a profile switch, copy or reset drops the Undo slot, so no other profile is overwritten
 - presets: Expert puts the OOR sound on through the band-set writer, which announces it
 - presets: test_preset_homes — each unit has one home on screen, the same in every preset, none shared
-- presets: test_hostile_only — every preset shows hostile units only, but the pet and the Healer-set displays
+- presets: test_any_reaction — every preset container shows for any unit, friend or foe
 - presets: test_plate_containers_cast_bar_flush — every preset container on a nameplate: cast bar while casting, offsets 0
-- presets: test_ka0s_shape — the owner's Ka0s profile: five containers, number + text, hostile only but the pet
+- presets: test_ka0s_shape — the owner's Ka0s profile: five containers, number + text, any unit
 - presets: test_ka0s_class_set — Ka0s finds the class's own set by name, whichever set is the default
 
 ### test_number_format.lua (5)

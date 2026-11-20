@@ -72,7 +72,8 @@ local function assertFaintFrame(c, what)
 end
 
 --- Assert the four unit containers of `key` are free on screen at their homes, showing `elements`,
---- on the preset's faint frame, the matte dot, and the caption naming it at Outside top.
+--- on the preset's faint frame (but Ka0s, frameless as the owner's profile is: test_ka0s_shape), the
+--- matte dot, and the caption naming it at Outside top.
 local function assertFourOnScreen(key, elements)
   local units = {}
   for _, unit in ipairs({ "target", "focus", "pet", "mouseover" }) do
@@ -82,7 +83,7 @@ local function assertFourOnScreen(key, elements)
     local home = Presets.__home(unit)
     assertEqual(c.anchor.x .. "," .. c.anchor.y, home.x .. "," .. home.y, key .. ": " .. unit .. " at its home")
     assertEqual(enabledElements(c), elements, key .. ": " .. unit .. "'s elements")
-    assertFaintFrame(c, key .. ": " .. unit)
+    if key ~= "ka0s" then assertFaintFrame(c, key .. ": " .. unit) end
     assertEqual(c.frame.border.colorMode, "band", key .. ": colored by band")
     assertTrue(c.label.enabled, key .. ": " .. unit .. " shows its caption")
     assertEqual(c.label.position .. " " .. c.label.align, "outsideTop center", key .. ": outside top, centered")
@@ -149,22 +150,22 @@ test("presets: test_expert_shape — six containers: the four with spell chips, 
     assertEqual(enabledElements(plate), "indicator,number")
     assertEqual(plate.elements.indicator.shape, "diamond")
     assertEqual(plate.name, "Target plate")
-    -- every hostile nameplate but the target's (the target plate container sits there; the owner,
+    -- every other nameplate, friend or foe, but the target's (the target plate container sits there; the owner,
     -- 2026-11-19, saw the two overlap): dot + the short number. Red under unit "nameplates".
     local all = find("nameplatesExceptTarget")
     assertEqual(all.anchor.mode, "nameplate")
     assertEqual(enabledElements(all), "indicator,number")
     assertEqual(all.elements.indicator.shape, "dot")
     assertEqual(all.elements.number.format, "max")
-    assertEqual(all.visibility.reaction, "hostile")
-    assertFalse(all.nameplate.includeFriendly)
+    assertEqual(all.visibility.reaction, "any")
+    assertTrue(all.nameplate.includeFriendly, "friendly plates too")
     assertFalse(all.sounds.enabled, "never a sound on every plate")
     -- Shown at any time (the owner saw none out of combat, plan 2026-11-19 M12); red under "in".
     assertEqual(plate.visibility.combat, "any")
     assertEqual(all.visibility.combat, "any")
     assertTrue(plate.visibility.hideNoUnit and all.visibility.hideNoUnit, "hidden with no unit")
     assertFaintFrame(plate, "the target plate")
-    assertFaintFrame(all, "every hostile plate")
+    assertFaintFrame(all, "every other plate")
     assertFalse(plate.label.enabled or all.label.enabled, "no caption on a nameplate container")
     -- the OOR sound on the target, and on no other
     local target = find("target", "screen")
@@ -245,7 +246,7 @@ test("presets: Describe answers each preset's name, container count and bullet i
   local L = NS.L
   local onScreen, oneSet = L["Target, Focus, Pet, Mouseover: free on screen, each named above it"],
     L["One band set (class default)"]
-  local noSounds = L["No sounds; hostile units only (the pet: always)"]
+  local noSounds = L["No sounds; any unit, friend or foe"]
   local want = {
     simple = { onScreen, L["A dot colored by band"], oneSet, noSounds },
     text = { onScreen, L["The band's label as text"], oneSet, noSounds },
@@ -254,9 +255,9 @@ test("presets: Describe answers each preset's name, container count and bullet i
     expert = {
       L["Everything in Advanced, with spell-range chips (class spells)"],
       L["Healer band set for friendly target, focus and mouseover"],
-      L["Target on its own nameplate + dot on all hostile plates"],
+      L["Target on its own nameplate + dot on every other plate, friend or foe"],
       L["Band-change sound on target (out-of-range warning)"],
-      L["Visibility rules: hostile only, but the friendly-set displays and the pet"],
+      L["Visibility rules: any unit, friend or foe"],
     },
   }
   for key, items in pairs(want) do
@@ -363,26 +364,19 @@ test("presets: test_preset_homes — each unit has one home on screen, the same 
   assertTrue(pet.y - plate.y >= 80, "a row holds a preview nameplate over a nameplate container")
 end)
 
-test("presets: test_hostile_only — every preset shows hostile units only, but the pet and the Healer-set displays", function()
-  -- red under: presets that show for any reaction (the owner, 2026-11-20).
-  for _, key in ipairs({ "simple", "text", "numbers", "advanced" }) do
+test("presets: test_any_reaction — every preset container shows for any unit, friend or foe", function()
+  -- red under: the hostile-only presets (the owner undid them, 2026-11-20).
+  for _, key in ipairs(Presets.ORDER) do
     withFreshProfile(function()
       Presets.Apply(key)
       for _, c in ipairs(containers()) do
-        local want = c.unit == "pet" and "any" or "hostile"
-        assertEqual(c.visibility.reaction, want, key .. ": " .. c.name)
+        assertEqual(c.visibility.reaction, "any", key .. ": " .. c.name)
+        if c.anchor.mode == "nameplate" and c.unit ~= "target" then
+          assertTrue(c.nameplate.includeFriendly, key .. ": " .. c.name .. " on friendly plates too")
+        end
       end
     end)
   end
-  withFreshProfile(function()
-    Presets.Apply("expert")
-    for _, c in ipairs(containers()) do
-      local want = "hostile"
-      if c.unit == "pet" or (c.bandSetFriendly ~= nil and c.anchor.mode == "screen") then want = "any" end
-      assertEqual(c.visibility.reaction, want, "expert: " .. c.name)
-    end
-    assertEqual(find("target", "nameplate").visibility.reaction, "hostile", "the target plate: hostile")
-  end)
 end)
 
 test("presets: test_plate_containers_cast_bar_flush — every preset container on a nameplate: cast bar while casting, offsets 0", function()
@@ -401,7 +395,7 @@ test("presets: test_plate_containers_cast_bar_flush — every preset container o
   end
 end)
 
-test("presets: test_ka0s_shape — the owner's Ka0s profile: five containers, number + text, hostile only but the pet", function()
+test("presets: test_ka0s_shape — the owner's Ka0s profile: five containers, number + text, any unit", function()
   withFreshProfile(function()
     Presets.Apply("ka0s")
     local list = containers()
@@ -410,8 +404,7 @@ test("presets: test_ka0s_shape — the owner's Ka0s profile: five containers, nu
     local key = NS.BandSetPresets.DefaultFor(NS.Compat.PlayerClass(), NS.Compat.PlayerSpecID())
     local own = setNamed(NS.BandSetPresets[key].name)
     for _, c in ipairs(list) do
-      local want = c.unit == "pet" and "any" or "hostile"
-      assertEqual(c.visibility.reaction, want, c.name .. ": hostile only, but the always-friendly pet")
+      assertEqual(c.visibility.reaction, "any", c.name .. ": any unit, friend or foe")
       assertEqual(c.bandSet, own, c.name .. ": the class's own band set")
     end
     for _, unit in ipairs({ "target", "focus", "mouseover" }) do
@@ -427,6 +420,12 @@ test("presets: test_ka0s_shape — the owner's Ka0s profile: five containers, nu
     assertEqual(plate.nameplate.attachTo, "castbarWhenCasting")
     assertEqual(plate.nameplate.x .. "," .. plate.nameplate.y, "0,0")
     assertNil(find("nameplatesExceptTarget"), "no every-plate container")
+    for _, c in ipairs(list) do
+      assertFalse(c.frame.border.enabled, c.name .. ": no border (the owner's profile)")
+      assertFalse(c.frame.background.enabled, c.name .. ": no background (the owner's profile)")
+      assertEqual(c.layout.direction, "column", c.name .. ": number above the band name")
+      assertFalse(c.layout.joinText, c.name .. ": number and band name not joined on one line")
+    end
   end)
 end)
 

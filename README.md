@@ -31,8 +31,8 @@ The first time you log in, Range Master opens its preset picker. Pick **Simple**
 on screen, each showing a colored dot), **Intermediate (Range Text)** (the band's name instead),
 **Intermediate (Range Numbers)** (the range number instead), **Advanced** (dot, number and band name)
 , **Expert** (Advanced plus spell chips, nameplates, a Healer band set for friends and a warning
-sound) or **Ka0s** (the author's own: number and band name for hostile units, the Healer set and
-the number on the target's nameplate, no sound) from its dropdown and it shows on your screen in test mode right
+sound) or **Ka0s** (the author's own: number above band name for any unit, no frame, the Healer
+set and the number on the target's nameplate, no sound) from its dropdown and it shows on your screen in test mode right
 away; **Apply** keeps it, **Not now** puts your own displays back. Open the picker again any time
 with `/rm preset`, or use General → Presets, or type `/rm preset simple`. If you already have displays, applying a
 preset asks first, and **Undo last preset** (or `/rm preset undo`) puts them back.
