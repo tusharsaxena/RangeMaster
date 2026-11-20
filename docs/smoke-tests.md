@@ -429,13 +429,14 @@ a training dummy for each. The spell IDs are the anchors in `defaults/SpellSeeds
 - **PRESET-3. Apply over containers, then Undo.** With containers, **Apply Expert…** → a confirm
   naming the preset and how many displays it replaces; **Cancel** changes nothing; **Apply** leaves
   six containers (target, focus, pet and mouseover free on screen, target on its own plate, one on
-  every hostile plate). **Undo last preset** puts the earlier ones back. Result:
-- **PRESET-4. What each preset shows.** (Since 2026-11-20 every preset container shows for hostile
-  units only: a friendly target hides it; the pet always shows, and in Expert target, focus and
-  mouseover show friends too, on the Healer set. Every preset container on a nameplate attaches to
+  every other plate, friend or foe). **Undo last preset** puts the earlier ones back. Result:
+- **PRESET-4. What each preset shows.** (Every preset container shows for any unit, friend or foe:
+  target a friendly player and every display still shows; in Expert and Ka0s target, focus and
+  mouseover read the Healer set on friends. Every preset container on a nameplate attaches to
   the cast bar while casting, at offsets 0.) Ka0s: five containers, target, focus, pet and mouseover
-  with the number and band name on one line on the class's own band set (Hunter on a hunter, even
-  when another set is the default), hostile only but the pet (always shown), the Healer set on
+  with the number above the band name (stacked, not one line) and no border or background (the
+  only preset without the faint frame), on the class's own band set (Hunter on a hunter, even
+  when another set is the default), shown for any unit, the Healer set on
   friends for target, focus and mouseover, no sound (only Expert sounds), and the target plate showing the
   number alone. Apply each in turn from General → Presets; every one puts
   target, focus, pet and mouseover free on screen at their homes, each with its name (Target, Focus,
@@ -444,7 +445,7 @@ a training dummy for each. The spell IDs are the anchors in `defaults/SpellSeeds
   band's name (MELEE, LONG, ...); Intermediate (Range Numbers) the range number; Advanced dot, number
   and name; Expert all three with spell chips, plus the two nameplate containers (shown out of
   combat too: target a hostile mob out of combat → the target-plate container shows under its plate,
-  and every hostile plate but the target's wears a dot; no caption on either),
+  and every other plate, friendly ones too, wears a dot; no caption on either),
   the out-of-range chime on target and the Healer set as the friendly override on target, focus and
   mouseover. `/rm preset text`, `/rm preset numbers` and `/rm preset expert` reach the same; `/rm
   preset intermediate` prints the usage line. Result:

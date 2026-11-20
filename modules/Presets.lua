@@ -48,8 +48,8 @@ local _, NS = ...
 --   Advanced                       dot + number + text.
 --   Expert                         dot + number + text + spell chips; the Healer set for friendly
 --                                  target, focus and mouseover, the OOR sound on Target; plus Target
---                                  on its own nameplate (diamond + number) and every hostile
---                                  nameplate (dot + the short `max` number), both shown whenever
+--                                  on its own nameplate (diamond + number) and every other
+--                                  nameplate, friend or foe (dot + the short `max` number), both shown whenever
 --                                  their unit is there (no caption on a plate).
 
 NS.Presets = NS.Presets or {}
@@ -97,11 +97,11 @@ end
 
 --- One of the four unit containers, free on screen at its home, showing the elements `show` names
 --- (`dot`, `number`, `text`, `spells`) and no other, named by its caption at Outside top (the caption
---- reads the container's name: Target, Focus, Pet, Mouseover). Shown for hostile units only (the
---- owner, 2026-11-20), but the pet, which is always friendly and would never show.
+--- reads the container's name: Target, Focus, Pet, Mouseover). Shown for any unit, friend or foe
+--- (the owner, 2026-11-20, undoing the hostile-only rule of the same day).
 local function onScreen(unit, show)
     return { unit = unit, opts = {
-        visibility = { reaction = unit == "pet" and "any" or "hostile" },
+        visibility = { reaction = "any" },
         anchor = home({ mode = "screen" }, unit),
         frame = faintFrame(),
         label = { enabled = true, text = "", position = "outsideTop", align = "center" },
@@ -153,19 +153,15 @@ local function expert()
     local list = four({ dot = true, number = true, text = true, spells = true })
     local healer = healerSet()
     for i = 1, #list do
-        -- A pet is always friendly. A display with the Healer set for friends shows them too: hostile
-        -- only would leave that set nothing to read (the owner's "except healer", 2026-11-20).
-        if list[i].unit ~= "pet" then
-            list[i].opts.bandSetFriendly = healer
-            list[i].opts.visibility.reaction = "any"
-        end
+        if list[i].unit ~= "pet" then list[i].opts.bandSetFriendly = healer end
     end
     list[1].opts.sounds = { enabled = true }
     list[#list + 1] = plate("target", "targetPlate", "diamond", "range", { name = L["Target plate"],
-        visibility = { combat = "any", reaction = "hostile", hideNoUnit = true } })
+        visibility = { combat = "any", reaction = "any", hideNoUnit = true } })
+    -- Friendly plates too (any unit, friend or foe: the owner, 2026-11-20).
     list[#list + 1] = plate("nameplatesExceptTarget", "nameplates", "dot", "max", {
-        visibility = { combat = "any", reaction = "hostile", hideNoUnit = true },
-        nameplate = onPlate({ includeFriendly = false }),
+        visibility = { combat = "any", reaction = "any", hideNoUnit = true },
+        nameplate = onPlate({ includeFriendly = true }),
     })
     return list
 end
@@ -183,11 +179,12 @@ local function classSet()
 end
 Presets.__classSet = classSet
 
---- The owner's own setup (the "Ka0s" profile on WoW Forever, 2026-11-20): the four on screen with the
---- range number and the band's label (one line), hostile only but the pet (always friendly, so it
---- would never show); the class's own band set (Hunter on a hunter), the Healer set on friends for
---- target, focus and mouseover; the target's own plate with the number alone (the owner turned its
---- dot off). No every-plate container, and no sound (only Expert sounds, the owner, 2026-11-20).
+--- The owner's own setup (the "Ka0s" profile on WoW Forever, re-read 2026-11-20): the four on screen
+--- with the range number above the band's label (a column, not one line), for any unit, friend or
+--- foe; the class's own band set (Hunter on a hunter), the
+--- Healer set on friends for target, focus and mouseover; the target's own plate with the number alone
+--- (the owner turned its dot off). Every one frameless: no border and no background (the owner turned
+--- both off). No every-plate container, and no sound (only Expert sounds, the owner, 2026-11-20).
 local function ka0s()
     local list = four({ number = true, text = true })
     local healer, own = healerSet(), classSet()
@@ -196,10 +193,15 @@ local function ka0s()
         if list[i].unit ~= "pet" then list[i].opts.bandSetFriendly = healer end
     end
     local tp = plate("target", "targetPlate", "diamond", "range", { name = L["Target plate"],
-        visibility = { combat = "any", reaction = "hostile", hideNoUnit = true } })
+        visibility = { combat = "any", reaction = "any", hideNoUnit = true } })
     tp.opts.elements.indicator.enabled = false
     tp.opts.bandSet = own
     list[#list + 1] = tp
+    for i = 1, #list do
+        local f = list[i].opts.frame
+        f.border.enabled, f.background.enabled = false, false
+        list[i].opts.layout = { direction = "column", joinText = false }
+    end
     return list
 end
 
@@ -357,7 +359,7 @@ function Presets.__reset() lastSnapshot, preview = nil, nil end
 
 local ON_SCREEN = L["Target, Focus, Pet, Mouseover: free on screen, each named above it"]
 local ONE_SET = L["One band set (class default)"]
-local NO_SOUNDS = L["No sounds; hostile units only (the pet: always)"]
+local NO_SOUNDS = L["No sounds; any unit, friend or foe"]
 
 local DESCRIBE = {
     simple = { name = L["Simple"], count = 4, items = {
@@ -375,16 +377,16 @@ local DESCRIBE = {
     expert = { name = L["Expert"], count = 6, items = {
         L["Everything in Advanced, with spell-range chips (class spells)"],
         L["Healer band set for friendly target, focus and mouseover"],
-        L["Target on its own nameplate + dot on all hostile plates"],
+        L["Target on its own nameplate + dot on every other plate, friend or foe"],
         L["Band-change sound on target (out-of-range warning)"],
-        L["Visibility rules: hostile only, but the friendly-set displays and the pet"],
+        L["Visibility rules: any unit, friend or foe"],
     } },
     ka0s = { name = L["Ka0s"], count = 5, items = {
-        L["Target, Focus, Pet, Mouseover: range number and band name on one line"],
+        L["Target, Focus, Pet, Mouseover: range number over band name, no frame"],
         L["Healer band set for friendly target, focus and mouseover"],
         L["Target on its own nameplate: the range number, on the cast bar while casting"],
         L["No sounds"],
-        L["Hostile units only (the pet: always), on the class's own band set"],
+        L["Any unit, friend or foe, on the class's own band set"],
     } },
 }
 
