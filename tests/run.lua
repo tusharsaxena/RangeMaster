@@ -95,13 +95,91 @@ Kit.skinValues = {
   },
 }
 
--- The kit's skin-switch test (skinning-§1): the surfaces this addon draws through the skin: the
--- library windows it opens, and a range container's number, whose HUD face is the skin's
--- (modules/Style.lua's S.HudFont) and follows a switch through the renderer's OnLooksChanged
--- re-apply, which ContainerManager runs on the next frame. Its colors are the band set's, never
--- the skin's, so the face is what moves, and an owner
--- ignoring fonts keeps it stock (scope "fonts").
+-- The kit's skin-switch test (skinning-§1; every surface this addon paints, test kit revision 58,
+-- the skin-defaults audit's SD-SK-RM.13): the library windows it opens, a range container's parts,
+-- the preset picker, the frame picker's overlay and the Display entry's Style tiles. A container
+-- follows a switch through the renderer's OnLooksChanged re-apply, which ContainerManager runs on the
+-- next frame (the flush runs it now: the mock has no frame to wait for). Its HUD faces are the skin's
+-- (modules/Style.lua's S.HudFont), so an owner ignoring fonts keeps them stock (scope "fonts"). A
+-- part colored by its band keeps the band's color (`hold`, the owner's U-30 of 2026-11-20: the band
+-- color is the range's meaning); a Fixed part follows through its `colorFromSkin` companion.
+--
+-- NOT DECLARED: the mock nameplate the unlocked displays stand beside (modules/Anchors_Mockplate.lua).
+-- skinning-§9's Preview stand-ins (owner ruling U-24 of 2026-11-20) keep the look of the frame they
+-- imitate under every skin, while the audit's SD-SK-RM.7 and RM.8 asked this one to follow the skin
+-- further; that pair is the lead's to settle with the owner before the stand-in is declared.
 local skinContainer
+
+--- A container made for one surface, applied now; answers its renderer instance. It shows with no
+--- unit (the harness has no target here), so its Paint runs on every re-apply: a hidden one paints
+--- nothing.
+local function skinTarget(opts)
+  opts.visibility = opts.visibility or { hideNoUnit = false }
+  skinContainer = NS.CM.Create("target", opts)
+  NS.CM.FlushPending()
+  return NS.Container.Get(skinContainer)
+end
+local function flush() NS.CM.FlushPending() end
+local function dropTarget()
+  NS.CM.Delete(skinContainer)
+  NS.CM.FlushPending()
+end
+-- The settings harness, loaded on first need by the Style tiles' surface.
+local settingsEnv
+local function styleTiles()
+  settingsEnv = settingsEnv or dofile("tests/settings_env.lua")
+  NS.SelectContainer(NS.CM.Create("target"))
+  local ctx = settingsEnv.page("containers", "Containers")
+  ctx.activeSection, ctx.sectionTabs = "containers_display", { containers_display = NS.L["Dot"] }
+  NS.__renderContainersPage(ctx)
+  skinContainer = NS.SelectedContainer and select(2, NS.SelectedContainer()) or nil
+  local tiles = ctx.rmStyleTiles or {}
+  return tiles[1], tiles[2]
+end
+local FIXED = { r = 0.2, g = 0.4, b = 0.6, a = 1 }
+-- The kit's paint recorder (tests/_kit/mock_paint.lua), for a surface whose regions must be objects
+-- of their own: the base mock answers CreateTexture with the frame itself, so a W.Bar's fill Texture
+-- or the frame picker's strips and label are nothing a spy can find.
+local installPaint = dofile("tests/_kit/mock_paint.lua")
+local restorePaint
+local function recorded(build)
+  return function()
+    restorePaint = installPaint(mocks)
+    NS.Container.__reset()
+    return build()
+  end
+end
+local function unrecord()
+  NS.Container.__reset()
+  if restorePaint then restorePaint() end
+  restorePaint = nil
+  NS.CM.RequestApply()
+  NS.CM.FlushPending()
+end
+-- A LibSharedMedia fake answering every skin's statusbar key with a path of its own (the advice of
+-- skinning-§9 from test kit revision 58): the harness loads no LibSharedMedia, so S.BarTexture
+-- would paint the flat white under every skin and a bar fill that stopped following could not be
+-- told from one that follows. Installed for one surface only, and this addon's own NS.GetLSM held
+-- off it meanwhile (it caches the first LibSharedMedia it finds).
+local savedGetLSM
+local function withBarMedia()
+  local Skin, map = mocks.LibStub("LibKa0s-Skin-1.0"), {}
+  for _, def in ipairs(Skin:Skins()) do
+    local key = Skin:ResolveSkin(def.key)["bar.texture"]
+    if type(key) == "string" and key ~= "" then map[key] = "Interface\\AddOns\\RangeMasterTest\\bar\\" .. key end
+  end
+  mocks.__libs["LibSharedMedia-3.0"] = { Fetch = function(_, kind, key)
+    return kind == "statusbar" and map[tostring(key)] or nil
+  end }
+  savedGetLSM = NS.GetLSM
+  NS.GetLSM = function() return nil end
+end
+local function withoutBarMedia()
+  mocks.__libs["LibSharedMedia-3.0"] = nil
+  if savedGetLSM then NS.GetLSM = savedGetLSM end
+  savedGetLSM = nil
+end
+
 Kit.skinSwitch = {
   owner = "RangeMaster",
   skin  = function() return mocks.LibStub("LibKa0s-Skin-1.0") end,
@@ -114,16 +192,71 @@ Kit.skinSwitch = {
       NS.Perf.ShowPanel()
       return NS.Perf.__panel()
     end, reset = function() NS.Perf.HidePanel() end },
-    { name = "a range container's number", scope = "fonts", build = function()
-      skinContainer = NS.CM.Create("target")
-      NS.CM.FlushPending()
-      return NS.Container.Get(skinContainer).elements.number.fs
-    end, paint = function()
-      -- The skin's OnLooksChanged asks ContainerManager for an apply on the next frame (held
-      -- through combat); the mock has no frame to wait for, so the flush runs it now.
-      NS.CM.FlushPending()
+    -- The number in Band, the default: its face and flags follow, its color is the band's under
+    -- every skin. hold = "color" is the owner's U-30 of 2026-11-20 (the band color is the range's
+    -- meaning, an OVERRIDE), and the container's border and background in Band are held by the same
+    -- ruling.
+    { name = "a range container's number", scope = "fonts", hold = "color", build = function()
+      return skinTarget({}).elements.number.fs
+    end, paint = flush, reset = dropTarget },
+    -- The caption: Fixed by default, following the skin's hud.label (SD-SK-RM.3).
+    { name = "a container's caption", scope = "fonts", companion = function() end, build = function()
+      return skinTarget({ label = { enabled = true } }).caption.fs
+    end, paint = flush, reset = dropTarget },
+    -- The Text element, Fixed with its companion on: hud.text (SD-SK-RM.4).
+    { name = "a container's Text element (Fixed)", scope = "fonts", companion = function() end, build = function()
+      return skinTarget({ layout = { joinText = false },
+        elements = { text = { enabled = true, colorMode = "fixed", color = FIXED } } }).elements.text.fs
+    end, paint = flush, reset = dropTarget },
+    -- The dot's art, Fixed: only its tint follows (the shape is skinning-§9's icon-shape Leave).
+    { name = "a container's dot (Fixed)", companion = function() end, build = function()
+      return skinTarget({ elements = { indicator = { enabled = true, colorMode = "fixed", color = FIXED } } })
+        .elements.indicator.tex
+    end, paint = flush, reset = dropTarget },
+    -- The Bar dot: LibKa0s-Widgets' data bar, its fill the skin's bar texture (SD-LK-97.2, 97.3);
+    -- its fill color is the band's (owner U-30), its track and edge the skin's.
+    { name = "a container's Bar dot", expect = "texture", build = recorded(function()
+      withBarMedia()
+      local inst = skinTarget({ elements = { indicator = { enabled = true, shape = "bar" } } })
+      return inst.elements.indicator.bar
+    end), paint = flush, reset = function()
+      dropTarget()
+      unrecord()
+      withoutBarMedia()
+    end },
+    -- The border and background in Fixed, their companions on: bar.border and bar.bg (SD-SK-RM.4).
+    { name = "a container's border and background (Fixed)", companion = function() end, build = function()
+      local inst = skinTarget({ frame = { border = { colorMode = "fixed", color = FIXED, alpha = 1 },
+        background = { enabled = true, colorMode = "fixed", color = FIXED } } })
+      return inst.border.frame, inst.background
+    end, paint = flush, reset = dropTarget },
+    -- The spell chips: each answer in the skin's sem.good / sem.bad / sem.unknown (SD-SK-RM.10).
+    { name = "a container's spell chips", build = function()
+      local inst = skinTarget({ elements = { spells = { enabled = true, list = { 100, 200 } } } })
+      local chips = inst.elements.spells.chips
+      return chips[1], chips[2]
+    end, paint = flush, reset = dropTarget },
+    -- The preset picker window (settings/Presets.lua): the library's shell, text and buttons.
+    { name = "the preset picker", build = function()
+      return NS.ShowPresetPicker()
+    end, reset = function() NS.HidePresetPicker() end },
+    -- The frame picker's overlay: its outline and label in the skin's accent and face (SD-SK-RM.9).
+    { name = "the frame picker's overlay", build = function()
+      restorePaint = installPaint(mocks)
+      NS.FramePicker.__drop()
+      NS.FramePicker.Start(function() end, function() end)
+      return NS.FramePicker.__overlay()
     end, reset = function()
-      NS.CM.Delete(skinContainer)
+      NS.FramePicker.Cancel("escape")
+      NS.FramePicker.__drop()
+      if restorePaint then restorePaint() end
+      restorePaint = nil
+    end },
+    -- The Display entry's Style tiles: the skin's input colors with the Scope cleared, stock while
+    -- the owner ignores its settings panel (scope "panel", SD-SK-RM.12).
+    { name = "the Dot tab's Style tiles", scope = "panel", build = styleTiles, reset = function()
+      if skinContainer then NS.CM.Delete(skinContainer) end
+      NS.SelectContainer(nil)
       NS.CM.FlushPending()
     end },
   },

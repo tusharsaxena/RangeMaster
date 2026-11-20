@@ -452,7 +452,23 @@ test("settings: Display > Frame > Border ends with Border opacity, a percent sli
   assertEqual(opacity.path, "container.frame.border.alpha", "the last Border row")
   assertEqual(opacity.label, NS.L["Border opacity"])
   assertEqual(opacity.group, NS.L["Frame"])
-  assertEqual(border[#border - 1].path, "container.frame.border.colorMode", "right after the color pair")
+  -- LibKa0s v1.108.0 (SD-SK-RM.4, .5): the block's two skin companions sit between the color pair
+  -- and the extra, the style's first, then the color's.
+  assertEqual(border[#border - 1].path, "container.frame.border.colorFromSkin", "Use the skin's color before it")
+  assertEqual(border[#border - 2].path, "container.frame.border.textureFromSkin", "the style's companion first")
+  assertEqual(border[#border - 3].path, "container.frame.border.colorMode", "after the color pair")
+  -- Each Use the skin's color says it is read in Fixed mode only (Band and Class come first, U-30).
+  local tip = NS.L["While Color from is Fixed color, draw this in the skin's color instead of the swatch. Band color and Class color are not changed by it."]
+  for _, path in ipairs({ "container.frame.border.colorFromSkin", "container.frame.background.colorFromSkin",
+                          "container.elements.number.colorFromSkin", "container.elements.indicator.colorFromSkin",
+                          "container.label.colorFromSkin" }) do
+    local row = NS.FindSchemaRow(path)
+    assertTrue(row ~= nil, path .. " is a row")
+    assertEqual(row.tooltip, tip, path .. "'s tooltip")
+    assertEqual(row.default, true, path .. " defaults on (R-2)")
+  end
+  assertEqual(NS.FindSchemaRow("container.elements.number.outline").default, "@skin", "Font flags default From skin")
+  assertNil(NS.FindSchemaRow("container.elements.number.fontFromSkin"), "the face takes no companion")
   assertTrue(opacity.isPercent, "shown as a percent")
   assertEqual(opacity.min, 0); assertEqual(opacity.max, 1); assertEqual(opacity.step, 0.05)
 end)
@@ -494,7 +510,7 @@ test("settings: test_display_tabs — Display carries Layout, Frame, Number, Tex
   for _, row in ipairs(NS.SchemaForPage("containers_display")) do
     if row.group == L["Dot"] then dot[#dot + 1] = row.path:match("indicator%.(%a+)$") end
   end
-  assertEqual(table.concat(dot, ","), "enabled,shape,size,color,colorMode,style",
+  assertEqual(table.concat(dot, ","), "enabled,shape,size,color,colorMode,colorFromSkin,style",
     "Show dot, Shape, Size, the color pair, then the Style tiles")
   E.with(function()
     NS.SelectContainer(CM.Create("target"))
@@ -511,8 +527,11 @@ test("settings: test_label_tab — the Label tab's rows, in order: show, text, p
   for _, row in ipairs(NS.SchemaForPage("containers_display")) do
     if row.group == L["Label"] then got[#got + 1] = row.path:match("^container%.label%.(.+)$") or row.path end
   end
-  assertEqual(table.concat(got, ","), "enabled,text,position,align,gap,font,size,color,colorMode,outline,shadow",
-    "every Label row is a container.label field, the Font block's color pair included")
+  -- LibKa0s v1.108.0 (SD-SK-RM.2, .3): the Font block ends with its two skin companions, and the
+  -- face takes none (its "Skin's font" value is the skin's own).
+  assertEqual(table.concat(got, ","),
+    "enabled,text,position,align,gap,font,size,color,colorMode,outline,shadow,colorFromSkin,shadowFromSkin",
+    "every Label row is a container.label field, the Font block's color pair and companions included")
   local rows = displayRows()
   local text = rows["container.label.text"]
   assertEqual(text.dialogControl, "EditBox", "the text is typed, and applies on Enter")
@@ -628,6 +647,37 @@ test("settings: test_dot_style_tiles_off — for Bar and Spell icon the tiles gr
     tiles[3]:__fire("OnClick")
     assertEqual(CM.Get(id).elements.indicator.style, "matte", "a click stores nothing")
   end)
+end)
+
+--- Whether `got` (r, g, b) is `want`'s first three components.
+local function sameRGB(got, want)
+  for i = 1, 3 do
+    if type(got[i]) ~= "number" or math.abs(got[i] - want[i]) > 1e-6 then return false end
+  end
+  return true
+end
+
+test("settings: test_dot_style_tiles_scope — stock while Ignore settings panel is on, the skin's with it cleared, live", function()
+  -- red under: tiles painted through NS.Skin.Color, which knows no Scope, so they wore the skin while
+  -- the labels beside them went stock (the skin-defaults audit's SD-SK-RM.12).
+  local Skin = M.LibStub("LibKa0s-Skin-1.0")
+  local panel, fonts = Skin:GetIgnore("RangeMaster")
+  local ok, err = pcall(E.with, function()
+    NS.SelectContainer(CM.Create("target"))
+    Skin:SetIgnore("RangeMaster", true, fonts)
+    local ctx = dotTab()
+    local plain = ctx.rmStyleTiles[1]   -- not the stored style (matte), so edged in input.border
+    local stockBg, stockEdge = { 0.08, 0.07, 0.06 }, { 0.25, 0.22, 0.16 }
+    assertTrue(sameRGB(plain.rmBgRGB, stockBg), "ignored: the stock fill")
+    assertTrue(sameRGB(plain.rmEdgeRGB, stockEdge), "ignored: the stock edge")
+    Skin:SetIgnore("RangeMaster", false, fonts)
+    assertTrue(sameRGB(plain.rmBgRGB, { NS.Skin.Color("input.bg") }), "cleared: the skin's input.bg, repainted live")
+    assertTrue(sameRGB(plain.rmEdgeRGB, { NS.Skin.Color("input.border") }), "cleared: the skin's input.border")
+    Skin:SetIgnore("RangeMaster", true, fonts)
+    assertTrue(sameRGB(plain.rmBgRGB, stockBg), "ignored again: stock, live")
+  end)
+  Skin:SetIgnore("RangeMaster", panel, fonts)
+  if not ok then error(err, 0) end
 end)
 
 test("settings: the style tiles are handed back before the next render clears the scroll", function()

@@ -11,7 +11,7 @@ unless a check names one. The anchors are run as a matrix, one result per mode a
 
 | ID range | Theme | What it covers |
 |---|---|---|
-| INSTALL-1..4 | Install | load, reload, the first-run prompts, an upgrade keeping stored looks |
+| INSTALL-1..5 | Install | load, reload, the first-run prompts, an upgrade keeping stored looks, the one move onto the skin |
 | SLASH-1..8 | Slash | help, the schema CLI, disabled refusals, the container, band-set, pick and preset verbs |
 | PANEL-1..4 | Panel | the landing page, General's three tabs, Defaults, tooltips |
 | PROFILE-1..3 | Profiles | the Profiles page, `/rm profile`, a profile's own containers |
@@ -22,8 +22,8 @@ unless a check names one. The anchors are run as a matrix, one result per mode a
 | DEGRADED-1 | Degraded | the library-absent install |
 | LOC-1 | Non-English client | a deDE or frFR client |
 | RANGE-1..17 | Range engine | brackets, unknown, the Forever ladder, the ticker's rate and stop, the seed spells; the anchor probes: reported ranges under talents, rank IDs, the talent event, overrides, Auto Shot unarmed |
-| DRAW-1..6 | Containers drawn | brackets drawn, unknown gray, elements and order, the skin face, disable, the Bar dot's border and gloss |
-| CONT-1..11 | Containers page | New container (no band preview), the rail, Position, Duplicate / Delete / Copy settings from, Defaults, Color from, the Dot tab and its Style tiles, Border opacity, the caption's positions, the caption's styling |
+| DRAW-1..10 | Containers drawn | brackets drawn, unknown gray, elements and order, the skin face, disable, the Bar dot's border and gloss, Fixed colors, outline and shadow, the border and the spell chips following the skin |
+| CONT-1..14 | Containers page | New container (no band preview), the rail, Position, Duplicate / Delete / Copy settings from, Defaults, Color from, the Dot tab and its Style tiles, Border opacity, the caption's positions, the caption's styling, one line, the skin companion rows, the Style tiles' Scope, the frame picker's label |
 | BANDS-1..11 | Band sets page | the picker, the Bands editor (no band ribbon), shared sets, the friendly override, the unknown label; spell bands: the rule controls, the read-out, the owner's Hawk Eye case, the dead zone, the v1 -> v2 conversion, the band rail |
 | PRESET-1..4 | Presets | the first-run picker, Apply on an empty profile, Apply over containers with Undo, what each of the six shows |
 | ANCHOR-1..11 | Anchors | every mode on both clients: screen, unit frames (Blizzard, EllesmereUI, custom, missing), own nameplate, all nameplates, cursor, the picker, all nameplates except target, the drag strip's marks, the cast bar part, Frame strata and Frame level on a plate |
@@ -54,6 +54,15 @@ starts with a cyan `[RM]`. Most checks need a container: apply a preset (General
   dot did); Frame → Border reads Border opacity 100% and Dot →
   Style has Plain picked. Switch to the other profile → the same. A container made now takes the
   new look (25% border, background, matte). Result:
+- **INSTALL-5. An upgrade moves the untouched looks onto the skin, once.** On a build before LibKa0s
+  v1.108.0, keep two containers: one as it was made, the other with its Number's Font flags on Thick
+  outline, its caption on (Color from Fixed) with a red swatch and its Font shadow ticked. Install this
+  build, log in, pick WoW Default (General → Skin) → the first container's caption takes the skin's
+  label gold, its border the skin's tooltip edge, its text the skin's outline; the second keeps its
+  thick outline, red caption and shadow, and its Display rows read Use the skin's color and Use the
+  skin's shadow unticked. Untick Use the skin's color on the first container's caption, `/reload` →
+  it stays unticked (the move ran once). A second profile moves the same way the first time it is
+  loaded. Result:
 
 ## Slash
 
@@ -295,6 +304,31 @@ a training dummy for each. The spell IDs are the anchors in `defaults/SpellSeeds
   border at once, with no reload. Under Glass → a soft shine lies over the filled part only, and it
   grows and shrinks with the fill. The fill keeps the band's color under every skin (LibKa0s v1.108.0,
   SD-RV-RM). Result:
+- **DRAW-7. Fixed colors follow the skin.** Show the caption (Display → Label → Show label): under
+  Ka0s Default it reads the skin's gold label color, not white. Set the Number's Color from to Fixed
+  color → it draws the skin's HUD text color whatever the swatch says; untick Use the skin's color →
+  the swatch draws. Do the same for the Text element, the Dot, the border and the background (the
+  border then takes the skin's bar edge color, the background its bar background). Switch the skin
+  (General → Skin) → every part on Fixed with its companion ticked repaints at once, no reload. A part
+  on Band color keeps the band's color under every skin, and one on Class color the unit's class color
+  (SD-SK-RM.3, RM.4; owner U-30). Result:
+- **DRAW-8. Outline and shadow follow the skin.** A new container's Number, Text and caption read
+  Font flags From skin. General → Skin → Font outline **Off** → the HUD text loses its outline at once;
+  **HUD text only** → it comes back. Pick a Font flags value (Thick outline) → that draws under every
+  outline mode. Under a skin with a HUD shadow, a new container's text wears it; Font shadow is grayed
+  while Use the skin's shadow is ticked; untick it and tick Font shadow → a black shadow one pixel down
+  and right, under every skin (SD-SK-RM.1, RM.2). Result:
+- **DRAW-9. The container border follows the skin's bar border.** A new container under Ka0s Default
+  draws its Solid 1 px border as before. Switch to Azeroth, High Contrast, WoW Default and WoW Midnight
+  → the border takes that skin's style and thickness (WoW Default the tooltip edge, 2 px), in the band
+  color, at Border opacity; Display → Frame → Border style, thickness and Show border gray meanwhile.
+  Untick Show border, still under Azeroth → the border stays (a skin's real border wins); untick Use
+  the skin's border → the stored style draws again and Show border is the player's (SD-SK-RM.5).
+  Result:
+- **DRAW-10. Spell chips wear the skin's meaning colors.** Show spell chips and target a dummy: a
+  chip in range draws the skin's green, out of range its red, no answer its gray. Switch the skin →
+  the chips repaint in the new skin's three on the next update, with no reload (SD-SK-RM.10).
+  Result:
 
 ## Containers page
 
@@ -349,7 +383,7 @@ a training dummy for each. The spell IDs are the anchors in `defaults/SpellSeeds
 - **CONT-10. The caption's styling.** With the caption on: change the Font block's face, size,
   outline and Font shadow → the caption takes each at once and the container resizes to the new
   width; leave the face on Skin and switch the skin → the caption's face follows. Color from Fixed
-  with a swatch → that color; Band → the caption takes the band's text color as the target moves
+  with Use the skin's color unticked and a swatch → that color; Band → the caption takes the band's text color as the target moves
   between bands; Class with a player targeted → that player's class color, the swatch when the target
   has no class. Copy settings from a container with a styled caption → the style and position come
   over and the destination keeps its own Label text. Result:
@@ -359,6 +393,21 @@ a training dummy for each. The spell IDs are the anchors in `defaults/SpellSeeds
   and text on one line off → two elements again. Align Left / Center / Right with Size → Fixed size
   at 200 px → the line sits left, centered, right. Number → Format → Band span: a Forever hunter with
   Hawk Eye reads 8–41 in AUTO, 0–5 in MELEE, 41+ in OOR, instead of the 5 yd steps. Result:
+- **CONT-12. The skin companion rows.** Display → Number (and Text, Label): after the color pair and
+  Font flags, the block ends with Use the skin's color and Use the skin's shadow, both ticked; Font
+  flags leads with From skin, picked; the Font picker has no companion (its Skin's font value is the
+  skin's). Frame → Border ends with Use the skin's border and Use the skin's color, then Border
+  opacity; Frame → Background and Dot each end their color pair with Use the skin's color. Hover each
+  Use the skin's color → its tooltip says it is read while Color from is Fixed color. `/rm set
+  container.elements.number.colorFromSkin false` unticks the row. Result:
+- **CONT-13. The Style tiles follow the Scope.** With General → Skin → Scope → Ignore settings panel
+  ticked (the default), open Display → Dot: the Style tiles draw the stock dark fill and brown edges,
+  as the stock labels beside them. Untick it → the tiles take the skin's input fill and edge at once,
+  the picked one edged in the accent; switch the skin → they repaint; tick it again → stock, live
+  (SD-SK-RM.12). Result:
+- **CONT-14. The frame picker's label.** Position → On the unit frame → Unit frames from Custom →
+  **Pick on screen**: the hint by the pointer draws in the skin's accent color and the skin's body
+  face (WoW Default's, Azeroth's Open Sans), not the client's large gold font (SD-SK-RM.9). Result:
 
 ## Band sets page
 
@@ -606,5 +655,6 @@ Set the rules on Containers → Visibility.
 | CONT-9, PRESET-4 | the outside caption positions and the preset defaults (the same plan, M11-M12), 2026-11-19 | the outside captions, the lifted strips, the faint preset frames and the plate containers out of combat have not been seen in a client yet |
 | ANCHOR-10 | the LibKa0s v1.107.0 re-vendor and the strip wiring (Ka0sAddonsCommonTasks 2026-11-19-ADOPTION_FEEDBACK, AF-RV-RM and AF-STRIP-RM), 2026-11-19 | the strip's new mark order, pitch, tints and the tooltip above the strip have not been seen in a client yet |
 | ANCHOR-11 | the plate cast bar part and Frame level (branch feat/2026-11-20-plate-castbar), 2026-11-20 | the cast bar lookup (EllesmereUI's map, the game's `UnitFrame.castBar`), the cast events moving *Cast bar while casting*, Cast Overlay on and off, and where Background draws against a plate's cast bar have not been seen in a client yet |
+| INSTALL-5, DRAW-7..10, CONT-10, CONT-12..14 | the skin-defaults fixes (Ka0sAddonsCommonTasks 2026-11-20-LIBKA0S_94_97_99_100, SD-SK-RM: SD-SK-RM.1 to RM.6, RM.9 to RM.12, the owner's R-2 and U-30), 2026-11-20 | the HUD companions, the From skin outline, the skin's shadow and border, the chips' meaning colors, the one-time move, the tiles' Scope and the picker's label have not been seen in a client yet |
 | DRAW-6 | the LibKa0s v1.108.0 re-vendor (Ka0sAddonsCommonTasks 2026-11-20-LIBKA0S_94_97_99_100, SD-RV-RM), 2026-11-20 | the Bar dot's skin border and Glass gloss have not been seen in a client yet |
 | RANGE-6..11, BANDS-6..10 | the spell-driven dynamic bands (plan 2026-11-19-dynamic-bands, D1-D7), 2026-11-19 | whether the client reports talented ranges and answers by rank ID, which event a talent point fires, the rule controls, the owner's Hawk Eye case and the v1 -> v2 conversion have not been seen in a client yet |

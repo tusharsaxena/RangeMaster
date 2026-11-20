@@ -487,3 +487,80 @@ test("database: test_backfill_plate_part_and_level — a container stored before
   assertEqual(c.anchor.level, 0, "Auto, as before")
   assertEqual(c.nameplate.y, -7, "a stored value is kept")
 end)
+
+-- ── the one move onto the skin (FollowSkinDefaults; skinning-§9, the owner's R-2) ─────────────
+
+--- A container as a build before LibKa0s v1.108.0 stored it: the template less every skin
+--- companion, the Font flags the old "OUTLINE".
+local function storedBefore108()
+  local c = D.DeepCopy(NS.CONTAINER_TEMPLATE)
+  for _, part in ipairs({ c.label, c.elements.number, c.elements.text }) do
+    part.outline, part.colorFromSkin, part.shadowFromSkin = "OUTLINE", nil, nil
+  end
+  c.elements.indicator.colorFromSkin = nil
+  c.frame.border.textureFromSkin, c.frame.border.colorFromSkin = nil, nil
+  c.frame.background.colorFromSkin = nil
+  return c
+end
+
+test("database: test_follow_skin_defaults — stored old defaults move onto the skin once, a stored pick stays", function()
+  -- red under: no step, where the load pass backfilled every companion true over a player's picks
+  -- and left the addon-written "OUTLINE" on every container (SD-SK-RM.1 to .6).
+  local old, picked = storedBefore108(), storedBefore108()
+  picked.label.outline = "THICKOUTLINE"
+  picked.label.color = { r = 0.2, g = 0.4, b = 0.6, a = 1 }
+  picked.elements.number.shadow = true
+  picked.frame.border.texture, picked.frame.border.color = "Edge", { r = 1, g = 0, b = 0, a = 1 }
+  picked.frame.background.color = { r = 0.1, g = 0.1, b = 0.1, a = 0.8 }
+  picked.elements.indicator.color = { r = 0, g = 1, b = 0, a = 1 }
+  local p = { containers = { [1] = old, [2] = picked }, containerOrder = { 1, 2 }, skin = {} }
+  local moved = D.FollowSkinDefaults(p)
+  assertTrue(moved > 0, "the old defaults moved")
+  assertEqual(p.skin.defaultsFollowSkin, true, "the profile's own record is written")
+  assertNil(p.skin.fullSkinReset, "and not the v1.85.0 record")
+  for _, part in ipairs({ old.label, old.elements.number, old.elements.text }) do
+    assertEqual(part.outline, "@skin", "OUTLINE (the old default) reads From skin")
+    assertEqual(part.colorFromSkin, true, "a white swatch follows the skin")
+    assertEqual(part.shadowFromSkin, true, "no shadow: the skin's shadow")
+  end
+  assertEqual(old.elements.indicator.colorFromSkin, true)
+  assertEqual(old.frame.border.textureFromSkin, true, "the Solid 1 px border shown follows the skin's")
+  assertEqual(old.frame.border.colorFromSkin, true)
+  assertEqual(old.frame.background.colorFromSkin, true, "the black 50% background follows")
+  assertEqual(picked.label.outline, "THICKOUTLINE", "a picked flag stays")
+  assertEqual(picked.label.colorFromSkin, false, "a picked caption color keeps drawing")
+  assertEqual(picked.elements.number.shadowFromSkin, false, "a shadow turned on stays the player's")
+  assertEqual(picked.frame.border.textureFromSkin, false, "a picked border style stays")
+  assertEqual(picked.frame.border.colorFromSkin, false)
+  assertEqual(picked.frame.background.colorFromSkin, false)
+  assertEqual(picked.elements.indicator.colorFromSkin, false)
+  assertEqual(picked.elements.text.colorFromSkin, true, "an untouched part of the same container moves")
+  -- Once only: a companion the player turns off after the move stays off.
+  old.label.colorFromSkin = false
+  assertNil(D.FollowSkinDefaults(p), "a second run moves nothing")
+  assertEqual(old.label.colorFromSkin, false, "the player's later pick stands")
+end)
+
+test("database: test_follow_skin_defaults_load — RunMigrations moves the active profile before the load pass fills it", function()
+  local saved = NS.db
+  local p = { containers = { [1] = storedBefore108() }, containerOrder = { 1 } }
+  p.containers[1].label.color = { r = 0, g = 0, b = 1, a = 1 }
+  NS.db = { profile = p, global = saved.global }
+  local ok, err = pcall(NS.RunMigrations, NS)
+  NS.db = saved
+  assertTrue(ok, tostring(err))
+  assertEqual(p.containers[1].label.colorFromSkin, false, "the backfill did not fill true over the pick")
+  assertEqual(p.containers[1].elements.number.colorFromSkin, true, "the white swatch moved")
+  assertEqual(p.containers[1].elements.number.outline, "@skin")
+  assertEqual(p.skin.defaultsFollowSkin, true)
+end)
+
+test("database: a new container takes the template's skin companions, all on", function()
+  local c = D.DeepCopy(NS.CONTAINER_TEMPLATE)
+  for _, part in ipairs({ c.label, c.elements.number, c.elements.text }) do
+    assertEqual(part.outline, "@skin"); assertEqual(part.colorFromSkin, true); assertEqual(part.shadowFromSkin, true)
+  end
+  assertEqual(c.elements.indicator.colorFromSkin, true)
+  assertEqual(c.frame.border.textureFromSkin, true); assertEqual(c.frame.border.colorFromSkin, true)
+  assertEqual(c.frame.background.colorFromSkin, true)
+end)

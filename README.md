@@ -3,7 +3,7 @@
 ![WoW](https://img.shields.io/badge/WoW-Midnight_12.1.5_and_Forever_1.60.1-purple)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
-![Tests](https://img.shields.io/badge/Tests-771%2F771_passing-green)
+![Tests](https://img.shields.io/badge/Tests-792%2F792_passing-green)
 
 Supports Retail and WoW Forever. Range Master lets you build your own range displays for your
 target, your focus, your pet, whatever is under your mouse, and every enemy nameplate on screen.

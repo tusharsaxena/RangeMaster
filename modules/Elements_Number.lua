@@ -153,7 +153,7 @@ function Number.Style(el, cfg, c)
 end
 
 function Number.Paint(el, cfg, ctx)
-    el.fs:SetTextColor(Style.Color(cfg.colorMode, cfg.color, ctx, "textColor"))
+    el.fs:SetTextColor(Style.Color(cfg.colorMode, cfg.color, ctx, "textColor", Style.SkinColor(cfg, "text")))
     return false
 end
 
@@ -163,7 +163,8 @@ local function joined(el, num, ctx)
     if el.textCfg.upper then label = label:upper() end
     if label == "" then return num end
     if num == "" then num = nil end
-    local r, g, b = Style.Color(el.textCfg.colorMode, el.textCfg.color, ctx, "textColor")
+    local r, g, b = Style.Color(el.textCfg.colorMode, el.textCfg.color, ctx, "textColor",
+        Style.SkinColor(el.textCfg, "text"))
     local part = ("|cff%02x%02x%02x%s|r"):format(math.floor((r or 1) * 255 + 0.5),
         math.floor((g or 1) * 255 + 0.5), math.floor((b or 1) * 255 + 0.5), label)
     if not num then return part end

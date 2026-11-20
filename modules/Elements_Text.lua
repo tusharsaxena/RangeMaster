@@ -36,7 +36,7 @@ end
 function Text.Paint(el, cfg, ctx)
     local text = Text.Label(ctx)
     if cfg.upper then text = text:upper() end
-    el.fs:SetTextColor(Style.Color(cfg.colorMode, cfg.color, ctx, "textColor"))
+    el.fs:SetTextColor(Style.Color(cfg.colorMode, cfg.color, ctx, "textColor", Style.SkinColor(cfg, "text")))
     if text == el.text then return false end
     el.text = text
     el.fs:SetText(text)

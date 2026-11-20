@@ -97,8 +97,9 @@ stale one reads the first container, or the default band set. `NS.ValidateSchema
 path against its template. The template gained `elements.number.shadow` and `elements.text.shadow`
 (`false`) for the composed Font block's Font shadow, and the `label` section (the caption naming the
 container, plan 2026-11-19 M7): `enabled = false`, `text = ""` (the container's name), `position =
-"top"`, `align = "center"`, `gap = 2`, `font = ""`, `size = 12`, `outline = "OUTLINE"`, `shadow =
-false`, `colorMode = "fixed"`, `color` white. The load pass backfills them; the caption is off, so a
+"top"`, `align = "center"`, `gap = 2`, `font = ""`, `size = 12`, `outline = "OUTLINE"` (`"@skin"` from
+LibKa0s v1.108.0, below), `shadow = false`, `colorMode = "fixed"`, `color` white. The load pass
+backfills them; the caption is off, so a
 stored container draws as before and no migration step is needed. `label.position` (M11) takes eight
 values: `top`, `bottom`, `left`, `right` are INSIDE the container (what M7 stored, so a stored value
 keeps its meaning) and `outsideTop`, `outsideBottom`, `outsideLeft`, `outsideRight` sit beyond its
@@ -111,6 +112,25 @@ line, so a stored container showing both Number and Text draws them as one line 
 backfill), `layout.align = "center"` (`left`, `center`, `right`), and `nameplate.attachTo = "plate"`
 (`plate`, `castbar`, `castbarWhenCasting`). `unit` also takes `nameplatesExceptTarget`, and
 `elements.number.format` takes `band` (the drawn band's span).
+
+**Every look starts on the skin** (LibKa0s v1.108.0; skinning-§9, *Every option default follows the
+skin*, the owner's R-2 of 2026-11-20). The Font flags of `label`, `elements.number` and
+`elements.text` default to `"@skin"` (the From skin value, drawn through `S.FontFlags`: the skin's
+Font outline), and the template carries a `<key>FromSkin` companion for every swatch, shadow and
+border style, each `true`:
+
+| Field | Draws while on |
+|---|---|
+| `label.colorFromSkin` | `hud.label` (`S.HudLabelColor`), while Color from is Fixed color |
+| `elements.number.colorFromSkin`, `elements.text.colorFromSkin`, `elements.indicator.colorFromSkin` | `hud.text` (`S.HudTextColor`), while Color from is Fixed color |
+| `label.shadowFromSkin`, `elements.number.shadowFromSkin`, `elements.text.shadowFromSkin` | the skin's HUD shadow; Font shadow is not read |
+| `frame.border.textureFromSkin` | `S.BarBorder`: a skin's real bar border style and thickness (Azeroth, High Contrast, WoW Default, WoW Midnight) over Border style, thickness and Show border; a skin's None leaves the stored three |
+| `frame.border.colorFromSkin` | `bar.border`, while Color from is Fixed color |
+| `frame.background.colorFromSkin` | `bar.bg`, while Color from is Fixed color |
+
+Band color and Class color come ahead of every color companion: the band color is the range's
+meaning (the owner's U-30 of 2026-11-20) and a class color is the unit's. The faces take no
+companion: `font = ""` is already the skin's face. A stored container moves once (Migrations, below).
 
 ## The global store (`db.global`)
 
@@ -157,4 +177,18 @@ pass then seeds the presets, which carry their rules.
 The runner climbs from `db.global.schemaVersion`, advances the stamp
 only past a step that returned, and on a raising step prints one line and leaves the stamp where it
 was. After the ladder, the active profile is backfilled from the defaults with `== nil` tests, so a
-stored `false` survives (savedvariables-§5), and the registries' load pass runs (above).
+stored `false` survives (savedvariables-§5), its stored looks are moved onto the skin once (below),
+and the registries' load pass runs (above).
+
+**The one move onto the skin, per profile** (`Database.FollowSkinDefaults`, LibKa0s v1.108.0, the
+owner's R-2). Not a ladder step: it runs on the active profile each time `RunMigrations` does, and
+moves nothing once the profile's own record `skin.defaultsFollowSkin` is `true` (never
+`skin.fullSkinReset`, the v1.85.0 record `Skin.FollowOnce` reads). A container is no AceDB default:
+the addon copied the template into the profile, so a stored container holds the old defaults as
+values the addon wrote. For each one the step first writes every companion it lacks as `false`, so
+nothing changes yet, then hands `Skin.ResetToSkin` the keys still at the old default: Font flags
+`"OUTLINE"` become `"@skin"`, and a companion turns on where its own value is the old template's (a
+white swatch, the black 50% background, Font shadow off, the Solid 1 px border shown). A value the
+player picked keeps its companion off, so the pick still draws. It runs before the load pass, whose
+backfill would otherwise fill the new companions `true` over a pick. Without the library it applies
+the same rule itself.

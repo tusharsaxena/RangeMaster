@@ -225,10 +225,12 @@ test("render: test_color_modes — band, fixed and class, for the number, the bo
     assertColor(fill, mid.frameColor, "fill by band")
     assertTrue(near(fill[4], 0.25), "the band fill takes bandAlpha")
 
+    -- Fixed with each Use the skin's color companion off: the swatch.
     local _, _, inst2 = newContainer({
-      frame = { border = { colorMode = "fixed", color = fixed },
-                background = { enabled = true, colorMode = "fixed", color = { r = 0, g = 0, b = 0, a = 0.5 } } },
-      elements = { number = { colorMode = "fixed", color = fixed } },
+      frame = { border = { colorMode = "fixed", color = fixed, colorFromSkin = false },
+                background = { enabled = true, colorMode = "fixed", color = { r = 0, g = 0, b = 0, a = 0.5 },
+                               colorFromSkin = false } },
+      elements = { number = { colorMode = "fixed", color = fixed, colorFromSkin = false } },
     })
     assertColor(color3({ inst2.elements.number.fs:GetTextColor() }), fixed, "number fixed")
     assertColor(M.__paint(inst2.border.strips[1]).color, fixed, "border fixed")
@@ -244,6 +246,70 @@ test("render: test_color_modes — band, fixed and class, for the number, the bo
   end, "MAGE")
 end)
 
+test("render: test_fixed_follows_skin — Fixed with Use the skin's color draws the skin's color, Band and Class ahead of it", function()
+  -- red under: the v0.1.0 Style.Color, whose Fixed returned the stored swatch with no companion
+  -- (the skin-defaults audit's SD-SK-RM.3 and RM.4; the owner's R-2 and U-30, 2026-11-20).
+  withRenderer(function()
+    local fixed = { r = 0.2, g = 0.4, b = 0.6, a = 1 }
+    local _, setId, inst = newContainer({
+      frame = { border = { colorMode = "fixed", color = fixed, alpha = 1 },
+                background = { enabled = true, colorMode = "fixed", color = fixed } },
+      label = { enabled = true },
+      elements = { number = { colorMode = "fixed", color = fixed },
+                   indicator = { enabled = true, colorMode = "fixed", color = fixed } },
+    })
+    assertColor(color3({ inst.elements.number.fs:GetTextColor() }), { NS.Skin.HudTextColor() }, "number: hud.text")
+    assertColor(M.__paint(inst.elements.indicator.tex).vertex, { NS.Skin.HudTextColor() }, "dot: hud.text")
+    assertColor(M.__paint(inst.border.strips[1]).color, { NS.Skin.Color("bar.border") }, "border: bar.border")
+    assertColor(M.__paint(inst.background).color, { NS.Skin.Color("bar.bg") }, "background: bar.bg")
+    assertColor(color3({ inst.caption.fs:GetTextColor() }), { NS.Skin.HudLabelColor() }, "caption: hud.label")
+    -- Band and Class come first: the companion is on in both, and neither reads the skin.
+    local _, _, banded = newContainer({ elements = { number = { colorMode = "band" } } })
+    assertColor(color3({ banded.elements.number.fs:GetTextColor() }), band(setId, 3).textColor,
+      "band: the band's color (a meaning color, owner U-30)")
+    local _, _, classed = newContainer({ elements = { number = { colorMode = "class", color = fixed } } })
+    assertColor(color3({ classed.elements.number.fs:GetTextColor() }), M.RAID_CLASS_COLORS.MAGE, "class: the unit's")
+  end, "MAGE")
+end)
+
+test("render: test_font_follows_skin — Font flags From skin read the skin's outline; Use the skin's shadow reads its shadow", function()
+  -- red under: the v0.1.0 template's "OUTLINE" and the direct SetShadowOffset, which drew the
+  -- player's row over the skin's shadow (SD-SK-RM.1, RM.2).
+  withRenderer(function()
+    local _, _, inst = newContainer({ elements = { number = { shadow = true } } })
+    local font = M.__paint(inst.elements.number.fs).font
+    assertEqual(NS.CONTAINER_TEMPLATE.elements.number.outline, "@skin", "the template's flags follow the skin")
+    assertEqual(font[3], NS.Skin.FontFlags("@skin"), "drawn with the skin's HUD outline")
+    local offset = M.__paint(inst.elements.number.fs).shadowOffset or { 0, 0 }
+    local sx = NS.Skin.HudShadow()
+    local want = sx and sx ~= false and sx or 0
+    assertEqual(offset[1], want, "the skin's shadow, not the stored toggle, while its companion is on")
+    local _, _, picked = newContainer({ elements = { number = { outline = "THICKOUTLINE" } } })
+    assertEqual(M.__paint(picked.elements.number.fs).font[3], "THICKOUTLINE", "a picked flag draws as stored")
+  end)
+end)
+
+test("render: test_border_follows_skin — Use the skin's border draws a skin's real bar border, a skin's None the stored one", function()
+  -- red under: the v0.1.0 Style.Border, which never read S.BarBorder (SD-SK-RM.5).
+  local Skin = M.LibStub("LibKa0s-Skin-1.0")
+  local source, skin = Skin:GetChoice("RangeMaster")
+  withRenderer(function()
+    local _, _, follows = newContainer({ frame = { border = { enabled = false } } })
+    local _, _, own = newContainer({ frame = { border = { enabled = false, textureFromSkin = false } } })
+    assertFalse(follows.border.shown, "Ka0s Default's None: the stored Show border (off) stands")
+    local ok, err = pcall(function()
+      Skin:SetChoice("RangeMaster", "ka0s", "azeroth")
+      CM.FlushPending()
+      assertTrue(follows.border.shown, "Azeroth's Solid 1 px border wins over Show border")
+      assertFalse(own.border.shown, "with the companion off the stored three stand")
+    end)
+    Skin:SetChoice("RangeMaster", source, skin)
+    CM.FlushPending()
+    if not ok then error(err, 0) end
+    assertFalse(follows.border.shown, "back on Ka0s Default, the stored Show border again")
+  end)
+end)
+
 test("render: the border paints at its own opacity, 25% by default, in every color mode", function()
   -- Red under the v0.1.0 Paint, which drew the border at its color's own alpha.
   withRenderer(function()
@@ -256,15 +322,18 @@ test("render: the border paints at its own opacity, 25% by default, in every col
     local _, _, migrated = newContainer({ frame = { border = { alpha = 1 } } })
     assertTrue(near(M.__paint(migrated.border.strips[1]).color[4], bandA), "a migrated container keeps 100%")
 
-    local _, _, inst2 = newContainer({ frame = { border = { colorMode = "fixed", color = fixed, alpha = 0.5 } } })
+    local _, _, inst2 = newContainer({ frame = { border = { colorMode = "fixed", color = fixed, alpha = 0.5,
+      colorFromSkin = false } } })
     assertTrue(near(M.__paint(inst2.border.strips[1]).color[4], 0.4), "fixed: the color's alpha times the opacity")
 
     local _, _, inst3 = newContainer({ frame = { border = { colorMode = "class", color = fixed, alpha = 0.5 } } })
     assertTrue(near(M.__paint(inst3.border.strips[1]).color[4], 0.4), "class: the same")
 
-    local _, _, over = newContainer({ frame = { border = { colorMode = "fixed", color = fixed, alpha = 3 } } })
+    local _, _, over = newContainer({ frame = { border = { colorMode = "fixed", color = fixed, alpha = 3,
+      colorFromSkin = false } } })
     assertTrue(near(M.__paint(over.border.strips[1]).color[4], 0.8), "an opacity over 1 is clamped to 1")
-    local _, _, under = newContainer({ frame = { border = { colorMode = "fixed", color = fixed, alpha = -1 } } })
+    local _, _, under = newContainer({ frame = { border = { colorMode = "fixed", color = fixed, alpha = -1,
+      colorFromSkin = false } } })
     assertTrue(near(M.__paint(under.border.strips[1]).color[4], 0), "and one under 0 to 0")
   end, "MAGE")
 end)
@@ -484,9 +553,10 @@ test("render: spell chips are colored by each spell's own answer, and only when 
       local _, _, inst = newContainer({ elements = { spells = { enabled = true, list = { 100, 200, 300 } } } })
       local chips = inst.elements.spells.chips
       assertEqual(#chips, 3)
-      assertColor(M.__paint(chips[1].edge[1]).color, C.HexColor(C.BAND_RAMP[1]), "in range: green")
-      assertColor(M.__paint(chips[2].edge[1]).color, C.HexColor(C.BAND_RAMP[5]), "out of range: red")
-      assertColor(M.__paint(chips[3].edge[1]).color, C.HexColor(C.UNKNOWN_COLOR), "no answer: gray")
+      -- The skin's meaning colors (SD-SK-RM.10): sem.good, sem.bad, sem.unknown.
+      assertColor(M.__paint(chips[1].edge[1]).color, { NS.Skin.Color("sem.good") }, "in range: the skin's good")
+      assertColor(M.__paint(chips[2].edge[1]).color, { NS.Skin.Color("sem.bad") }, "out of range: the skin's bad")
+      assertColor(M.__paint(chips[3].edge[1]).color, { NS.Skin.Color("sem.unknown") }, "no answer: the skin's unknown")
       local n = count(chips[1].edge[1], "SetColorTexture", function()
         inst:Update("known", 25, 28)
       end)
@@ -637,7 +707,7 @@ test("render: a target swap at the same bracket asks every spell chip again", fu
       answers[100] = false
       M.__fireEvent("PLAYER_TARGET_CHANGED")
       assertEqual(chip.result, false, "the new target's answer")
-      assertColor(M.__paint(chip.edge[1]).color, C.HexColor(C.BAND_RAMP[5]), "painted red")
+      assertColor(M.__paint(chip.edge[1]).color, { NS.Skin.Color("sem.bad") }, "painted the skin's bad")
     end)
   end)
 end)
@@ -730,16 +800,20 @@ test("render: an element font naming a LibSharedMedia key draws that face at the
       local font = M.__paint(inst.elements.number.fs).font
       assertEqual(font[1], FAKE_FONT, "LSM's path for the key")
       assertEqual(font[2], 17, "at the stored size")
+      -- red under: the v0.1.0 fontPath, which answered Fonts\FRIZQT__.TTF (SD-SK-RM.11).
       local _, _, inst2 = newContainer({ elements = { number = { font = "Unknown" } } })
-      assertEqual(M.__paint(inst2.elements.number.fs).font[1], C.FALLBACK_FONT,
-        "a key LSM does not know draws the fallback face")
+      local _, _, own = newContainer()
+      assertEqual(M.__paint(inst2.elements.number.fs).font[1], M.__paint(own.elements.number.fs).font[1],
+        "a key LSM does not know draws the skin's face")
     end)
   end)
 end)
 
 test("render: an element's shadow turns the font string's shadow offset on and off", function()
+  -- With Use the skin's shadow off, the player's Font shadow row is the one read.
   withRenderer(function()
-    local id, _, inst = newContainer({ elements = { number = { shadow = true }, text = { enabled = true } } })
+    local id, _, inst = newContainer({ elements = { number = { shadow = true, shadowFromSkin = false },
+      text = { enabled = true, shadowFromSkin = false } } })
     local offset = M.__paint(inst.elements.number.fs).shadowOffset
     assertEqual(offset[1], 1, "shadow on: offset one right")
     assertEqual(offset[2], -1, "and one down")
@@ -1210,12 +1284,15 @@ test("render: test_caption_color_modes — band, fixed and class, as the element
     local fixed = { r = 0.2, g = 0.4, b = 0.6, a = 1 }
     local _, setId, inst = newContainer({ label = { enabled = true, colorMode = "band" } })
     assertColor(color3({ inst.caption.fs:GetTextColor() }), band(setId, 3).textColor, "band: the band's text color")
-    local _, _, inst2 = newContainer({ label = { enabled = true, colorMode = "fixed", color = fixed } })
+    local _, _, inst2 = newContainer({ label = { enabled = true, colorMode = "fixed", color = fixed,
+      colorFromSkin = false } })
     assertColor(color3({ inst2.caption.fs:GetTextColor() }), fixed, "fixed: the swatch")
     local _, _, inst3 = newContainer({ label = { enabled = true, colorMode = "class", color = fixed } })
     assertColor(color3({ inst3.caption.fs:GetTextColor() }), M.RAID_CLASS_COLORS.MAGE, "class: the unit's class")
+    -- red under: the fixed white the caption drew before SD-SK-RM.3.
     local _, _, inst4 = newContainer({ label = { enabled = true } })
-    assertColor(color3({ inst4.caption.fs:GetTextColor() }), { 1, 1, 1 }, "the default: fixed white")
+    assertColor(color3({ inst4.caption.fs:GetTextColor() }), { NS.Skin.HudLabelColor() },
+      "the default: fixed, following the skin's HUD label color")
   end, "MAGE")
 end)
 

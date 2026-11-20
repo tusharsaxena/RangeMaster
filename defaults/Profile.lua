@@ -58,6 +58,15 @@ local function white() return C.HexColor("ffffff") end
 --- One range container. `bandSet` is filled with NS.BandSets.DefaultId() on create and on load; a
 --- nil `bandSetFriendly` means "use bandSet for every reaction". An empty `font` or `texture` is
 --- "the skin's" (core/SkinSetup.lua), resolved by the renderer (Task 5).
+---
+--- EVERY LOOK STARTS ON THE SKIN (skinning-§9, *Every option default follows the skin*; the owner's
+--- R-2 of 2026-11-20): the Font flags read "@skin" (Skin.FROM_SKIN, drawn through S.FontFlags), and
+--- each `<key>FromSkin` companion is true. `colorFromSkin` draws the skin's color while Color from is
+--- Fixed color (Band and Class come first: the band color is the range's meaning, the owner's U-30);
+--- `shadowFromSkin` the skin's HUD shadow; the border's `textureFromSkin` the skin's bar border style
+--- and thickness, where the skin states one. A container stored before these keys existed keeps its
+--- look where the player picked one, and moves where it still held the old default (core/Database.lua,
+--- FollowSkinDefaults).
 NS.CONTAINER_TEMPLATE = {
     name = "", enabled = true, unit = "target",
     bandSet = nil, bandSetFriendly = nil,
@@ -84,26 +93,31 @@ NS.CONTAINER_TEMPLATE = {
     -- border.alpha multiplies the border color's own alpha in every color mode (modules/Container.lua
     -- Paint). A container stored before schemaVersion 1 was given 1 by that step (core/Database.lua).
     frame = {
-        border = { enabled = true, texture = "", size = 1, colorMode = "band", color = white(), alpha = 0.25 },
-        background = { enabled = true, colorMode = "band", color = C.HexColor("000000", 0.5), bandAlpha = 0.15 },
+        border = { enabled = true, texture = "", size = 1, colorMode = "band", color = white(), alpha = 0.25,
+                   textureFromSkin = true, colorFromSkin = true },
+        background = { enabled = true, colorMode = "band", color = C.HexColor("000000", 0.5), bandAlpha = 0.15,
+                       colorFromSkin = true },
     },
     -- The caption naming the display (modules/Container.lua, Instance:Layout): no element of
     -- `elements.order`, laid out beside the elements inside the root. `text` "" draws the container's
     -- name; position: top|bottom|left|right; align (top and bottom): left|center|right; `gap` the px
     -- between the caption and the elements. Off by default, so a stored container draws as before.
     label = { enabled = false, text = "", position = "top", align = "center", gap = 2,
-              font = "", size = 12, outline = "OUTLINE", shadow = false, colorMode = "fixed", color = white() },
+              font = "", size = 12, outline = "@skin", shadow = false, colorMode = "fixed", color = white(),
+              colorFromSkin = true, shadowFromSkin = true },
     elements = {
         -- An ARRAY: the load pass never backfills it index by index; it appends a missing name once.
         order = { "indicator", "number", "text", "spells" },
-        number = { enabled = true, format = "range", font = "", size = 14, outline = "OUTLINE",
-                   shadow = false, colorMode = "band", color = white() },
-        text = { enabled = false, font = "", size = 12, outline = "OUTLINE", shadow = false,
-                 colorMode = "band", color = white(), upper = true },
+        number = { enabled = true, format = "range", font = "", size = 14, outline = "@skin",
+                   shadow = false, colorMode = "band", color = white(), colorFromSkin = true,
+                   shadowFromSkin = true },
+        text = { enabled = false, font = "", size = 12, outline = "@skin", shadow = false,
+                 colorMode = "band", color = white(), upper = true, colorFromSkin = true,
+                 shadowFromSkin = true },
         -- shape: dot|ring|square|diamond|triangle|hexagon|star|bar|icon; style (the art's finish,
         -- the shapes only): plain|matte|glossy|glowing|neon|gem (modules/Elements_Indicator.lua).
         indicator = { enabled = false, shape = "dot", style = "matte", size = 12, colorMode = "band",
-                      color = white(), spellID = nil },
+                      color = white(), spellID = nil, colorFromSkin = true },
         -- `list` is the player's (seeded per client and class on create, Task 4); empty here, so the
         -- load pass has nothing to fill into it.
         spells = { enabled = false, list = {}, style = "chip", size = 20 },

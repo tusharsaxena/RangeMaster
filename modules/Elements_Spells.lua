@@ -5,6 +5,12 @@ local _, NS = ...
 -- colors the chip's edge; "icon" tints the icon itself. The element contract is
 -- modules/Elements_Number.lua's.
 --
+-- THE THREE ANSWERS ARE THE SKIN'S MEANING COLORS (skinning-§9: a meaning with a semantic token reads
+-- it; the skin-defaults audit's SD-SK-RM.10, which the owner's U-30 left a GAP): `sem.good`,
+-- `sem.bad` and `sem.unknown`, read when a chip is painted, the band ramp's ends and the unknown gray
+-- only where the skin answers none. A skin switch re-applies the container (modules/Container.lua's
+-- OnLooksChanged), whose Style resets every chip's answer, so the next update paints the new skin's.
+--
 -- THE CHIPS ARE POOLED (core/PoolSetup.lua, LibKa0s-Pool-1.0's array pool, one per element): Style
 -- parks every chip and takes one per spell back, so a re-apply builds nothing new and the chip at
 -- position n is the frame it was. Each chip remembers the answer it last drew, so a render that
@@ -22,9 +28,19 @@ local GAP = 2
 local NO_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
 local UNSET = {}   -- a chip that has drawn no answer yet
 
--- The three answers, as stored colors (true, false, and nil read through the key "none").
-local ANSWER = { [true] = C.HexColor(C.BAND_RAMP[1]), [false] = C.HexColor(C.BAND_RAMP[#C.BAND_RAMP]),
-                 none = C.HexColor(C.UNKNOWN_COLOR) }
+-- The three answers (true, false, and nil read through the key "none"): the skin's token for each,
+-- and the stored color drawn where the skin answers none (the degraded facade).
+local TOKEN = { [true] = "sem.good", [false] = "sem.bad", none = "sem.unknown" }
+local FALLBACK = { [true] = C.HexColor(C.BAND_RAMP[1]), [false] = C.HexColor(C.BAND_RAMP[#C.BAND_RAMP]),
+                   none = C.HexColor(C.UNKNOWN_COLOR) }
+
+--- r, g, b, a for answer `r`.
+local function answerColor(r)
+    local sr, sg, sb, sa = NS.Skin.Color(TOKEN[r])
+    if type(sr) == "number" then return sr, sg, sb, sa or 1 end
+    local c = FALLBACK[r]
+    return c.r, c.g, c.b, c.a
+end
 
 local function newChip(parent)
     local chip = CreateFrame("Frame", nil, parent)
@@ -77,11 +93,10 @@ function Spells.Update(el, _, ctx)
         if r == nil then r = "none" end
         if chip.result ~= r then
             chip.result = r
-            local c = ANSWER[r]
             if el.edged then
-                Style.PaintEdges(chip.edge, c.r, c.g, c.b, c.a)
+                Style.PaintEdges(chip.edge, answerColor(r))
             else
-                chip.icon:SetVertexColor(c.r, c.g, c.b, c.a)
+                chip.icon:SetVertexColor(answerColor(r))
             end
         end
     end
