@@ -582,21 +582,21 @@ end
 function Instance:Paint(ctx)
     local c = self.container
     local bd, bg = c.frame.border, c.frame.background
-    if bd.enabled then
-        local r, g, b, a = Style.Color(bd.colorMode, bd.color, ctx, "frameColor")
+    if self.border.shown then
+        local r, g, b, a = Style.Color(bd.colorMode, bd.color, ctx, "frameColor", Style.SkinColor(bd, "bar.border"))
         local k = tonumber(bd.alpha) or 1
         if k < 0 then k = 0 elseif k > 1 then k = 1 end
         Style.PaintBorder(self.border, r, g, b, a * k)
     end
     if bg.enabled then
-        local r, g, b, a = Style.Color(bg.colorMode, bg.color, ctx, "frameColor")
+        local r, g, b, a = Style.Color(bg.colorMode, bg.color, ctx, "frameColor", Style.SkinColor(bg, "bar.bg"))
         if bg.colorMode == "band" then a = a * (tonumber(bg.bandAlpha) or 0.15) end
         self.background:SetColorTexture(r, g, b, a)
     end
     local cap = self.caption
     if cap and cap.on then
         local lab = c.label
-        cap.fs:SetTextColor(Style.Color(lab.colorMode, lab.color, ctx, "textColor"))
+        cap.fs:SetTextColor(Style.Color(lab.colorMode, lab.color, ctx, "textColor", Style.SkinColor(lab, "label")))
     end
     local moved = false
     if cap and cap.on then

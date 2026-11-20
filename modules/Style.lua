@@ -3,16 +3,21 @@ local _, NS = ...
 -- as, the HUD face, the edge strips, the frame levels, and the measured width of a string. The
 -- renderer (modules/Container.lua) and the four element files call it; nothing here holds state.
 --
---   NS.Style.Color(mode, stored, ctx, field) -> r, g, b, a
+--   NS.Style.Color(mode, stored, ctx, field, skin) -> r, g, b, a
 --       mode "band"  the current band's `field` (frameColor, textColor or indicatorColor), or the
 --                    set's unknown gray while the range is unknown or there is no unit
---            "fixed" the stored swatch
+--            "fixed" `skin`'s color while the setting follows the skin (`skin` a function answering
+--                    r, g, b, a: Style.SkinColor's), else the stored swatch; the swatch too while
+--                    the skin answers none
 --            "class" the TRACKED unit's class color (ctx.unit), the stored swatch's alpha kept
 --                    (options-ui-§17: a range container describes its unit, so the class is the
 --                    unit's; through NS.ResolveColor, so an NPC or a class the client has not answered
 --                    for falls through to the swatch). The renderer repaints on a unit change
 --                    (modules/Container.lua, UnitChanged), so the color follows a retarget.
---   NS.Style.Font(fs, cfg) -> size      the element's face through the skin's S.HudFont, and its shadow
+--   NS.Style.SkinColor(cfg, kind) -> fn or nil   the skin color `cfg` follows in Fixed mode while its
+--                    `colorFromSkin` companion is on (skinning-§9): kind "text" S.HudTextColor, "label"
+--                    S.HudLabelColor, any other a color token's name (bar.border, bar.bg)
+--   NS.Style.Font(fs, cfg) -> size      the element's face, flags and shadow through the skin's S.HudFont
 --   NS.Style.TextWidth(fs, text, size)  the drawn width, or an estimate where the client gives none
 --   NS.Style.NewEdges(frame, layer) -> strips, LayEdges(frame, strips, size), PaintEdges(strips, ...)
 --   NS.Style.Stack(child, root, offset) the child's level as an offset over the root's (frame-layering-§5)
@@ -33,7 +38,6 @@ local _, NS = ...
 NS.Style = NS.Style or {}
 local Style = NS.Style
 
-local C = NS.Constants
 local Compat = NS.Compat
 
 -- ---------------------------------------------------------------------------
@@ -42,8 +46,16 @@ local Compat = NS.Compat
 
 --- r, g, b, a for the setting (`mode`, `stored`) under the render context `ctx` (modules/Container.lua:
 --- ctx.row is the current band's table or nil, ctx.set the band set, ctx.unit the tracked unit).
-function Style.Color(mode, stored, ctx, field)
-    if mode == "fixed" then return NS.ResolveColor(stored, false) end
+--- Band and Class come ahead of `skin`: the band color is the range's meaning (owner U-30,
+--- 2026-11-20) and a class color is the unit's (skinning-§6).
+function Style.Color(mode, stored, ctx, field, skin)
+    if mode == "fixed" then
+        if skin then
+            local r, g, b, a = skin()
+            if type(r) == "number" then return r, g, b, a or 1 end
+        end
+        return NS.ResolveColor(stored, false)
+    end
     if mode == "class" then return NS.ResolveColor(stored, true, ctx.unit) end
     local row = ctx.row
     local c = row and row[field]
@@ -51,30 +63,39 @@ function Style.Color(mode, stored, ctx, field)
     return NS.ResolveColor(c or stored, false)
 end
 
+local SKIN_GETTER = { text = "HudTextColor", label = "HudLabelColor" }
+
+--- The skin color `cfg` follows in Fixed mode, as a function for Style.Color, or nil while its
+--- `colorFromSkin` companion is off. Read at call time, so a skin switch's repaint reads the new one;
+--- the degraded facade answers nil, and the swatch draws.
+function Style.SkinColor(cfg, kind)
+    if not (cfg and cfg.colorFromSkin == true) then return nil end
+    local getter = SKIN_GETTER[kind]
+    if getter then return function() return NS.Skin[getter]() end end
+    return function() return NS.Skin.Color(kind) end
+end
+
 -- ---------------------------------------------------------------------------
 -- Text
 -- ---------------------------------------------------------------------------
 
---- The path of LibSharedMedia font `key`, or the fallback face.
+--- The path of LibSharedMedia font `key`, or nil (the skin's face) when LSM does not know it.
 local function fontPath(key)
     local LSM = NS.GetLSM()
-    local path = LSM and LSM:Fetch("font", key, true)
-    return path or C.FALLBACK_FONT
+    return LSM and LSM:Fetch("font", key, true) or nil
 end
 
---- Give `fs` the element's face, size, outline and shadow (the Font block's six rows, options-ui-§16).
+--- Give `fs` the element's face, size, flags and shadow (the Font block's rows, options-ui-§16), all
+--- through S.HudFont, the one way a HUD string's shadow reaches a 12.0.7 client (skinning-§6): the
+--- flags through S.FontFlags ("@skin" reads the skin's Font outline), the shadow the skin's while
+--- `shadowFromSkin` is on, else the stored toggle. A picked face LSM no longer knows draws the skin's.
 --- Answers the size it draws at.
 function Style.Font(fs, cfg)
     local S = NS.Skin
-    local own = type(cfg.font) == "string" and cfg.font ~= ""
-    local size = S.HudFontSize(cfg.size, not own)
-    S.HudFont(fs, { face = own and fontPath(cfg.font) or nil, size = size, flags = cfg.outline })
-    -- The client's own shadow color (black) is kept: only the offset turns it on or off.
-    if cfg.shadow then
-        fs:SetShadowOffset(1, -1)
-    else
-        fs:SetShadowOffset(0, 0)
-    end
+    local face = type(cfg.font) == "string" and cfg.font ~= "" and fontPath(cfg.font) or nil
+    local size = S.HudFontSize(cfg.size, face == nil)
+    S.HudFont(fs, { face = face, size = size, flags = cfg.outline, shadow = cfg.shadow == true,
+        shadowFromSkin = cfg.shadowFromSkin ~= false })
     return size
 end
 
@@ -156,10 +177,16 @@ local function backdropHost(holder)
 end
 
 --- Lay a container's border (`holder` = { frame, strips }) from its settings `bd`: off, Solid strips
---- `size` thick, or a LibSharedMedia edge on a backdrop of its own.
+--- `size` thick, or a LibSharedMedia edge on a backdrop of its own. While `textureFromSkin` is on the
+--- style, Show border and thickness are S.BarBorder's: a skin that states a bar border (Azeroth, High
+--- Contrast, WoW Default, WoW Midnight) draws its own, and a skin's None leaves the stored three.
 function Style.Border(holder, bd)
-    local size = bd.enabled and (tonumber(bd.size) or 1) or 0
-    local edge = size > 0 and edgeFile(bd.texture)
+    local style, show, size = bd.texture, bd.enabled, bd.size
+    local S = NS.Skin
+    if S and S.BarBorder then style, show, size = S.BarBorder(style, show, size, bd.textureFromSkin == true) end
+    size = show and (tonumber(size) or 1) or 0
+    holder.shown = size > 0   -- what the renderer's Paint reads: the skin's border may show a hidden one
+    local edge = size > 0 and edgeFile(style)
     if edge then
         Style.LayEdges(holder.frame, holder.strips, 0)
         local host = backdropHost(holder)

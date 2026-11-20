@@ -36,6 +36,15 @@ local _, NS = ...
 -- emits becomes this addon's three-value color mode (band / fixed / class), which options-ui-§17
 -- names as the richer form of the same companion (NS.ContainerValues.ColorModeCompanion).
 --
+-- EVERY BLOCK STARTS ON THE SKIN (LibKa0s v1.108.0, OptionsCompose minor 20; skinning-§9, *Every
+-- option default follows the skin*, the owner's R-2): Font flags lead with From skin; each swatch is
+-- followed by its *Use the skin's color* companion (`colorFromSkin`, read in Fixed mode only: Band
+-- and Class come first, the band color being the range's meaning, owner U-30), Font shadow by *Use
+-- the skin's shadow* (`shadowFromSkin`), and the border's style by `textureFromSkin` (`fromSkin =
+-- "bar"`: the skin's bar border style and thickness). The face takes no companion (`omit`): its own
+-- first value, "Skin's font" (stored ""), is already the skin's face, the From skin value the standard
+-- allows a face in place of one. defaults/Profile.lua's template holds every companion true.
+--
 -- THE ELEMENT ORDER IS DRAGGED (options-ui-§18): its order is the setting, so the Layout tab draws it
 -- as LibKa0s-Widgets' ReorderList, one row per element, and a drop writes the new order through the
 -- row `container.elements.order`. That row is skipRender (the list is its surface) and reads and
@@ -128,11 +137,15 @@ end
 
 -- ── Frame ───────────────────────────────────────────────────────────────────────────────────
 
+-- The tooltip each *Use the skin's color* companion carries: it is read in Fixed mode only.
+local FIXED_SKIN_TIP = L["While Color from is Fixed color, draw this in the skin's color instead of the swatch. Band color and Class color are not changed by it."]
+
 add(H.BorderGroup({
     prefix = "container.frame.border.", page = PAGE, group = FRAME, subgroup = L["Border"], order = 10,
-    show = true, classColor = UNIT_CLASS,
+    show = true, classColor = UNIT_CLASS, fromSkin = "bar",
     keys = { borderShow = "enabled", borderStyle = "texture", borderSize = "size", borderColor = "color",
              useClassColorBorder = "colorMode" },
+    tooltips = { borderColorFromSkin = FIXED_SKIN_TIP },
     extra = {
         { path = "container.frame.border.alpha", type = "number", startsLine = true, min = 0, max = 1,
           step = 0.05, isPercent = true, label = L["Border opacity"],
@@ -147,7 +160,7 @@ add({
 add(H.ColorPair({
     prefix = "container.frame.background.", page = PAGE, group = FRAME, subgroup = L["Background"],
     order = 110, key = "color", companionKey = "colorMode", label = L["Background color"],
-    classColor = UNIT_CLASS,
+    classColor = UNIT_CLASS, tooltips = { colorFromSkin = FIXED_SKIN_TIP },
 }))
 add({
     { path = "container.frame.background.bandAlpha", page = PAGE, group = FRAME, subgroup = L["Background"],
@@ -165,7 +178,8 @@ local FONT_KEYS = { font = "font", fontSize = "size", fontColor = "color", useCl
 local function fontBlock(prefix, group, order)
     local block = H.FontGroup({
         prefix = prefix, page = PAGE, group = group, subgroup = L["Font"], order = order,
-        classColor = UNIT_CLASS, keys = FONT_KEYS,
+        classColor = UNIT_CLASS, keys = FONT_KEYS, omit = { fontFromSkin = true },
+        tooltips = { fontColorFromSkin = FIXED_SKIN_TIP },
     })
     for _, row in ipairs(block) do
         if row.path == prefix .. "font" then
@@ -262,6 +276,7 @@ add({
 add(H.ColorPair({
     prefix = "container.elements.indicator.", page = PAGE, group = DOT, order = 40, key = "color",
     companionKey = "colorMode", label = L["Dot color"], classColor = UNIT_CLASS,
+    tooltips = { colorFromSkin = FIXED_SKIN_TIP },
 }))
 local styleRow = {
     path = "container.elements.indicator.style", page = PAGE, group = DOT, subgroup = S_STYLE, order = 100,
@@ -597,9 +612,20 @@ function NS.ReleaseStyleTiles(ctx)
     end
 end
 
---- A skin color token's r, g, b, or the fallback while the skin does not answer one.
+--- Whether this owner ignores its settings panel (General > Skin > Scope, Ignore settings panel, on by
+--- default), so the tiles draw their stock colors as the labels beside them go stock (skinning-§9,
+--- *The settings panel stays stock by default*; the skin-defaults audit's SD-SK-RM.12). NS.Skin.Color
+--- knows no Scope, so the tiles ask it here; without the library they are stock.
+local function panelIgnored()
+    local Skin = LibStub and LibStub("LibKa0s-Skin-1.0", true)
+    if not (Skin and type(Skin.GetIgnore) == "function" and NS.Skin and NS.Skin.owner) then return true end
+    return Skin:GetIgnore(NS.Skin.owner) == true
+end
+
+--- A skin color token's r, g, b, or the fallback (the stock look) while the skin does not answer one
+--- or the owner ignores its settings panel.
 local function skinRGB(token, r, g, b)
-    if not (NS.Skin and NS.Skin.Color) then return r, g, b end
+    if panelIgnored() or not (NS.Skin and NS.Skin.Color) then return r, g, b end
     local sr, sg, sb = NS.Skin.Color(token)
     if type(sr) == "number" then return sr, sg, sb end
     return r, g, b
@@ -667,6 +693,7 @@ local function paintTile(tile, key, shape, picked, off, r, g, b)
     local er, eg, eb = skinRGB(picked and "text.accent" or "input.border", picked and 1 or 0.25,
         picked and 0.82 or 0.22, picked and 0 or 0.16)
     for _, edge in ipairs(tile.rmEdges) do edge:SetColorTexture(er, eg, eb, 1) end
+    tile.rmBgRGB, tile.rmEdgeRGB = { br, bg, bb }, { er, eg, eb }
     if NS.Skin and NS.Skin.Text then
         NS.Skin.Text(tile.rmLabel, off and "disabled" or (picked and "accent" or "body"), PANEL_TEXT)
     end
@@ -685,6 +712,14 @@ local function paintTiles(ctx, c)
         paintTile(tile, key, shape, key == stored, off, r, g, b)
     end
 end
+
+-- The page whose tiles are on screen: a skin switch, or the Scope's Ignore settings panel turned on
+-- or off (Skin:SetIgnore fires OnLooksChanged too), repaints them in place.
+local liveTiles
+NS.Skin.OnLooksChanged(function()
+    local ctx, c = liveTiles, NS.SelectedContainer()
+    if ctx and c and ctx.rmStyleTiles and #ctx.rmStyleTiles > 0 then paintTiles(ctx, c) end
+end)
 
 --- The tiles' refresher: a repaint in place, or a structural redraw when the shape moved between a
 --- styled one and Bar or Spell icon (the note above the tiles comes or goes).
@@ -735,6 +770,7 @@ local function renderStyleTiles(ctx, group)
         ctx.rmStyleTiles[#ctx.rmStyleTiles + 1] = tile
     end
     paintTiles(ctx, c)
+    liveTiles = ctx
     if ctx.refreshers then ctx.refreshers[#ctx.refreshers + 1] = tilesRefresher(ctx) end
 end
 

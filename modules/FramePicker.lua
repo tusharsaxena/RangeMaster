@@ -129,10 +129,13 @@ local function onKeyDown(self, key)
     end)
 end
 
+--- The outline in the skin's accent, and the label in the accent role: its color and the skin's
+--- body face (S.Text, recorded, so a skin switch repaints it too; the skin-defaults audit's
+--- SD-SK-RM.9). The strips are plain textures, repainted here on OnLooksChanged.
 local function paint()
     if not outline then return end
     Style.PaintEdges(edges, NS.Skin.Color("text.accent"))
-    label:SetTextColor(NS.Skin.Color("text.accent"))
+    NS.Skin.Text(label, "accent")
 end
 
 local function build()
@@ -175,5 +178,13 @@ function FP.IsActive()
     return overlay ~= nil and overlay:GetScript("OnUpdate") ~= nil
 end
 
--- Suite seam (tests/test_anchors_frame.lua).
+-- Suite seams (tests/test_anchors_frame.lua; tests/run.lua's skin-switch surface, which drops the
+-- overlay so the next Start builds it under the kit's paint recorder).
 function FP.__overlay() return overlay end
+function FP.__drop()
+    if overlay then
+        overlay:SetScript("OnUpdate", nil)
+        overlay:Hide()
+    end
+    overlay, outline, edges, label = nil, nil, nil, nil
+end

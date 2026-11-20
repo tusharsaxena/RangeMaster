@@ -94,6 +94,18 @@ page's band ribbon were removed (plan 2026-11-19 M8); `/rm bands` keeps its chat
 Every color swatch's companion is the container's three-value **Color from** (band, fixed, class;
 options-ui-§17), declared `classColorSource = "unit"`: a range container describes its unit.
 
+Every composed block starts on the skin (LibKa0s v1.108.0, OptionsCompose minor 20; the owner's
+R-2). Font flags lead with **From skin**, the default. Each swatch is followed by **Use the skin's
+color** (`colorFromSkin`, on), read while Color from is Fixed color: the number, text and dot then
+draw the skin's HUD text color, the caption its HUD label color, the border `bar.border` and the
+background `bar.bg`; Band color and Class color are not changed by it (the band color is the range's
+meaning, owner U-30). Font shadow is followed by **Use the skin's shadow** (`shadowFromSkin`, on; Font
+shadow is grayed while it is on), and the border's style by **Use the skin's border** (`textureFromSkin`,
+on: a skin with a real bar border draws it and grays Border style, thickness and Show border; under a
+skin's None they stay the player's). The face takes no companion: its first value, Skin's font, is the
+skin's own. The Dot tab's Style tiles wear the skin's input colors only with the Scope's Ignore
+settings panel cleared, as the labels beside them do; it is on by default, and the tiles are stock.
+
 ## Band sets
 
 The band carries the band-set picker (the default set marked) and **New band set**. **General**:

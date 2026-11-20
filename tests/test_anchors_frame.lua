@@ -316,3 +316,37 @@ test("picker: Escape cancels", function()
   assertNil(picked)
   assertFalse(FP.IsActive())
 end)
+
+test("frame picker: test_picker_label_skin — the label draws in the skin's accent and the skin's body face", function()
+  -- red under: the label's GameFontNormalLarge face, which no skin reached (SD-SK-RM.9).
+  local restore = dofile("tests/_kit/mock_paint.lua")(M)
+  -- The harness loads no LibSharedMedia, so the skin's face resolves to nothing: a fake answers it,
+  -- with this addon's own (caching) NS.GetLSM held off it meanwhile.
+  local savedGetLSM = NS.GetLSM
+  NS.GetLSM = function() return nil end
+  M.__libs["LibSharedMedia-3.0"] = { Fetch = function(_, kind, key)
+    if kind == "font" then return "Interface\\AddOns\\RangeMasterTest\\font\\" .. tostring(key) end
+  end }
+  FP.__drop()
+  local ok, err = pcall(function()
+    assertTrue(FP.Start(function() end, function() end))
+    local label
+    for _, r in ipairs({ FP.__overlay():GetRegions() }) do
+      if r:GetObjectType() == "FontString" then label = r end
+    end
+    assertTrue(label ~= nil, "the overlay's label")
+    local got = M.__paint(label)
+    local ar, ag, ab = NS.Skin.Color("text.accent")
+    assertTrue(math.abs(got.textColor[1] - ar) < 1e-6 and math.abs(got.textColor[2] - ag) < 1e-6
+      and math.abs(got.textColor[3] - ab) < 1e-6, "in the skin's accent")
+    local face = got.fontObject and got.fontObject:GetFont() or (got.font and got.font[1])
+    local body = NS.Skin.Token("font.body")
+    assertEqual(face, "Interface\\AddOns\\RangeMasterTest\\font\\" .. tostring(body), "in the skin's body face")
+    FP.Cancel("escape")
+  end)
+  FP.__drop()
+  M.__libs["LibSharedMedia-3.0"] = nil
+  NS.GetLSM = savedGetLSM
+  restore()
+  if not ok then error(err, 0) end
+end)

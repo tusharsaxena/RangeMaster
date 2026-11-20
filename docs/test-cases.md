@@ -66,7 +66,7 @@ Total.
 - degraded Schema stub: Get forwards the instance id to a row's own get
 - degraded Schema stub: ApplyDefault forwards the instance id to Set
 
-### test_database.lua (24)
+### test_database.lua (27)
 
 - database: the account-wide schemaVersion default is 0 (savedvariables-§1)
 - database: the ladder holds two steps, v0 -> v1 (the frame defaults) and v1 -> v2 (band rules), and a fresh install is stamped 2
@@ -92,6 +92,9 @@ Total.
 - database: step 2 runs on a profile with no usable order and a container with no set (review D6)
 - database: step 2 on a fresh profile changes nothing, and the load pass then seeds rule presets
 - database: test_backfill_plate_part_and_level — a container stored before Attach to part and Frame level reads the plate and Auto
+- database: test_follow_skin_defaults — stored old defaults move onto the skin once, a stored pick stays
+- database: test_follow_skin_defaults_load — RunMigrations moves the active profile before the load pass fills it
+- database: a new container takes the template's skin companions, all on
 
 ### test_bandsets.lua (24)
 
@@ -168,7 +171,7 @@ Total.
 - number: no unit reads nothing, and an unknown format reads as range
 - number: a known state with no far bound and no near bound reads unknown, not 0
 
-### test_container_render.lua (60)
+### test_container_render.lua (63)
 
 - render: an enabled container gets one pooled instance, watching its unit, drawn at once
 - render: Release returns the frame to the pool cleanly, and the next Acquire reuses it
@@ -178,6 +181,9 @@ Total.
 - render: test_text_set_only_on_change — two identical renders set the text once
 - render: test_recolor_only_on_band_change — a new bracket in the same band paints no color
 - render: test_color_modes — band, fixed and class, for the number, the border and the fill
+- render: test_fixed_follows_skin — Fixed with Use the skin's color draws the skin's color, Band and Class ahead of it
+- render: test_font_follows_skin — Font flags From skin read the skin's outline; Use the skin's shadow reads its shadow
+- render: test_border_follows_skin — Use the skin's border draws a skin's real bar border, a skin's None the stored one
 - render: the border paints at its own opacity, 25% by default, in every color mode
 - render: an unknown range reads the set's gray ? on every element, never a band
 - render: an open-ended bracket reads 40+ and the out-of-range band
@@ -248,7 +254,7 @@ Total.
 - anchors: switching a container's mode detaches the old anchor
 - anchors: a container leaving the screen anchor is no longer clamped to the screen
 
-### test_anchors_frame.lua (17)
+### test_anchors_frame.lua (18)
 
 - frames: the providers name Blizzard's and EllesmereUI's frames per unit, and nothing for mouseover
 - frames: Resolve answers the live global frame, and nil for a missing, forbidden or non-frame one
@@ -267,6 +273,7 @@ Total.
 - picker: a mouse press neither picks nor cancels (the click belongs to the game)
 - picker: refused in combat with one gray line, and combat during a pick cancels it
 - picker: Escape cancels
+- frame picker: test_picker_label_skin — the label draws in the skin's accent and the skin's body face
 
 ### test_anchors_nameplate.lua (33)
 
@@ -314,13 +321,14 @@ Total.
 - cursor: the stand-down leaves the follow disarmed, and the stand-up arms it again
 - cursor: a new cursor container sits at the cursor default offset, whatever its id or screen point
 
-### test_anchors_mockplate.lua (5)
+### test_anchors_mockplate.lua (6)
 
 - mockplate: test_unlock_draws_preview_plate — an own-plate container sits beside a stand-in plate while unlocked
 - mockplate: test_preview_plate_follows_settings — a nameplate point or offset written while unlocked re-places it
 - mockplate: test_strip_clears_preview_plate — the drag strip is lifted over a plate above the container
 - mockplate: test_nameplates_stand_in — an All nameplates container's stand-in sits beside a stand-in plate
 - mockplate: test_combat_ends_preview_plate — combat puts the container back on its plate
+- mockplate: test_preview_plate_keeps_stock_look — the stand-in keeps a nameplate's look under every skin
 
 ### test_visibility.lua (11)
 
@@ -656,7 +664,7 @@ Total.
 - the General page draws Master controls first, then Presets, and the Skin tab last
 - the General page is covered in combat on the sidebar path, and the window stays open (options-ui-§2)
 
-### test_settings_containers.lua (31)
+### test_settings_containers.lua (32)
 
 - settings: surface parity — every Containers and Band sets row answers /rm get and /rm set, through its registry's writer
 - settings: surface parity — every Containers row is drawn on its rail entry's tab
@@ -683,6 +691,7 @@ Total.
 - settings: test_dot_style_row — the Style row is a dropdown in the schema, reached by /rm set, disabled for Bar and Spell icon
 - settings: test_dot_style_tiles — the Dot tab draws a tile per style in the stored shape, and a click writes the style
 - settings: test_dot_style_tiles_off — for Bar and Spell icon the tiles gray and take no click
+- settings: test_dot_style_tiles_scope — stock while Ignore settings panel is on, the skin's with it cleared, live
 - settings: the style tiles are handed back before the next render clears the scroll
 - settings: test_dot_style_tiles_paint — the stored style is the picked tile, tinted as the dot draws, the dot's art for Bar and Spell icon
 - settings: test_dot_style_tiles_refresh — a Shape or color write repaints the tiles in place, a move to or from Bar redraws the tab
@@ -925,18 +934,32 @@ Total.
 
 ### test_skin_values.lua (3)
 
-- skin values: every host row carries its file, substring, why and cause id
+- skin values: every host row carries its file, substring, why and a cause id or kit row category
 - skin values: no typed value outside the kit's categories and the host's rows
 - skin values: the check is falsifiable, a planted value of each shape is reported
 
-### test_skin_switch.lua (6)
+### test_skin_switch.lua (20)
 
 - skin switch: the check is falsifiable, a surface that redraws a literal is reported
+- skin switch: the check is falsifiable, a bar whose texture never moves is reported
 - skin switch: the debug console changes
 - skin switch: the debug console changes with the Scope ignored
 - skin switch: the perf panel changes
 - skin switch: the perf panel changes with the Scope ignored
 - skin switch: a range container's number changes
+- skin switch: a container's caption changes
+- skin switch: a container's Text element (Fixed) changes
+- skin switch: a container's dot (Fixed) changes
+- skin switch: a container's Bar dot changes
+- skin switch: a container's Bar dot changes with the Scope ignored
+- skin switch: a container's border and background (Fixed) changes
+- skin switch: a container's spell chips changes
+- skin switch: a container's spell chips changes with the Scope ignored
+- skin switch: the preset picker changes
+- skin switch: the preset picker changes with the Scope ignored
+- skin switch: the frame picker's overlay changes
+- skin switch: the frame picker's overlay changes with the Scope ignored
+- skin switch: the Dot tab's Style tiles changes
 
 ### test_client_globals.lua (3)
 
@@ -950,17 +973,17 @@ Total.
 |-------|------:|
 | test_loadorder.lua | 16 |
 | test_schema.lua | 36 |
-| test_database.lua | 24 |
+| test_database.lua | 27 |
 | test_bandsets.lua | 24 |
 | test_container_manager.lua | 17 |
 | test_presets.lua | 17 |
 | test_number_format.lua | 5 |
-| test_container_render.lua | 60 |
+| test_container_render.lua | 63 |
 | test_anchors_screen.lua | 14 |
-| test_anchors_frame.lua | 17 |
+| test_anchors_frame.lua | 18 |
 | test_anchors_nameplate.lua | 33 |
 | test_anchors_cursor.lua | 7 |
-| test_anchors_mockplate.lua | 5 |
+| test_anchors_mockplate.lua | 6 |
 | test_visibility.lua | 11 |
 | test_sounds.lua | 12 |
 | test_compat.lua | 14 |
@@ -980,7 +1003,7 @@ Total.
 | test_modes.lua | 23 |
 | test_optionssetup.lua | 16 |
 | test_realpages.lua | 7 |
-| test_settings_containers.lua | 31 |
+| test_settings_containers.lua | 32 |
 | test_settings_bandsets.lua | 16 |
 | test_settings_presets.lua | 14 |
 | test_skinsetup.lua | 12 |
@@ -1001,7 +1024,7 @@ Total.
 | test_layout_cap.lua | 13 |
 | test_lizard_sighted.lua | 8 |
 | test_skin_values.lua | 3 |
-| test_skin_switch.lua | 6 |
+| test_skin_switch.lua | 20 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **770** |
+| **Total** | **793** |

@@ -61,18 +61,15 @@ function Mock.Rect(inst, c)
     return left, bottom, left + PLATE_W, bottom + PLATE_H
 end
 
---- The stand-in's colors: the skin's bar background and border, and its "bad" semantic for the fill
---- (an enemy's plate), each with the stock value where the skin answers none.
-local function color(token, r, g, b, a)
-    local cr, cg, cb, ca = NS.Skin.Color(token)
-    if type(cr) ~= "number" then return r, g, b, a end
-    return cr, cg, cb, ca or a
-end
-
+--- The stand-in's look: an enemy nameplate's, under every skin (skinning-§9 Preview stand-ins, owner
+--- ruling U-24 of 2026-11-20). It imitates a client nameplate, which no skin reaches, so a skinned
+--- copy would mislead the player tuning offsets against it: its ground, edge, health fill and name
+--- line (the client's GameFontHighlightSmall) stay as they are, and only the container beside it
+--- follows the skin. Painted once, at build; no skin switch repaints it.
 local function paint(p)
-    p.bg:SetColorTexture(color("bar.bg", 0.05, 0.05, 0.05, 0.85))
-    p.fill:SetColorTexture(color("sem.bad", 0.78, 0.16, 0.16, 1))
-    NS.Style.PaintEdges(p.edges, color("bar.border", 0, 0, 0, 1))
+    p.bg:SetColorTexture(0.05, 0.05, 0.05, 0.85)
+    p.fill:SetColorTexture(0.78, 0.16, 0.16, 1)
+    NS.Style.PaintEdges(p.edges, 0, 0, 0, 1)
 end
 
 local function build(inst)
@@ -95,10 +92,6 @@ local function build(inst)
     plates[inst] = p
     return p
 end
-
-NS.Skin.OnLooksChanged(function()
-    for _, p in pairs(plates) do paint(p) end
-end)
 
 --- What the stand-in's name line says: whose plate it stands for (the Unit row's own label).
 local function nameFor(c)

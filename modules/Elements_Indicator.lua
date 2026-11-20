@@ -95,7 +95,7 @@ local function fill(ctx)
 end
 
 function Indicator.Paint(el, cfg, ctx)
-    local r, g, b, a = Style.Color(cfg.colorMode, cfg.color, ctx, "indicatorColor")
+    local r, g, b, a = Style.Color(cfg.colorMode, cfg.color, ctx, "indicatorColor", Style.SkinColor(cfg, "text"))
     if el.shape == "bar" and el.bar then
         el.flip = 3 - el.flip
         local c, v = el.colors[el.flip], el.values

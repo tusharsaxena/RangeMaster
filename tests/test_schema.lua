@@ -269,13 +269,21 @@ end)
 test("`disabledIf` names a real sibling setting", function()
   -- A typo'd disabledIf reads nil, which is falsey, so the widget would simply never gray out —
   -- a silent failure with no error to notice. The bar family's is a predicate of the row, as the
-  -- engine takes it (OptionsCompose minor 18), and has no path to resolve.
+  -- engine takes it (OptionsCompose minor 18), and has no path to resolve. A selection-relative
+  -- path (`container.<field>`, a composed companion such as Font shadow's `shadowFromSkin`) is read
+  -- through that row's own get, so it resolves against the container template, as the row does.
   for _, row in ipairs(NS.Schema) do
     if type(row.disabledIf) == "function" then
       assertEqual(type(row.disabledIf(row)), "boolean", row.path)
     elseif row.disabledIf then
-      assertTrue(NS.ResolvePath(NS.defaults.profile, row.disabledIf) ~= nil,
+      local field = row.disabledIf:match("^container%.(.+)$")
+      local root, path = NS.defaults.profile, row.disabledIf
+      if field then root, path = NS.CONTAINER_TEMPLATE, field end
+      assertTrue(NS.ResolvePath(root, path) ~= nil,
         row.path .. " disabledIf='" .. row.disabledIf .. "' does not resolve")
+      if field then
+        assertTrue(NS.FindSchemaRow(row.disabledIf) ~= nil, row.disabledIf .. " has a row whose get reads it")
+      end
     end
   end
 end)

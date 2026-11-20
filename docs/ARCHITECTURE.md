@@ -236,7 +236,9 @@ HUD-docked TestStrip measures its target to flip near the screen's top, and from
 plate sits on its top edge, unflipped, and raises nothing. The nameplate anchors clear a root's
 points when it leaves its plate, so `inst.anchorPlate` always says whether the root's points name
 one. The unlocked preview nameplate (`modules/Anchors_Mockplate.lua`) is this addon's own frame,
-never a real plate, and nothing measures it.
+never a real plate, and nothing measures it. It keeps an enemy nameplate's look under every skin
+(skinning-§9 Preview stand-ins, owner ruling U-24 of 2026-11-20): only the container beside it
+follows the skin.
 
 ## Known Limitations
 
