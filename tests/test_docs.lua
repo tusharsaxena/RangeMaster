@@ -5,7 +5,8 @@
 -- numbered list; docs/ARCHITECTURE.md's Tier 2 map agrees with docs/; and docs/smoke-tests.md carries
 -- its non-English-client section; README.md's H1 is the brand (documentation-§1 item 1); and
 -- docs/midnight-quirks.md carries the vendored client-quirks block, whole between its two markers, then
--- this addon's own section (documentation-§3, client-quirks-§1). The US-English prose gate is the
+-- this addon's own section (documentation-§3, client-quirks-§1), and docs/forever-quirks.md the
+-- vendored forever-quirks block the same way (forever-quirks-§1). The US-English prose gate is the
 -- kit's (tests/_kit/test_prose.lua).
 
 local T = _G.RM_TEST
@@ -227,6 +228,32 @@ test("docs/midnight-quirks.md carries the vendored client-quirks block, then its
     lineNo = lineNo + 1
     line = line:gsub("\r$", "")
     if line:match("^<!%-%- BEGIN VENDORED: quirks catalog v%d+%.%d+%.%d+ %(source: WowAddonStandards%) %-%->$") then
+      begins, beginAt = begins + 1, lineNo
+    elseif line == "<!-- END VENDORED -->" then
+      ends, endAt = ends + 1, lineNo
+    elseif line == "## RangeMaster-specific quirks" then
+      ownAt = lineNo
+    end
+  end
+  assertEqual(begins, 1, "one BEGIN VENDORED marker line")
+  assertEqual(ends, 1, "one END VENDORED marker line")
+  assertTrue(beginAt < endAt, "BEGIN before END")
+  assertTrue(endAt - beginAt > 100, "the catalog is whole between the markers")
+  assertTrue(ownAt ~= nil and ownAt > endAt, "the `## RangeMaster-specific quirks` section follows the block")
+end)
+
+-- ── docs/forever-quirks.md: the vendored Forever block, then ours ───────────────────────────
+
+test("docs/forever-quirks.md carries the vendored forever-quirks block, then its own section", function()
+  -- red under: the file or its block lost on a dual-client addon (forever-quirks-§1), a marker
+  -- re-spelled, or the own-section heading lost.
+  local body = readFile("docs/forever-quirks.md")
+  local begins, ends, beginAt, endAt, ownAt = 0, 0, nil, nil, nil
+  local lineNo = 0
+  for line in (body .. "\n"):gmatch("([^\n]*)\n") do
+    lineNo = lineNo + 1
+    line = line:gsub("\r$", "")
+    if line:match("^<!%-%- BEGIN VENDORED: forever quirks catalog v%d+%.%d+%.%d+ %(source: WowAddonStandards%) %-%->$") then
       begins, beginAt = begins + 1, lineNo
     elseif line == "<!-- END VENDORED -->" then
       ends, endAt = ends + 1, lineNo

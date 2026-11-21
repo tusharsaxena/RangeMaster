@@ -67,9 +67,6 @@ function Preview.Refresh()
     NS.Debug("Mode", "drawing %s", kind or "live ranges")
 end
 
--- Suite seam: the preview drawn now.
-function Preview.__drawn() return drawnKind end
-
 local target = NS.NewBusTarget()
 if target then
     target:RegisterMessage(NS.MSG.MODE_CHANGED, function() Preview.Refresh() end)

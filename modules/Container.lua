@@ -29,7 +29,6 @@ local _, NS = ...
 --   NS.Container.RefreshVisibility()     ask every instance's visibility again (the combat edge,
 --                                        the General visibility and Master opacity rows)
 --   NS.Container.RefreshLock()           the `locked` setting moved: unlocked shows every container
---   NS.Container.ShowsAll() -> boolean   a preview runs, or the displays are unlocked out of combat
 --   NS.Container.Unlocked() -> boolean   the displays are unlocked out of combat (every one shows,
 --                                        every one wears its drag strip, modules/Anchors*.lua)
 --
@@ -980,8 +979,6 @@ function Container.SetPreview(kind)
     restage()
 end
 
-function Container.PreviewKind() return preview end
-function Container.ShowsAll() return showsAll() end
 function Container.Unlocked() return unlockShow end
 
 --- The stand-down (core/LifecycleSetup.lua): every instance parked and hidden, every watch dropped.
