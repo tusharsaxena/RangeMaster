@@ -25,7 +25,8 @@ each lands in `core/RangeMaster.lua`'s `adoptProfile`:
   A switch takes the preset picker down earlier, at AceDB's `OnProfileShutdown`, so a preview it had
   up is restored into the old profile; a reset or a copy drops that preview instead (the profile was
   replaced whole);
-- the new profile is migrated and backfilled and its registries repaired (`Database.PrepareProfile`);
+- the new profile is migrated and backfilled, its stored looks moved onto the skin once
+  (`Database.FollowSkinDefaults`), and its registries repaired (`Database.PrepareProfile`);
 - the preset Undo slot is dropped (`NS.Presets.ForgetUndo`): it held the old profile's containers;
 - its skin is applied and the latch is re-read from its `enabled`, so switching to a profile where the
   addon is off stands it down, and back brings it up (slash-commands-§7);

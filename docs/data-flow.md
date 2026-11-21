@@ -254,7 +254,8 @@ A render resolves the band (`NS.BandSets.ForUnit`, then `Resolve`) and recolors 
 and every element only when the band index or the set changed; an element sets its text only when
 the string changed, and the layout runs on an apply or when a cell's width moved. An unknown range
 draws the set's unknown label (`?`) in its gray, never a band; no unit hides a container that hides
-with no unit. Colors read `band` (the band's frame, text or indicator color), `fixed` (the swatch) or
+with no unit. Colors read `band` (the band's frame, text or indicator color), `fixed` (the swatch, or
+the skin's color while the row's `colorFromSkin` companion is on, `NS.Style.SkinColor`) or
 `class` (the TRACKED unit's class color, the swatch's alpha kept, an unresolvable class falling
 through to the swatch; options-ui-§17, because a range container describes its unit; the
 color rows declare `classColorSource = "unit"`). The elements follow
