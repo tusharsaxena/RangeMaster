@@ -122,7 +122,4 @@ function Frame.StandDown()
 end
 Frame.__reset = Frame.StandDown
 
--- Suite seam: whether `inst` waits for its frame.
-function Frame.__waiting(inst) return waiting[inst] == true end
-
 Anchors.Register("frame", Frame)
