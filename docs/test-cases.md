@@ -792,7 +792,7 @@ Total.
 - locale: no key is defined twice in enUS.lua
 - locale: every enUS value is its own key, so the English build shows the source string
 
-### test_docs.lua (7)
+### test_docs.lua (8)
 
 - README.md carries no angle-bracket argument placeholders
 - README.md carries ## Reporting a bug with the standard's text, placed and pointed at
@@ -801,6 +801,7 @@ Total.
 - docs/smoke-tests.md carries a non-English-client section
 - README.md's H1 is `# Ka0s <Name>`, the brand
 - docs/midnight-quirks.md carries the vendored client-quirks block, then its own section
+- docs/forever-quirks.md carries the vendored forever-quirks block, then its own section
 
 ### test_prose.lua (15)
 
@@ -1011,7 +1012,7 @@ Total.
 | test_skin_picker_preview.lua | 9 |
 | test_glyphs.lua | 1 |
 | test_locale.lua | 4 |
-| test_docs.lua | 7 |
+| test_docs.lua | 8 |
 | test_prose.lua | 15 |
 | test_surface_parity.lua | 15 |
 | test_vendor_sync.lua | 3 |
@@ -1027,4 +1028,4 @@ Total.
 | test_skin_switch.lua | 20 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **793** |
+| **Total** | **794** |

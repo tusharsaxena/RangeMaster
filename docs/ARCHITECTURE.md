@@ -45,7 +45,7 @@ How each one works, its seams and its edge cases: `docs/data-flow.md`, *Componen
 ### Libraries
 
 Everything is vendored under `libs/`: LibStub and CallbackHandler, the Ace3 stack, LibSharedMedia,
-LibDataBroker and LibDBIcon (the launcher), LibKa0s v1.108.0 (whole, its icons and sounds pruned to
+LibDataBroker and LibDBIcon (the launcher), LibKa0s v1.109.0 (whole, its icons and sounds pruned to
 `CLAUDE.md`'s declarations) and LibRangeCheck-3.0 MINOR 39 (commit and source in root
 `DEPENDENCIES.md`). Which LibKa0s modules are wired, one setup file each: `docs/module-map.md`.
 
@@ -335,7 +335,8 @@ generated directories are named once and never enumerated: `docs/audits/`, `docs
 |---|---|---|
 | `perf-analysis/README.md` | Present | The performance harness is wired (`core/PerfSetup.lua`) |
 | `slash-dispatch.md` | Present | 27 commands in `NS.COMMANDS` as measured on 2026-11-18, over the eight-or-more threshold |
-| `midnight-quirks.md` | Present | Always (documentation-§3): the vendored `client-quirks` catalog block, then the addon's own section |
+| `midnight-quirks.md` | Present | Clients includes Retail (documentation-§3): the vendored `client-quirks` catalog block, then the addon's own section |
+| `forever-quirks.md` | Present | Clients includes Forever (documentation-§3, forever-quirks-§1): the vendored `forever-quirks` catalog block, then the addon's own WoW Forever section |
 | `compat-layer.md` | Present | `core/Compat.lua` publishes the range reads, the two band-set unit reads, the anchors' four frame reads, the band rules' anchor reads (with `OverrideSpell` and the spec read `PlayerSpecID`) and the per-client ladder, 23 shims by documentation-§3's count as measured on 2026-11-20, nineteen of them addon-specific beyond what LibKa0s supplies, over the three-or-more threshold |
 | `message-bus.md` | Not applicable | 5 messages in `NS.MSG` as measured on 2026-11-19 (`RANGE_UPDATED`, `CONTAINERS_CHANGED`, `BANDSETS_CHANGED`, `ANCHORS_CHANGED`, `MODE_CHANGED`); the trigger is more than ten. The table lives in `## Message Bus` above |
 | `profiles.md` | Present | AceDB profiles are user-visible: the Profiles sub-page is a profile control in the options UI |
