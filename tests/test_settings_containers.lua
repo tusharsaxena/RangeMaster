@@ -465,9 +465,9 @@ test("settings: Display > Frame > Border ends with Border opacity, a percent sli
     local row = NS.FindSchemaRow(path)
     assertTrue(row ~= nil, path .. " is a row")
     assertEqual(row.tooltip, tip, path .. "'s tooltip")
-    assertEqual(row.default, true, path .. " defaults on (R-2)")
+    assertEqual(row.default, false, path .. " defaults off (owner 2026-11-23)")
   end
-  assertEqual(NS.FindSchemaRow("container.elements.number.outline").default, "@skin", "Font flags default From skin")
+  assertEqual(NS.FindSchemaRow("container.elements.number.outline").default, "OUTLINE", "Font flags default OUTLINE")
   assertNil(NS.FindSchemaRow("container.elements.number.fontFromSkin"), "the face takes no companion")
   assertTrue(opacity.isPercent, "shown as a percent")
   assertEqual(opacity.min, 0); assertEqual(opacity.max, 1); assertEqual(opacity.step, 0.05)

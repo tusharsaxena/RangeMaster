@@ -66,10 +66,10 @@ Total.
 - degraded Schema stub: Get forwards the instance id to a row's own get
 - degraded Schema stub: ApplyDefault forwards the instance id to Set
 
-### test_database.lua (27)
+### test_database.lua (28)
 
 - database: the account-wide schemaVersion default is 0 (savedvariables-§1)
-- database: the ladder holds two steps, v0 -> v1 (the frame defaults) and v1 -> v2 (band rules), and a fresh install is stamped 2
+- database: the ladder holds three steps, v0 -> v1 (the frame defaults), v1 -> v2 (band rules) and v2 -> v3 (own looks), and a fresh install is stamped 3
 - database: RunMigrations is a safe no-op when the DB is absent
 - database: the runner climbs every step, stamps each, and is idempotent
 - database: a step that raises leaves the stamp unmoved and says so once in chat
@@ -92,9 +92,10 @@ Total.
 - database: step 2 runs on a profile with no usable order and a container with no set (review D6)
 - database: step 2 on a fresh profile changes nothing, and the load pass then seeds rule presets
 - database: test_backfill_plate_part_and_level — a container stored before Attach to part and Frame level reads the plate and Auto
-- database: test_follow_skin_defaults — stored old defaults move onto the skin once, a stored pick stays
-- database: test_follow_skin_defaults_load — RunMigrations moves the active profile before the load pass fills it
-- database: a new container takes the template's skin companions, all on
+- database: a new container keeps its own looks, in the template and on the rows
+- database: the Ka0s preset is frameless under a skin with a border of its own
+- database: step 3 takes back what the retired skin step wrote, in every profile it reached
+- database: the load moves nothing onto the skin
 
 ### test_bandsets.lua (24)
 
@@ -974,7 +975,7 @@ Total.
 |-------|------:|
 | test_loadorder.lua | 16 |
 | test_schema.lua | 36 |
-| test_database.lua | 27 |
+| test_database.lua | 28 |
 | test_bandsets.lua | 24 |
 | test_container_manager.lua | 17 |
 | test_presets.lua | 17 |
@@ -1028,4 +1029,4 @@ Total.
 | test_skin_switch.lua | 20 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **794** |
+| **Total** | **795** |

@@ -252,11 +252,11 @@ test("render: test_fixed_follows_skin — Fixed with Use the skin's color draws 
   withRenderer(function()
     local fixed = { r = 0.2, g = 0.4, b = 0.6, a = 1 }
     local _, setId, inst = newContainer({
-      frame = { border = { colorMode = "fixed", color = fixed, alpha = 1 },
-                background = { enabled = true, colorMode = "fixed", color = fixed } },
-      label = { enabled = true },
-      elements = { number = { colorMode = "fixed", color = fixed },
-                   indicator = { enabled = true, colorMode = "fixed", color = fixed } },
+      frame = { border = { colorMode = "fixed", color = fixed, alpha = 1, colorFromSkin = true },
+                background = { enabled = true, colorMode = "fixed", color = fixed, colorFromSkin = true } },
+      label = { enabled = true, colorFromSkin = true },
+      elements = { number = { colorMode = "fixed", color = fixed, colorFromSkin = true },
+                   indicator = { enabled = true, colorMode = "fixed", color = fixed, colorFromSkin = true } },
     })
     assertColor(color3({ inst.elements.number.fs:GetTextColor() }), { NS.Skin.HudTextColor() }, "number: hud.text")
     assertColor(M.__paint(inst.elements.indicator.tex).vertex, { NS.Skin.HudTextColor() }, "dot: hud.text")
@@ -264,10 +264,10 @@ test("render: test_fixed_follows_skin — Fixed with Use the skin's color draws 
     assertColor(M.__paint(inst.background).color, { NS.Skin.Color("bar.bg") }, "background: bar.bg")
     assertColor(color3({ inst.caption.fs:GetTextColor() }), { NS.Skin.HudLabelColor() }, "caption: hud.label")
     -- Band and Class come first: the companion is on in both, and neither reads the skin.
-    local _, _, banded = newContainer({ elements = { number = { colorMode = "band" } } })
+    local _, _, banded = newContainer({ elements = { number = { colorMode = "band", colorFromSkin = true } } })
     assertColor(color3({ banded.elements.number.fs:GetTextColor() }), band(setId, 3).textColor,
       "band: the band's color (a meaning color, owner U-30)")
-    local _, _, classed = newContainer({ elements = { number = { colorMode = "class", color = fixed } } })
+    local _, _, classed = newContainer({ elements = { number = { colorMode = "class", color = fixed, colorFromSkin = true } } })
     assertColor(color3({ classed.elements.number.fs:GetTextColor() }), M.RAID_CLASS_COLORS.MAGE, "class: the unit's")
   end, "MAGE")
 end)
@@ -276,9 +276,9 @@ test("render: test_font_follows_skin — Font flags From skin read the skin's ou
   -- red under: the v0.1.0 template's "OUTLINE" and the direct SetShadowOffset, which drew the
   -- player's row over the skin's shadow (SD-SK-RM.1, RM.2).
   withRenderer(function()
-    local _, _, inst = newContainer({ elements = { number = { shadow = true } } })
+    local _, _, inst = newContainer({ elements = { number = { shadow = true, outline = "@skin", shadowFromSkin = true } } })
     local font = M.__paint(inst.elements.number.fs).font
-    assertEqual(NS.CONTAINER_TEMPLATE.elements.number.outline, "@skin", "the template's flags follow the skin")
+    assertEqual(NS.CONTAINER_TEMPLATE.elements.number.outline, "OUTLINE", "the template's flags are its own")
     assertEqual(font[3], NS.Skin.FontFlags("@skin"), "drawn with the skin's HUD outline")
     local offset = M.__paint(inst.elements.number.fs).shadowOffset or { 0, 0 }
     local sx = NS.Skin.HudShadow()
@@ -294,7 +294,7 @@ test("render: test_border_follows_skin — Use the skin's border draws a skin's 
   local Skin = M.LibStub("LibKa0s-Skin-1.0")
   local source, skin = Skin:GetChoice("RangeMaster")
   withRenderer(function()
-    local _, _, follows = newContainer({ frame = { border = { enabled = false } } })
+    local _, _, follows = newContainer({ frame = { border = { enabled = false, textureFromSkin = true } } })
     local _, _, own = newContainer({ frame = { border = { enabled = false, textureFromSkin = false } } })
     assertFalse(follows.border.shown, "Ka0s Default's None: the stored Show border (off) stands")
     local ok, err = pcall(function()
@@ -1307,10 +1307,9 @@ test("render: test_caption_color_modes — band, fixed and class, as the element
     assertColor(color3({ inst2.caption.fs:GetTextColor() }), fixed, "fixed: the swatch")
     local _, _, inst3 = newContainer({ label = { enabled = true, colorMode = "class", color = fixed } })
     assertColor(color3({ inst3.caption.fs:GetTextColor() }), M.RAID_CLASS_COLORS.MAGE, "class: the unit's class")
-    -- red under: the fixed white the caption drew before SD-SK-RM.3.
+    -- red under: a follow-the-skin sweep (the gold caption of 2026-11-20).
     local _, _, inst4 = newContainer({ label = { enabled = true } })
-    assertColor(color3({ inst4.caption.fs:GetTextColor() }), { NS.Skin.HudLabelColor() },
-      "the default: fixed, following the skin's HUD label color")
+    assertColor(color3({ inst4.caption.fs:GetTextColor() }), { 1, 1, 1 }, "the default: fixed white")
   end, "MAGE")
 end)
 

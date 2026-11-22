@@ -177,18 +177,10 @@ pass then seeds the presets, which carry their rules.
 The runner climbs from `db.global.schemaVersion`, advances the stamp
 only past a step that returned, and on a raising step prints one line and leaves the stamp where it
 was. After the ladder, the active profile is backfilled from the defaults with `== nil` tests, so a
-stored `false` survives (savedvariables-§5), its stored looks are moved onto the skin once (below),
-and the registries' load pass runs (above).
+stored `false` survives (savedvariables-§5), and the registries' load pass runs (above).
 
-**The one move onto the skin, per profile** (`Database.FollowSkinDefaults`, LibKa0s v1.108.0, the
-owner's R-2). Not a ladder step: it runs on the active profile each time `RunMigrations` does, and
-moves nothing once the profile's own record `skin.defaultsFollowSkin` is `true` (never
-`skin.fullSkinReset`, the v1.85.0 record `Skin.FollowOnce` reads). A container is no AceDB default:
-the addon copied the template into the profile, so a stored container holds the old defaults as
-values the addon wrote. For each one the step first writes every companion it lacks as `false`, so
-nothing changes yet, then hands `Skin.ResetToSkin` the keys still at the old default: Font flags
-`"OUTLINE"` become `"@skin"`, and a companion turns on where its own value is the old template's (a
-white swatch, the black 50% background, Font shadow off, the Solid 1 px border shown). A value the
-player picked keeps its companion off, so the pick still draws. It runs before the load pass, whose
-backfill would otherwise fill the new companions `true` over a pick. Without the library it applies
-the same rule itself.
+**Step 3, own looks back** (the owner, 2026-11-23). From 2026-11-20 until then, never released, a step
+outside the ladder moved stored looks onto the skin and recorded `skin.defaultsFollowSkin`. Step 3 runs
+over every stored profile carrying that record: Font flags `"@skin"` go back to `"OUTLINE"`, a companion
+that is on beside the template's own value goes off (one on beside a picked value stays), and the record
+is cleared. A profile without the record is untouched.

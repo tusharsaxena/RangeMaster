@@ -43,7 +43,7 @@ local _, NS = ...
 -- the skin's shadow* (`shadowFromSkin`), and the border's style by `textureFromSkin` (`fromSkin =
 -- "bar"`: the skin's bar border style and thickness). The face takes no companion (`omit`): its own
 -- first value, "Skin's font" (stored ""), is already the skin's face, the From skin value the standard
--- allows a face in place of one. defaults/Profile.lua's template holds every companion true.
+-- allows a face in place of one. defaults/Profile.lua's template holds every companion false (the owner, 2026-11-23, over R-2).
 --
 -- THE ELEMENT ORDER IS DRAGGED (options-ui-§18): its order is the setting, so the Layout tab draws it
 -- as LibKa0s-Widgets' ReorderList, one row per element, and a drop writes the new order through the
@@ -131,8 +131,20 @@ local rows = {
 }
 
 --- Append `list` to `rows`.
+-- The composers default every companion on and Font flags to From skin; this addon's defaults are the
+-- template's (the owner, 2026-11-23), so those rows read theirs from it.
 local function add(list)
-    for _, row in ipairs(list) do rows[#rows + 1] = row end
+    for _, row in ipairs(list) do
+        local rel = type(row.path) == "string" and row.path:match("^container%.(.+)$")
+        if rel and (rel:find("FromSkin$") or rel:find("%.outline$")) then
+            local value = NS.CONTAINER_TEMPLATE
+            for seg in rel:gmatch("[^%.]+") do
+                if type(value) == "table" then value = value[seg] end
+            end
+            if value ~= nil then row.default = value end
+        end
+        rows[#rows + 1] = row
+    end
 end
 
 -- ── Frame ───────────────────────────────────────────────────────────────────────────────────
