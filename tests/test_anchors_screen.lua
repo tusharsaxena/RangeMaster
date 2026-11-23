@@ -324,3 +324,37 @@ test("anchors: a container leaving the screen anchor is no longer clamped to the
   restore()
   if not ok then error(err, 0) end
 end)
+
+test("anchors: a right-click anywhere on the screen strip opens what its gear opens", function()
+  -- SRC-RM-01 (standalone-windows, *A right-click opens what the gear opens*, standard v2.118.0): the
+  -- gear's left click and a right-click on the band, the ?, the gear and the X each open the Containers
+  -- page on this display. From DragHandle minor 17 the strip takes the gear's action with no
+  -- onRightClick, so the host passes none (red under the old redundant `onRightClick = openSettings`).
+  local f = io.open("modules/Anchors_Screen.lua", "r")
+  assertTrue(f ~= nil, "cannot open modules/Anchors_Screen.lua (tests run from the repo root)")
+  local src = f:read("*a")
+  f:close()
+  assertFalse(src:find("onRightClick%s*=") ~= nil, "the strip passes no onRightClick")
+  local show, panel = NS.ShowContainer, NS.OpenOptionsPanel
+  local ok, err = pcall(H.with, function()
+    local id, inst = H.container("target")
+    unlock(true)
+    local seen = {}
+    NS.ShowContainer = function(cid) seen[#seen + 1] = "show " .. tostring(cid) end
+    NS.OpenOptionsPanel = function(page) seen[#seen + 1] = "page " .. tostring(page) end
+    local h = inst.dragHandle
+    h.settings:__fire("OnClick", "LeftButton")
+    h:__fire("OnClick", "RightButton")
+    h.help:__fire("OnClick", "RightButton")
+    h.settings:__fire("OnClick", "RightButton")
+    h.close:__fire("OnClick", "RightButton")
+    assertEqual(#seen, 10, "the gear's click and four right-clicks, each showing the display and its page")
+    for i = 1, 10, 2 do
+      assertEqual(seen[i], "show " .. tostring(id), "click " .. ((i + 1) / 2) .. " picks this display")
+      assertEqual(seen[i + 1], "page containers", "click " .. ((i + 1) / 2) .. " opens the Containers page")
+    end
+    assertTrue(NS.CM.Get(id).enabled ~= false, "the X's right-click disables nothing")
+  end)
+  NS.ShowContainer, NS.OpenOptionsPanel = show, panel
+  if not ok then error(err, 0) end
+end)

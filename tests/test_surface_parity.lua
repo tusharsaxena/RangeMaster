@@ -346,5 +346,8 @@ test("parity: the Compat seam carries the major's surface, less what it does not
     if type(v) == "function" and not wired[name] then ignore[#ignore + 1] = name end
   end
   for _, field in ipairs({ "MAJOR", "MINOR", "MODULES" }) do ignore[#ignore + 1] = field end
+  -- Compat minor 6's one table member (LibKa0s v1.110.0, LibKa0s#101): the container readers'
+  -- per-client bag patterns. RangeMaster reads no bag or bank and wires none of those readers.
+  ignore[#ignore + 1] = "CONTAINER_PATTERNS_BY_CLIENT"
   T.assertSurfaceParity(NS2.Compat, "LibKa0s-Compat-1.0", ignore)
 end)
