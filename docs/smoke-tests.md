@@ -18,11 +18,11 @@ unless a check names one. The anchors are run as a matrix, one result per mode a
 | STATE-1..3 | State | enable and disable, the latch, the launcher menu |
 | MODES-1..7 | Modes | Test mode and Sim mode: start, refuse in combat, end on combat, placeholders, the sweep |
 | COMBAT-1 | Combat | the settings panel under combat lockdown |
-| DIAG-1..3 | Diagnostics | the console, the report, the perf verb |
+| DIAG-1..4 | Diagnostics | the console, the report, the perf verb, the copy window's close-only title bar |
 | DEGRADED-1 | Degraded | the library-absent install |
 | LOC-1 | Non-English client | a deDE or frFR client |
 | RANGE-1..17 | Range engine | brackets, unknown, the Forever ladder, the ticker's rate and stop, the seed spells; the anchor probes: reported ranges under talents, rank IDs, the talent event, overrides, Auto Shot unarmed |
-| DRAW-1..10 | Containers drawn | brackets drawn, unknown gray, elements and order, the skin face, disable, the Bar dot's border and gloss, Fixed colors, outline and shadow, the border and the spell chips following the skin |
+| DRAW-1..10, 12 | Containers drawn | brackets drawn, unknown gray, elements and order, the skin face, disable, the Bar dot's border and gloss, Fixed colors, outline and shadow, the border and the spell chips following the skin, High Contrast's HUD shadow |
 | CONT-1..14 | Containers page | New container (no band preview), the rail, Position, Duplicate / Delete / Copy settings from, Defaults, Color from, the Dot tab and its Style tiles, Border opacity, the caption's positions, the caption's styling, one line, the skin companion rows, the Style tiles' Scope, the frame picker's label |
 | BANDS-1..11 | Band sets page | the picker, the Bands editor (no band ribbon), shared sets, the friendly override, the unknown label; spell bands: the rule controls, the read-out, the owner's Hawk Eye case, the dead zone, the v1 -> v2 conversion, the band rail |
 | PRESET-1..4 | Presets | the first-run picker, Apply on an empty profile, Apply over containers with Undo, what each of the six shows |
@@ -164,6 +164,11 @@ starts with a cyan `[RM]`. Most checks need a container: apply a preset (General
   rejected and ui, and no `section ... failed` line. Result:
 - **DIAG-3. Perf.** `/rm perf` → the step panel opens, its close mark drawn; a start and a cancel leave
   no hold (`/rm diagnostics` lifecycle shows `holds: none`). Result:
+- **DIAG-4. The copy window is a companion: close only (FB-RM-01, LibKa0s v1.112.0; standalone-windows
+  *A companion window carries no settings mark*, standard v2.119.0).** `/rm debug`, then its Copy mark
+  → the copy window's title bar carries the close mark alone, no gear; the console behind it still
+  carries its gear. The close mark closes the copy window and leaves the console up. **Fail:** a gear on
+  the copy window, a blank mark, or a Lua error naming a file under `libs/LibKa0s/`. Result:
 
 ## Degraded
 
@@ -329,6 +334,11 @@ a training dummy for each. The spell IDs are the anchors in `defaults/SpellSeeds
   chip in range draws the skin's green, out of range its red, no answer its gray. Switch the skin →
   the chips repaint in the new skin's three on the next update, with no reload (SD-SK-RM.10).
   Result:
+- **DRAW-12. High Contrast's HUD shadow is one pixel (FB-RM-01, LibKa0s v1.112.0, SkinDefsOthers
+  minor 11).** A container with Use the skin's shadow ticked and Font outline on **HUD text only**.
+  Switch to High Contrast → the number, text and caption wear a black shadow one pixel down and right,
+  as under Azeroth, not a heavy two-pixel block. **Fail:** a doubled, two-pixel shadow under High
+  Contrast. Result:
 
 ## Containers page
 
@@ -676,4 +686,5 @@ Set the rules on Containers → Visibility.
 | ANCHOR-12 | the review of SD-SK-RM (Ka0sAddonsCommonTasks 2026-11-20-LIBKA0S_94_97_99_100; skinning-§9 Preview stand-ins, owner U-24, in place of SD-SK-RM.7 and RM.8), 2026-11-21 | the preview nameplate's stock look under a skin switch has not been seen in a client yet |
 | DRAW-6 | the LibKa0s v1.108.0 re-vendor (Ka0sAddonsCommonTasks 2026-11-20-LIBKA0S_94_97_99_100, SD-RV-RM), 2026-11-20 | the Bar dot's skin border and Glass gloss have not been seen in a client yet |
 | RANGE-6..11, BANDS-6..10 | the spell-driven dynamic bands (plan 2026-11-19-dynamic-bands, D1-D7), 2026-11-19 | whether the client reports talented ranges and answers by rank ID, which event a talent point fires, the rule controls, the owner's Hawk Eye case and the v1 -> v2 conversion have not been seen in a client yet |
+| DIAG-4, DRAW-12 | the LibKa0s v1.112.0 re-vendor (Ka0sAddonsCommonTasks 2026-11-24-FEEDBACK_BATCH, FB-RM-01), 2026-11-24 | the copy window's close-only title bar and High Contrast's one-pixel HUD shadow have not been seen in a client yet |
 | ANCHOR-13 | the LibKa0s v1.111.0 re-vendor (Ka0sAddonsCommonTasks 2026-11-23-STRIP_RIGHT_CLICK, SRC-RM-01), 2026-11-23 | the strip's right-click on the band and each mark, now the gear's own action with no `onRightClick` (DragHandle minor 17), has not been seen in a client yet |

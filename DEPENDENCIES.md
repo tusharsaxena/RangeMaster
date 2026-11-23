@@ -90,7 +90,7 @@ its reason**, not a pass and not a failure (testing-§11).
 
 ```sh
 git clone https://github.com/tusharsaxena/LibKa0s.git ../LibKa0s
-git -C ../LibKa0s rev-parse --short v1.109.0   # verify: prints a commit
+git -C ../LibKa0s rev-parse --short v1.112.0   # verify: prints a commit
 ```
 
 ## Release / assets
