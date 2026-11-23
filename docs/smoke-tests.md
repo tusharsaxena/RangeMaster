@@ -26,7 +26,7 @@ unless a check names one. The anchors are run as a matrix, one result per mode a
 | CONT-1..14 | Containers page | New container (no band preview), the rail, Position, Duplicate / Delete / Copy settings from, Defaults, Color from, the Dot tab and its Style tiles, Border opacity, the caption's positions, the caption's styling, one line, the skin companion rows, the Style tiles' Scope, the frame picker's label |
 | BANDS-1..11 | Band sets page | the picker, the Bands editor (no band ribbon), shared sets, the friendly override, the unknown label; spell bands: the rule controls, the read-out, the owner's Hawk Eye case, the dead zone, the v1 -> v2 conversion, the band rail |
 | PRESET-1..4 | Presets | the first-run picker, Apply on an empty profile, Apply over containers with Undo, what each of the six shows |
-| ANCHOR-1..11 | Anchors | every mode on both clients: screen, unit frames (Blizzard, EllesmereUI, custom, missing), own nameplate, all nameplates, cursor, the picker, all nameplates except target, the drag strip's marks, the cast bar part, Frame strata and Frame level on a plate |
+| ANCHOR-1..13 | Anchors | every mode on both clients: screen, unit frames (Blizzard, EllesmereUI, custom, missing), own nameplate, all nameplates, cursor, the picker, all nameplates except target, the drag strip's marks, the cast bar part, Frame strata and Frame level on a plate, the preview nameplate, the drag strip's right-click |
 | VIS-1..3 | Visibility | combat and reaction rules, out-of-combat opacity, the master rows |
 | SOUND-1..2 | Sounds | the debounced band sound, none on nameplates |
 
@@ -611,6 +611,14 @@ it), or from chat with `/rm set container.anchor.mode frame` (`screen`, `frame`,
   WoW Default, then a dark one), with Ignore fonts off: the container beside it repaints in each
   skin, the preview nameplate does not change at all (skinning-§9 Preview stand-ins, owner U-24,
   2026-11-20). Result:
+- **ANCHOR-13. A right-click anywhere on the drag strip opens what its gear opens (SRC-RM-01, LibKa0s
+  v1.111.0; standalone-windows *A right-click opens what the gear opens*, standard v2.118.0).** Two
+  screen containers, `/rm unlock`, out of combat, the settings closed. Right-click the second
+  container's strip (its name) → the settings panel opens on Containers with that display selected,
+  exactly where a left click on its gear lands. Close the panel and right-click the strip's `?`, then
+  the gear, then the X → each opens the same page on the same display, and the X's right-click
+  disables nothing. Repeat on the first container's strip → it is the one selected. Fail: a right-click
+  that opens another page or display, opens nothing, or disables the display. Result:
 
 | Check | Mode | Retail result | WoW Forever result |
 |---|---|---|---|
@@ -626,6 +634,7 @@ it), or from chat with `/rm set container.anchor.mode frame` (`screen`, `frame`,
 | ANCHOR-10 | the drag strip's marks (`screen`) | | |
 | ANCHOR-11 | the three Attach to part choices, strata and level on a plate (`nameplate`, All nameplates) | | |
 | ANCHOR-12 | the preview nameplate under a skin switch (`mockplate`) | | |
+| ANCHOR-13 | the drag strip's right-click (`screen`) | | |
 
 ## Visibility
 
@@ -667,3 +676,4 @@ Set the rules on Containers → Visibility.
 | ANCHOR-12 | the review of SD-SK-RM (Ka0sAddonsCommonTasks 2026-11-20-LIBKA0S_94_97_99_100; skinning-§9 Preview stand-ins, owner U-24, in place of SD-SK-RM.7 and RM.8), 2026-11-21 | the preview nameplate's stock look under a skin switch has not been seen in a client yet |
 | DRAW-6 | the LibKa0s v1.108.0 re-vendor (Ka0sAddonsCommonTasks 2026-11-20-LIBKA0S_94_97_99_100, SD-RV-RM), 2026-11-20 | the Bar dot's skin border and Glass gloss have not been seen in a client yet |
 | RANGE-6..11, BANDS-6..10 | the spell-driven dynamic bands (plan 2026-11-19-dynamic-bands, D1-D7), 2026-11-19 | whether the client reports talented ranges and answers by rank ID, which event a talent point fires, the rule controls, the owner's Hawk Eye case and the v1 -> v2 conversion have not been seen in a client yet |
+| ANCHOR-13 | the LibKa0s v1.111.0 re-vendor (Ka0sAddonsCommonTasks 2026-11-23-STRIP_RIGHT_CLICK, SRC-RM-01), 2026-11-23 | the strip's right-click on the band and each mark, now the gear's own action with no `onRightClick` (DragHandle minor 17), has not been seen in a client yet |

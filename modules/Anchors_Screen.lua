@@ -141,6 +141,8 @@ local function placeHandle(inst, h)
 end
 
 --- The strip, or (without the widget library) nil: a screen frame then takes the drag itself.
+--- No `onRightClick` (SRC-RM-01): DragHandle minor 17 gives the band and every mark the gear's own
+--- `settings` on a right-click (standalone-windows, *A right-click opens what the gear opens*).
 local function buildHandle(inst)
     if not (KW and KW.DragHandle) then return nil end
     local h = KW.DragHandle(inst.frame, {
@@ -152,7 +154,6 @@ local function buildHandle(inst)
         onClose = function() disable(inst) end, closeIcon = NS.Icon("close"),
         closeTooltip = { title = nameOf(inst),
             body = { L["Click to disable this display. Its settings are kept; turn Enable back on for it on the Containers page to bring it back."] } },
-        onRightClick = function() openSettings(inst) end,
         level = LAYERS.LEVEL.HANDLE, ignoreParentAlpha = true,
     })
     if not h then return nil end

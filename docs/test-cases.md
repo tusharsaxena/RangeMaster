@@ -238,7 +238,7 @@ Total.
 - render: test_band_span_spell — a spell band's span is its anchor's reported reach (Hawk Eye 8-41)
 - render: test_align_with_caption — the elements follow the container's Align, not the caption's
 
-### test_anchors_screen.lua (14)
+### test_anchors_screen.lua (15)
 
 - anchors: a screen container sits at its stored point on UIParent
 - anchors: a stored point the client does not know falls back to CENTER
@@ -254,6 +254,7 @@ Total.
 - anchors: Reset position puts every screen container back at its default point
 - anchors: switching a container's mode detaches the old anchor
 - anchors: a container leaving the screen anchor is no longer clamped to the screen
+- anchors: a right-click anywhere on the screen strip opens what its gear opens
 
 ### test_anchors_frame.lua (18)
 
@@ -981,7 +982,7 @@ Total.
 | test_presets.lua | 17 |
 | test_number_format.lua | 5 |
 | test_container_render.lua | 63 |
-| test_anchors_screen.lua | 14 |
+| test_anchors_screen.lua | 15 |
 | test_anchors_frame.lua | 18 |
 | test_anchors_nameplate.lua | 33 |
 | test_anchors_cursor.lua | 7 |
@@ -1029,4 +1030,4 @@ Total.
 | test_skin_switch.lua | 20 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **795** |
+| **Total** | **796** |
