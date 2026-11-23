@@ -287,9 +287,71 @@ local function convertBandRules(db)
     end)
 end
 
+-- Step 3: undo the retired step onto the skin's defaults (the owner, 2026-11-23). A step of
+-- 2026-11-20 (never released) wrote `skin.defaultsFollowSkin` on each profile it reached, turned each
+-- companion on beside the template's value and turned "OUTLINE" into "@skin". In a profile carrying
+-- that record those go back and the record is cleared. A companion on beside a value of the player's
+-- own was never that step's write and stays.
+local TEXT_PARTS = { "label", "number", "text" }
+local WHITE, HALF_BLACK = NS.Constants.HexColor("ffffff"), NS.Constants.HexColor("000000", 0.5)
+
+--- Whether stored color `c` is the template's `want` (none stored is, and alpha reads 1 where none is).
+local function isColor(c, want)
+    if c == nil then return true end
+    if type(c) ~= "table" then return false end
+    for _, k in ipairs({ "r", "g", "b", "a" }) do
+        local got, at = c[k], want[k]
+        if got == nil and k == "a" then got = 1 end
+        if at == nil then at = 1 end
+        if type(got) ~= "number" or math.abs(got - at) > 0.002 then return false end
+    end
+    return true
+end
+
+local function off(part, key, atTemplate)
+    if type(part) == "table" and part[key] == true and atTemplate(part) then part[key] = false end
+end
+
+local function whiteColor(part) return isColor(part.color, WHITE) end
+local function noShadow(part) return part.shadow ~= true end
+local function solidLine(part)
+    return (part.texture == nil or part.texture == "") and tonumber(part.size or 1) == 1
+end
+local function halfBlack(part) return isColor(part.color, HALF_BLACK) end
+
+local function restoreText(part)
+    if type(part) ~= "table" then return end
+    if part.outline == "@skin" then part.outline = "OUTLINE" end
+    off(part, "colorFromSkin", whiteColor)
+    off(part, "shadowFromSkin", noShadow)
+end
+
+local function restoreContainer(c)
+    local elements = type(c.elements) == "table" and c.elements or {}
+    local frame = type(c.frame) == "table" and c.frame or {}
+    for _, key in ipairs(TEXT_PARTS) do
+        if key == "label" then restoreText(c.label) else restoreText(elements[key]) end
+    end
+    off(elements.indicator, "colorFromSkin", whiteColor)
+    off(frame.border, "textureFromSkin", solidLine)
+    off(frame.border, "colorFromSkin", whiteColor)
+    off(frame.background, "colorFromSkin", halfBlack)
+end
+
+local function restoreOwnLooks(db)
+    eachProfile(db, function(p)
+        if type(p.skin) ~= "table" or p.skin.defaultsFollowSkin ~= true then return end
+        for _, c in pairs(type(p.containers) == "table" and p.containers or {}) do
+            if type(c) == "table" then restoreContainer(c) end
+        end
+        p.skin.defaultsFollowSkin = nil
+    end)
+end
+
 local SCHEMA_STEPS = {
     { to = 1, apply = keepStoredLook },
     { to = 2, apply = convertBandRules },
+    { to = 3, apply = restoreOwnLooks },
 }
 
 --- The runner's target: the highest step's `to`, or 0 with no step.
@@ -317,114 +379,8 @@ local function climbLadder(g)
     return true
 end
 
--- ---------------------------------------------------------------------------
--- The one move onto the skin (skinning-§9, *Every option default follows the skin*)
--- ---------------------------------------------------------------------------
--- LibKa0s v1.108.0 and the owner's R-2 of 2026-11-20: every look a container stores starts on the
--- skin (defaults/Profile.lua). A container is no AceDB default: the addon copied the template into
--- the profile when the container was made, so every stored one HOLDS the old defaults ("OUTLINE",
--- no companion) as values the addon wrote, not as picks. This step moves those once, per profile,
--- under the profile's own record `skin.defaultsFollowSkin` (never `skin.fullSkinReset`, the v1.85.0
--- record Skin.FollowOnce reads). For each stored container it first writes every companion it lacks
--- as false, so nothing changes its look yet, then hands Skin.ResetToSkin the keys still at the old
--- default: Font flags "OUTLINE" become "@skin", and a companion turns on where its own value is the
--- template's old one (a white swatch, the black 50% background, no shadow, the Solid 1 px border
--- shown). A value the player picked keeps its companion off, so their pick still draws. Runs before
--- PrepareProfile, whose backfill would otherwise fill the new companions true. A class or band color
--- is never touched: Color from is not a companion.
-
-local FOLLOW_RECORD = "defaultsFollowSkin"
-local TEXT_PARTS = { "label", "elements.number", "elements.text" }
--- The template's two old swatch defaults, as defaults/Profile.lua writes them.
-local WHITE, HALF_BLACK = NS.Constants.HexColor("ffffff"), NS.Constants.HexColor("000000", 0.5)
-
---- Whether stored color `c` is `want`, the template's old default (alpha 1 where it stores none).
-local function isColor(c, want)
-    if type(c) ~= "table" then return false end
-    for _, k in ipairs({ "r", "g", "b", "a" }) do
-        local got, at = c[k], want[k]
-        if got == nil and k == "a" then got = 1 end
-        if at == nil then at = 1 end
-        if type(got) ~= "number" or math.abs(got - at) > 0.002 then return false end
-    end
-    return true
-end
-
---- `t` at the dotted `path` below container `c`, or nil.
-local function partOf(c, path)
-    for seg in path:gmatch("[^%.]+") do
-        if type(c) ~= "table" then return nil end
-        c = c[seg]
-    end
-    return type(c) == "table" and c or nil
-end
-
---- Write companion `key` false where `part` lacks it, and queue it when `atDefault` (the move).
-local function companion(part, key, atDefault, base, keys)
-    if part[key] ~= nil then return end
-    part[key] = false
-    if atDefault then keys[#keys + 1] = base .. "." .. key end
-end
-
---- The keys of container `c` (stored at "containers.<id>") still at the old defaults.
-local function staleKeys(c, base, keys)
-    for _, path in ipairs(TEXT_PARTS) do
-        local part = partOf(c, path)
-        if part then
-            local at = base .. "." .. path
-            if part.outline == "OUTLINE" then keys[#keys + 1] = at .. ".outline" end
-            companion(part, "colorFromSkin", isColor(part.color, WHITE), at, keys)
-            companion(part, "shadowFromSkin", part.shadow ~= true, at, keys)
-        end
-    end
-    local ind = partOf(c, "elements.indicator")
-    if ind then companion(ind, "colorFromSkin", isColor(ind.color, WHITE), base .. ".elements.indicator", keys) end
-    local bd = partOf(c, "frame.border")
-    if bd then
-        local at = base .. ".frame.border"
-        companion(bd, "textureFromSkin", (bd.texture == nil or bd.texture == "") and tonumber(bd.size or 1) == 1
-            and bd.enabled ~= false, at, keys)
-        companion(bd, "colorFromSkin", isColor(bd.color, WHITE), at, keys)
-    end
-    local bg = partOf(c, "frame.background")
-    if bg then companion(bg, "colorFromSkin", isColor(bg.color, HALF_BLACK), base .. ".frame.background", keys) end
-end
-
---- Skin.ResetToSkin's own rule for the keys this step names, where the library is absent: a
---- companion is set true, a Font flags value takes FROM_SKIN.
-local function resetLocally(p, keys)
-    for _, key in ipairs(keys) do
-        local parent, leaf = p, nil
-        for seg in key:gmatch("[^%.]+") do
-            if leaf ~= nil then parent = type(parent) == "table" and (parent[tonumber(leaf) or leaf]) or nil end
-            leaf = seg
-        end
-        if type(parent) == "table" then parent[leaf] = leaf:match("FromSkin$") and true or "@skin" end
-    end
-end
-
---- Move profile `p`'s stored containers onto the skin, once (the section above). Answers how many
---- keys moved, or nil when the profile's record says it already ran.
-function Database.FollowSkinDefaults(p)
-    if type(p) ~= "table" then return nil end
-    if type(p.skin) ~= "table" then p.skin = {} end
-    if p.skin[FOLLOW_RECORD] == true then return nil end
-    local keys = {}
-    if type(p.containers) == "table" then
-        for id, c in pairs(p.containers) do
-            if type(c) == "table" then staleKeys(c, "containers." .. tostring(id), keys) end
-        end
-    end
-    local Skin = LibStub and LibStub("LibKa0s-Skin-1.0", true)
-    if Skin and type(Skin.ResetToSkin) == "function" then Skin.ResetToSkin(p, keys) else resetLocally(p, keys) end
-    p.skin[FOLLOW_RECORD] = true
-    NS.Debug("Migrate", "follow the skin: %d stored look(s) moved", #keys)
-    return #keys
-end
-
---- Run the ladder, then backfill the active profile from the defaults, move its stored looks onto
---- the skin once (FollowSkinDefaults) and run the registries' load pass (PrepareProfile), before
---- anything reads it.
+--- Run the ladder, then backfill the active profile from the defaults and run the registries' load
+--- pass (PrepareProfile), before anything reads it.
 function NS:RunMigrations()
     local g = NS.db and NS.db.global
     if not g then return end
@@ -432,7 +388,6 @@ function NS:RunMigrations()
     climbLadder(g)
     if type(NS.db.profile) == "table" then
         Database.Backfill(NS.db.profile, NS.defaults.profile)
-        Database.FollowSkinDefaults(NS.db.profile)
         Database.PrepareProfile(NS.db.profile)
     end
 end

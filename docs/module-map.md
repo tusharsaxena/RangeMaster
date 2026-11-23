@@ -29,7 +29,7 @@ runner's load list to the TOC.
 | `core/PerfSetup.lua` | `LibKa0s-Perf-1.0`: `NS.Perf`, the declared buckets, `RangeMasterPerfDB`. LOAD-BEARING |
 | `core/PoolSetup.lua` | `LibKa0s-Pool-1.0`: `NS.Pool`, the library's pool or a local copy of its eight members (the array and the keyed shapes) |
 | `core/Data.lua` | `NS.GetSetting`, the minimap row's inverted storage, `NS.GetLSM` |
-| `core/Database.lua` | AceDB, the profile backfill, the migration runner, the one move of a profile's stored looks onto the skin (`FollowSkinDefaults`), the registries' load pass (`PrepareProfile`) |
+| `core/Database.lua` | AceDB, the profile backfill, the migration runner, the registries' load pass (`PrepareProfile`) |
 | `core/DebugLogSetup.lua` | `LibKa0s-DebugLog-1.0`: `NS.DebugLog`, `NS.Debug` and its gates, the diagnostics brand and sections. LOAD-BEARING |
 | `core/LauncherSetup.lua` | `LibKa0s-Launcher-1.0`: one broker object registered twice, menu Enabled · Locked · Test mode · Sim mode |
 | `core/RangeMaster.lua` | The AceAddon; `OnInitialize` / `OnEnable`; the lifecycle events (routing the unit and plate events to the renderer, the anchors and the ticker); Test mode and Sim mode's one writer each; `NS.ResetPositions`; the profile callbacks. LOAD-BEARING: reclaims `NS.Print` |

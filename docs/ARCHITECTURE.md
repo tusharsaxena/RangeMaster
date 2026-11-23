@@ -361,7 +361,9 @@ None yet.
 
 ## Documented deviations
 
-None.
+| Rule | What differs | Why | Decided | Re-check trigger |
+|---|---|---|---|---|
+| `skinning-§9` (*Every option default follows the skin*) | A container's looks start as its own: Font flags `OUTLINE` on the caption, number and text, and every `colorFromSkin`, `shadowFromSkin` and the border's `textureFromSkin` off (`NS.CONTAINER_TEMPLATE`). Each can still be ticked. | The R-2 pass of 2026-11-20 turned the presets' white captions gold and drew borders on the frameless Ka0s preset under four skins. The owner restored the looks on 2026-11-23. Schema v3 takes back what the retired step wrote. | 2026-11-23 | The owner names these options. A collection-wide follow-the-skin sweep or audit is not a trigger |
 
 ### Files over the 1500-line cap
 

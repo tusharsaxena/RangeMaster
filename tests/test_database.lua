@@ -14,13 +14,13 @@ test("database: the account-wide schemaVersion default is 0 (savedvariables-§1)
   assertEqual(NS.defaults.global.schemaVersion, 0)
 end)
 
-test("database: the ladder holds two steps, v0 -> v1 (the frame defaults) and v1 -> v2 (band rules), and a fresh install is stamped 2", function()
+test("database: the ladder holds three steps, v0 -> v1 (the frame defaults), v1 -> v2 (band rules) and v2 -> v3 (own looks), and a fresh install is stamped 3", function()
   -- Red under the v0.1.0 ladder, which was empty with a target of 0, and under the one-step ladder.
-  assertEqual(#NS.__migrationSteps, 2, "two steps")
+  assertEqual(#NS.__migrationSteps, 3, "three steps")
   assertEqual(NS.__migrationSteps[1].to, 1, "the first step climbs to v1")
   assertEqual(NS.__migrationSteps[2].to, 2, "the second step climbs to v2")
-  assertEqual(NS.SCHEMA_VERSION, 2, "the runner's target is the highest step's `to`")
-  assertEqual(NS.db.global.schemaVersion, 2, "a fresh install is stamped at the target")
+  assertEqual(NS.SCHEMA_VERSION, 3, "the runner's target is the highest step's `to`")
+  assertEqual(NS.db.global.schemaVersion, 3, "a fresh install is stamped at the target")
 end)
 
 test("database: RunMigrations is a safe no-op when the DB is absent", function()
@@ -45,7 +45,7 @@ test("database: the runner climbs every step, stamps each, and is idempotent", f
   g.schemaVersion = NS.SCHEMA_VERSION
   assertTrue(ok, tostring(err))
   assertEqual(table.concat(ran, ","), "1,2", "each step ran once, in order")
-  assertEqual(stamp, 2, "the stamp advanced past each step")
+  assertEqual(stamp, 3, "the stamp advanced past each step")
 end)
 
 test("database: a step that raises leaves the stamp unmoved and says so once in chat", function()
@@ -488,79 +488,108 @@ test("database: test_backfill_plate_part_and_level — a container stored before
   assertEqual(c.nameplate.y, -7, "a stored value is kept")
 end)
 
--- ── the one move onto the skin (FollowSkinDefaults; skinning-§9, the owner's R-2) ─────────────
+-- ── the owner's own looks (2026-11-23, over R-2; step 3 undoes the retired skin step) ─────────
 
---- A container as a build before LibKa0s v1.108.0 stored it: the template less every skin
---- companion, the Font flags the old "OUTLINE".
-local function storedBefore108()
-  local c = D.DeepCopy(NS.CONTAINER_TEMPLATE)
+local function eachCompanion(c, fn)
   for _, part in ipairs({ c.label, c.elements.number, c.elements.text }) do
-    part.outline, part.colorFromSkin, part.shadowFromSkin = "OUTLINE", nil, nil
+    fn(part, "colorFromSkin"); fn(part, "shadowFromSkin")
   end
-  c.elements.indicator.colorFromSkin = nil
-  c.frame.border.textureFromSkin, c.frame.border.colorFromSkin = nil, nil
-  c.frame.background.colorFromSkin = nil
+  fn(c.elements.indicator, "colorFromSkin")
+  fn(c.frame.border, "textureFromSkin"); fn(c.frame.border, "colorFromSkin")
+  fn(c.frame.background, "colorFromSkin")
+end
+
+--- A container as the retired step left it: every companion on, the Font flags From skin.
+local function movedContainer()
+  local c = D.DeepCopy(NS.CONTAINER_TEMPLATE)
+  eachCompanion(c, function(part, key) part[key] = true end)
+  for _, part in ipairs({ c.label, c.elements.number, c.elements.text }) do part.outline = "@skin" end
   return c
 end
 
-test("database: test_follow_skin_defaults — stored old defaults move onto the skin once, a stored pick stays", function()
-  -- red under: no step, where the load pass backfilled every companion true over a player's picks
-  -- and left the addon-written "OUTLINE" on every container (SD-SK-RM.1 to .6).
-  local old, picked = storedBefore108(), storedBefore108()
-  picked.label.outline = "THICKOUTLINE"
-  picked.label.color = { r = 0.2, g = 0.4, b = 0.6, a = 1 }
-  picked.elements.number.shadow = true
-  picked.frame.border.texture, picked.frame.border.color = "Edge", { r = 1, g = 0, b = 0, a = 1 }
-  picked.frame.background.color = { r = 0.1, g = 0.1, b = 0.1, a = 0.8 }
-  picked.elements.indicator.color = { r = 0, g = 1, b = 0, a = 1 }
-  local p = { containers = { [1] = old, [2] = picked }, containerOrder = { 1, 2 }, skin = {} }
-  local moved = D.FollowSkinDefaults(p)
-  assertTrue(moved > 0, "the old defaults moved")
-  assertEqual(p.skin.defaultsFollowSkin, true, "the profile's own record is written")
-  assertNil(p.skin.fullSkinReset, "and not the v1.85.0 record")
-  for _, part in ipairs({ old.label, old.elements.number, old.elements.text }) do
-    assertEqual(part.outline, "@skin", "OUTLINE (the old default) reads From skin")
-    assertEqual(part.colorFromSkin, true, "a white swatch follows the skin")
-    assertEqual(part.shadowFromSkin, true, "no shadow: the skin's shadow")
+local function step3()
+  for _, s in ipairs(NS.__migrationSteps) do if s.to == 3 then return s end end
+end
+
+test("database: a new container keeps its own looks, in the template and on the rows", function()
+  local T3 = NS.CONTAINER_TEMPLATE
+  -- red under: a follow-the-skin sweep flipping one (SD-SK-RM, 2026-11-20): white captions went gold
+  eachCompanion(T3, function(part, key) assertEqual(part[key], false, key) end)
+  for _, part in ipairs({ T3.label, T3.elements.number, T3.elements.text }) do
+    assertEqual(part.outline, "OUTLINE", "Font flags")
   end
-  assertEqual(old.elements.indicator.colorFromSkin, true)
-  assertEqual(old.frame.border.textureFromSkin, true, "the Solid 1 px border shown follows the skin's")
-  assertEqual(old.frame.border.colorFromSkin, true)
-  assertEqual(old.frame.background.colorFromSkin, true, "the black 50% background follows")
-  assertEqual(picked.label.outline, "THICKOUTLINE", "a picked flag stays")
-  assertEqual(picked.label.colorFromSkin, false, "a picked caption color keeps drawing")
-  assertEqual(picked.elements.number.shadowFromSkin, false, "a shadow turned on stays the player's")
-  assertEqual(picked.frame.border.textureFromSkin, false, "a picked border style stays")
-  assertEqual(picked.frame.border.colorFromSkin, false)
-  assertEqual(picked.frame.background.colorFromSkin, false)
-  assertEqual(picked.elements.indicator.colorFromSkin, false)
-  assertEqual(picked.elements.text.colorFromSkin, true, "an untouched part of the same container moves")
-  -- Once only: a companion the player turns off after the move stays off.
-  old.label.colorFromSkin = false
-  assertNil(D.FollowSkinDefaults(p), "a second run moves nothing")
-  assertEqual(old.label.colorFromSkin, false, "the player's later pick stands")
+  local n = 0
+  for _, row in ipairs(NS.Schema) do
+    local rel = type(row.path) == "string" and row.path:match("^container%.(.+)$")
+    if rel and (rel:find("FromSkin$") or rel:find("%.outline$")) then
+      local v = T3
+      for seg in rel:gmatch("[^%.]+") do if type(v) == "table" then v = v[seg] end end
+      assertEqual(row.default, v, row.path .. " row default agrees")
+      n = n + 1
+    end
+  end
+  assertTrue(n >= 11, "the rows were found: " .. n)
 end)
 
-test("database: test_follow_skin_defaults_load — RunMigrations moves the active profile before the load pass fills it", function()
+test("database: the Ka0s preset is frameless under a skin with a border of its own", function()
+  local Skin = T.mocks.LibStub("LibKa0s-Skin-1.0")
+  local skinWas, savedDb = NS.db.profile.skin.skin, NS.db
+  local p = {}
+  NS.db = { profile = p, global = savedDb.global }
+  NS.CM.__reset()
+  NS.Presets.__reset()
+  local ok, err = pcall(function()
+    D.PrepareProfile(p)
+    for _, skin in ipairs({ "azeroth", "contrast", "wow", "midnight" }) do
+      Skin:SetChoice("RangeMaster", "ka0s", skin)
+      NS.Presets.Apply("ka0s")
+      for _, c in pairs(p.containers) do
+        local b = c.frame.border
+        local _, show = NS.Skin.BarBorder(b.texture, b.enabled, b.size, b.textureFromSkin == true)
+        -- red under: textureFromSkin defaulting on, so a real style drew over "Show border" off
+        assertTrue(not show, skin .. ": " .. tostring(c.name) .. " drew a border")
+      end
+    end
+  end)
+  NS.Container.__reset()
+  NS.CM.__reset()
+  NS.Presets.__reset()
+  NS.db = savedDb
+  Skin:SetChoice("RangeMaster", "ka0s", skinWas)
+  if not ok then error(err, 0) end
+end)
+
+test("database: step 3 takes back what the retired skin step wrote, in every profile it reached", function()
+  local active, parked, untouched = movedContainer(), movedContainer(), movedContainer()
+  local picked = movedContainer()
+  picked.label.color = { r = 0.2, g = 0.4, b = 0.6, a = 1 }
+  local a = { skin = { defaultsFollowSkin = true }, containers = { [1] = active, [2] = picked } }
+  local b = { skin = { defaultsFollowSkin = true }, containers = { [1] = parked } }
+  local c = { skin = {}, containers = { [1] = untouched } }
+  local step = step3()
+  assertTrue(step ~= nil, "a step 3")
+  step.apply({ profile = a, sv = { profiles = { A = a, B = b, C = c } } })
+  for _, moved in ipairs({ active, parked }) do
+    -- red under: no restore, or one over the active profile alone
+    eachCompanion(moved, function(part, key) assertEqual(part[key], false, key) end)
+    assertEqual(moved.label.outline, "OUTLINE")
+  end
+  assertNil(a.skin.defaultsFollowSkin, "the record cleared")
+  assertNil(b.skin.defaultsFollowSkin, "the record cleared")
+  assertEqual(picked.label.colorFromSkin, true, "on beside a picked color was never the step's write")
+  eachCompanion(untouched, function(part, key) assertEqual(part[key], true, "no record, untouched: " .. key) end)
+end)
+
+test("database: the load moves nothing onto the skin", function()
   local saved = NS.db
-  local p = { containers = { [1] = storedBefore108() }, containerOrder = { 1 } }
-  p.containers[1].label.color = { r = 0, g = 0, b = 1, a = 1 }
+  local c = D.DeepCopy(NS.CONTAINER_TEMPLATE)
+  eachCompanion(c, function(part, key) part[key] = nil end)
+  local p = { containers = { [1] = c }, containerOrder = { 1 } }
   NS.db = { profile = p, global = saved.global }
   local ok, err = pcall(NS.RunMigrations, NS)
   NS.db = saved
   assertTrue(ok, tostring(err))
-  assertEqual(p.containers[1].label.colorFromSkin, false, "the backfill did not fill true over the pick")
-  assertEqual(p.containers[1].elements.number.colorFromSkin, true, "the white swatch moved")
-  assertEqual(p.containers[1].elements.number.outline, "@skin")
-  assertEqual(p.skin.defaultsFollowSkin, true)
-end)
-
-test("database: a new container takes the template's skin companions, all on", function()
-  local c = D.DeepCopy(NS.CONTAINER_TEMPLATE)
-  for _, part in ipairs({ c.label, c.elements.number, c.elements.text }) do
-    assertEqual(part.outline, "@skin"); assertEqual(part.colorFromSkin, true); assertEqual(part.shadowFromSkin, true)
-  end
-  assertEqual(c.elements.indicator.colorFromSkin, true)
-  assertEqual(c.frame.border.textureFromSkin, true); assertEqual(c.frame.border.colorFromSkin, true)
-  assertEqual(c.frame.background.colorFromSkin, true)
+  -- red under: FollowSkinDefaults from RunMigrations, or a backfill of true
+  eachCompanion(c, function(part, key) assertEqual(part[key], false, key) end)
+  assertNil(p.skin and p.skin.defaultsFollowSkin, "no record")
 end)

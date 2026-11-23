@@ -206,20 +206,20 @@ Kit.skinSwitch = {
     -- meaning, an OVERRIDE), and the container's border and background in Band are held by the same
     -- ruling.
     { name = "a range container's number", scope = "fonts", hold = "color", build = function()
-      return skinTarget({}).elements.number.fs
+      return skinTarget({ elements = { number = { shadowFromSkin = true, outline = "@skin" } } }).elements.number.fs
     end, paint = flush, reset = dropTarget },
-    -- The caption: Fixed by default, following the skin's hud.label (SD-SK-RM.3).
+    -- The caption: Fixed, its companion ticked (off by default): hud.label (SD-SK-RM.3).
     { name = "a container's caption", scope = "fonts", companion = function() end, build = function()
-      return skinTarget({ label = { enabled = true } }).caption.fs
+      return skinTarget({ label = { enabled = true, colorFromSkin = true, shadowFromSkin = true, outline = "@skin" } }).caption.fs
     end, paint = flush, reset = dropTarget },
     -- The Text element, Fixed with its companion on: hud.text (SD-SK-RM.4).
     { name = "a container's Text element (Fixed)", scope = "fonts", companion = function() end, build = function()
       return skinTarget({ layout = { joinText = false },
-        elements = { text = { enabled = true, colorMode = "fixed", color = FIXED } } }).elements.text.fs
+        elements = { text = { enabled = true, colorMode = "fixed", color = FIXED, colorFromSkin = true, shadowFromSkin = true, outline = "@skin" } } }).elements.text.fs
     end, paint = flush, reset = dropTarget },
     -- The dot's art, Fixed: only its tint follows (the shape is skinning-§9's icon-shape Leave).
     { name = "a container's dot (Fixed)", companion = function() end, build = function()
-      return skinTarget({ elements = { indicator = { enabled = true, colorMode = "fixed", color = FIXED } } })
+      return skinTarget({ elements = { indicator = { enabled = true, colorMode = "fixed", color = FIXED, colorFromSkin = true } } })
         .elements.indicator.tex
     end, paint = flush, reset = dropTarget },
     -- The Bar dot: LibKa0s-Widgets' data bar, its fill the skin's bar texture (SD-LK-97.2, 97.3);
@@ -235,8 +235,8 @@ Kit.skinSwitch = {
     end },
     -- The border and background in Fixed, their companions on: bar.border and bar.bg (SD-SK-RM.4).
     { name = "a container's border and background (Fixed)", companion = function() end, build = function()
-      local inst = skinTarget({ frame = { border = { colorMode = "fixed", color = FIXED, alpha = 1 },
-        background = { enabled = true, colorMode = "fixed", color = FIXED } } })
+      local inst = skinTarget({ frame = { border = { colorMode = "fixed", color = FIXED, alpha = 1, colorFromSkin = true },
+        background = { enabled = true, colorMode = "fixed", color = FIXED, colorFromSkin = true } } })
       return inst.border.frame, inst.background
     end, paint = flush, reset = dropTarget },
     -- The spell chips: each answer in the skin's sem.good / sem.bad / sem.unknown (SD-SK-RM.10).
