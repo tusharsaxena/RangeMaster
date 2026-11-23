@@ -32,9 +32,17 @@ if not lib then
         return NS.SECRET
     end
 
+    -- `unit`, or `standIn` while `unit` does not exist (Core minor 20: a preview passes "player").
+    local function classUnit(unit, standIn)
+        if standIn == nil or unit == nil or type(UnitExists) ~= "function" then return unit end
+        local ok, exists = pcall(UnitExists, unit)
+        if ok and not exists then return standIn end
+        return unit
+    end
+
     -- A unit's class color, or nil when the class does not resolve (an NPC, no such unit).
-    function NS.ClassColor(unit)
-        local ok, _, token = pcall(UnitClass, unit or "player")
+    function NS.ClassColor(unit, standIn)
+        local ok, _, token = pcall(UnitClass, classUnit(unit, standIn) or "player")
         local c = (ok and type(token) == "string" and type(RAID_CLASS_COLORS) == "table")
             and RAID_CLASS_COLORS[token] or nil
         if type(c) ~= "table" or type(c.r) ~= "number" then return nil end
@@ -43,11 +51,11 @@ if not lib then
 
     -- The class-color resolver (options-ui-§17): the stored alpha survives the mode, an
     -- unresolvable class falls through to the stored swatch, and the swatch is read under both.
-    function NS.ResolveColor(stored, on, unit)
+    function NS.ResolveColor(stored, on, unit, standIn)
         if type(stored) ~= "table" then stored = {} end
         local r, g, b, a = stored.r or 1, stored.g or 1, stored.b or 1, stored.a or 1
         if not on then return r, g, b, a end
-        local cr, cg, cb = NS.ClassColor(unit)
+        local cr, cg, cb = NS.ClassColor(unit, standIn)
         if cr == nil then return r, g, b, a end
         return cr, cg, cb, a
     end

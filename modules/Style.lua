@@ -13,7 +13,9 @@ local _, NS = ...
 --                    (options-ui-§17: a range container describes its unit, so the class is the
 --                    unit's; through NS.ResolveColor, so an NPC or a class the client has not answered
 --                    for falls through to the swatch). The renderer repaints on a unit change
---                    (modules/Container.lua, UnitChanged), so the color follows a retarget.
+--                    (modules/Container.lua, UnitChanged), so the color follows a retarget. While a
+--                    preview draws a unit that does not exist, ctx.standIn ("player") is resolved
+--                    instead (options-ui-§17 *A preview shows a class*, LibKa0s Core minor 20).
 --   NS.Style.SkinColor(cfg, kind) -> fn or nil   the skin color `cfg` follows in Fixed mode while its
 --                    `colorFromSkin` companion is on (skinning-§9): kind "text" S.HudTextColor, "label"
 --                    S.HudLabelColor, any other a color token's name (bar.border, bar.bg)
@@ -56,7 +58,7 @@ function Style.Color(mode, stored, ctx, field, skin)
         end
         return NS.ResolveColor(stored, false)
     end
-    if mode == "class" then return NS.ResolveColor(stored, true, ctx.unit) end
+    if mode == "class" then return NS.ResolveColor(stored, true, ctx.unit, ctx.standIn) end
     local row = ctx.row
     local c = row and row[field]
     if not c then c = ctx.set and ctx.set.unknown and ctx.set.unknown.color end

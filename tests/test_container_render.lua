@@ -756,6 +756,37 @@ test("render: colorMode class reads the TRACKED unit's class, and follows a targ
   end, "MAGE")
 end)
 
+-- FB-RM-01 (owner feedback 2026-11-24, P; options-ui-§17 *A preview shows a class*, standard v2.119.0):
+-- in test mode with no target the tracked unit does not exist, so its class never resolves. The preview
+-- resolves its stand-in, the player, through LibKa0s Core minor 20's standIn; a real unit still wins.
+test("render: colorMode class in test mode with no unit draws the player's class, a real unit still wins", function()
+  withRenderer(function()
+    local classOf = { player = "MAGE", target = "WARRIOR" }
+    local realClass = M.UnitClass
+    M.UnitClass = function(unit) local t = classOf[unit or "player"]; return t, t end
+    local ok, err = pcall(function()
+      local fixed = { r = 0.2, g = 0.4, b = 0.6, a = 1 }
+      M.__unitExists.target = false
+      classOf.target = nil
+      local _, _, inst = newContainer({ frame = { border = { colorMode = "class", color = fixed } },
+        elements = { number = { colorMode = "class", color = fixed } } })
+      assertTrue(NS.SetTestMode(true, "test"), "test mode started")
+      local fs = inst.elements.number.fs
+      -- red under: Style.Color passing no stand-in, which draws the stored swatch
+      assertColor(color3({ fs:GetTextColor() }), M.RAID_CLASS_COLORS.MAGE, "the preview's stand-in class")
+      assertColor(M.__paint(inst.border.strips[1]).color, M.RAID_CLASS_COLORS.MAGE, "border too")
+      M.__unitExists.target = true
+      classOf.target = "WARRIOR"
+      M.__fireEvent("PLAYER_TARGET_CHANGED")
+      assertColor(color3({ fs:GetTextColor() }), M.RAID_CLASS_COLORS.WARRIOR, "a real target's class wins")
+      NS.SetTestMode(false, "test")
+    end)
+    NS.SetTestMode(false, "test")
+    M.UnitClass = realClass
+    if not ok then error(err, 0) end
+  end, "MAGE")
+end)
+
 test("render: a skin change in combat re-applies nothing until combat ends", function()
   -- red under: OnLooksChanged calling Container.Sync directly, which places frames mid-combat.
   withRenderer(function()

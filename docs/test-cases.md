@@ -172,7 +172,7 @@ Total.
 - number: no unit reads nothing, and an unknown format reads as range
 - number: a known state with no far bound and no near bound reads unknown, not 0
 
-### test_container_render.lua (63)
+### test_container_render.lua (64)
 
 - render: an enabled container gets one pooled instance, watching its unit, drawn at once
 - render: Release returns the frame to the pool cleanly, and the next Acquire reuses it
@@ -210,6 +210,7 @@ Total.
 - render: a target swap at the same bracket asks every spell chip again
 - render: a spell chip's answer moving inside one bracket is drawn on the next tick
 - render: colorMode class reads the TRACKED unit's class, and follows a target swap
+- render: colorMode class in test mode with no unit draws the player's class, a real unit still wins
 - render: a skin change in combat re-applies nothing until combat ends
 - render: an element font naming a LibSharedMedia key draws that face at the stored size
 - render: an element's shadow turns the font string's shadow offset on and off
@@ -981,7 +982,7 @@ Total.
 | test_container_manager.lua | 17 |
 | test_presets.lua | 17 |
 | test_number_format.lua | 5 |
-| test_container_render.lua | 63 |
+| test_container_render.lua | 64 |
 | test_anchors_screen.lua | 15 |
 | test_anchors_frame.lua | 18 |
 | test_anchors_nameplate.lua | 33 |
@@ -1030,4 +1031,4 @@ Total.
 | test_skin_switch.lua | 20 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **796** |
+| **Total** | **797** |
