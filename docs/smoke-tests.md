@@ -530,13 +530,16 @@ a training dummy for each. The spell IDs are the anchors in `defaults/SpellSeeds
   the out-of-range chime on target and the Healer set as the friendly override on target, focus and
   mouseover. `/rm preset text`, `/rm preset numbers` and `/rm preset expert` reach the same; `/rm
   preset intermediate` prints the usage line. Result:
-- **PRESET-5. The dropdown's selected row stands apart (FB2-RM-01, LibKa0s v1.113.0, WidgetsDropdown
-  minor 4; skinning-§4 *A selected entry reads apart*, standard v2.120.0).** `/rm preset`, pick
-  **Intermediate (Range Text)**, then open the dropdown again → its row is gold under Ka0s Default and
-  plainly a different color from the five other rows. `/rm skin`, choose **Azeroth** and open the
-  dropdown again → the selected row is gold, not the parchment text the other rows wear; under
-  **Obsidian** it is the skin's accent, again unlike the other rows. Put the skin back when done.
-  **Fail:** a selected row the same color as the rows around it. Result:
+- **PRESET-5. The dropdown's selected row stands apart (FB2-RM-01, amended by FB2-RM-02 for the
+  owner's ruling of 2026-11-24: gold in every skin; LibKa0s v1.113.0, WidgetsDropdown minor 4;
+  skinning-§4 *A selected entry reads apart*, standard v2.120.0).** `/rm preset`, pick
+  **Intermediate (Range Text)**, then open the dropdown again → its row is Ka0s Default's gold and
+  plainly a different color from the five other rows. `/rm skin`, choose **Azeroth**, then
+  **Obsidian**, and open the dropdown again under each → the selected row is the same gold in both,
+  not the skin's accent and unlike the other rows. On WoW Forever, under the default **WoW Forever**
+  skin → the selected row is gold too, not the skin's tan accent. Put the skin back when done.
+  **Fail:** a selected row the same color as the rows around it, or in a skin's accent rather than
+  gold. Result:
 
 ## Anchors
 
@@ -710,5 +713,5 @@ Set the rules on Containers → Visibility.
 | DRAW-6 | the LibKa0s v1.108.0 re-vendor (Ka0sAddonsCommonTasks 2026-11-20-LIBKA0S_94_97_99_100, SD-RV-RM), 2026-11-20 | the Bar dot's skin border and Glass gloss have not been seen in a client yet |
 | RANGE-6..11, BANDS-6..10 | the spell-driven dynamic bands (plan 2026-11-19-dynamic-bands, D1-D7), 2026-11-19 | whether the client reports talented ranges and answers by rank ID, which event a talent point fires, the rule controls, the owner's Hawk Eye case and the v1 -> v2 conversion have not been seen in a client yet |
 | DIAG-4, DRAW-11, DRAW-12 | the LibKa0s v1.112.0 re-vendor and the preview stand-in (Ka0sAddonsCommonTasks 2026-11-24-FEEDBACK_BATCH, FB-RM-01), 2026-11-24 | the copy window's close-only title bar, Class mode's stand-in class in test mode and unlock, and High Contrast's one-pixel HUD shadow have not been seen in a client yet |
-| MODES-8, PRESET-5 | the LibKa0s v1.113.0 re-vendor (Ka0sAddonsCommonTasks 2026-11-24-FEEDBACK_BATCH, round 2, FB2-RM-01), 2026-11-24 | the step panel on every start path and the preset dropdown's selected row under Azeroth have not been seen in a client yet |
+| MODES-8, PRESET-5 | the LibKa0s v1.113.0 re-vendor (Ka0sAddonsCommonTasks 2026-11-24-FEEDBACK_BATCH, round 2, FB2-RM-01), 2026-11-24 | the step panel on every start path and the preset dropdown's selected row in gold under every skin (Azeroth, Obsidian, WoW Forever on Forever; amended by FB2-RM-02) have not been seen in a client yet |
 | ANCHOR-13 | the LibKa0s v1.111.0 re-vendor (Ka0sAddonsCommonTasks 2026-11-23-STRIP_RIGHT_CLICK, SRC-RM-01), 2026-11-23 | the strip's right-click on the band and each mark, now the gear's own action with no `onRightClick` (DragHandle minor 17), has not been seen in a client yet |

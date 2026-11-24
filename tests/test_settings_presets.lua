@@ -326,8 +326,10 @@ end)
 
 -- FB2-RM-01 (Ka0sAddonsCommonTasks docs/2026-11-24-FEEDBACK_BATCH, decision D3; WidgetsDropdown
 -- minor 4): the picker's dropdown is LibKa0s-Widgets-1.0's, so its selected row paints the library's
--- selected color, which always stands off a plain row's, under every skin the case walks (Azeroth is
--- the skin whose own `menu.textSel` sits too near its `menu.text`).
+-- selected color, which always stands off a plain row's, under every skin the case walks. FB2-RM-02
+-- (the owner's ruling of 2026-11-24 on round 2, FB2-LK-04): that color is Ka0s Default's gold in every
+-- shipped skin, WoW Forever's (the Forever default, whose tan accent round 2 kept) and Obsidian's
+-- included; a skin's own `menu.textSel` stands in only where the gold sits too near its `menu.text`.
 
 --- The shared menu `dd` opened, found by its open registration (the menu is the library's own
 --- frame, built once for the whole suite).
@@ -362,7 +364,8 @@ local function spyRows(menu)
 end
 
 test("presets: the picker dropdown's selected row stands off its plain rows, under every skin walked", function()
-  -- red under: a host-painted selection, or WidgetsDropdown 3's raw menu.textSel (Azeroth's 16.3 dE00).
+  -- red under: a host-painted selection, WidgetsDropdown 3's raw menu.textSel (Azeroth's 16.3 dE00), or
+  -- round 2's first cut of minor 4, which kept a skin's accent (WoW Forever's tan, Obsidian's) when far enough.
   local Skin = M.LibStub("LibKa0s-Skin-1.0")
   local W = M.LibStub("LibKa0s-Widgets-1.0")
   withPicker(function(_, C)
@@ -371,7 +374,7 @@ test("presets: the picker dropdown's selected row stands off its plain rows, und
     local dd = P.frame.dd
     assertEqual(dd._value, "text", "the dropdown holds the pick")
     local ok, err = pcall(function()
-      for _, key in ipairs({ "ka0s", "azeroth", "obsidian" }) do
+      for _, key in ipairs({ "ka0s", "azeroth", "obsidian", "forever" }) do
         Skin:SetChoice("RangeMaster", "ka0s", key)
         local menu = openedMenu(dd)
         assertTrue(menu ~= nil, key .. ": the dropdown opened the shared menu")
@@ -389,6 +392,7 @@ test("presets: the picker dropdown's selected row stands off its plain rows, und
         closeMenu(W, menu)
         local r, g, b = W.SelectedColor("RangeMaster")
         assertEqual(sel, ("%.3f,%.3f,%.3f"):format(r, g, b), key .. ": the selected row is the library's selected color")
+        assertEqual(sel, ("%.3f,%.3f,%.3f"):format(1, 0.82, 0), key .. ": the selected row is Ka0s Default's gold")
         assertTrue(#plain >= 5, key .. ": the five other presets are plain rows")
         for _, c in ipairs(plain) do assertTrue(c ~= sel, key .. ": a plain row is not the selected color") end
       end
