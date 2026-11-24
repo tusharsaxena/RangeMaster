@@ -533,7 +533,8 @@ test("range: the anchors carry the critic's corrections", function()
     return false
   end
   local fh = NS.SpellSeeds.forever.HUNTER.anchors
-  assertEqual(fh.melee[1], 2973, "Forever hunter melee starts at Raptor Strike")
+  assertEqual(fh.melee[1], 6603, "Forever hunter melee is Attack (the owner, 2026-11-24)")
+  assertFalse(has(fh.melee, 2973), "no Raptor Strike: it answers in range at any distance on Forever")
   assertFalse(has(fh.melee, 1495), "no Mongoose Bite: it is reactive")
   assertEqual(fh.ranged[1], 75, "Forever hunter ranged starts at Auto Shot")
   local fd = NS.SpellSeeds.forever.DRUID.anchors.melee
