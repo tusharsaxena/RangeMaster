@@ -41,7 +41,8 @@ def fixture_tables(tmp_path, forever=True, thin=False):
     misc = [(W_STRIKE, 2), (W_THROW, 74), (W_TAUNT, 4), (W_SELF, 1), (W_FAR_MELEE, 3), (M_BOLT, 35), (M_BOLT_R2, 35),
             (M_BUFF, 4), (M_GHOST, 1), (OTHER_CLASS, 4), (MASKED, 74), (116, 4), (133, 35), (5176, 4)]
     t["SpellMisc"] = write_csv(tmp_path / "SpellMisc.csv", ["ID", "DifficultyID", "RangeIndex", "SpellID"],
-                               [(i + 1, 0, r, s) for i, (s, r) in enumerate(misc)] + [(99, 1, 6, W_STRIKE)])
+                               # A difficulty-1 row comes first: only DifficultyID 0 rows may set a spell's range.
+                               [(99, 1, 6, W_STRIKE)] + [(i + 1, 0, r, s) for i, (s, r) in enumerate(misc)])
     t["SpellRange"] = write_csv(tmp_path / "SpellRange.csv",
                                 ["ID", "DisplayName_lang", "RangeMin_0", "RangeMin_1", "RangeMax_0", "RangeMax_1"],
                                 [(1, "Self Only", 0, 0, 0, 0), (2, "Combat Range", 0, 0, 5, 5), (3, "Short Range", 0, 0, 20, 20),
@@ -187,6 +188,13 @@ def test_ranged_reach_flag(tmp_path):
     facts = seeds.Facts(tables)
     v = seeds.verdict(facts, "forever", "WARRIOR", "ranged", W_STRIKE, {}, [], 8)
     assert [f["kind"] for f in v["flags"]] == ["ranged-reach"], "a 5 yd ranged anchor reaches no farther than melee"
+
+
+def test_spellmisc_reads_difficulty_zero_only(tmp_path):
+    facts = seeds.Facts(fixture_tables(tmp_path))
+    v = seeds.verdict(facts, "forever", "WARRIOR", "melee", W_STRIKE, {}, [], 8)
+    assert (v["rangeName"], v["min"], v["max"]) == ("Combat Range", 0, 5), \
+        "a DifficultyID 1 SpellMisc row listed first must not set the spell's range"
 
 
 def test_rank_flags(tmp_path):

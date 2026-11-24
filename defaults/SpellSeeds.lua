@@ -82,6 +82,7 @@ NS.SpellSeeds = {
                         anchors = { ranged = { 362969, 361469, 356995 }, friendly = { 361469 } } },
     },
     forever = {
+        -- ladder emptied: Throw 2764 is 8-30, never a rung (seed-research 2026-11-25-forever).
         WARRIOR = { chips = { 100, 2764, 20252 },  ladder = {},
                     anchors = { melee = { 78, 772, 1715 }, ranged = { 100, 20252, 2764, 2480, 7918, 7919 } } },
         -- Holy Strike 679 (L6, 0-5; WoW Forever's own trainer strike, absent from Classic Era) is the
@@ -93,6 +94,7 @@ NS.SpellSeeds = {
         -- the 5-8 yd dead zone read MELEE. Below level 12 the melee band reads its yards.
         HUNTER  = { chips = { 75, 3044, 1130 },    ladder = { 1130 },
                     anchors = { melee = { 2974 }, ranged = { 75, 3044, 1978 } } },
+        -- ladder emptied: Throw 2764 is 8-30, never a rung (seed-research 2026-11-25-forever).
         ROGUE   = { chips = { 2764, 1766, 1752 },  ladder = {},
                     anchors = { melee = { 1752, 1776, 1766 }, ranged = { 2764, 2480, 7918, 7919, 1725 } } },
         PRIEST  = { chips = { 585, 589, 2050 },    ladder = { 585, 2050 },

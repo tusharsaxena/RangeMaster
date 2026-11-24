@@ -8,7 +8,7 @@
     "ruling": "keep"
   },
   "shipped:band-reach:EVOKER.friendly:361469": {
-    "reason": "precedent, the owner 2026-11-19 (modules/BandSets.lua header): an Evoker's 25-30 yd friend is not NEAR when Living Flame cannot reach; every Evoker spell is 25 yd on 12.1.5.70961",
+    "reason": "precedent, the owner 2026-11-19 (modules/BandSets.lua header): an Evoker's 25-30 yd friend is not NEAR when Living Flame cannot reach; every Evoker seed (Azure Strike 362969, Living Flame 361469, Disintegrate 356995) is 25 yd on 12.1.5.70961",
     "ruling": "keep"
   },
   "shipped:band-reach:EVOKER.ranged:362969": {

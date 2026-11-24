@@ -40,7 +40,7 @@
     "ruling": "remove"
   },
   "shipped:ladder-min:WARRIOR.ladder:2764": {
-    "reason": "SpellRange 74 Ranged Weapon is 8-30 on 1.60.1.71091: Compat spellRung drops any min-range seed, so Throw never was a rung (RANGE-3: a fresh warrior's edges are the item and interact rungs only); docs/common-tasks.md puts a min-range spell in chips, not ladder. Judgment call: removed, not replaced (no learnable warrior spell with no min range and a reach past melee)",
+    "reason": "SpellRange 74 Ranged Weapon is 8-30 on 1.60.1.71091: Compat spellRung drops any min-range seed, so Throw never was a rung (RANGE-3: a fresh warrior's edges are the item and interact rungs only); docs/common-tasks.md puts a min-range spell in chips, not ladder. Judgment call: removed, not replaced. The one learnable warrior spell with no min range and a reach past melee is Intimidating Shout 5246 (SpellRange Very Short Range, 0-10, warrior ClassMask in SkillLineAbility); it is not used, because a 10 yd rung duplicates the 10 yd item rung RANGE-3 already lists, and the spell is trained at level 22 (game knowledge, not this bundle's tables)",
     "ruling": "remove"
   }
 }

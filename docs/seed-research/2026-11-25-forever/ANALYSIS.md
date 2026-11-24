@@ -64,5 +64,9 @@ Throw stays a warrior and rogue chip and a ranged anchor, where a min range is w
 
 - Whether a Forever patch gives a class a ranged spell with no min range that a ladder could use (a
   ladder that no longer lists Throw cannot flag it: look at the DIFF's chips and ranged rows).
+- **Needs owner review:** `forever.ROGUE.anchors.ranged` keeps Distract 1725 (0-30, no min range). It is
+  an area cast placed with a targeting circle (game knowledge; these tables do not show targeting), so a
+  unit range check may never answer it in range, and the data cannot decide whether it earns its place
+  as an anchor. The data is unchanged; the owner rules whether it stays.
 - Whether the owner reshapes the Forever presets' yards (the nine `band-reach` keeps would then fall
   away or move).
