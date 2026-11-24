@@ -9,3 +9,7 @@ Thumbs.db
 
 # Dev-only working notes; excluded from packaging too
 _dev/
+
+# tools/seeds: the per-build wago.tools download cache, and Python bytecode
+tools/seeds/.cache/
+__pycache__/
