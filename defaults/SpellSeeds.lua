@@ -14,7 +14,8 @@ local _, NS = ...
 --            when the player knows the spell and the client reports a max range above 0 with no
 --            min range (a min-range spell such as Charge cannot bound a bracket from one side),
 --            at that max range. Retail's ladder is never walked (LibRangeCheck answers there);
---            Forever walks it only when LibRangeCheck has no answer (modules/Range.lua).
+--            Forever walks it only when LibRangeCheck has no answer (modules/Range.lua). A class
+--            with no such spell has an empty ladder (Forever's warrior and rogue: Throw is 8-30).
 --   anchors  the spells a band's spell rule asks "in range?" (dynamic-bands plan D1; research doc
 --            docs/superpowers/specs/2026-11-19-dynamic-bands-research.md section 6, with part 2's
 --            corrections). One ordered fallback list per ROLE: the first one the player knows is
@@ -32,10 +33,15 @@ local _, NS = ...
 -- Forever is a vanilla world: no Death Knight, Monk, Demon Hunter or Evoker, and vanilla spell IDs
 -- (rank 1, which is what the spellbook range check reads). The IDs are the classic, long-stable
 -- ones; docs/smoke-tests.md carries the in-game check that each one resolves on both clients.
+--
+-- RE-VALIDATED against each client's own DB2 (clients-§10) by tools/seeds/seeds.py, the contract
+-- docs/validate-seeds.md: retail on wow 12.1.5.70961 and forever on wowf 1.60.1.71091, 2026-11-25
+-- (docs/seed-research/2026-11-25-retail/ and 2026-11-25-forever/). The tool writes the lists'
+-- ids; this header is rolled by hand.
 
 NS.SpellSeeds = {
     retail = {
-        WARRIOR     = { chips = { 100, 57755, 355 },          ladder = { 57755, 355 },
+        WARRIOR     = { chips = { 100, 57755, 355 },          ladder = { 355 },
                         anchors = { melee = { 1464, 6552 }, ranged = { 57755, 355, 100 } } },
         PALADIN     = { chips = { 20271, 62124, 19750 },      ladder = { 20271, 19750 },
                         anchors = { melee = { 35395, 96231 }, ranged = { 20271, 31935 },
@@ -76,7 +82,7 @@ NS.SpellSeeds = {
                         anchors = { ranged = { 362969, 361469, 356995 }, friendly = { 361469 } } },
     },
     forever = {
-        WARRIOR = { chips = { 100, 2764, 20252 },  ladder = { 2764 },
+        WARRIOR = { chips = { 100, 2764, 20252 },  ladder = {},
                     anchors = { melee = { 78, 772, 1715 }, ranged = { 100, 20252, 2764, 2480, 7918, 7919 } } },
         -- Holy Strike 679 (L6, 0-5; WoW Forever's own trainer strike, absent from Classic Era) is the
         -- melee anchor; the seal-and-judge spell 20271 is 0-10 yd, too far for a melee band.
@@ -87,7 +93,7 @@ NS.SpellSeeds = {
         -- the 5-8 yd dead zone read MELEE. Below level 12 the melee band reads its yards.
         HUNTER  = { chips = { 75, 3044, 1130 },    ladder = { 1130 },
                     anchors = { melee = { 2974 }, ranged = { 75, 3044, 1978 } } },
-        ROGUE   = { chips = { 2764, 1766, 1752 },  ladder = { 2764 },
+        ROGUE   = { chips = { 2764, 1766, 1752 },  ladder = {},
                     anchors = { melee = { 1752, 1776, 1766 }, ranged = { 2764, 2480, 7918, 7919, 1725 } } },
         PRIEST  = { chips = { 585, 589, 2050 },    ladder = { 585, 2050 },
                     anchors = { ranged = { 585, 8092, 589 }, friendly = { 2050, 2061 } } },

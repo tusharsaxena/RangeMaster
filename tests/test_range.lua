@@ -552,6 +552,21 @@ test("range: the anchors carry the critic's corrections", function()
   end
 end)
 
+test("range: no ladder seed is a min-range spell (seed validation, 2026-11-25)", function()
+  -- red under: Throw 2764 (8-30 on wowf 1.60.1.71091) or Heroic Throw 57755 (8-30 on wow
+  -- 12.1.5.70961) back in a ladder. spellRung drops a min-range seed, so it was never a rung
+  -- (docs/seed-research/2026-11-25-*/RULINGS.md, ladder-min).
+  local function has(list, id)
+    for _, v in ipairs(list) do if v == id then return true end end
+    return false
+  end
+  assertFalse(has(NS.SpellSeeds.retail.WARRIOR.ladder, 57755), "retail warrior: no Heroic Throw rung")
+  assertTrue(has(NS.SpellSeeds.retail.WARRIOR.ladder, 355), "retail warrior: Taunt (0-30) stays")
+  assertEqual(#NS.SpellSeeds.forever.WARRIOR.ladder, 0, "forever warrior: no ladder spell")
+  assertEqual(#NS.SpellSeeds.forever.ROGUE.ladder, 0, "forever rogue: no ladder spell")
+  assertTrue(has(NS.SpellSeeds.forever.WARRIOR.chips, 2764), "Throw stays a chip")
+end)
+
 test("range: a rebuild builds no ladder; only a Forever walk does, on first need", function()
   -- red under: rebuildNow calling NS.Compat.RangeLadder() eagerly (Retail builds a ladder it never
   -- walks: it has no ladder fallback).

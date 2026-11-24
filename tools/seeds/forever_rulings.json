@@ -1,0 +1,46 @@
+{
+  "shipped:band-reach:DRUID.ranged:5176": {
+    "reason": "keep: precedent, the owner 2026-11-19 (modules/BandSets.lua header): a spell band's anchor out of range past its reach reads OOR whatever the band's yards say; the preset's yards are the fallback, and no seed of this class on this client reaches farther (DB2 cannot move a preset's yards)",
+    "ruling": "keep"
+  },
+  "shipped:band-reach:MAGE.friendly:1459": {
+    "reason": "keep: precedent, the owner 2026-11-19 (modules/BandSets.lua header): a spell band's anchor out of range past its reach reads OOR whatever the band's yards say; the preset's yards are the fallback, and no seed of this class on this client reaches farther (DB2 cannot move a preset's yards); Arcane Intellect is the mage's only friendly-targeted seed",
+    "ruling": "keep"
+  },
+  "shipped:band-reach:MAGE.ranged:133": {
+    "reason": "keep: precedent, the owner 2026-11-19 (modules/BandSets.lua header): a spell band's anchor out of range past its reach reads OOR whatever the band's yards say; the preset's yards are the fallback, and no seed of this class on this client reaches farther (DB2 cannot move a preset's yards); talents (RANGE-6: the client reports the talented reach) can carry it to 41",
+    "ruling": "keep"
+  },
+  "shipped:band-reach:PALADIN.ranged:879": {
+    "reason": "keep: precedent, the owner 2026-11-19 (modules/BandSets.lua header): a spell band's anchor out of range past its reach reads OOR whatever the band's yards say; the preset's yards are the fallback, and no seed of this class on this client reaches farther (DB2 cannot move a preset's yards)",
+    "ruling": "keep"
+  },
+  "shipped:band-reach:PRIEST.ranged:585": {
+    "reason": "keep: precedent, the owner 2026-11-19 (modules/BandSets.lua header): a spell band's anchor out of range past its reach reads OOR whatever the band's yards say; the preset's yards are the fallback, and no seed of this class on this client reaches farther (DB2 cannot move a preset's yards)",
+    "ruling": "keep"
+  },
+  "shipped:band-reach:ROGUE.ranged:2764": {
+    "reason": "keep: precedent, the owner 2026-11-19 (modules/BandSets.lua header): a spell band's anchor out of range past its reach reads OOR whatever the band's yards say; the preset's yards are the fallback, and no seed of this class on this client reaches farther (DB2 cannot move a preset's yards)",
+    "ruling": "keep"
+  },
+  "shipped:band-reach:SHAMAN.ranged:403": {
+    "reason": "keep: precedent, the owner 2026-11-19 (modules/BandSets.lua header): a spell band's anchor out of range past its reach reads OOR whatever the band's yards say; the preset's yards are the fallback, and no seed of this class on this client reaches farther (DB2 cannot move a preset's yards)",
+    "ruling": "keep"
+  },
+  "shipped:band-reach:WARLOCK.ranged:686": {
+    "reason": "keep: precedent, the owner 2026-11-19 (modules/BandSets.lua header): a spell band's anchor out of range past its reach reads OOR whatever the band's yards say; the preset's yards are the fallback, and no seed of this class on this client reaches farther (DB2 cannot move a preset's yards)",
+    "ruling": "keep"
+  },
+  "shipped:band-reach:WARRIOR.ranged:2764": {
+    "reason": "keep: precedent, the owner 2026-11-19 (modules/BandSets.lua header): a spell band's anchor out of range past its reach reads OOR whatever the band's yards say; the preset's yards are the fallback, and no seed of this class on this client reaches farther (DB2 cannot move a preset's yards)",
+    "ruling": "keep"
+  },
+  "shipped:ladder-min:ROGUE.ladder:2764": {
+    "reason": "SpellRange 74 Ranged Weapon is 8-30 on 1.60.1.71091: Compat spellRung drops any min-range seed, so Throw never was a rung; docs/common-tasks.md puts a min-range spell in chips, not ladder. Judgment call: removed, not replaced. The only 0-30 rogue seed, Distract 1725, is an area cast placed with a targeting circle (game knowledge, not this bundle's tables), so a unit range check is not expected to answer it; a rogue rung is for owner review",
+    "ruling": "remove"
+  },
+  "shipped:ladder-min:WARRIOR.ladder:2764": {
+    "reason": "SpellRange 74 Ranged Weapon is 8-30 on 1.60.1.71091: Compat spellRung drops any min-range seed, so Throw never was a rung (RANGE-3: a fresh warrior's edges are the item and interact rungs only); docs/common-tasks.md puts a min-range spell in chips, not ladder. Judgment call: removed, not replaced (no learnable warrior spell with no min range and a reach past melee)",
+    "ruling": "remove"
+  }
+}

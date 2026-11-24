@@ -21,7 +21,7 @@ unless a check names one. The anchors are run as a matrix, one result per mode a
 | DIAG-1..4 | Diagnostics | the console, the report, the perf verb, the copy window's close-only title bar |
 | DEGRADED-1 | Degraded | the library-absent install |
 | LOC-1 | Non-English client | a deDE or frFR client |
-| RANGE-1..18 | Range engine | brackets, unknown, the Forever ladder, the ticker's rate and stop, the seed spells; the anchor probes: reported ranges under talents, rank IDs, the talent event, overrides, Auto Shot unarmed |
+| RANGE-1..21 | Range engine | brackets, unknown, the Forever ladder, the ticker's rate and stop, the seed spells; the anchor probes: reported ranges under talents, rank IDs, the talent event, overrides, Auto Shot unarmed; the seed-validation ladder changes |
 | DRAW-1..12 | Containers drawn | brackets drawn, unknown gray, elements and order, the skin face, disable, the Bar dot's border and gloss, Fixed colors, outline and shadow, the border and the spell chips following the skin, Class mode in test mode, High Contrast's HUD shadow |
 | CONT-1..14 | Containers page | New container (no band preview), the rail, Position, Duplicate / Delete / Copy settings from, Defaults, Color from, the Dot tab and its Style tiles, Border opacity, the caption's positions, the caption's styling, one line, the skin companion rows, the Style tiles' Scope, the frame picker's label |
 | BANDS-1..11 | Band sets page | the picker, the Bands editor (no band ribbon), shared sets, the friendly override, the unknown label; spell bands: the rule controls, the read-out, the owner's Hawk Eye case, the dead zone, the v1 -> v2 conversion, the band rail |
@@ -298,6 +298,24 @@ a training dummy for each. The spell IDs are the anchors in `defaults/SpellSeeds
   past 8 yd, RANGE (band 3, AUTO before 2026-11-24), and Format Range
   never writes a figure under 8 there (`8–10`, not `5–10`). Every format agrees with the band (About
   stays between 5 and 8 in the dead zone). Try it in and out of combat. Result: PASS (owner, 2026-11-25, WoW Forever)
+
+RANGE-19 to RANGE-21 are the shipped-data changes of the first seed validation (2026-11-25,
+`docs/seed-research/2026-11-25-forever/` and `2026-11-25-retail/`, *Judgment calls applied*). Each
+removed a ladder seed the code could never use, so each expects **no change** a player sees; a
+failure is a bracket edge that moved. Reverse one by putting its id back in `defaults/SpellSeeds.lua`.
+
+- **RANGE-19. The Forever warrior's ladder is empty (WoW Forever, Warrior).** With Throw learned and a
+  thrown weapon equipped, run `/dump C_Spell.GetSpellInfo(2764).minRange, C_Spell.GetSpellInfo(2764).maxRange`
+  → `8, 30` (the min range that kept Throw from ever being a rung). Target a training dummy and walk
+  away from it → the brackets land on RANGE-3's edges only (10, 20, 28, 30 and 35 yd), as before the
+  change. Result:
+- **RANGE-20. The Forever rogue's ladder is empty (WoW Forever, Rogue).** The same as RANGE-19 on a
+  rogue with Throw learned and a thrown weapon equipped: `8, 30`, and RANGE-3's edges only. Result:
+- **RANGE-21. The Retail warrior's ladder is Taunt alone (Retail, Warrior).** Run
+  `/dump C_Spell.GetSpellInfo(57755).minRange, C_Spell.GetSpellInfo(57755).maxRange` → `8, 30`. Target a
+  training dummy and walk away from it → the brackets step as RANGE-1 describes (LibRangeCheck answers
+  on Retail; the ladder is never walked), and Heroic Throw's chip still turns in range between 8 and
+  30 yd. Result:
 
 ## Containers drawn
 
@@ -724,3 +742,4 @@ Set the rules on Containers → Visibility.
 | MODES-8, PRESET-5 | the LibKa0s v1.113.0 re-vendor (Ka0sAddonsCommonTasks 2026-11-24-FEEDBACK_BATCH, round 2, FB2-RM-01), 2026-11-24 | the step panel on every start path and the preset dropdown's selected row in gold under every skin (Azeroth, Obsidian, WoW Forever on Forever; amended by FB2-RM-02) have not been seen in a client yet |
 | ANCHOR-13 | the LibKa0s v1.111.0 re-vendor (Ka0sAddonsCommonTasks 2026-11-23-STRIP_RIGHT_CLICK, SRC-RM-01), 2026-11-23 | the strip's right-click on the band and each mark, now the gear's own action with no `onRightClick` (DragHandle minor 17), has not been seen in a client yet |
 | RANGE-18 | the hunter dead-zone fix (RM-DZ-02, then branch feat/2026-11-24-rangemaster-wingclip, RM-DZ-03), 2026-11-24 | Wing Clip (2974) as the Forever hunter's melee anchor and the dead zone's number pulled in to 8 yd: whether MELEE holds in melee, DEAD at 5-8 yd reading `5–8`. Passed on WoW Forever, the owner, 2026-11-25. |
+| RANGE-19..21 | the first seed validation (Ka0sAddonsCommonTasks `docs/2026-11-25-SEEDS_AND_FOREVERDB/`, SF-RM-01), 2026-11-25 | Throw 2764 out of the Forever warrior's and rogue's ladders and Heroic Throw 57755 out of the Retail warrior's, each a min-range spell DB2 says could never be a rung: whether the client reports that min range and the brackets are unchanged. |

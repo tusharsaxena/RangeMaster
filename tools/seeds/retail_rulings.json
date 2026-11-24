@@ -1,0 +1,34 @@
+{
+  "shipped:band-reach:DEATHKNIGHT.ranged:47541": {
+    "reason": "keep: precedent, the owner 2026-11-19 (modules/BandSets.lua header): a spell band's anchor out of range past its reach reads OOR whatever the band's yards say; the preset's yards are the fallback, and no seed of this class on this client reaches farther (DB2 cannot move a preset's yards)",
+    "ruling": "keep"
+  },
+  "shipped:band-reach:DEMONHUNTER.ranged:185123": {
+    "reason": "keep: precedent, the owner 2026-11-19 (modules/BandSets.lua header): a spell band's anchor out of range past its reach reads OOR whatever the band's yards say; the preset's yards are the fallback, and no seed of this class on this client reaches farther (DB2 cannot move a preset's yards)",
+    "ruling": "keep"
+  },
+  "shipped:band-reach:EVOKER.friendly:361469": {
+    "reason": "precedent, the owner 2026-11-19 (modules/BandSets.lua header): an Evoker's 25-30 yd friend is not NEAR when Living Flame cannot reach; every Evoker spell is 25 yd on 12.1.5.70961",
+    "ruling": "keep"
+  },
+  "shipped:band-reach:EVOKER.ranged:362969": {
+    "reason": "keep: precedent, the owner 2026-11-19 (modules/BandSets.lua header): a spell band's anchor out of range past its reach reads OOR whatever the band's yards say; the preset's yards are the fallback, and no seed of this class on this client reaches farther (DB2 cannot move a preset's yards)",
+    "ruling": "keep"
+  },
+  "shipped:band-reach:PALADIN.ranged:20271": {
+    "reason": "keep: precedent, the owner 2026-11-19 (modules/BandSets.lua header): a spell band's anchor out of range past its reach reads OOR whatever the band's yards say; the preset's yards are the fallback, and no seed of this class on this client reaches farther (DB2 cannot move a preset's yards)",
+    "ruling": "keep"
+  },
+  "shipped:band-reach:ROGUE.ranged:114014": {
+    "reason": "keep: precedent, the owner 2026-11-19 (modules/BandSets.lua header): a spell band's anchor out of range past its reach reads OOR whatever the band's yards say; the preset's yards are the fallback, and no seed of this class on this client reaches farther (DB2 cannot move a preset's yards)",
+    "ruling": "keep"
+  },
+  "shipped:band-reach:WARRIOR.ranged:57755": {
+    "reason": "keep: precedent, the owner 2026-11-19 (modules/BandSets.lua header): a spell band's anchor out of range past its reach reads OOR whatever the band's yards say; the preset's yards are the fallback, and no seed of this class on this client reaches farther (DB2 cannot move a preset's yards)",
+    "ruling": "keep"
+  },
+  "shipped:ladder-min:WARRIOR.ladder:57755": {
+    "reason": "SpellRange 288 Large Minimum Range (8-30) on 12.1.5.70961: Compat spellRung drops any min-range seed, so Heroic Throw never was a rung (Retail never walks the ladder anyway; LibRangeCheck answers); docs/common-tasks.md puts a min-range spell in chips, not ladder. Taunt 355 (0-30) stays as the rung. Judgment call: removed, not replaced",
+    "ruling": "remove"
+  }
+}

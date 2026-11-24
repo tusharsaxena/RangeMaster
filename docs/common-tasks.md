@@ -72,7 +72,9 @@ Recipes for the changes made most often here. Each names the real files; run the
 - A class's chip or ladder spell: add the ID to `defaults/SpellSeeds.lua` under the client it exists
   on (`retail` or `forever`) and the class token. A ladder spell becomes a rung only when the player
   knows it and it has a max range with no min range, so a melee or min-range spell belongs in
-  `chips`, not `ladder`. Add a RANGE-5 run for it in `docs/smoke-tests.md`.
+  `chips`, not `ladder`. Add a RANGE-5 run for it in `docs/smoke-tests.md`. The next seed
+  validation (`docs/validate-seeds.md`) checks the new ID's name, class, rank and range against the
+  client's DB2.
 - A band rule's anchor: add the ID to that class's `anchors.<role>` list (`melee`, `ranged` or
   `friendly`). Every known seed is a candidate: a ranged or friendly list is asked longest reported
   reach first (seed order among equals), a melee list in seed order without any seed reported past

@@ -70,14 +70,19 @@ items and interact distances; spells on both) and the spell seeds (`defaults/Spe
 `[client][classFile]`; Forever has no Death Knight, Monk, Demon Hunter or Evoker). Forever's
 `PLAYER_FOCUS_CHANGED` is registered only where `NS.Compat.IsEventValid` says the client knows it.
 
-**How the seed lists are maintained (clients-§10).** Neither per-client list in
-`defaults/SpellSeeds.lua` is derived from the client's DB2 yet. Each is hand-kept: a short list per
-class of long-stable spell IDs (rank 1 on Forever), and each ID is checked in a client by
-`docs/smoke-tests.md` RANGE-5 (every seed resolves on its own client). A stale ID cannot report a
-wrong range: the range engine trusts a spell only while it is known and usable, so an ID the client
-does not know is skipped. The first re-validation against wago.tools
-(`SpellName` and `SpellRange` at a pinned `wow` and `wowf` build) freezes its run as a dated bundle
-under `docs/`, and this paragraph then points at it.
+**How the seed lists are maintained (clients-§10).** Both per-client lists in
+`defaults/SpellSeeds.lua` are hand-kept, a short list per class of long-stable spell IDs (rank 1 on
+Forever), and **re-validated** against each client's own DB2 on wago.tools by `tools/seeds/seeds.py`,
+the contract `docs/validate-seeds.md` (`/dev-copilot:validate-seeds RangeMaster retail|forever`). A
+run pins one `wow` or `wowf` build and checks every shipped id's name, class, rank (Forever) and
+range (SpellMisc `RangeIndex` into SpellRange) against what the code asks of its list: a ladder rung
+has no min range, a melee anchor reaches no farther than `MELEE_REACH_YD`, a role's longest reach
+meets its preset band's far edge, the Forever hunter's anchors fit the dead zone. Rulings are data
+(`tools/seeds/<flavor>_rulings.json`), and each run is a frozen bundle under `docs/seed-research/`;
+the first, 2026-11-25 (wow 12.1.5.70961, wowf 1.60.1.71091), took Throw and Heroic Throw out of the
+ladders, where neither could ever be a rung. `docs/smoke-tests.md` RANGE-5 still checks every seed resolves in a
+client. A stale ID cannot report a wrong range: the range engine trusts a spell only while it is
+known and usable, so an ID the client does not know is skipped.
 
 ## Settings Schema
 
@@ -357,7 +362,10 @@ generated directories are named once and never enumerated: `docs/audits/`, `docs
 
 ### Addon-specific (documentation-§3, Tier 3)
 
-None yet.
+| Doc | Covers |
+|---|---|
+| `validate-seeds.md` | The seed-validation contract `/dev-copilot:validate-seeds RangeMaster <flavor>` runs: the tool, its checks and the code each stands for, the ruling precedent, the steps and the gate |
+| `seed-research/` | Frozen per-build bundles written by `tools/seeds/seeds.py` (`SOURCES.md`, `candidates.json`, `DIFF.md`, `RULINGS.md`, a hand-written `ANALYSIS.md`, gzipped `raw/` tables); the dated bundles are not enumerated |
 
 ## Documented deviations
 
