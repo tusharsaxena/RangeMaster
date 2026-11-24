@@ -21,7 +21,7 @@ unless a check names one. The anchors are run as a matrix, one result per mode a
 | DIAG-1..4 | Diagnostics | the console, the report, the perf verb, the copy window's close-only title bar |
 | DEGRADED-1 | Degraded | the library-absent install |
 | LOC-1 | Non-English client | a deDE or frFR client |
-| RANGE-1..17 | Range engine | brackets, unknown, the Forever ladder, the ticker's rate and stop, the seed spells; the anchor probes: reported ranges under talents, rank IDs, the talent event, overrides, Auto Shot unarmed |
+| RANGE-1..18 | Range engine | brackets, unknown, the Forever ladder, the ticker's rate and stop, the seed spells; the anchor probes: reported ranges under talents, rank IDs, the talent event, overrides, Auto Shot unarmed; the hunter's dead zone |
 | DRAW-1..12 | Containers drawn | brackets drawn, unknown gray, elements and order, the skin face, disable, the Bar dot's border and gloss, Fixed colors, outline and shadow, the border and the spell chips following the skin, Class mode in test mode, High Contrast's HUD shadow |
 | CONT-1..14 | Containers page | New container (no band preview), the rail, Position, Duplicate / Delete / Copy settings from, Defaults, Color from, the Dot tab and its Style tiles, Border opacity, the caption's positions, the caption's styling, one line, the skin companion rows, the Style tiles' Scope, the frame picker's label |
 | BANDS-1..11 | Band sets page | the picker, the Bands editor (no band ribbon), shared sets, the friendly override, the unknown label; spell bands: the rule controls, the read-out, the owner's Hawk Eye case, the dead zone, the v1 -> v2 conversion, the band rail |
@@ -290,6 +290,11 @@ a training dummy for each. The spell IDs are the anchors in `defaults/SpellSeeds
 - **RANGE-17. Dead targets and restricted content.** A dead hostile target and a dead friend: write
   down what the container shows (OOR would mean the anchor answered false on a corpse). In a Mythic+
   key or an encounter on Retail, the bands still change with distance. Result: PASS (owner, 2026-11-24, both clients)
+- **RANGE-18. The hunter's dead zone (WoW Forever).** On a hunter with the Hunter preset (MELEE 0-5,
+  DEAD 5-8, AUTO 8-35, OOR), target a hostile mob and step back from melee: at 5-8 yd (Format Range
+  reads `5–8` or `5–10`) the container reads DEAD, in its color, not MELEE; in melee (`0–5`) it reads
+  MELEE; past 8 yd, AUTO. Try it in and out of combat, and once on a large mob (a raid or elite NPC):
+  write down if MELEE turns to DEAD while you can still hit it. Result:
 
 ## Containers drawn
 
@@ -715,3 +720,4 @@ Set the rules on Containers → Visibility.
 | DIAG-4, DRAW-11, DRAW-12 | the LibKa0s v1.112.0 re-vendor and the preview stand-in (Ka0sAddonsCommonTasks 2026-11-24-FEEDBACK_BATCH, FB-RM-01), 2026-11-24 | the copy window's close-only title bar, Class mode's stand-in class in test mode and unlock, and High Contrast's one-pixel HUD shadow have not been seen in a client yet |
 | MODES-8, PRESET-5 | the LibKa0s v1.113.0 re-vendor (Ka0sAddonsCommonTasks 2026-11-24-FEEDBACK_BATCH, round 2, FB2-RM-01), 2026-11-24 | the step panel on every start path and the preset dropdown's selected row in gold under every skin (Azeroth, Obsidian, WoW Forever on Forever; amended by FB2-RM-02) have not been seen in a client yet |
 | ANCHOR-13 | the LibKa0s v1.111.0 re-vendor (Ka0sAddonsCommonTasks 2026-11-23-STRIP_RIGHT_CLICK, SRC-RM-01), 2026-11-23 | the strip's right-click on the band and each mark, now the gear's own action with no `onRightClick` (DragHandle minor 17), has not been seen in a client yet |
+| RANGE-18 | the hunter dead-zone fix (branch feat/2026-11-24-rangemaster-hunter-deadzone, RM-DZ-01), 2026-11-24 | the melee guard at a 5 yd near bound: whether DEAD now holds at 5-8 yd on a Forever hunter, and whether a large mob in melee reach ever reads DEAD. |

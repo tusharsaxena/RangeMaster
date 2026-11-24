@@ -423,7 +423,8 @@ Total.
 - rules: an unlearned anchor falls back to its band's yards, and unknown stays unknown
 - rules: a nil or secret answer is no answer: the yards decide, or unknown
 - rules: yards that contradict a band's own anchor never paint that band
-- rules: a melee true is voided, for every class, when the bracket puts the unit 8 yd or more away
+- rules: a melee true is voided, for every class, when the bracket puts the unit 5 yd or more away
+- rules: the owner's hunter dead zone: Raptor Strike's true at 5-8 and 5-10 is voided, so DEAD holds
 - rules: a melee true is voided while a min-range ranged anchor says true, with no bracket
 - rules: a druid's melee band follows the form, and reads its yards out of Cat and Bear
 - rules: a friendly spell band reads its anchor's answer on a friendly unit (review D6)
