@@ -297,7 +297,7 @@ a training dummy for each. The spell IDs are the anchors in `defaults/SpellSeeds
   walk slowly across the 8 yd edge: no spot reads `5–10 ?`;
   past 8 yd, RANGE (band 3, AUTO before 2026-11-24), and Format Range
   never writes a figure under 8 there (`8–10`, not `5–10`). Every format agrees with the band (About
-  stays between 5 and 8 in the dead zone). Try it in and out of combat. Result:
+  stays between 5 and 8 in the dead zone). Try it in and out of combat. Result: PASS (owner, 2026-11-25, WoW Forever)
 
 ## Containers drawn
 
@@ -723,4 +723,4 @@ Set the rules on Containers → Visibility.
 | DIAG-4, DRAW-11, DRAW-12 | the LibKa0s v1.112.0 re-vendor and the preview stand-in (Ka0sAddonsCommonTasks 2026-11-24-FEEDBACK_BATCH, FB-RM-01), 2026-11-24 | the copy window's close-only title bar, Class mode's stand-in class in test mode and unlock, and High Contrast's one-pixel HUD shadow have not been seen in a client yet |
 | MODES-8, PRESET-5 | the LibKa0s v1.113.0 re-vendor (Ka0sAddonsCommonTasks 2026-11-24-FEEDBACK_BATCH, round 2, FB2-RM-01), 2026-11-24 | the step panel on every start path and the preset dropdown's selected row in gold under every skin (Azeroth, Obsidian, WoW Forever on Forever; amended by FB2-RM-02) have not been seen in a client yet |
 | ANCHOR-13 | the LibKa0s v1.111.0 re-vendor (Ka0sAddonsCommonTasks 2026-11-23-STRIP_RIGHT_CLICK, SRC-RM-01), 2026-11-23 | the strip's right-click on the band and each mark, now the gear's own action with no `onRightClick` (DragHandle minor 17), has not been seen in a client yet |
-| RANGE-18 | the hunter dead-zone fix (RM-DZ-02, then branch feat/2026-11-24-rangemaster-wingclip, RM-DZ-03), 2026-11-24 | Wing Clip (2974) as the Forever hunter's melee anchor and the dead zone's number pulled in to 8 yd: whether MELEE holds in melee, DEAD at 5-8 yd reading `5–8`. |
+| RANGE-18 | the hunter dead-zone fix (RM-DZ-02, then branch feat/2026-11-24-rangemaster-wingclip, RM-DZ-03), 2026-11-24 | Wing Clip (2974) as the Forever hunter's melee anchor and the dead zone's number pulled in to 8 yd: whether MELEE holds in melee, DEAD at 5-8 yd reading `5–8`. Passed on WoW Forever, the owner, 2026-11-25. |
