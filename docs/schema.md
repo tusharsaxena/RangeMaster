@@ -62,7 +62,7 @@ yards, then its rule in brackets; a band with no bracket is a yard band:
 | `melee_ranged` | 0-5 MELEE [spell(melee)], 5-20 CLOSE, 20-30 MID, 30-40 LONG [spell(ranged)], 40+ OOR [beyond] |
 | `caster40` | 0-8 CLOSE, 8-40 CAST [spell(ranged)], 40+ OOR [beyond] |
 | `healer` | 0-30 NEAR, 30-40 FAR [spell(friendly)], 40+ OOR [beyond] (meant as a friendly override) |
-| `hunter` | WoW Forever: 0-5 MELEE [spell(melee)], 5-8 DEAD [gap], 8-35 AUTO [spell(ranged)], 35+ OOR [beyond]. Retail: 0-5 MELEE [spell(melee)], 5-40 RANGED [spell(ranged)], 40+ OOR [beyond] |
+| `hunter` | WoW Forever: 0-5 MELEE [spell(melee)], 5-8 DEAD [gap], 8-35 RANGE [spell(ranged)], 35+ OOR [beyond]. Retail: 0-5 MELEE [spell(melee)], 5-40 RANGED [spell(ranged)], 40+ OOR [beyond] |
 
 Class defaults (`NS.BandSetPresets.DefaultFor(classFile, specID)`, the spec from `NS.Compat.PlayerSpecID`): a spec that plays unlike its class comes first, so Devourer (the Demon Hunter's 25 yd Intellect spec, 1480) → `caster40`; then Hunter → `hunter`; Mage, Warlock, Priest, Evoker → `caster40`; every other class, or an unreadable one → `melee_ranged`.
 

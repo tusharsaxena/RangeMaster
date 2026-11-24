@@ -355,7 +355,7 @@ end)
 
 test("bandsets: test_hunter_preset_per_client — Forever has the 5-8 dead zone, Retail does not", function()
   local byClient = P.HUNTER_BY_CLIENT
-  assertEqual(labels(byClient.forever.bands), "MELEE,DEAD,AUTO,OOR")
+  assertEqual(labels(byClient.forever.bands), "MELEE,DEAD,RANGE,OOR", "band 3 is RANGE (the owner, 2026-11-24)")
   assertEqual(byClient.forever.bands[2].from, 5)
   assertEqual(byClient.forever.bands[2].to, 8)
   assertEqual(byClient.forever.bands[3].to, 35)
@@ -364,7 +364,7 @@ test("bandsets: test_hunter_preset_per_client — Forever has the 5-8 dead zone,
   assertEqual(byClient.retail.bands[2].to, 40)
   assertTrue(P.hunter == byClient[NS.Compat.ClientKey()], "the hunter preset is the running client's")
   -- The rules (plan 2026-11-19-dynamic-bands, D4); the yards above are each band's fallback.
-  assertEqual(rules(byClient.forever.bands), "melee,gap,ranged,beyond", "MELEE, DEAD, AUTO, OOR")
+  assertEqual(rules(byClient.forever.bands), "melee,gap,ranged,beyond", "MELEE, DEAD, RANGE, OOR")
   assertEqual(rules(byClient.retail.bands), "melee,ranged,beyond", "MELEE, RANGED, OOR")
 end)
 

@@ -8,7 +8,8 @@ local _, NS = ...
 --   NS.BandSetPresets.DefaultFor(classFile) -> key         the class default the seed puts first
 --
 -- THE HUNTER SET IS PER CLIENT (clients-§5: two lists, picked once). WoW Forever's Auto Shot has the
--- vanilla dead zone, so its set is 0-5 MELEE, 5-8 DEAD, 8-35 AUTO, 35+ OOR; Retail's hunter has none,
+-- vanilla dead zone, so its set is 0-5 MELEE, 5-8 DEAD, 8-35 RANGE (AUTO until the owner's rename,
+-- 2026-11-24), 35+ OOR; Retail's hunter has none,
 -- so its set is 0-5 MELEE, 5-40 RANGED, 40+ OOR. Both lists live in HUNTER_BY_CLIENT and `hunter` is
 -- the one NS.Compat.ClientKey() picks at load (core/Compat.lua loads before this file).
 --
@@ -75,7 +76,7 @@ local HUNTER_BY_CLIENT = {
         name = L["Hunter"], matchBy = "max",
         bands = {
             band(0, 5, L["MELEE"], YELLOW, spell("melee")), band(5, 8, L["DEAD"], ORANGE, gap()),
-            band(8, 35, L["AUTO"], GREEN, spell("ranged")), band(35, nil, L["OOR"], RED, beyond()),
+            band(8, 35, L["RANGE"], GREEN, spell("ranged")), band(35, nil, L["OOR"], RED, beyond()),
         },
     },
     retail = {
