@@ -304,6 +304,8 @@ Kit.run{
     "test_launcher",
     "test_launcher_skin_entry",
     "test_modes",
+    "test_sim_start_panel",
+    "test_sample_names",
     "test_optionssetup",
     "test_realpages",
     "test_settings_containers",

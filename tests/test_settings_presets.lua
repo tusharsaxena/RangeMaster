@@ -323,3 +323,82 @@ test("presets: test_unlock_with_nothing_says_so — /rm unlock on an empty profi
     NS.SetByPath("locked", true)
   end)
 end)
+
+-- FB2-RM-01 (Ka0sAddonsCommonTasks docs/2026-11-24-FEEDBACK_BATCH, decision D3; WidgetsDropdown
+-- minor 4): the picker's dropdown is LibKa0s-Widgets-1.0's, so its selected row paints the library's
+-- selected color, which always stands off a plain row's, under every skin the case walks. FB2-RM-02
+-- (the owner's ruling of 2026-11-24 on round 2, FB2-LK-04): that color is Ka0s Default's gold in every
+-- shipped skin, WoW Forever's (the Forever default, whose tan accent round 2 kept) and Obsidian's
+-- included; a skin's own `menu.textSel` stands in only where the gold sits too near its `menu.text`.
+
+--- The shared menu `dd` opened, found by its open registration (the menu is the library's own
+--- frame, built once for the whole suite).
+local function openedMenu(dd)
+  dd:__fire("OnClick")
+  for f in pairs(M.__kitHeldFrames or {}) do
+    if rawget(f, "__dd") == dd and f.__frameEvents and f.__frameEvents.GLOBAL_MOUSE_DOWN then return f end
+  end
+  return nil
+end
+
+--- Close the shared menu as the client does: its OnHide drops the open registration (the mock's
+--- Hide fires no script), so no later stand-down case finds it still registered.
+local function closeMenu(W, menu)
+  W.CloseMenu()
+  if menu and menu.__fire then menu:__fire("OnHide") end
+end
+
+--- Spy each row's label: the color it was last given.
+local function spyRows(menu)
+  for _, b in ipairs(menu.buttons or {}) do
+    local fs = b.fs
+    if not rawget(fs, "__ddSpy") then
+      local setColor = fs.SetTextColor
+      rawset(fs, "__ddSpy", true)
+      rawset(fs, "SetTextColor", function(self, r, g, bb, ...)
+        rawset(self, "__ddColor", ("%.3f,%.3f,%.3f"):format(r, g, bb))
+        return setColor(self, r, g, bb, ...)
+      end)
+    end
+  end
+end
+
+test("presets: the picker dropdown's selected row stands off its plain rows, under every skin walked", function()
+  -- red under: a host-painted selection, WidgetsDropdown 3's raw menu.textSel (Azeroth's 16.3 dE00), or
+  -- round 2's first cut of minor 4, which kept a skin's accent (WoW Forever's tan, Obsidian's) when far enough.
+  local Skin = M.LibStub("LibKa0s-Skin-1.0")
+  local W = M.LibStub("LibKa0s-Widgets-1.0")
+  withPicker(function(_, C)
+    NS.MaybeShowPresetPicker()
+    C.pick("text")
+    local dd = P.frame.dd
+    assertEqual(dd._value, "text", "the dropdown holds the pick")
+    local ok, err = pcall(function()
+      for _, key in ipairs({ "ka0s", "azeroth", "obsidian", "forever" }) do
+        Skin:SetChoice("RangeMaster", "ka0s", key)
+        local menu = openedMenu(dd)
+        assertTrue(menu ~= nil, key .. ": the dropdown opened the shared menu")
+        spyRows(menu)
+        closeMenu(W, menu)
+        menu = openedMenu(dd)
+        -- One row per option, in order (the picker lists no titles), so row 2 is "text".
+        local sel, plain = nil, {}
+        for i, b in ipairs(menu.buttons) do
+          local color = rawget(b.fs, "__ddColor")
+          if i <= #dd._options and b:IsShown() and color then
+            if dd._options[i].value == dd._value then sel = color else plain[#plain + 1] = color end
+          end
+        end
+        closeMenu(W, menu)
+        local r, g, b = W.SelectedColor("RangeMaster")
+        assertEqual(sel, ("%.3f,%.3f,%.3f"):format(r, g, b), key .. ": the selected row is the library's selected color")
+        assertEqual(sel, ("%.3f,%.3f,%.3f"):format(1, 0.82, 0), key .. ": the selected row is Ka0s Default's gold")
+        assertTrue(#plain >= 5, key .. ": the five other presets are plain rows")
+        for _, c in ipairs(plain) do assertTrue(c ~= sel, key .. ": a plain row is not the selected color") end
+      end
+    end)
+    Skin:SetChoice("RangeMaster", "ka0s", "ka0s")
+    closeMenu(W, openedMenu(dd))
+    if not ok then error(err, 0) end
+  end)
+end)

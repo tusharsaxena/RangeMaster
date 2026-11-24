@@ -689,6 +689,14 @@ local function present(inst, state)
     return show
 end
 
+--- The unit a class color resolves while the tracked one does not exist: a preview (test, sim) or
+--- the unlocked placeholder draws for a unit that may not be there, so its class mode shows the
+--- stand-in, the player (options-ui-§17 *A preview shows a class*, FB-RM-01). nil when live.
+local function standInFor(stand)
+    if preview or stand then return "player" end
+    return nil
+end
+
 function Instance:Render(state, lo, hi, spellResults)
     local c = self.container
     if not c then return end
@@ -703,6 +711,7 @@ function Instance:Render(state, lo, hi, spellResults)
     local ctx = self.ctx
     ctx.state, ctx.lo, ctx.hi, ctx.spells = state, lo, hi, spellResults or NO_SPELLS
     ctx.unit = self.unit
+    ctx.standIn = standInFor(stand)
     local moved = resolveBand(self, state, lo, hi) and self:Paint(ctx) or false
     if c.sounds and c.sounds.enabled and not stand then NS.Sounds.OnBand(self, self.bandIndex, GetTime()) end
     for name, mod in pairs(ELEMENT) do

@@ -16,16 +16,16 @@ unless a check names one. The anchors are run as a matrix, one result per mode a
 | PANEL-1..4 | Panel | the landing page, General's three tabs, Defaults, tooltips |
 | PROFILE-1..3 | Profiles | the Profiles page, `/rm profile`, a profile's own containers |
 | STATE-1..3 | State | enable and disable, the latch, the launcher menu |
-| MODES-1..7 | Modes | Test mode and Sim mode: start, refuse in combat, end on combat, placeholders, the sweep |
+| MODES-1..8 | Modes | Test mode and Sim mode: start, refuse in combat, end on combat, placeholders, the sweep, the step panel on every start |
 | COMBAT-1 | Combat | the settings panel under combat lockdown |
-| DIAG-1..3 | Diagnostics | the console, the report, the perf verb |
+| DIAG-1..4 | Diagnostics | the console, the report, the perf verb, the copy window's close-only title bar |
 | DEGRADED-1 | Degraded | the library-absent install |
 | LOC-1 | Non-English client | a deDE or frFR client |
 | RANGE-1..17 | Range engine | brackets, unknown, the Forever ladder, the ticker's rate and stop, the seed spells; the anchor probes: reported ranges under talents, rank IDs, the talent event, overrides, Auto Shot unarmed |
-| DRAW-1..10 | Containers drawn | brackets drawn, unknown gray, elements and order, the skin face, disable, the Bar dot's border and gloss, Fixed colors, outline and shadow, the border and the spell chips following the skin |
+| DRAW-1..12 | Containers drawn | brackets drawn, unknown gray, elements and order, the skin face, disable, the Bar dot's border and gloss, Fixed colors, outline and shadow, the border and the spell chips following the skin, Class mode in test mode, High Contrast's HUD shadow |
 | CONT-1..14 | Containers page | New container (no band preview), the rail, Position, Duplicate / Delete / Copy settings from, Defaults, Color from, the Dot tab and its Style tiles, Border opacity, the caption's positions, the caption's styling, one line, the skin companion rows, the Style tiles' Scope, the frame picker's label |
 | BANDS-1..11 | Band sets page | the picker, the Bands editor (no band ribbon), shared sets, the friendly override, the unknown label; spell bands: the rule controls, the read-out, the owner's Hawk Eye case, the dead zone, the v1 -> v2 conversion, the band rail |
-| PRESET-1..4 | Presets | the first-run picker, Apply on an empty profile, Apply over containers with Undo, what each of the six shows |
+| PRESET-1..5 | Presets | the first-run picker, Apply on an empty profile, Apply over containers with Undo, what each of the six shows, the dropdown's selected row |
 | ANCHOR-1..13 | Anchors | every mode on both clients: screen, unit frames (Blizzard, EllesmereUI, custom, missing), own nameplate, all nameplates, cursor, the picker, all nameplates except target, the drag strip's marks, the cast bar part, Frame strata and Frame level on a plate, the preview nameplate, the drag strip's right-click |
 | VIS-1..3 | Visibility | combat and reaction rules, out-of-combat opacity, the master rows |
 | SOUND-1..2 | Sounds | the debounced band sound, none on nameplates |
@@ -148,6 +148,14 @@ starts with a cyan `[RM]`. Most checks need a container: apply a preset (General
   `/rm sim stop` answer in chat. Result:
 - **MODES-7. One at a time.** With Sim mode running, `/rm test` → one gray line `Cannot start Test
   mode while Sim mode runs.` Result:
+- **MODES-8. Every start shows the step panel (FB2-RM-01, LibKa0s v1.113.0, Sim minor 5;
+  preview-mode, standard v2.120.0).** Start the sweep each of these ways, letting it end (or
+  `/rm sim stop`) between them: `/rm sim`, `/rm sim on`, `/rm sim start sweep`, the Master controls
+  **Sim mode** box, the launcher's right-click **Sim mode** entry, and `/rm sim panel` then the
+  panel's own **Start** row → every time the `Range Master - SIM` step panel opens with the sweep
+  running, and it carries no close mark (Escape leaves it up). Mid-run, `/rm sim restart` → the
+  panel is still up and the sweep starts over. **Fail:** a sweep running with no step panel, or a
+  close mark on it while it runs. Result:
 
 ## Combat
 
@@ -164,6 +172,11 @@ starts with a cyan `[RM]`. Most checks need a container: apply a preset (General
   rejected and ui, and no `section ... failed` line. Result:
 - **DIAG-3. Perf.** `/rm perf` → the step panel opens, its close mark drawn; a start and a cancel leave
   no hold (`/rm diagnostics` lifecycle shows `holds: none`). Result:
+- **DIAG-4. The copy window is a companion: close only (FB-RM-01, LibKa0s v1.112.0; standalone-windows
+  *A companion window carries no settings mark*, standard v2.119.0).** `/rm debug`, then its Copy mark
+  → the copy window's title bar carries the close mark alone, no gear; the console behind it still
+  carries its gear. The close mark closes the copy window and leaves the console up. **Fail:** a gear on
+  the copy window, a blank mark, or a Lua error naming a file under `libs/LibKa0s/`. Result:
 
 ## Degraded
 
@@ -329,6 +342,19 @@ a training dummy for each. The spell IDs are the anchors in `defaults/SpellSeeds
   chip in range draws the skin's green, out of range its red, no answer its gray. Switch the skin →
   the chips repaint in the new skin's three on the next update, with no reload (SD-SK-RM.10).
   Result:
+- **DRAW-11. Class mode shows a class in test mode (FB-RM-01; options-ui-§17 *A preview shows a
+  class*, standard v2.119.0).** A target container whose Number and Frame border read Color mode
+  **Class**, the swatch set to something unlike your class (a dark blue). Clear your target and
+  `/rm test` → the placeholder's number and border draw **your own** class color (a hunter's green),
+  not the swatch. Still in test mode, target a player of another class → that class's color; target an
+  NPC → the swatch. `/rm test` again to end it. Repeat with `/rm unlock` and no target → the unlocked
+  placeholder draws your class too. **Fail:** the swatch with no target, or a color that does not
+  follow the retarget. Result:
+- **DRAW-12. High Contrast's HUD shadow is one pixel (FB-RM-01, LibKa0s v1.112.0, SkinDefsOthers
+  minor 11).** A container with Use the skin's shadow ticked and Font outline on **HUD text only**.
+  Switch to High Contrast → the number, text and caption wear a black shadow one pixel down and right,
+  as under Azeroth, not a heavy two-pixel block. **Fail:** a doubled, two-pixel shadow under High
+  Contrast. Result:
 
 ## Containers page
 
@@ -504,6 +530,16 @@ a training dummy for each. The spell IDs are the anchors in `defaults/SpellSeeds
   the out-of-range chime on target and the Healer set as the friendly override on target, focus and
   mouseover. `/rm preset text`, `/rm preset numbers` and `/rm preset expert` reach the same; `/rm
   preset intermediate` prints the usage line. Result:
+- **PRESET-5. The dropdown's selected row stands apart (FB2-RM-01, amended by FB2-RM-02 for the
+  owner's ruling of 2026-11-24: gold in every skin; LibKa0s v1.113.0, WidgetsDropdown minor 4;
+  skinning-§4 *A selected entry reads apart*, standard v2.120.0).** `/rm preset`, pick
+  **Intermediate (Range Text)**, then open the dropdown again → its row is Ka0s Default's gold and
+  plainly a different color from the five other rows. `/rm skin`, choose **Azeroth**, then
+  **Obsidian**, and open the dropdown again under each → the selected row is the same gold in both,
+  not the skin's accent and unlike the other rows. On WoW Forever, under the default **WoW Forever**
+  skin → the selected row is gold too, not the skin's tan accent. Put the skin back when done.
+  **Fail:** a selected row the same color as the rows around it, or in a skin's accent rather than
+  gold. Result:
 
 ## Anchors
 
@@ -676,4 +712,6 @@ Set the rules on Containers → Visibility.
 | ANCHOR-12 | the review of SD-SK-RM (Ka0sAddonsCommonTasks 2026-11-20-LIBKA0S_94_97_99_100; skinning-§9 Preview stand-ins, owner U-24, in place of SD-SK-RM.7 and RM.8), 2026-11-21 | the preview nameplate's stock look under a skin switch has not been seen in a client yet |
 | DRAW-6 | the LibKa0s v1.108.0 re-vendor (Ka0sAddonsCommonTasks 2026-11-20-LIBKA0S_94_97_99_100, SD-RV-RM), 2026-11-20 | the Bar dot's skin border and Glass gloss have not been seen in a client yet |
 | RANGE-6..11, BANDS-6..10 | the spell-driven dynamic bands (plan 2026-11-19-dynamic-bands, D1-D7), 2026-11-19 | whether the client reports talented ranges and answers by rank ID, which event a talent point fires, the rule controls, the owner's Hawk Eye case and the v1 -> v2 conversion have not been seen in a client yet |
+| DIAG-4, DRAW-11, DRAW-12 | the LibKa0s v1.112.0 re-vendor and the preview stand-in (Ka0sAddonsCommonTasks 2026-11-24-FEEDBACK_BATCH, FB-RM-01), 2026-11-24 | the copy window's close-only title bar, Class mode's stand-in class in test mode and unlock, and High Contrast's one-pixel HUD shadow have not been seen in a client yet |
+| MODES-8, PRESET-5 | the LibKa0s v1.113.0 re-vendor (Ka0sAddonsCommonTasks 2026-11-24-FEEDBACK_BATCH, round 2, FB2-RM-01), 2026-11-24 | the step panel on every start path and the preset dropdown's selected row in gold under every skin (Azeroth, Obsidian, WoW Forever on Forever; amended by FB2-RM-02) have not been seen in a client yet |
 | ANCHOR-13 | the LibKa0s v1.111.0 re-vendor (Ka0sAddonsCommonTasks 2026-11-23-STRIP_RIGHT_CLICK, SRC-RM-01), 2026-11-23 | the strip's right-click on the band and each mark, now the gear's own action with no `onRightClick` (DragHandle minor 17), has not been seen in a client yet |

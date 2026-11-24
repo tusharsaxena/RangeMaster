@@ -172,7 +172,7 @@ Total.
 - number: no unit reads nothing, and an unknown format reads as range
 - number: a known state with no far bound and no near bound reads unknown, not 0
 
-### test_container_render.lua (63)
+### test_container_render.lua (64)
 
 - render: an enabled container gets one pooled instance, watching its unit, drawn at once
 - render: Release returns the frame to the pool cleanly, and the next Acquire reuses it
@@ -210,6 +210,7 @@ Total.
 - render: a target swap at the same bracket asks every spell chip again
 - render: a spell chip's answer moving inside one bracket is drawn on the next tick
 - render: colorMode class reads the TRACKED unit's class, and follows a target swap
+- render: colorMode class in test mode with no unit draws the player's class, a real unit still wins
 - render: a skin change in combat re-applies nothing until combat ends
 - render: an element font naming a LibSharedMedia key draws that face at the stored size
 - render: an element's shadow turns the font string's shadow offset on and off
@@ -637,6 +638,21 @@ Total.
 - modes: Sim reads a melee anchor reported at 0 yd as melee reach, and walks through the dead zone (review D6)
 - modes: Test mode draws its placeholder band on a set of band rules
 
+### test_sim_start_panel.lua (7)
+
+- sim start panel: a bare /rm sim shows the step panel, pinned
+- sim start panel: /rm sim on shows the step panel, pinned
+- sim start panel: a typed /rm sim start sweep shows the step panel, pinned
+- sim start panel: the Master controls Sim mode box shows the step panel, pinned
+- sim start panel: the launcher's Sim mode entry shows the step panel, pinned
+- sim start panel: the panel's own Start row shows the step panel, pinned
+- sim start panel: a Restart after the player hid the panel shows the step panel, pinned
+
+### test_sample_names.lua (2)
+
+- sample names: no sample person's name outside tests/ and libs/; the library is the one source
+- sample names: the scan sees a planted name, and passes the allowed word
+
 ### test_optionssetup.lua (16)
 
 - the live and degraded builds veto exactly the same rows from Reset All
@@ -720,7 +736,7 @@ Total.
 - bandsets: an edge change keeps the selected band, and a band the set lost is clamped
 - bandsets: switching band set resets the band selection to band 1
 
-### test_settings_presets.lua (14)
+### test_settings_presets.lua (15)
 
 - presets: test_preset_apply_confirms — Apply asks first when there is something to replace, and Undo puts it back
 - presets: an empty profile applies at once, with nothing to confirm
@@ -736,6 +752,7 @@ Total.
 - presets: a profile change while the picker is up shows only the new profile's preset picker
 - presets: test_presets_tab_five — the Presets tab draws the five cards with Apply and the Undo button
 - presets: test_unlock_with_nothing_says_so — /rm unlock on an empty profile points at /rm preset; with containers it shows them
+- presets: the picker dropdown's selected row stands off its plain rows, under every skin walked
 
 ### test_skinsetup.lua (12)
 
@@ -981,7 +998,7 @@ Total.
 | test_container_manager.lua | 17 |
 | test_presets.lua | 17 |
 | test_number_format.lua | 5 |
-| test_container_render.lua | 63 |
+| test_container_render.lua | 64 |
 | test_anchors_screen.lua | 15 |
 | test_anchors_frame.lua | 18 |
 | test_anchors_nameplate.lua | 33 |
@@ -1004,11 +1021,13 @@ Total.
 | test_launcher.lua | 30 |
 | test_launcher_skin_entry.lua | 1 |
 | test_modes.lua | 23 |
+| test_sim_start_panel.lua | 7 |
+| test_sample_names.lua | 2 |
 | test_optionssetup.lua | 16 |
 | test_realpages.lua | 7 |
 | test_settings_containers.lua | 32 |
 | test_settings_bandsets.lua | 16 |
-| test_settings_presets.lua | 14 |
+| test_settings_presets.lua | 15 |
 | test_skinsetup.lua | 12 |
 | test_skin_picker.lua | 16 |
 | test_skin_picker_preview.lua | 9 |
@@ -1030,4 +1049,4 @@ Total.
 | test_skin_switch.lua | 20 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **796** |
+| **Total** | **807** |
