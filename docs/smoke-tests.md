@@ -293,9 +293,11 @@ a training dummy for each. The spell IDs are the anchors in `defaults/SpellSeeds
 - **RANGE-18. The hunter's dead zone (WoW Forever).** On a hunter (level 12+, Wing Clip learned) with
   the Hunter preset and band 1's Spell IDs empty, Settings > Band sets, band 1 (MELEE) reads "Now: Wing
   Clip (2974), melee range". Target a hostile mob and step back from melee: in melee it reads MELEE;
-  at 5-8 yd it reads DEAD, in its color, and Format Range reads `5–8` (never `5–10`) while DEAD shows;
+  at 5-8 yd it reads DEAD, in its color, and Format Range reads `5–8` (never `0–5` or `5–10`) while DEAD shows;
   walk slowly across the 8 yd edge: no spot reads `5–10 ?`;
-  past 8 yd, AUTO. Try it in and out of combat. Result:
+  past 8 yd, AUTO, and Format Range
+  never writes a figure under 8 there (`8–10`, not `5–10`). Every format agrees with the band (About
+  stays between 5 and 8 in the dead zone). Try it in and out of combat. Result:
 
 ## Containers drawn
 

@@ -26,7 +26,9 @@ local _, NS = ...
 --
 -- HONEST BRACKETS. The engine answers a bracket, never a distance (modules/Range.lua), so a format
 -- only chooses which bound to write. An open-ended bracket has no far bound, and no format invents
--- one: "max" on (40, nil) is "40+", not 40 and not 45.
+-- one: "max" on (40, nil) is "40+", not 40 and not 45. The bracket is first trimmed to the span of
+-- the band being drawn (BracketOf): the band is the spells' answer and outranks a coarse rung, so a
+-- Forever hunter's AUTO at 5-10 reads 8-10 and DEAD at 0-5 reads 5-8 (the owner, 2026-11-24).
 --
 -- The element itself follows the contract every element file shares (modules/Container.lua calls it):
 --   Build(inst) -> el        the holder frame and its regions, made once per pooled frame
@@ -175,19 +177,22 @@ local function joined(el, num, ctx)
     return num .. " " .. part
 end
 
---- The bracket to write: ctx's, its far bound pulled in to the ranged anchor's min range while a
---- dead-zone band is drawn. The gap holds only when that anchor says out of range and a shorter
---- check says near, so the unit is inside the min: a Forever hunter's 5-10 bracket reads 5-8 (the
---- owner, 2026-11-24; no checker sits at 8 yd). The band's own `to` stands in without an anchor.
+--- The bracket to write: ctx's, trimmed to the span of the band being drawn (spanOf, what format
+--- "band" writes). LibRangeCheck's rungs are coarse on WoW Forever (no checker at 8 yd), and the band
+--- comes from the spells' own answers, so the two can disagree: a hunter's DEAD at a 0-5 bracket, AUTO
+--- at 5-10 (the owner, 2026-11-24: every format but Band span read wrong). The overlap is written; with
+--- none, the band's span, the spells' answer outranking the bracket. Unknown or no band: ctx's.
 local function bracketOf(ctx)
-    local lo, hi, row = ctx.lo, ctx.hi, ctx.row
-    local r = row and type(row.rule) == "table" and row.rule
-    if ctx.state ~= "known" or not (r and r.type == "gap") then return lo, hi end
-    local a = NS.Range and NS.Range.Anchor and NS.Range.Anchor("ranged")
-    local edge = a and type(a.minRange) == "number" and a.minRange > 0 and a.minRange or row.to
-    if type(edge) ~= "number" or (type(lo) == "number" and lo >= edge) then return lo, hi end
-    if hi == nil or hi > edge then hi = edge end
-    return lo, hi
+    local lo, hi = ctx.lo, ctx.hi
+    if ctx.state ~= "known" or type(ctx.band) ~= "number" or not (ctx.set and ctx.set.bands[ctx.band]) then
+        return lo, hi
+    end
+    local slo, shi = spanOf(ctx.set, ctx.band)
+    local tlo = math.max(type(lo) == "number" and lo or 0, slo or 0)
+    local thi = hi
+    if type(shi) == "number" and (thi == nil or thi > shi) then thi = shi end
+    if thi ~= nil and tlo >= thi then return slo, shi end
+    return tlo, thi
 end
 Number.BracketOf = bracketOf
 
