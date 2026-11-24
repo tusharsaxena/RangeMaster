@@ -294,6 +294,7 @@ a training dummy for each. The spell IDs are the anchors in `defaults/SpellSeeds
   the Hunter preset and band 1's Spell IDs empty, Settings > Band sets, band 1 (MELEE) reads "Now: Wing
   Clip (2974), melee range". Target a hostile mob and step back from melee: in melee it reads MELEE;
   at 5-8 yd it reads DEAD, in its color, and Format Range reads `5–8` (never `5–10`) while DEAD shows;
+  walk slowly across the 8 yd edge: no spot reads `5–10 ?`;
   past 8 yd, AUTO. Try it in and out of combat. Result:
 
 ## Containers drawn

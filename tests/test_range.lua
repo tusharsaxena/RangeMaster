@@ -921,8 +921,8 @@ test("rules: the dead zone holds only when a shorter check confirms the target i
     assertEqual(resolve(setId, spec), "unknown",
       "no bracket, nothing confirms near: Auto Shot's false may be its 8 yd min, so unknown, never OOR")
     spec.bracket = { 5, 10 }
-    assertEqual(resolve(setId, spec), "unknown",
-      "a bracket reaching into the dead zone's yards confirms nothing: unknown, never OOR")
+    assertEqual(resolve(setId, spec), 2,
+      "5-10, under Auto Shot's 41 yd reach: its false can only mean too close, DEAD (the owner, 2026-11-24)")
     spec.bracket = { 30, 40 }
     assertEqual(resolve(setId, spec), 4, "a bracket reaching into beyond's yards: OOR")
     spec.bracket = { 5, 10 }

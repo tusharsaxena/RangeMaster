@@ -19,7 +19,7 @@ local _, NS = ...
 --                                         answer that can vouch for `unit` (a band's own `spells`
 --                                         list in place of the class's), and the anchor that gave it,
 --                                         through the per-tick memo the chips share (THE RULES below)
---   NS.Range.Near(unit, state, maxYd)  -> boolean: a check shorter than the ranged anchor's reach
+--   NS.Range.Near(unit, state, maxYd, minYd) -> boolean: a check shorter than the ranged anchor's reach
 --                                         puts `unit` inside that anchor's min range (a dead zone)
 --   NS.Range.BeginTick()               clear the per-tick memo
 --   NS.Range.SetPerfParent(key|false)  the bucket the reads that follow run inside (performance-§3):
@@ -489,15 +489,23 @@ end
 roleAnswer = Range.RoleInRange
 
 --- Whether a check shorter than the ranged anchor's reach puts `unit` inside that anchor's min
---- range: the bracket's far bound at or under the min, or the duel interact distance in range (not
---- asked of a preview, nor where the client refuses it: a unit the player cannot attack, in
---- combat). False when the ranged anchor is unresolved or has no min range, so there is no dead zone.
+--- range: the bracket's far bound at or under the min; or, with its near bound under the min, under
+--- the anchor's max range, so the
+--- anchor's false (the gap asks it first) can only mean too close (the owner, 2026-11-24: a Forever
+--- hunter at a 5-10 bracket read unknown where the duel check gave no answer); or the duel interact
+--- distance in range (not asked of a preview, nor where the client refuses it: a unit the player
+--- cannot attack, in combat). False when the ranged anchor is unresolved or has no min range, so
+--- there is no dead zone.
 --- @return boolean
-function Range.Near(unit, state, maxYd)
+function Range.Near(unit, state, maxYd, minYd)
     local a = Range.Anchor("ranged")
     local min = a and a.minRange
     if type(min) ~= "number" or min <= 0 then return false end
-    if state == "known" and type(maxYd) == "number" and maxYd <= min then return true end
+    if state == "known" and type(maxYd) == "number" then
+        if maxYd <= min then return true end
+        local max, lo = a.maxRange, type(minYd) == "number" and minYd or 0
+        if type(max) == "number" and maxYd < max and lo < min then return true end
+    end
     if source or type(unit) ~= "string" or not UnitExists(unit) or spellsOnly(unit) then return false end
     return Compat.InteractInRange(NEAR_INTERACT, unit) == true
 end

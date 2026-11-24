@@ -265,7 +265,7 @@ local function gapHolds()
     if cur.gap == nil then
         local R, unit = NS.Range, cur.unit
         cur.gap = R.RoleInRange("ranged", unit) == false and R.RoleInRange("melee", unit) ~= true
-            and R.Near(unit, cur.state, cur.maxYd) == true
+            and R.Near(unit, cur.state, cur.maxYd, cur.minYd) == true
     end
     return cur.gap
 end
