@@ -82,10 +82,11 @@ NS.SpellSeeds = {
         -- melee anchor; the seal-and-judge spell 20271 is 0-10 yd, too far for a melee band.
         PALADIN = { chips = { 20271, 853, 635 },   ladder = { 20271, 635 },
                     anchors = { melee = { 679 }, ranged = { 879, 24275 }, friendly = { 635, 19750 } } },
-        -- Attack 6603 is the melee anchor (the owner, 2026-11-24): Raptor Strike 2973 answers in range
-        -- at any distance on WoW Forever, so a 5-8 yd target read MELEE and the dead zone never held.
+        -- Wing Clip 2974 (level 12) is the melee anchor (the owner, 2026-11-24): Raptor Strike 2973 and
+        -- Attack 6603 carry no range requirement on WoW Forever and answer in range at any distance, so
+        -- the 5-8 yd dead zone read MELEE. Below level 12 the melee band reads its yards.
         HUNTER  = { chips = { 75, 3044, 1130 },    ladder = { 1130 },
-                    anchors = { melee = { 6603 }, ranged = { 75, 3044, 1978 } } },
+                    anchors = { melee = { 2974 }, ranged = { 75, 3044, 1978 } } },
         ROGUE   = { chips = { 2764, 1766, 1752 },  ladder = { 2764 },
                     anchors = { melee = { 1752, 1776, 1766 }, ranged = { 2764, 2480, 7918, 7919, 1725 } } },
         PRIEST  = { chips = { 585, 589, 2050 },    ladder = { 585, 2050 },

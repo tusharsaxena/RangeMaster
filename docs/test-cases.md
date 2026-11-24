@@ -171,6 +171,7 @@ Total.
 - number: an unknown range reads the band set's unknown label in every format
 - number: no unit reads nothing, and an unknown format reads as range
 - number: a known state with no far bound and no near bound reads unknown, not 0
+- number: a dead-zone band pulls the far bound in to the ranged anchor's min (5-10 reads 5-8)
 
 ### test_container_render.lua (64)
 

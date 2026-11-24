@@ -12,6 +12,9 @@ local _, NS = ...
 --       spell answering it reports (AUTO "8–41" with Hawk Eye; MELEE "0–5"), a gap or yard band's own
 --       yards, beyond from the reach before it ("41+"). Nil with no band (unknown, none): the caller
 --       writes the bracket's format instead.
+--   NS.Elements.Number.BracketOf(ctx) -> lo, hi
+--       the bracket the formats write: ctx's, with the far bound pulled in to the ranged anchor's
+--       min range while a dead-zone band is drawn (5-10 reads 5-8 on a Forever hunter).
 --   NS.Elements.Number.Joins(c) -> boolean
 --       whether container `c` writes its number and its band's label as ONE line (`layout.joinText`,
 --       on by default; the owner, 2026-11-20: two cells of different widths read as slots). The text
@@ -172,9 +175,26 @@ local function joined(el, num, ctx)
     return num .. " " .. part
 end
 
+--- The bracket to write: ctx's, its far bound pulled in to the ranged anchor's min range while a
+--- dead-zone band is drawn. The gap holds only when that anchor says out of range and a shorter
+--- check says near, so the unit is inside the min: a Forever hunter's 5-10 bracket reads 5-8 (the
+--- owner, 2026-11-24; no checker sits at 8 yd). The band's own `to` stands in without an anchor.
+local function bracketOf(ctx)
+    local lo, hi, row = ctx.lo, ctx.hi, ctx.row
+    local r = row and type(row.rule) == "table" and row.rule
+    if ctx.state ~= "known" or not (r and r.type == "gap") then return lo, hi end
+    local a = NS.Range and NS.Range.Anchor and NS.Range.Anchor("ranged")
+    local edge = a and type(a.minRange) == "number" and a.minRange > 0 and a.minRange or row.to
+    if type(edge) ~= "number" or (type(lo) == "number" and lo >= edge) then return lo, hi end
+    if hi == nil or hi > edge then hi = edge end
+    return lo, hi
+end
+Number.BracketOf = bracketOf
+
 function Number.Update(el, cfg, ctx)
+    local lo, hi = bracketOf(ctx)
     local num = cfg.format == "band" and Number.BandSpan(ctx)
-        or Number.Format(cfg.format, ctx.state, ctx.lo, ctx.hi, ctx.unknownLabel)
+        or Number.Format(cfg.format, ctx.state, lo, hi, ctx.unknownLabel)
     local text = num
     if el.join then
         -- Composed again only when the figure, the band or the set moved (a render inside one band

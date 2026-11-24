@@ -44,3 +44,25 @@ end)
 test("number: a known state with no far bound and no near bound reads unknown, not 0", function()
   assertEqual(Format("max", "known", nil, nil, "?"), "?")
 end)
+
+test("number: a dead-zone band pulls the far bound in to the ranged anchor's min (5-10 reads 5-8)", function()
+  -- red under: the bracket written as LibRangeCheck gives it (the owner, 2026-11-24: a Forever
+  -- hunter's DEAD read 5-10, though Auto Shot's false already puts the target inside 8 yd).
+  local BracketOf = NS.Elements.Number.BracketOf
+  local savedAnchor = NS.Range.Anchor
+  NS.Range.Anchor = function(role) if role == "ranged" then return { id = 75, minRange = 8, maxRange = 35 } end end
+  local ok, err = pcall(function()
+    local gap = { from = 5, to = 8, rule = { type = "gap" } }
+    local lo, hi = BracketOf({ state = "known", lo = 5, hi = 10, row = gap })
+    assertEqual(Format("range", "known", lo, hi, "?"), "5" .. DASH .. "8", "DEAD: 5-8")
+    local _, hi2 = BracketOf({ state = "known", lo = 5, hi = 8, row = gap })
+    assertEqual(hi2, 8, "a bracket already inside stays")
+    local _, hi3 = BracketOf({ state = "known", lo = 5, hi = 10, row = { from = 0, to = 5, rule = { type = "spell", role = "melee" } } })
+    assertEqual(hi3, 10, "any other band writes the bracket as it is")
+    NS.Range.Anchor = function() return nil end
+    local _, hi4 = BracketOf({ state = "known", lo = 5, hi = 10, row = gap })
+    assertEqual(hi4, 8, "no ranged anchor: the band's own edge")
+  end)
+  NS.Range.Anchor = savedAnchor
+  if not ok then error(err, 0) end
+end)
