@@ -290,10 +290,14 @@ a training dummy for each. The spell IDs are the anchors in `defaults/SpellSeeds
 - **RANGE-17. Dead targets and restricted content.** A dead hostile target and a dead friend: write
   down what the container shows (OOR would mean the anchor answered false on a corpse). In a Mythic+
   key or an encounter on Retail, the bands still change with distance. Result: PASS (owner, 2026-11-24, both clients)
-- **RANGE-18. The hunter's dead zone (WoW Forever).** On a hunter with the Hunter preset, Settings >
-  Band sets, band 1 (MELEE) reads "Now: Attack (6603), melee range". Target a hostile mob and step
-  back from melee: in melee it reads MELEE; at 5-8 yd (Format Range reads `5–8` or `5–10`) it reads
-  DEAD, in its color; past 8 yd, AUTO. Try it in and out of combat. Result:
+- **RANGE-18. The hunter's dead zone (WoW Forever).** On a hunter (level 12+, Wing Clip learned) with
+  the Hunter preset and band 1's Spell IDs empty, Settings > Band sets, band 1 (MELEE) reads "Now: Wing
+  Clip (2974), melee range". Target a hostile mob and step back from melee: in melee it reads MELEE;
+  at 5-8 yd it reads DEAD, in its color, and Format Range reads `5–8` (never `0–5` or `5–10`) while DEAD shows;
+  walk slowly across the 8 yd edge: no spot reads `5–10 ?`;
+  past 8 yd, RANGE (band 3, AUTO before 2026-11-24), and Format Range
+  never writes a figure under 8 there (`8–10`, not `5–10`). Every format agrees with the band (About
+  stays between 5 and 8 in the dead zone). Try it in and out of combat. Result:
 
 ## Containers drawn
 
@@ -719,4 +723,4 @@ Set the rules on Containers → Visibility.
 | DIAG-4, DRAW-11, DRAW-12 | the LibKa0s v1.112.0 re-vendor and the preview stand-in (Ka0sAddonsCommonTasks 2026-11-24-FEEDBACK_BATCH, FB-RM-01), 2026-11-24 | the copy window's close-only title bar, Class mode's stand-in class in test mode and unlock, and High Contrast's one-pixel HUD shadow have not been seen in a client yet |
 | MODES-8, PRESET-5 | the LibKa0s v1.113.0 re-vendor (Ka0sAddonsCommonTasks 2026-11-24-FEEDBACK_BATCH, round 2, FB2-RM-01), 2026-11-24 | the step panel on every start path and the preset dropdown's selected row in gold under every skin (Azeroth, Obsidian, WoW Forever on Forever; amended by FB2-RM-02) have not been seen in a client yet |
 | ANCHOR-13 | the LibKa0s v1.111.0 re-vendor (Ka0sAddonsCommonTasks 2026-11-23-STRIP_RIGHT_CLICK, SRC-RM-01), 2026-11-23 | the strip's right-click on the band and each mark, now the gear's own action with no `onRightClick` (DragHandle minor 17), has not been seen in a client yet |
-| RANGE-18 | the hunter dead-zone fix (branch feat/2026-11-24-rangemaster-hunter-deadzone, RM-DZ-02), 2026-11-24 | Attack (6603) as the Forever hunter's melee anchor: whether it reads known and in range in melee only, so DEAD holds at 5-8 yd. |
+| RANGE-18 | the hunter dead-zone fix (RM-DZ-02, then branch feat/2026-11-24-rangemaster-wingclip, RM-DZ-03), 2026-11-24 | Wing Clip (2974) as the Forever hunter's melee anchor and the dead zone's number pulled in to 8 yd: whether MELEE holds in melee, DEAD at 5-8 yd reading `5–8`. |

@@ -57,7 +57,7 @@ L["NEAR"] = "NEAR"
 L["FAR"] = "FAR"
 L["Hunter"] = "Hunter"
 L["DEAD"] = "DEAD"
-L["AUTO"] = "AUTO"
+L["RANGE"] = "RANGE"
 L["RANGED"] = "RANGED"
 
 -- modules/BandSets.lua

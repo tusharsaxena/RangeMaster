@@ -276,8 +276,10 @@ the catalog's (sections 2 and 4) and are not restated here. A quirk only WoW For
   (the melee guard, `modules/Range.lua`). *Measured (2026-11-19, the owner):* a Forever hunter's
   Raptor Strike answered true at 41-45 and 45-100 yd, so hunters are guarded too. *Measured
   (2026-11-24, the owner):* the guard did not cover a 5-8 or 5-10 bracket, so the hunter's 5-8 yd dead
-  zone read MELEE; the Forever hunter's melee anchor is now Attack (6603), the owner's pick, in place
-  of Raptor Strike and Wing Clip (`defaults/SpellSeeds.lua`). *Source:* the research, *Lessons* 9, and the dynamic-bands
+  zone read MELEE. Attack (6603) was tried next and has no range requirement either (the owner,
+  2026-11-24: Attack and Raptor Strike carry none on Forever; Wing Clip and Mongoose Bite say "Melee
+  Range"), so the Forever hunter's melee anchor is Wing Clip (2974, level 12; Mongoose Bite is
+  reactive), and below level 12 the melee band reads its yards (`defaults/SpellSeeds.lua`). *Source:* the research, *Lessons* 9, and the dynamic-bands
   research (`docs/superpowers/specs/2026-11-19-dynamic-bands-research.md`).
 - **Whether a spell's reported range includes talents is undocumented.** `C_Spell.GetSpellInfo(id)`'s
   `minRange` / `maxRange` may be the base range (Auto Shot's 35 yd on WoW Forever) or the talented one

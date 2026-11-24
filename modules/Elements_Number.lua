@@ -12,6 +12,9 @@ local _, NS = ...
 --       spell answering it reports (AUTO "8–41" with Hawk Eye; MELEE "0–5"), a gap or yard band's own
 --       yards, beyond from the reach before it ("41+"). Nil with no band (unknown, none): the caller
 --       writes the bracket's format instead.
+--   NS.Elements.Number.BracketOf(ctx) -> lo, hi
+--       the bracket the formats write: ctx's, with the far bound pulled in to the ranged anchor's
+--       min range while a dead-zone band is drawn (5-10 reads 5-8 on a Forever hunter).
 --   NS.Elements.Number.Joins(c) -> boolean
 --       whether container `c` writes its number and its band's label as ONE line (`layout.joinText`,
 --       on by default; the owner, 2026-11-20: two cells of different widths read as slots). The text
@@ -23,7 +26,9 @@ local _, NS = ...
 --
 -- HONEST BRACKETS. The engine answers a bracket, never a distance (modules/Range.lua), so a format
 -- only chooses which bound to write. An open-ended bracket has no far bound, and no format invents
--- one: "max" on (40, nil) is "40+", not 40 and not 45.
+-- one: "max" on (40, nil) is "40+", not 40 and not 45. The bracket is first trimmed to the span of
+-- the band being drawn (BracketOf): the band is the spells' answer and outranks a coarse rung, so a
+-- Forever hunter's AUTO at 5-10 reads 8-10 and DEAD at 0-5 reads 5-8 (the owner, 2026-11-24).
 --
 -- The element itself follows the contract every element file shares (modules/Container.lua calls it):
 --   Build(inst) -> el        the holder frame and its regions, made once per pooled frame
@@ -172,9 +177,29 @@ local function joined(el, num, ctx)
     return num .. " " .. part
 end
 
+--- The bracket to write: ctx's, trimmed to the span of the band being drawn (spanOf, what format
+--- "band" writes). LibRangeCheck's rungs are coarse on WoW Forever (no checker at 8 yd), and the band
+--- comes from the spells' own answers, so the two can disagree: a hunter's DEAD at a 0-5 bracket, AUTO
+--- at 5-10 (the owner, 2026-11-24: every format but Band span read wrong). The overlap is written; with
+--- none, the band's span, the spells' answer outranking the bracket. Unknown or no band: ctx's.
+local function bracketOf(ctx)
+    local lo, hi = ctx.lo, ctx.hi
+    if ctx.state ~= "known" or type(ctx.band) ~= "number" or not (ctx.set and ctx.set.bands[ctx.band]) then
+        return lo, hi
+    end
+    local slo, shi = spanOf(ctx.set, ctx.band)
+    local tlo = math.max(type(lo) == "number" and lo or 0, slo or 0)
+    local thi = hi
+    if type(shi) == "number" and (thi == nil or thi > shi) then thi = shi end
+    if thi ~= nil and tlo >= thi then return slo, shi end
+    return tlo, thi
+end
+Number.BracketOf = bracketOf
+
 function Number.Update(el, cfg, ctx)
+    local lo, hi = bracketOf(ctx)
     local num = cfg.format == "band" and Number.BandSpan(ctx)
-        or Number.Format(cfg.format, ctx.state, ctx.lo, ctx.hi, ctx.unknownLabel)
+        or Number.Format(cfg.format, ctx.state, lo, hi, ctx.unknownLabel)
     local text = num
     if el.join then
         -- Composed again only when the figure, the band or the set moved (a render inside one band

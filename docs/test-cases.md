@@ -171,6 +171,7 @@ Total.
 - number: an unknown range reads the band set's unknown label in every format
 - number: no unit reads nothing, and an unknown format reads as range
 - number: a known state with no far bound and no near bound reads unknown, not 0
+- number: every format writes the bracket trimmed to the drawn band's span (the owner, 2026-11-24)
 
 ### test_container_render.lua (64)
 

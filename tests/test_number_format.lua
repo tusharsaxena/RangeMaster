@@ -44,3 +44,39 @@ end)
 test("number: a known state with no far bound and no near bound reads unknown, not 0", function()
   assertEqual(Format("max", "known", nil, nil, "?"), "?")
 end)
+
+test("number: every format writes the bracket trimmed to the drawn band's span (the owner, 2026-11-24)", function()
+  -- red under: the bracket written as LibRangeCheck gives it (a Forever hunter's DEAD read 0-5 and
+  -- 5-10, AUTO 5-10, About ~7 in the dead zone; only Band span agreed with the band).
+  local BracketOf = NS.Elements.Number.BracketOf
+  local savedFor = NS.Range.AnchorFor
+  NS.Range.AnchorFor = function(role)
+    if role == "melee" then return { id = 2974, minRange = 0, maxRange = 5 } end
+    if role == "ranged" then return { id = 75, minRange = 8, maxRange = 41 } end
+  end
+  local ok, err = pcall(function()
+    local set = { bands = {
+      { from = 0, to = 5, rule = { type = "spell", role = "melee" } },
+      { from = 5, to = 8, rule = { type = "gap" } },
+      { from = 8, to = 35, rule = { type = "spell", role = "ranged" } },
+      { from = 35, rule = { type = "beyond" } },
+    } }
+    local function write(fmt, band, lo, hi)
+      local blo, bhi = BracketOf({ state = "known", lo = lo, hi = hi, set = set, band = band })
+      return Format(fmt, "known", blo, bhi, "?")
+    end
+    assertEqual(write("range", 3, 5, 10), "8" .. DASH .. "10", "AUTO at 5-10: 8-10")
+    assertEqual(write("range", 2, 0, 5), "5" .. DASH .. "8", "DEAD at 0-5: no overlap, the band's span")
+    assertEqual(write("range", 2, 5, 10), "5" .. DASH .. "8", "DEAD at 5-10: 5-8")
+    assertEqual(write("approx", 2, 5, 10), "~6", "About in the dead zone stays inside it")
+    assertEqual(write("range", 1, 0, 5), "0" .. DASH .. "5", "MELEE at 0-5 stays")
+    assertEqual(write("range", 3, 20, 25), "20" .. DASH .. "25", "a bracket inside its band stays")
+    assertEqual(write("range", 4, 35, 40), "41+", "OOR past Auto Shot's 41 yd: the beyond span")
+    assertEqual(write("range", 4, 45, nil), "45+", "an open bracket past the reach stays")
+    local blo, bhi = BracketOf({ state = "unknown", set = set, band = "unknown" })
+    assertEqual(blo, nil, "unknown: untouched")
+    assertEqual(bhi, nil)
+  end)
+  NS.Range.AnchorFor = savedFor
+  if not ok then error(err, 0) end
+end)
