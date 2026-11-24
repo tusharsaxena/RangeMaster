@@ -271,12 +271,13 @@ the catalog's (sections 2 and 4) and are not restated here. A quirk only WoW For
   usability on every check (a shapeshift fires no `SPELLS_CHANGED`), and take a ladder rung only from
   a spell with a max range above 0 and no min range (`modules/Range.lua`, `core/Compat.lua`). A band
   anchor is asked the same way (`Compat.AnchorInRange`: known and usable first), and a melee anchor
-  answering true is voided, for every class, when LibRangeCheck's bracket starts at 5 yd or more,
+  answering true is voided, for every class, when LibRangeCheck's bracket starts at 8 yd or more,
   when a min-range ranged anchor says true, or when the spell or its live override reaches past 8 yd
   (the melee guard, `modules/Range.lua`). *Measured (2026-11-19, the owner):* a Forever hunter's
   Raptor Strike answered true at 41-45 and 45-100 yd, so hunters are guarded too. *Measured
-  (2026-11-24, the owner):* with the bracket guard at 8 yd, the same hunter's 5-8 dead zone read
-  MELEE (Raptor Strike's true at a 5-8 and a 5-10 bracket), so the guard starts at 5 yd, melee reach. *Source:* the research, *Lessons* 9, and the dynamic-bands
+  (2026-11-24, the owner):* the guard did not cover a 5-8 or 5-10 bracket, so the hunter's 5-8 yd dead
+  zone read MELEE; the Forever hunter's melee anchor is now Attack (6603), the owner's pick, in place
+  of Raptor Strike and Wing Clip (`defaults/SpellSeeds.lua`). *Source:* the research, *Lessons* 9, and the dynamic-bands
   research (`docs/superpowers/specs/2026-11-19-dynamic-bands-research.md`).
 - **Whether a spell's reported range includes talents is undocumented.** `C_Spell.GetSpellInfo(id)`'s
   `minRange` / `maxRange` may be the base range (Auto Shot's 35 yd on WoW Forever) or the talented one

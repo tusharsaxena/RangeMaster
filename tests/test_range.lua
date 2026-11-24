@@ -533,7 +533,8 @@ test("range: the anchors carry the critic's corrections", function()
     return false
   end
   local fh = NS.SpellSeeds.forever.HUNTER.anchors
-  assertEqual(fh.melee[1], 2973, "Forever hunter melee starts at Raptor Strike")
+  assertEqual(fh.melee[1], 6603, "Forever hunter melee is Attack (the owner, 2026-11-24)")
+  assertFalse(has(fh.melee, 2973), "no Raptor Strike: it answers in range at any distance on Forever")
   assertFalse(has(fh.melee, 1495), "no Mongoose Bite: it is reactive")
   assertEqual(fh.ranged[1], 75, "Forever hunter ranged starts at Auto Shot")
   local fd = NS.SpellSeeds.forever.DRUID.anchors.melee
@@ -1004,7 +1005,7 @@ test("rules: yards that contradict a band's own anchor never paint that band", f
   end)
 end)
 
-test("rules: a melee true is voided, for every class, when the bracket puts the unit 5 yd or more away", function()
+test("rules: a melee true is voided, for every class, when the bracket puts the unit 8 yd or more away", function()
   -- red under: no guard (a melee spell can answer true from anywhere), or a hunter exempt from it
   -- (the owner, 2026-11-19: a Forever hunter read MELEE at 41-45 and 45-100).
   local spec = hunter({ class = "WARRIOR", bracket = { 25, 30 }, inRange = { [2973] = true, [75] = true } })
@@ -1021,22 +1022,6 @@ test("rules: a melee true is voided, for every class, when the bracket puts the 
     spec.bracket = { 8, 10 }
     NS.Range.BeginTick()
     assertNil(NS.Range.RoleInRange("melee", "target"), "and at 8-10")
-  end)
-end)
-
-test("rules: the owner's hunter dead zone: Raptor Strike's true at 5-8 and 5-10 is voided, so DEAD holds", function()
-  -- red under: the melee guard at 8 yd alone (the owner, 2026-11-24: a Forever hunter at 5-8 read
-  -- MELEE, because Raptor Strike answers true at any range and the bracket's near bound is 5).
-  local spec = hunter({ bracket = { 5, 8 }, inRange = { [2973] = true, [75] = false } })
-  withRules(spec, function(setId)
-    assertNil(NS.Range.RoleInRange("melee", "target"), "a melee true past 5 yd is voided")
-    assertEqual(resolve(setId, spec), 2, "5-8, Auto Shot too close: DEAD, not MELEE")
-    spec.bracket, spec.interact[3] = { 5, 10 }, true
-    assertEqual(resolve(setId, spec), 2, "5-10, the duel distance says near: DEAD")
-    spec.bracket = { 0, 5 }
-    NS.Range.BeginTick()
-    assertEqual(NS.Range.RoleInRange("melee", "target"), true, "in melee the true stands")
-    assertEqual(resolve(setId, spec), 1, "0-5: MELEE")
   end)
 end)
 

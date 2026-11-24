@@ -184,7 +184,7 @@ band with no answer holding by its yards; with none, the yards' band unless its 
 contradicts it, else `"unknown"`, never out of range. A role's anchor is a list of candidates
 (a ranged or friendly list longest reported reach first, a melee list in seed order without a spell
 reported past 8 yd; the first candidate that can vouch answers, an unusable one passing to the next), and a melee true is voided for every
-class at a bracket near bound of 5 yd or more (2026-11-24: the 5-8 dead zone), while a min-range ranged anchor says true, or when the
+class at a bracket near bound of 8 yd or more, while a min-range ranged anchor says true, or when the
 melee spell (or its live override) reaches past 8 yd. The Hunter preset is two lists,
 one per client, picked once at load (clients-§5): WoW Forever's has the 5-8 yd Auto Shot dead zone.
 

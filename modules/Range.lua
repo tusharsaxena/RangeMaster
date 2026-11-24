@@ -74,8 +74,7 @@ local _, NS = ...
 -- holds it until BeginTick. modules/BandSets.lua's Resolve asks RoleInRange per rule band and Near
 -- for a dead-zone band. A nil (no anchor, not usable, not applicable, a secret) is never read as
 -- false. A melee true is voided (nil), for every class, when the bracket's near bound is
--- MELEE_NEAR_YD (5) or more (the 5-8 dead zone, 2026-11-24), when a ranged anchor with a min
--- range says true (the unit is past that
+-- MELEE_REACH_YD or more, when a ranged anchor with a min range says true (the unit is past that
 -- min), or when the anchor or its live override (Aspect of the Eagle, Ascendance) reaches past
 -- MELEE_REACH_YD: a melee spell can answer true from anywhere (docs/midnight-quirks.md; a Forever
 -- hunter's Raptor Strike read MELEE at 45-100 yd, the owner, 2026-11-19). A band's own `spells`
@@ -122,12 +121,6 @@ local overrides = setmetatable({}, { __mode = "k" })   -- [a band's spells list]
 -- also voided, for every class, at a bracket near bound this far or past it (THE RULES above): a
 -- Forever hunter's Raptor Strike answered true from 45-100 yd (the owner, 2026-11-19).
 local MELEE_REACH_YD = 8
--- A melee true is voided at a bracket near bound this far or past it: a bracket that starts at 5 yd
--- says the unit is past melee reach, and a Forever hunter's Raptor Strike answers true at any range
--- (docs/midnight-quirks.md), so with the guard at 8 yd alone the 5-8 dead zone read MELEE (the owner,
--- 2026-11-24). An honest melee spell (Retail's) already answers false there, so the guard costs it
--- nothing. MELEE_REACH_YD above stays the anchor's own reach test.
-local MELEE_NEAR_YD = 5
 -- The interact distance a dead zone's "near" may be confirmed by: 3, the duel distance (10 yd).
 local NEAR_INTERACT = 3
 
@@ -444,14 +437,14 @@ end
 local roleAnswer   -- Range.RoleInRange, below
 
 --- Whether a melee true on `unit` from anchor `a` is voided: the anchor (or what stands in for it
---- now, a buff's override) reaches past MELEE_REACH_YD; the bracket's near bound is MELEE_NEAR_YD
+--- now, a buff's override) reaches past MELEE_REACH_YD; the bracket's near bound is MELEE_REACH_YD
 --- or more; or a ranged anchor with a min range says true (the unit is past that min, out of melee).
 local function meleeVoided(unit, a)
     if reachesPast(spellReach(a.id), MELEE_REACH_YD) then return true end
     local ov = Compat.OverrideSpell(a.id)
     if ov and ov ~= a.id and reachesPast(spellReach(ov), MELEE_REACH_YD) then return true end
     local state, lo = Range.Get(unit)
-    if state == "known" and type(lo) == "number" and lo >= MELEE_NEAR_YD then return true end
+    if state == "known" and type(lo) == "number" and lo >= MELEE_REACH_YD then return true end
     local v, r = roleAnswer("ranged", unit)
     return v == true and r ~= nil and type(r.minRange) == "number" and r.minRange > 0
 end
