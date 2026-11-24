@@ -16,7 +16,7 @@ unless a check names one. The anchors are run as a matrix, one result per mode a
 | PANEL-1..4 | Panel | the landing page, General's three tabs, Defaults, tooltips |
 | PROFILE-1..3 | Profiles | the Profiles page, `/rm profile`, a profile's own containers |
 | STATE-1..3 | State | enable and disable, the latch, the launcher menu |
-| MODES-1..7 | Modes | Test mode and Sim mode: start, refuse in combat, end on combat, placeholders, the sweep |
+| MODES-1..8 | Modes | Test mode and Sim mode: start, refuse in combat, end on combat, placeholders, the sweep, the step panel on every start |
 | COMBAT-1 | Combat | the settings panel under combat lockdown |
 | DIAG-1..4 | Diagnostics | the console, the report, the perf verb, the copy window's close-only title bar |
 | DEGRADED-1 | Degraded | the library-absent install |
@@ -25,7 +25,7 @@ unless a check names one. The anchors are run as a matrix, one result per mode a
 | DRAW-1..12 | Containers drawn | brackets drawn, unknown gray, elements and order, the skin face, disable, the Bar dot's border and gloss, Fixed colors, outline and shadow, the border and the spell chips following the skin, Class mode in test mode, High Contrast's HUD shadow |
 | CONT-1..14 | Containers page | New container (no band preview), the rail, Position, Duplicate / Delete / Copy settings from, Defaults, Color from, the Dot tab and its Style tiles, Border opacity, the caption's positions, the caption's styling, one line, the skin companion rows, the Style tiles' Scope, the frame picker's label |
 | BANDS-1..11 | Band sets page | the picker, the Bands editor (no band ribbon), shared sets, the friendly override, the unknown label; spell bands: the rule controls, the read-out, the owner's Hawk Eye case, the dead zone, the v1 -> v2 conversion, the band rail |
-| PRESET-1..4 | Presets | the first-run picker, Apply on an empty profile, Apply over containers with Undo, what each of the six shows |
+| PRESET-1..5 | Presets | the first-run picker, Apply on an empty profile, Apply over containers with Undo, what each of the six shows, the dropdown's selected row |
 | ANCHOR-1..13 | Anchors | every mode on both clients: screen, unit frames (Blizzard, EllesmereUI, custom, missing), own nameplate, all nameplates, cursor, the picker, all nameplates except target, the drag strip's marks, the cast bar part, Frame strata and Frame level on a plate, the preview nameplate, the drag strip's right-click |
 | VIS-1..3 | Visibility | combat and reaction rules, out-of-combat opacity, the master rows |
 | SOUND-1..2 | Sounds | the debounced band sound, none on nameplates |
@@ -148,6 +148,14 @@ starts with a cyan `[RM]`. Most checks need a container: apply a preset (General
   `/rm sim stop` answer in chat. Result:
 - **MODES-7. One at a time.** With Sim mode running, `/rm test` → one gray line `Cannot start Test
   mode while Sim mode runs.` Result:
+- **MODES-8. Every start shows the step panel (FB2-RM-01, LibKa0s v1.113.0, Sim minor 5;
+  preview-mode, standard v2.120.0).** Start the sweep each of these ways, letting it end (or
+  `/rm sim stop`) between them: `/rm sim`, `/rm sim on`, `/rm sim start sweep`, the Master controls
+  **Sim mode** box, the launcher's right-click **Sim mode** entry, and `/rm sim panel` then the
+  panel's own **Start** row → every time the `Range Master - SIM` step panel opens with the sweep
+  running, and it carries no close mark (Escape leaves it up). Mid-run, `/rm sim restart` → the
+  panel is still up and the sweep starts over. **Fail:** a sweep running with no step panel, or a
+  close mark on it while it runs. Result:
 
 ## Combat
 
@@ -522,6 +530,13 @@ a training dummy for each. The spell IDs are the anchors in `defaults/SpellSeeds
   the out-of-range chime on target and the Healer set as the friendly override on target, focus and
   mouseover. `/rm preset text`, `/rm preset numbers` and `/rm preset expert` reach the same; `/rm
   preset intermediate` prints the usage line. Result:
+- **PRESET-5. The dropdown's selected row stands apart (FB2-RM-01, LibKa0s v1.113.0, WidgetsDropdown
+  minor 4; skinning-§4 *A selected entry reads apart*, standard v2.120.0).** `/rm preset`, pick
+  **Intermediate (Range Text)**, then open the dropdown again → its row is gold under Ka0s Default and
+  plainly a different color from the five other rows. `/rm skin`, choose **Azeroth** and open the
+  dropdown again → the selected row is gold, not the parchment text the other rows wear; under
+  **Obsidian** it is the skin's accent, again unlike the other rows. Put the skin back when done.
+  **Fail:** a selected row the same color as the rows around it. Result:
 
 ## Anchors
 
@@ -695,4 +710,5 @@ Set the rules on Containers → Visibility.
 | DRAW-6 | the LibKa0s v1.108.0 re-vendor (Ka0sAddonsCommonTasks 2026-11-20-LIBKA0S_94_97_99_100, SD-RV-RM), 2026-11-20 | the Bar dot's skin border and Glass gloss have not been seen in a client yet |
 | RANGE-6..11, BANDS-6..10 | the spell-driven dynamic bands (plan 2026-11-19-dynamic-bands, D1-D7), 2026-11-19 | whether the client reports talented ranges and answers by rank ID, which event a talent point fires, the rule controls, the owner's Hawk Eye case and the v1 -> v2 conversion have not been seen in a client yet |
 | DIAG-4, DRAW-11, DRAW-12 | the LibKa0s v1.112.0 re-vendor and the preview stand-in (Ka0sAddonsCommonTasks 2026-11-24-FEEDBACK_BATCH, FB-RM-01), 2026-11-24 | the copy window's close-only title bar, Class mode's stand-in class in test mode and unlock, and High Contrast's one-pixel HUD shadow have not been seen in a client yet |
+| MODES-8, PRESET-5 | the LibKa0s v1.113.0 re-vendor (Ka0sAddonsCommonTasks 2026-11-24-FEEDBACK_BATCH, round 2, FB2-RM-01), 2026-11-24 | the step panel on every start path and the preset dropdown's selected row under Azeroth have not been seen in a client yet |
 | ANCHOR-13 | the LibKa0s v1.111.0 re-vendor (Ka0sAddonsCommonTasks 2026-11-23-STRIP_RIGHT_CLICK, SRC-RM-01), 2026-11-23 | the strip's right-click on the band and each mark, now the gear's own action with no `onRightClick` (DragHandle minor 17), has not been seen in a client yet |
