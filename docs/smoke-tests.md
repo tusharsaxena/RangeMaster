@@ -308,14 +308,14 @@ failure is a bracket edge that moved. Reverse one by putting its id back in `def
   thrown weapon equipped, run `/dump C_Spell.GetSpellInfo(2764).minRange, C_Spell.GetSpellInfo(2764).maxRange`
   → `8, 30` (the min range that kept Throw from ever being a rung). Target a training dummy and walk
   away from it → the brackets land on RANGE-3's edges only (10, 20, 28, 30 and 35 yd), as before the
-  change. Result:
+  change. Result: PASS (owner, 2026-11-25, WoW Forever)
 - **RANGE-20. The Forever rogue's ladder is empty (WoW Forever, Rogue).** The same as RANGE-19 on a
-  rogue with Throw learned and a thrown weapon equipped: `8, 30`, and RANGE-3's edges only. Result:
+  rogue with Throw learned and a thrown weapon equipped: `8, 30`, and RANGE-3's edges only. Result: PASS (owner, 2026-11-25, WoW Forever)
 - **RANGE-21. The Retail warrior's ladder is Taunt alone (Retail, Warrior).** Run
   `/dump C_Spell.GetSpellInfo(57755).minRange, C_Spell.GetSpellInfo(57755).maxRange` → `8, 30`. Target a
   training dummy and walk away from it → the brackets step as RANGE-1 describes (LibRangeCheck answers
   on Retail; the ladder is never walked), and Heroic Throw's chip still turns in range between 8 and
-  30 yd. Result:
+  30 yd. Result: PASS (owner, 2026-11-25, Retail)
 
 ## Containers drawn
 
@@ -526,43 +526,43 @@ showing the number and the band's label.
   Hunter. Bands → `1 MELEE · 0–5`, `2 JUDGE · 5–10`, `3 RANGE · 10–30`, `4 OOR · 30+`; band 2's read-out
   is `Now: Judgement (20271), 0–10 yd`. Target a dummy: in melee → MELEE; step back to about 8 yd →
   JUDGE; past 10 yd → RANGE; past 30 yd → OOR. Drop the Seal → band 2's read-out turns to Hammer of
-  Justice (853) while it is off cooldown, and the walk reads the same. Result:
+  Justice (853) while it is off cooldown, and the walk reads the same. Result: PASS (owner, 2026-11-25, WoW Forever)
 - **BANDS-13. The Forever hunter keeps its set (WoW Forever, Hunter).** The banner lists `Hunter
   (default)` once (no second Hunter set), then Melee / Ranged, Caster 40, Healer. Its bands are still
-  MELEE, DEAD, RANGE, OOR, and RANGE-18's walk still reads the same. Result:
+  MELEE, DEAD, RANGE, OOR, and RANGE-18's walk still reads the same. Result: PASS (owner, 2026-11-25, WoW Forever)
 - **BANDS-14. Every other WoW Forever class's own set (WoW Forever).** For each class, on a new
   profile: the banner's first set is the class's, `(default)`, with the bands below, and a walk away
   from a dummy steps through them in order (a band whose spell the character has not learned reads its
   yards, so check at a level that has it: Charge 4, Holy Strike 6, Earth Shock 4, Fire Blast 6,
   Drain Life 14).
-  - Warrior: MELEE, CLOSE, CHARGE (8–25, out of combat), RANGE (a thrown weapon or bow equipped), OOR. Result:
-  - Rogue: MELEE, CLOSE, RANGE (a thrown weapon or bow equipped), OOR. Result:
-  - Priest: CLOSE, CAST (to 30), OOR. Result:
-  - Shaman: MELEE, SHOCK (to 20), CAST (to 30), OOR. Result:
-  - Mage: CLOSE, BLAST (to 20), CAST (to 30, Frostbolt), LONG (to 35, Fireball), OOR. Result:
-  - Warlock: CLOSE, DRAIN (to 20), CAST (to 30), OOR. Result:
-  - Druid: MELEE (in Cat or Bear Form), RANGE (to 30, caster form), OOR. Result:
+  - Warrior: MELEE, CLOSE, CHARGE (8–25, out of combat), RANGE (a thrown weapon or bow equipped), OOR. Result: PASS (owner, 2026-11-25, WoW Forever)
+  - Rogue: MELEE, CLOSE, RANGE (a thrown weapon or bow equipped), OOR. Result: PASS (owner, 2026-11-25, WoW Forever)
+  - Priest: CLOSE, CAST (to 30), OOR. Result: PASS (owner, 2026-11-25, WoW Forever)
+  - Shaman: MELEE, SHOCK (to 20), CAST (to 30), OOR. Result: PASS (owner, 2026-11-25, WoW Forever)
+  - Mage: CLOSE, BLAST (to 20), CAST (to 30, Frostbolt), LONG (to 35, Fireball), OOR. Result: PASS (owner, 2026-11-25, WoW Forever)
+  - Warlock: CLOSE, DRAIN (to 20), CAST (to 30), OOR. Result: PASS (owner, 2026-11-25, WoW Forever)
+  - Druid: MELEE (in Cat or Bear Form), RANGE (to 30, caster form), OOR. Result: PASS (owner, 2026-11-25, WoW Forever)
 - **BANDS-15. Every Retail class's own set (Retail).** As BANDS-14, each class on a new profile:
-  - Warrior: MELEE, CLOSE, CHARGE (8–25), RANGE (to 30), OOR. Result:
-  - Paladin: MELEE, HAMMER (to 10, Hammer of Justice), RANGE (to 30), OOR. Result:
-  - Hunter: MELEE, RANGED, OOR, as before. Result:
-  - Rogue: MELEE, STEP (to 25, Shadowstep; an Outlaw without it reads the yards), RANGE (to 30), OOR. Result:
-  - Priest, Mage, Warlock: CLOSE, CAST (to 40), OOR, named after the class. Result:
-  - Death Knight: MELEE, FREEZE (to 15, Mind Freeze), RANGE (to 30), OOR. Result:
-  - Shaman: MELEE, SHEAR (to 30, Wind Shear), CAST (to 40), OOR. Result:
-  - Monk: MELEE, RANGE (to 40), OOR. Result:
-  - Druid: MELEE, BASH (to 13, Skull Bash in Cat or Bear Form), RANGE (to 40), OOR. Result:
+  - Warrior: MELEE, CLOSE, CHARGE (8–25), RANGE (to 30), OOR. Result: PASS (owner, 2026-11-25, Retail)
+  - Paladin: MELEE, HAMMER (to 10, Hammer of Justice), RANGE (to 30), OOR. Result: PASS (owner, 2026-11-25, Retail)
+  - Hunter: MELEE, RANGED, OOR, as before. Result: PASS (owner, 2026-11-25, Retail)
+  - Rogue: MELEE, STEP (to 25, Shadowstep; an Outlaw without it reads the yards), RANGE (to 30), OOR. Result: PASS (owner, 2026-11-25, Retail)
+  - Priest, Mage, Warlock: CLOSE, CAST (to 40), OOR, named after the class. Result: PASS (owner, 2026-11-25, Retail)
+  - Death Knight: MELEE, FREEZE (to 15, Mind Freeze), RANGE (to 30), OOR. Result: PASS (owner, 2026-11-25, Retail)
+  - Shaman: MELEE, SHEAR (to 30, Wind Shear), CAST (to 40), OOR. Result: PASS (owner, 2026-11-25, Retail)
+  - Monk: MELEE, RANGE (to 40), OOR. Result: PASS (owner, 2026-11-25, Retail)
+  - Druid: MELEE, BASH (to 13, Skull Bash in Cat or Bear Form), RANGE (to 40), OOR. Result: PASS (owner, 2026-11-25, Retail)
   - Demon Hunter: MELEE, BLADE (to 15, Felblade if talented), RANGE (to 30), OOR; a Devourer's new
-    profile still starts on Caster 40, with the Demon Hunter set second in its list. Result:
-  - Evoker: CLOSE, CAST (to 25), OOR. Result:
+    profile still starts on Caster 40, with the Demon Hunter set second in its list. Result: PASS (owner, 2026-11-25, Retail)
+  - Evoker: CLOSE, CAST (to 25), OOR. Result: PASS (owner, 2026-11-25, Retail)
 - **BANDS-16. The tier roles in the editor (both clients).** On any band set, pick Spell on a band →
   **Role** lists Melee, Ranged, Friendly, then `10 yd tier` to `30 yd tier`; pick `10 yd tier` on a
   paladin → the read-out names a 10 yd spell; on a class with no 10 yd list → `Not learned: using
-  <yards> yd`. The heading reads `(Spell: 10 yd tier)`. Result:
+  <yards> yd`. The heading reads `(Spell: 10 yd tier)`. Result: PASS (owner, 2026-11-25, both clients)
 - **BANDS-17. An existing profile is kept (both clients).** Log in on a profile saved before this build
   → its band sets, their order, names, edges and rules are exactly as they were: no class set is added
   and none is rewritten. Applying the **Ka0s** preset there creates the class's own set and puts the
-  displays on it. Result:
+  displays on it. Result: PASS (owner, 2026-11-25, both clients)
 
 ## Presets
 
@@ -791,5 +791,5 @@ Set the rules on Containers → Visibility.
 | MODES-8, PRESET-5 | the LibKa0s v1.113.0 re-vendor (Ka0sAddonsCommonTasks 2026-11-24-FEEDBACK_BATCH, round 2, FB2-RM-01), 2026-11-24 | the step panel on every start path and the preset dropdown's selected row in gold under every skin (Azeroth, Obsidian, WoW Forever on Forever; amended by FB2-RM-02) have not been seen in a client yet |
 | ANCHOR-13 | the LibKa0s v1.111.0 re-vendor (Ka0sAddonsCommonTasks 2026-11-23-STRIP_RIGHT_CLICK, SRC-RM-01), 2026-11-23 | the strip's right-click on the band and each mark, now the gear's own action with no `onRightClick` (DragHandle minor 17), has not been seen in a client yet |
 | RANGE-18 | the hunter dead-zone fix (RM-DZ-02, then branch feat/2026-11-24-rangemaster-wingclip, RM-DZ-03), 2026-11-24 | Wing Clip (2974) as the Forever hunter's melee anchor and the dead zone's number pulled in to 8 yd: whether MELEE holds in melee, DEAD at 5-8 yd reading `5–8`. Passed on WoW Forever, the owner, 2026-11-25. |
-| BANDS-12..17 | the class band sets (Ka0sAddonsCommonTasks `docs/2026-11-25-SEEDS_AND_FOREVERDB/`, SF-RM-02; RangeMaster#20), 2026-11-25 | every class's own preset per client and the tier roles (`tier10` to `tier30`) have not been seen in a client yet: whether each tier spell answers as DB2 says, and the walk steps through each set's bands. The owner plays at least the WoW Forever Paladin and Hunter. |
-| RANGE-19..21 | the first seed validation (Ka0sAddonsCommonTasks `docs/2026-11-25-SEEDS_AND_FOREVERDB/`, SF-RM-01), 2026-11-25 | Throw 2764 out of the Forever warrior's and rogue's ladders and Heroic Throw 57755 out of the Retail warrior's, each a min-range spell DB2 says could never be a rung: whether the client reports that min range and the brackets are unchanged. |
+| BANDS-12..17 | the class band sets (Ka0sAddonsCommonTasks `docs/2026-11-25-SEEDS_AND_FOREVERDB/`, SF-RM-02; RangeMaster#20), 2026-11-25 | every class's own preset per client and the tier roles (`tier10` to `tier30`) have not been seen in a client yet: whether each tier spell answers as DB2 says, and the walk steps through each set's bands. The owner plays at least the WoW Forever Paladin and Hunter. BANDS-12 to BANDS-14 passed on WoW Forever, BANDS-15 on Retail, and BANDS-16 and BANDS-17 on both clients, the owner, 2026-11-25. |
+| RANGE-19..21 | the first seed validation (Ka0sAddonsCommonTasks `docs/2026-11-25-SEEDS_AND_FOREVERDB/`, SF-RM-01), 2026-11-25 | Throw 2764 out of the Forever warrior's and rogue's ladders and Heroic Throw 57755 out of the Retail warrior's, each a min-range spell DB2 says could never be a rung: whether the client reports that min range and the brackets are unchanged. RANGE-19 and RANGE-20 passed on WoW Forever and RANGE-21 on Retail, the owner, 2026-11-25. |
