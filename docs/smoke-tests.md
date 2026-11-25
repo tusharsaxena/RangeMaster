@@ -574,19 +574,19 @@ check names Paladin, use your own class's set and preset.
   **Delete…**, and the General tab has none of them (only Name, Match band by, the Unknown range rows and
   `Used by:`). **Delete…** on a set with a container → it asks, naming the set; Yes → the set is gone,
   `Deleted band set '...'.` in chat, its container now on the default set, and the picker on the set
-  after it. Delete down to one set → **Delete…** is grayed. Result:
+  after it. Delete down to one set → **Delete…** is grayed. Result: PASS (owner, 2026-11-25)
 - **BANDS-19. Add band and Remove band side by side** ("Add band and remove band should be next to
   each other"). Bands → **Add band** and **Remove band** share one row under the rail, Remove band on
   the right; neither is among the selected band's own controls. Select band 2, **Remove band** → band 2
   is gone and the band after it is selected; **Add band** → a new band is split off the last one and
-  selected. Remove bands down to one → **Remove band** is grayed. Result:
+  selected. Remove bands down to one → **Remove band** is grayed. Result: PASS (owner, 2026-11-25)
 - **BANDS-20. Every class preset is listed** ("I want to be able to see all the class specific band
   sets"). Open the picker → three group rows in the skin's heading color, **Your band sets**,
   **Shipped presets · Classes** and **Shipped presets · General**, none of which can be chosen. Your sets come first, the default one
   `(default)`. Classes lists every class this client has (13 on Retail, 9 on WoW Forever, Hunter among
   them), each name in its class color and yours `(your class)`. General lists Melee / Ranged, Caster 40
   and Healer. Nothing in the profile changed by opening it (`/rm bands` lists only your own sets).
-  Result:
+  Result: PASS (owner, 2026-11-25)
 - **BANDS-21. A new set from a shipped preset** ("a way to setup a new band set using one of the
   shipped prebuilt band sets"). **New…** → a dialog: Name, then Start from with **A shipped preset**
   picked and its dropdown on your class, **A copy of one of my sets** and **Blank: one open-ended band**.
@@ -594,7 +594,7 @@ check names Paladin, use your own class's set and preset.
   set '...'.`, the picker on the new set, its bands the Mage preset's and the line under the picker
   `From the Mage preset`. Again with **A copy of one of my sets** → a copy of that set, sounds included;
   with **Blank** → one band from 0 yd with no limit and no line under the picker. Cancel, Escape and the
-  close mark each close the dialog with nothing made. Result:
+  close mark each close the dialog with nothing made. Result: PASS (owner, 2026-11-25)
 - **BANDS-22. Modified, then Restore** ("If i modify a class specific, can i restore it"). On your
   class's set (made from its preset) change band 2's Label and the Match band by → the line under the
   picker reads `From the Paladin preset · modified (match rule, band 2 label)` and the picker row
@@ -603,14 +603,14 @@ check names Paladin, use your own class's set and preset.
   with **Keep my sounds** ticked. Put a sound on band 1 first, **Restore** → `Restored 'Paladin' to the
   Paladin preset. /rm bands undo puts it back.`, the bands back as shipped, band 1 keeping its sound, the
   line back to `From the Paladin preset` and the button grayed. The set's name and its containers did
-  not change. Result:
+  not change. Result: PASS (owner, 2026-11-25)
 - **BANDS-23. Copy bands from another set** ("There needs to be a way to copy a bandset from
   another"). On a set of yours, **Copy bands from…** → Into names it; From lists your other sets, then
   every preset; **Bands** is ticked and grayed, **Sounds on enter** ticked, **Match rule and unknown
   label and color** clear; the summary reads `<this>'s N bands are replaced by <source>'s M. Its name
   and the containers using it stay.` and follows the From pick. **Copy** → `Copied the bands of '...'
   into '...'. /rm bands undo puts them back.`; the bands are the source's, the name and the containers
-  unchanged, the match rule unchanged. A set never lists itself under From. Result:
+  unchanged, the match rule unchanged. A set never lists itself under From. Result: PASS (owner, 2026-11-25)
 - **BANDS-24. A shipped preset is read-only** (the owner's two picks). Pick **Shipped presets ·
   Classes → Warrior** → the line under the picker reads `A shipped preset: read-only. Make it yours to
   use it on a container or to edit it.` beside **Use this preset…** and **Copy into a set of mine…**;
@@ -619,13 +619,13 @@ check names Paladin, use your own class's set and preset.
   and `/rm reset bandSet.matchBy` each print `A shipped preset is being viewed, and it is read-only: ...` and change nothing.
   **Use this preset…** → the New dialog with the Warrior preset picked and the name `Warrior` (or `Warrior 2`) prefilled. **Copy into a set
   of mine…** → Copy bands from with Warrior as the source and a dropdown of your sets under Into. No
-  container's Band set dropdown lists the preset. Result:
+  container's Band set dropdown lists the preset. Result: PASS (owner, 2026-11-25)
 - **BANDS-25. Undo** (the spec's Undo). Modify and Restore a set as in BANDS-22, then type `/rm bands
   undo` → `Undone: 'Paladin' is back as it was.`, the label and match rule back as you had them and the
   line reading `· modified` again. Copy bands into a set as in BANDS-23, edit another set, then `/rm bands
   undo` → only the copied set goes back; the other set keeps its edit. `/rm bands undo` again → `Nothing to undo: ...`. Copy into a
   set, delete it, then `/rm bands undo` → `Nothing to undo: that band set has been deleted since.`
-  Switch profile after a copy → `/rm bands undo` has nothing to undo, and an open dialog closed. Result:
+  Switch profile after a copy → `/rm bands undo` has nothing to undo, and an open dialog closed. Result: PASS (owner, 2026-11-25)
 
 ## Presets
 
@@ -856,5 +856,5 @@ Set the rules on Containers → Visibility.
 | RANGE-18 | the hunter dead-zone fix (RM-DZ-02, then branch feat/2026-11-24-rangemaster-wingclip, RM-DZ-03), 2026-11-24 | Wing Clip (2974) as the Forever hunter's melee anchor and the dead zone's number pulled in to 8 yd: whether MELEE holds in melee, DEAD at 5-8 yd reading `5–8`. Passed on WoW Forever, the owner, 2026-11-25. |
 | BANDS-12..17 | the class band sets (Ka0sAddonsCommonTasks `docs/2026-11-25-SEEDS_AND_FOREVERDB/`, SF-RM-02; RangeMaster#20), 2026-11-25 | every class's own preset per client and the tier roles (`tier10` to `tier30`) have not been seen in a client yet: whether each tier spell answers as DB2 says, and the walk steps through each set's bands. The owner plays at least the WoW Forever Paladin and Hunter. BANDS-12 to BANDS-14 passed on WoW Forever, BANDS-15 on Retail, and BANDS-16 and BANDS-17 on both clients, the owner, 2026-11-25. |
 | RANGE-19..21 | the first seed validation (Ka0sAddonsCommonTasks `docs/2026-11-25-SEEDS_AND_FOREVERDB/`, SF-RM-01), 2026-11-25 | Throw 2764 out of the Forever warrior's and rogue's ladders and Heroic Throw 57755 out of the Retail warrior's, each a min-range spell DB2 says could never be a rung: whether the client reports that min range and the brackets are unchanged. RANGE-19 and RANGE-20 passed on WoW Forever and RANGE-21 on Retail, the owner, 2026-11-25. |
-| BANDS-18..25 | the band set manager (branch feat/2026-11-25-band-set-manager, BS-01 to BS-04; RangeMaster#21), 2026-11-25 | the header row, the grouped picker, the origin line, the read-only preset view, the three dialogs, Add band beside Remove band and `/rm bands undo` have not been seen in a client yet. |
+| BANDS-18..25 | the band set manager (branch feat/2026-11-25-band-set-manager, BS-01 to BS-04; RangeMaster#21), 2026-11-25 | the header row, the grouped picker, the origin line, the read-only preset view, the three dialogs, Add band beside Remove band and `/rm bands undo` have not been seen in a client yet. Passed, the owner, 2026-11-25. |
 | BANDS-1, BANDS-2, BANDS-11 (amended) | the band set manager (RangeMaster#21), 2026-11-25 | wherever these name **New band set**, **Duplicate band set** or **Delete band set…** on the General tab, or Remove band among a band's controls, BANDS-18, BANDS-19 and BANDS-21 supersede them: the acts are in the header as New…, Duplicate and Delete…, and Remove band sits beside Add band under the rail |
