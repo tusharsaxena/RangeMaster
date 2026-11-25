@@ -81,9 +81,13 @@ V.COLOR_MODES = { band = L["Band color"], fixed = L["Fixed color"], class = L["C
 V.COLOR_MODES_SORT = { "band", "fixed", "class" }
 
 --- The band sets as dropdown values, id -> name, led by `noneLabel` under 0 (the row's `nilAs`).
-local function bandSetValues(noneLabel)
+--- `fallback`, when given, answers the set 0 resolves to for this character, named after the label
+--- (modules/BandSetChoice.lua; spec 2026-11-26-band-set-per-character, C5).
+local function bandSetValues(noneLabel, fallback)
     return function()
-        local out = { [0] = noneLabel }
+        local fid = fallback and fallback()
+        local set = fid and NS.BandSets.Get(fid)
+        local out = { [0] = set and L["%s (%s)"]:format(noneLabel, set.name) or noneLabel }
         for _, id in ipairs(NS.BandSets.List()) do out[id] = NS.BandSets.Get(id).name end
         return out
     end
@@ -157,6 +161,14 @@ NS.__containerRail = railSections
 
 local S_TRACKS = L["What it tracks"]
 
+--- The set a selected container with no pick uses on this character, or nil without a store.
+local function characterFallback()
+    local Choice = NS.BandSetChoice
+    if not (Choice and Choice.HasStore()) then return nil end
+    local c = NS.SelectedContainer()
+    return Choice.FallbackId(c)
+end
+
 local ROWS = {
     { path = "container.name", page = PAGE, group = GENERAL, order = 10, type = "string",
       dialogControl = "EditBox", maxLetters = 40, label = L["Name"],
@@ -172,7 +184,7 @@ local ROWS = {
       onChange = function() NS.RequestPanelRefresh() end },
     { path = "container.bandSet", page = PAGE, group = GENERAL, subgroup = S_TRACKS, order = 40,
       type = "number", min = 0, max = 1000000, nilAs = 0, default = 0,
-      values = bandSetValues(L["Default band set"]), sorting = bandSetSort, label = L["Band set"],
+      values = bandSetValues(L["Default band set"], characterFallback), sorting = bandSetSort, label = L["Band set"],
       desc = L["The bands this container colors by. Band sets are shared and edited on the Band sets page."] },
     { path = "container.bandSetFriendly", page = PAGE, group = GENERAL, subgroup = S_TRACKS, order = 50,
       type = "number", min = 0, max = 1000000, nilAs = 0, default = 0,

@@ -604,12 +604,21 @@ function NS.NeighborAfterDelete(ids, deletedIndex)
     return ids[deletedIndex + 1] or ids[deletedIndex - 1]
 end
 
+-- The container fields a character's pick answers (modules/BandSetChoice.lua).
+local CHARACTER_FIELDS = { bandSet = true, bandSetFriendly = true }
+
 local SELECTION = {
     [CONTAINER] = {
         selected = function() return NS.SelectedContainer() end,
         template = function() return NS.CONTAINER_TEMPLATE end,
+        -- The band-set fields are this character's pick when a character store exists
+        -- (modules/BandSetChoice.lua; spec 2026-11-26-band-set-per-character), else the profile's.
+        read = function(item, id, field) return NS.BandSetChoice.Read(id, item, field) end,
         write = function(id, field, v)
             if field == "name" then return NS.CM.Rename(id, v) end
+            if CHARACTER_FIELDS[field] and NS.BandSetChoice.HasStore() then
+                return NS.BandSetChoice.Set(id, field, v)
+            end
             return NS.CM.SetField(id, field, v)
         end,
         none = function() return NS.L["No container exists yet: create one with /rm new."] end,
@@ -660,12 +669,15 @@ local function validationRoot(prefix)
     return root
 end
 
---- The row's read: the selected item's field, nil reading as the row's `nilAs`.
+--- The row's read: the selected item's field (or what the selection's own `read` answers for it),
+--- nil reading as the row's `nilAs`.
 local function stampGet(row, sel, field)
     return function()
-        local item = sel.selected()
+        local item, id = sel.selected()
         if not item then return nil end
-        local v = SchemaLib.Read(item, field)
+        local handled, v = false, nil
+        if sel.read then handled, v = sel.read(item, id, field) end
+        if not handled then v = SchemaLib.Read(item, field) end
         if v == nil then return row.nilAs end
         if v == "" and row.emptyAs ~= nil then return row.emptyAs end
         return v

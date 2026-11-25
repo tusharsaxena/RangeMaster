@@ -349,6 +349,8 @@ function CM.Duplicate(id)
         c.anchor.y = (tonumber(c.anchor.y) or 0) - 20
     end
     local newId = insert(p, c, id)
+    -- Every character's band set picks come with it (modules/BandSetChoice.lua).
+    if NS.BandSetChoice then NS.BandSetChoice.CopyContainer(id, newId) end
     NS.Debug("Containers", "duplicated %s -> %s", id, newId)
     CM.RequestApply()
     return newId
@@ -379,6 +381,8 @@ function CM.CopySettings(fromId, toId, sections)
         dst[key] = copy(src[key])
         if own ~= nil and type(dst.label) == "table" then dst.label.text = own end
     end
+    -- The band-set sections carry every character's picks too (modules/BandSetChoice.lua).
+    if NS.BandSetChoice then NS.BandSetChoice.CopyContainer(fromId, toId, sections) end
     NS.Debug("Containers", "copied %d section(s) %s -> %s", #sections, fromId, toId)
     CM.RequestApply()
     return true

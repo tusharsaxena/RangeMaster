@@ -614,7 +614,7 @@ end
 --- The band to draw and the set it is read from, into ctx. Answers whether it differs from the last.
 local function resolveBand(inst, state, lo, hi)
     local B = NS.BandSets
-    local setId = B.ForUnit(inst.container, inst.unit)
+    local setId = B.ForUnit(inst.container, inst.unit, inst.id)
     local band = B.Resolve(setId, state, lo, hi, inst.unit) or "none"
     if band == inst.bandIndex and setId == inst.setId then return false end
     local ctx, set = inst.ctx, B.Get(setId)
@@ -750,7 +750,7 @@ local function bandMoved(inst)
     local state = inst.state
     if not inst.shown or (state ~= "known" and state ~= "unknown") then return false end
     local B = NS.BandSets
-    local setId = B.ForUnit(inst.container, inst.unit)
+    local setId = B.ForUnit(inst.container, inst.unit, inst.id)
     if setId ~= inst.setId then return true end
     return (B.Resolve(setId, state, inst.lo, inst.hi, inst.unit) or "none") ~= inst.bandIndex
 end

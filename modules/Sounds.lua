@@ -64,7 +64,7 @@ end
 --- The sound key of band `band` of the set the instance draws, or nil.
 local function keyFor(inst, band)
     local B = NS.BandSets
-    local set = B.Get(inst.setId or B.ForUnit(inst.container, inst.unit))
+    local set = B.Get(inst.setId or B.ForUnit(inst.container, inst.unit, inst.id))
     local row = set and set.bands and set.bands[band]
     local key = row and row.sound
     if type(key) ~= "string" or key == "" then return nil end

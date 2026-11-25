@@ -138,7 +138,8 @@ local function usedBy(id)
     local names = {}
     for _, cid in ipairs(NS.CM.List()) do
         local c = NS.CM.Get(cid)
-        if c.bandSet == id or c.bandSetFriendly == id then names[#names + 1] = c.name end
+        local Choice = NS.BandSetChoice
+        if Choice.Hostile(cid, c) == id or Choice.Friendly(cid, c) == id then names[#names + 1] = c.name end
     end
     if #names == 0 then return nil end
     return table.concat(names, ", ")
@@ -543,14 +544,16 @@ local function addHeader(list, order, headers, name, text)
     headers[#headers + 1] = key
 end
 
---- The player's sets into `list` and `order`, all but `except`: the default first, "(default)"; a
+--- The player's sets into `list` and `order`, all but `except`, in order: this character's default
+--- (its class set, else the first; modules/BandSetChoice.lua, spec 2026-11-26 C5), "(default)"; a
 --- set that differs from its preset, "modified". Answers how many it added.
 local function addOwnSets(list, order, except)
     local n = 0
-    for i, id in ipairs(NS.BandSets.List()) do
+    local default = NS.BandSetChoice.CharacterDefaultId()
+    for _, id in ipairs(NS.BandSets.List()) do
         if id ~= except then
             local text = NS.BandSets.Get(id).name
-            if i == 1 then text = L["%s (default)"]:format(text) end
+            if id == default then text = L["%s (default)"]:format(text) end
             if NS.BandSets.IsModified(id) then text = L["%s \194\183 modified"]:format(text) end
             list[id], order[#order + 1], n = text, id, n + 1
         end

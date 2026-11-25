@@ -221,10 +221,11 @@ local BUILD = {
 --- Put OOR_SOUND on the last (open-ended) band of container `id`'s set, unless it has a sound.
 local function addOorSound(id)
     local c = NS.CM.Get(id)
-    local set = c and NS.BandSets.Get(c.bandSet)
+    local setId = c and NS.BandSetChoice.Hostile(id, c)
+    local set = setId and NS.BandSets.Get(setId)
     local last = set and set.bands[#set.bands]
     if not last or last.sound ~= nil then return end
-    NS.BandSets.SetBandSound(c.bandSet, #set.bands, Presets.OOR_SOUND)
+    NS.BandSets.SetBandSound(setId, #set.bands, Presets.OOR_SOUND)
 end
 
 --- Replace the profile's containers with preset `key`'s (a known key).
