@@ -102,11 +102,21 @@ test("bandset choice: a new character with no pick gets its own class preset", f
       "red before: the hunter read the profile's Paladin set")
     assertEqual(NS.BandSetChoice.CharacterDefaultId(), setFrom("hunter"), "'(default)' is the hunter's own")
     assertEqual(row("container.bandSet").get(), 0, "with no pick the row reads Default band set")
-    -- A class with no set in the profile falls back to the container's own field.
+    -- A class with no set in the profile never lands on another class's set (BSC-REV): the
+    -- container's field is the Paladin set, so the rogue reads the first set that is no class's.
     acct.login("Rogue - Realm", "ROGUE")
     assertNil(setFrom("rogue"), "no Rogue set was seeded in this profile")
-    assertEqual(B.ForUnit(p.containers[cid], "target", cid), p.containers[cid].bandSet,
-      "no class set: the profile's field")
+    assertEqual(p.containers[cid].bandSet, setFrom("paladin"), "the container's field is the paladin's set")
+    assertEqual(B.ForUnit(p.containers[cid], "target", cid), setFrom("melee_ranged"),
+      "red before: the rogue read the profile's Paladin set")
+    assertEqual(NS.BandSetChoice.CharacterDefaultId(), setFrom("melee_ranged"),
+      "and '(default)' is the same set, never 'Paladin (default)'")
+    assertEqual(NS.BandSetChoice.FallbackId(p.containers[cid]), NS.BandSetChoice.CharacterDefaultId(),
+      "the row's Default band set names the set '(default)' marks")
+    -- A container whose field is a generic set (a preset's or the player's) keeps it for the rogue.
+    local generic = addContainer(p, setFrom("caster40"))
+    assertEqual(B.ForUnit(p.containers[generic], "target", generic), setFrom("caster40"),
+      "no class set: a generic profile field still applies")
   end)
 end)
 
@@ -205,6 +215,13 @@ test("bandset choice: the v5 step keeps the migrating character's pick, but neve
     assertEqual(B.ForUnit(p.containers[seed.c2], "target", seed.c2), setFrom("hunter"), "so the hunter reads Hunter")
     acct.login("Pal - Realm", "PALADIN")
     assertEqual(B.ForUnit(p.containers[seed.c2], "target", seed.c2), seed.paladin, "and the paladin, Paladin")
+    -- The known trade-off (spec addendum, BANDS-28): pre-v5 data has no owner, so a generic set is
+    -- pinned on whoever loads first. The paladin's Caster 40 went to the hunter; the paladin, with no
+    -- pick of its own, follows its class set (C9).
+    assertNil(acct.sv.char["Pal - Realm"].bandSetChoice and acct.sv.char["Pal - Realm"].bandSetChoice.Default,
+      "the step runs once per account, so the paladin has no pins")
+    assertEqual(B.ForUnit(p.containers[seed.c1], "target", seed.c1), seed.paladin,
+      "the paladin's c1 reads its class set, not the Caster 40 it had chosen")
   end, v4())
 end)
 
@@ -236,4 +253,87 @@ test("bandset choice: with no character store the profile fields are read and wr
   c.bandSet = B.List()[#B.List()]
   assertEqual(B.ForUnit(c, "target", 1), c.bandSet, "the profile field is the selection")
   assertFalse(NS.BandSetChoice.Set(1, "bandSet", c.bandSet), "and there is nothing to write")
+end)
+
+test("bandset choice: the AceDB profile events reach every character's picks", function()
+  withAccount(function(acct)
+    local p = acct.login("Pal - Realm", "PALADIN")
+    local cid = addContainer(p)
+    local caster, healer = setFrom("caster40"), setFrom("healer")
+    NS.BandSetChoice.Set(cid, "bandSet", caster)
+    acct.login("Hunt - Realm", "HUNTER")
+    NS.BandSetChoice.Set(cid, "bandSet", healer)
+    -- A copy, as AceDB does it: the source copied into the active profile, then OnProfileCopied.
+    acct.sv.profiles.Raid = NS.Database.DeepCopy(acct.sv.profiles.Default)
+    acct.db.keys.profile, acct.db.profile = "Raid", acct.sv.profiles.Raid
+    NS.OnProfileCopied("Default")
+    assertEqual(acct.sv.char["Pal - Realm"].bandSetChoice.Raid[cid].hostile, caster, "the paladin's picks are copied")
+    assertEqual(B.ForUnit(acct.db.profile.containers[cid], "target", cid), healer, "and the hunter's apply on Raid")
+    -- A reset, as AceDB does it: the profile emptied in place, then OnProfileReset.
+    for k in pairs(acct.db.profile) do acct.db.profile[k] = nil end
+    NS.OnProfileReset()
+    assertNil(acct.sv.char["Pal - Realm"].bandSetChoice.Raid, "a reset forgets every character's picks")
+    assertNil(acct.sv.char["Hunt - Realm"].bandSetChoice.Raid)
+    -- A delete of the profile not in use.
+    NS.OnProfileDeleted("Default")
+    assertNil(acct.sv.char["Pal - Realm"].bandSetChoice.Default, "a delete forgets that profile's picks")
+    assertNil(acct.sv.char["Hunt - Realm"].bandSetChoice.Default)
+  end)
+end)
+
+test("bandset choice: the load pass drops a pick on a deleted container", function()
+  withAccount(function(acct)
+    local p = acct.login("Hunt - Realm", "HUNTER")
+    local keep, gone = addContainer(p), addContainer(p)
+    NS.BandSetChoice.Set(keep, "bandSet", setFrom("caster40"))
+    NS.BandSetChoice.Set(gone, "bandSet", setFrom("caster40"))
+    assertTrue(NS.CM.Delete(gone))
+    acct.login("Hunt - Realm", "HUNTER")
+    local mine = acct.sv.char["Hunt - Realm"].bandSetChoice.Default
+    assertNil(mine[gone], "the deleted container's pick is pruned")
+    assertEqual(mine[keep].hostile, setFrom("caster40"), "the live one's stays")
+  end)
+end)
+
+test("bandset choice: a respec moves the class default (OnSpellsChanged drops the cache)", function()
+  local realSpec = NS.Compat.PlayerSpecID
+  local spec = 577
+  NS.Compat.PlayerSpecID = function() return spec end
+  local ok, err = pcall(withAccount, function(acct)
+    acct.login("Pal - Realm", "PALADIN")
+    local p = acct.login("DH - Realm", "DEMONHUNTER")
+    local cid = addContainer(p)
+    assertEqual(B.ForUnit(p.containers[cid], "target", cid), setFrom("melee_ranged"),
+      "Havoc on a paladin's profile: the first set that is no class's")
+    spec = 1480
+    NS:OnSpellsChanged()
+    assertEqual(B.ForUnit(p.containers[cid], "target", cid), setFrom("caster40"),
+      "red without the invalidate: Devourer reads its caster default")
+  end)
+  NS.Compat.PlayerSpecID = realSpec
+  assertTrue(ok, tostring(err))
+end)
+
+test("bandset choice: Copy settings without the band-set sections leaves the picks alone", function()
+  withAccount(function(acct)
+    local p = acct.login("Hunt - Realm", "HUNTER")
+    local from, to = addContainer(p), addContainer(p)
+    NS.BandSetChoice.Set(from, "bandSet", setFrom("caster40"))
+    NS.BandSetChoice.Set(to, "bandSet", setFrom("healer"))
+    assertTrue(NS.CM.CopySettings(from, to, { "layout" }))
+    assertEqual(B.ForUnit(p.containers[to], "target", to), setFrom("healer"), "the target keeps its own pick")
+  end)
+end)
+
+test("bandset choice: other characters' picks are counted for the Used by line", function()
+  withAccount(function(acct)
+    local p = acct.login("Pal - Realm", "PALADIN")
+    local cid = addContainer(p)
+    local a = B.Create("A", "healer")
+    NS.BandSetChoice.Set(cid, "bandSet", a)
+    assertEqual(NS.BandSetChoice.OthersUsing(a), 0, "this character's own pick is not an other's")
+    acct.login("Hunt - Realm", "HUNTER")
+    assertEqual(NS.BandSetChoice.OthersUsing(a), 1, "the paladin's pick, seen from the hunter")
+    assertEqual(NS.BandSetChoice.OthersUsing(setFrom("caster40")), 0)
+  end)
 end)

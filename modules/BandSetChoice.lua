@@ -12,6 +12,7 @@ local _, NS = ...
 --   NS.BandSetChoice.FallbackId(c) -> setId            what a container with no pick uses
 --   NS.BandSetChoice.CharacterDefaultId() -> setId     this character's default ("(default)")
 --   NS.BandSetChoice.Forget(setId, target?)            a band set was deleted
+--   NS.BandSetChoice.OthersUsing(setId) -> number      other characters picking it (Used by)
 --   NS.BandSetChoice.CopyContainer(fromId, toId, fields?)   a container copy or duplicate
 --   NS.BandSetChoice.CopyProfile(source, dest), ForgetProfile(name)   the AceDB profile events
 --   NS.BandSetChoice.Prepare()                         the load pass: prune this character's picks
@@ -27,7 +28,9 @@ local _, NS = ...
 --
 -- THE RESOLUTION (spec section 2). Hostile: the character's pick; else this character's class
 -- default (the first set whose `origin` is DefaultFor(class, spec), else DefaultFor(class)); else the
--- container's profile field; else the default set. Friendly: the character's pick (false: the hostile
+-- container's profile field, unless that is another class's preset; else the first set that is not
+-- another class's (a rogue on a paladin's profile gets Melee / Ranged, never Paladin; BSC-REV); else
+-- the default set. Friendly: the character's pick (false: the hostile
 -- set); else the profile's bandSetFriendly; else the hostile set. Nothing is written back (spec C3).
 --
 -- WITHOUT A CHARACTER STORE (the no-AceDB fallback and the test kit's AceDB fake, spec C8) the profile
@@ -102,10 +105,23 @@ end
 -- The class default (cached until the band sets, the spec or the profile change)
 -- ---------------------------------------------------------------------------
 
-local cache = { valid = false, id = nil }
+local cache = { valid = false }
 
 function Choice.Invalidate()
-    cache.valid, cache.id = false, nil
+    cache.valid = false
+end
+
+--- The class preset keys, as a set (CLASS_KEYS is fixed at load).
+local classKeySet
+
+--- Whether preset key `origin` is a class preset other than this character's own (`spec`, `own`).
+local function otherClass(origin, spec, own)
+    if origin == nil or origin == spec or origin == own then return false end
+    if not classKeySet then
+        classKeySet = {}
+        for _, key in ipairs(NS.BandSetPresets.CLASS_KEYS) do classKeySet[key] = true end
+    end
+    return classKeySet[origin] == true
 end
 
 --- The first set in the order whose origin is `key`, or nil.
@@ -117,6 +133,15 @@ local function firstFrom(p, key)
     return nil
 end
 
+--- The first set in the order that is not another class's preset, or nil.
+local function firstOwnable(p, spec, own)
+    for _, id in ipairs(p.bandSetOrder or {}) do
+        local set = p.bandSets[id]
+        if set and not otherClass(set.origin, spec, own) then return id end
+    end
+    return nil
+end
+
 --- The preset keys this character's class default is: the spec's, then the class's own.
 local function classKeys()
     local P, C = NS.BandSetPresets, NS.Compat
@@ -124,15 +149,22 @@ local function classKeys()
     return P.DefaultFor(class, C.PlayerSpecID()), P.DefaultFor(class)
 end
 
---- This character's class set in the active profile, or nil.
-local function classSetId()
+--- This character's resolution in the active profile, or nil: `id` its class set, `generic` the first
+--- set that is not another class's (BSC-REV: a class with no set of its own never lands on one),
+--- `spec` and `own` its preset keys.
+local function resolved()
     local p = profile()
     if not (p and type(p.bandSets) == "table") then return nil end
-    if cache.valid and (cache.id == nil or p.bandSets[cache.id]) then return cache.id end
-    local spec, own = classKeys()
-    cache.id = firstFrom(p, spec) or firstFrom(p, own)
-    cache.valid = true
-    return cache.id
+    local stale = (cache.id ~= nil and not p.bandSets[cache.id])
+        or (cache.generic ~= nil and not p.bandSets[cache.generic])
+    if not cache.valid or stale then
+        local spec, own = classKeys()
+        cache.spec, cache.own = spec, own
+        cache.id = firstFrom(p, spec) or firstFrom(p, own)
+        cache.generic = firstOwnable(p, spec, own)
+        cache.valid = true
+    end
+    return cache
 end
 
 -- ---------------------------------------------------------------------------
@@ -143,18 +175,21 @@ local function defaultId()
     return NS.BandSets.DefaultId()
 end
 
---- This character's default set: its class set, else the default set. Without a store, the default.
-function Choice.CharacterDefaultId()
-    return Choice.HasStore() and classSetId() or defaultId()
+--- The set a container with no pick uses (spec section 2, BSC-REV): this character's class set; else
+--- the container's profile field unless it is another class's set; else the first set that is not
+--- another class's; else the default set. Without a store, the profile field, else the default.
+function Choice.FallbackId(c)
+    local r = Choice.HasStore() and resolved() or nil
+    if r and r.id then return r.id end
+    local field = type(c) == "table" and c.bandSet
+    local set = field ~= nil and sets()[field]
+    if set and not (r and otherClass(set.origin, r.spec, r.own)) then return field end
+    return r and r.generic or defaultId()
 end
 
---- The set a container with no pick uses: the class set, else its profile field, else the default.
-function Choice.FallbackId(c)
-    local own = Choice.HasStore() and classSetId() or nil
-    if own then return own end
-    local field = type(c) == "table" and c.bandSet
-    if field ~= nil and sets()[field] then return field end
-    return defaultId()
+--- This character's default set ("(default)"): the same chain with no container field.
+function Choice.CharacterDefaultId()
+    return Choice.FallbackId(nil)
 end
 
 --- This character's entry for container `cid`, or nil.
@@ -243,6 +278,23 @@ function Choice.Forget(setId, target)
     Choice.Invalidate()
 end
 
+--- How many other characters (every store under db.sv.char but this one) pick set `setId` on a
+--- container of the active profile: the Band sets page's Used by line counts them (BSC-REV).
+function Choice.OthersUsing(setId)
+    local name, n = profileName(), 0
+    local own = Choice.HasStore() and sub(NS.db.char, "bandSetChoice", false) or nil
+    eachCharacter(function(bsc)
+        if bsc == own then return end
+        for _, e in pairs(sub(bsc, name, false) or {}) do
+            if type(e) == "table" and (e.hostile == setId or e.friendly == setId) then
+                n = n + 1
+                return
+            end
+        end
+    end)
+    return n
+end
+
 --- Copy every character's pick for container `fromId` onto `toId`: `fields` (default both) as
 --- container field names, "bandSet" and "bandSetFriendly".
 function Choice.CopyContainer(fromId, toId, fields)
@@ -301,15 +353,6 @@ end
 -- ---------------------------------------------------------------------------
 -- Schema v5 (core/Database.lua): the migrating character keeps its pick (spec C7)
 -- ---------------------------------------------------------------------------
-
---- Whether preset key `origin` is a class preset other than this character's own.
-local function otherClass(origin, spec, own)
-    if origin == nil or origin == spec or origin == own then return false end
-    for _, key in ipairs(NS.BandSetPresets.CLASS_KEYS) do
-        if key == origin then return true end
-    end
-    return false
-end
 
 --- Pin profile `p`'s container fields into `t` (one profile's picks), skipping another class's set.
 local function pinProfile(p, t, spec, own)

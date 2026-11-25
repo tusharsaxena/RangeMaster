@@ -117,3 +117,24 @@ fallback), keep the old reading of the profile fields alone.
 
 - No per-character store for any other setting.
 - No version bump and no release.
+
+## Addendum: the review (BSC-REV, 2026-11-26)
+
+The calls above are left as written. The review changed two of them and added one:
+
+- **C10 (amends rule 2 and C5). A character never falls back to another class's set.** A profile a
+  paladin seeded holds the Paladin set and the generic sets, and every new container's `bandSet` is the
+  Paladin set. Rule 2 as written gave a rogue or a mage on that profile the Paladin set, the owner's own
+  symptom. Rules 3 and 4 now skip a set whose `origin` is another class's preset: the container's
+  `bandSet` applies only when it is not, else the first set in `bandSetOrder` that is not, else
+  `bandSetOrder[1]`. "(default)" on the Band sets page is the same chain with no container, so the two
+  pages name the same set unless the container's own field is a generic set.
+- **C11 (qualifies C7). Schema v5 has a known trade-off for generic sets.** Pre-v5 data does not record
+  which character chose a set. A generic set (Caster 40) is pinned on whichever character loads first;
+  if that is not the character that chose it, the chooser reads its class set (C9) and picks again.
+  Class sets are unaffected, so C7's "the order of logins does not matter" holds for them only.
+  Pinning on every character's first load was rejected: a character made after the update would then
+  take the profile's field over its class set, against rule 2.
+- **C12. The Used by line counts other characters.** The Band sets page lists this character's
+  containers on a set, then "N other character(s)" whose picks name it on this profile, because a delete
+  clears those picks too.

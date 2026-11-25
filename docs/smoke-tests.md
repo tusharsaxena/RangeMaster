@@ -640,17 +640,23 @@ different classes, for example a paladin and a hunter, on one profile (Profiles 
 - **BANDS-27. A character's own class set is its default.** On the hunter, set **Band set** to
   **Default band set (Hunter)** → the display uses the Hunter set. Band sets → the picker marks
   **Hunter (default)**. On the paladin it marks **Paladin (default)** on the same profile. A class whose
-  set this profile lacks (a third character, a class the profile was not seeded for) reads
-  **Default band set (<the container's own set>)**. Result: not run
+  set this profile lacks (a third character, for example a rogue or a mage on the paladin's profile)
+  reads **Default band set (Melee / Ranged)**, never Paladin, and the Band sets picker marks
+  **Melee / Ranged (default)**. A container whose own set is a generic one (Caster 40) reads **Default
+  band set (Caster 40)** there. Result: not run
 - **BANDS-28. The upgrade keeps your pick.** Before updating, note each container's Band set on the
   character you play most. Update, then log in on that character first → every container still reads the
   set you noted. If it was another class's set (the Paladin set on a hunter), it reads **Default band
   set (Hunter)** instead. Then log in on a second character of another class → its containers on the
-  first character's class set read its own class set. Result: not run
+  first character's class set read its own class set. Known trade-off: a generic set (Caster 40) chosen
+  before the update goes to whichever character logs in first; if that is not the character that chose
+  it, the chooser reads its own class set and has to pick Caster 40 again. Result: not run
 - **BANDS-29. A deleted set falls back on every character.** On the paladin, pick a set of your own
   (**New…** → Melee / Ranged, named `Test`) as a container's Band set; do the same on the hunter. On
   the paladin, Band sets → `Test` → **Delete…** → Yes → the container reads **Default band set
-  (Paladin)**. Log onto the hunter → it reads **Default band set (Hunter)**, with no error. Result: not run
+  (Paladin)**. Before deleting, the General tab's Used by line on the paladin ends **1 other
+  character(s)**: the hunter's pick, which the delete clears too. Log onto the hunter → it reads
+  **Default band set (Hunter)**, with no error. Result: not run
 - **BANDS-30. The Friendly band set is the character's.** Apply the **Expert** preset on the paladin →
   **Friendly band set** reads **Healer**. On the hunter, set **Friendly band set** to **Same as Band
   set** → a friendly target draws the hunter's Band set. Log onto the paladin → **Friendly band set**

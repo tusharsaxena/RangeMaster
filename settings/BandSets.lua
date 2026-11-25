@@ -133,16 +133,18 @@ function NS.DeleteBandSet(id)
     return name
 end
 
---- The names of the containers on set `id`, as one string, or nil when none uses it.
+--- The Used by line for set `id`: the containers on it for this character, then how many other
+--- characters pick it on this profile (BSC-REV: a delete clears their picks too), or nil when none.
 local function usedBy(id)
-    local names = {}
+    local Choice, names = NS.BandSetChoice, {}
     for _, cid in ipairs(NS.CM.List()) do
         local c = NS.CM.Get(cid)
-        local Choice = NS.BandSetChoice
         if Choice.Hostile(cid, c) == id or Choice.Friendly(cid, c) == id then names[#names + 1] = c.name end
     end
+    local others = Choice.OthersUsing(id)
+    if others > 0 then names[#names + 1] = L["%d other character(s)"]:format(others) end
     if #names == 0 then return nil end
-    return table.concat(names, ", ")
+    return L["Used by: %s"]:format(table.concat(names, ", "))
 end
 
 StaticPopupDialogs["RANGEMASTER_DELETE_BANDSET"] = {
@@ -176,7 +178,7 @@ local function afterGeneral(ctx)
     local _, id = NS.SelectedBandSet()
     if not id then return end
     local names = usedBy(id)
-    H.TextRow(ctx, names and L["Used by: %s"]:format(names) or L["No container uses this band set."],
+    H.TextRow(ctx, names or L["No container uses this band set."],
         { fontObject = "GameFontDisableSmall" })
 end
 
@@ -545,7 +547,7 @@ local function addHeader(list, order, headers, name, text)
 end
 
 --- The player's sets into `list` and `order`, all but `except`, in order: this character's default
---- (its class set, else the first; modules/BandSetChoice.lua, spec 2026-11-26 C5), "(default)"; a
+--- (its class set, else the first that is no other class's; modules/BandSetChoice.lua, spec C5, C10), "(default)"; a
 --- set that differs from its preset, "modified". Answers how many it added.
 local function addOwnSets(list, order, except)
     local n = 0

@@ -180,7 +180,10 @@ There are no defaults: an absent key is "no pick".
 The profile's name comes first because container ids repeat across profiles. **Which set a container
 uses.** Hostile: this character's pick; else this character's class default, the first set in
 `bandSetOrder` whose `origin` is `DefaultFor(class, spec)`, else `DefaultFor(class)`; else the
-container's `bandSet`; else the default set. Friendly: this character's pick (`false`: the hostile set);
+container's `bandSet`, unless its `origin` is another class's preset; else the first set in the order
+that is not another class's preset (a rogue on a profile a paladin seeded gets Melee / Ranged, never
+the Paladin set); else the default set. "(default)" on the Band sets page is the same chain without a
+container. Friendly: this character's pick (`false`: the hostile set);
 else the container's `bandSetFriendly`; else the hostile set. Nothing is written back. A band set
 delete clears every character's picks on it, or moves them to the set the delete names. Every
 character's store is reached through `db.sv.char`. A container copy or duplicate copies the picks. A
@@ -256,4 +259,7 @@ the update gets, for every container of every stored profile, the container's `b
 class's preset, which is not pinned. The paladin keeps its Paladin set, and a hunter that loads first
 still gets the Hunter set. `bandSetFriendly` is not copied, because an absent friendly pick already
 reads it. Characters that load later have no pick and use their class default. Without a character
-scope the step changes nothing.
+scope the step changes nothing. **A known trade-off:** data from before step 5 does not record which
+character chose a set, so a generic set (Caster 40, say) is pinned on whichever character loads first.
+If the paladin chose Caster 40 and the hunter loads first, the hunter keeps Caster 40 and the paladin
+reads its Paladin set until it picks again.
