@@ -315,7 +315,7 @@ follows the skin.
   ranged spell for a few seconds (Spatial Paradox, Sniper Shot) is read through that spell's own
   in-range answer, but does not reorder the candidates until the next rebuild.
 - The class default band set is picked by class at the first-run seed, and by spec only for
-  Devourer (Caster 40); a later spec change does not swap the default. Every class has its own
+  Devourer (Caster 40, with the Demon Hunter set seeded second); a later spec change does not swap the default. Every class has its own
   preset per client (RangeMaster#20), but a profile seeded before the class presets existed keeps
   its stored sets: the class's set is only created by `NS.BandSets.Create(name, key)` or on a fresh
   profile.

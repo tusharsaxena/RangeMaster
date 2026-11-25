@@ -193,6 +193,32 @@ test("database: test_first_run_seeds_presets — a fresh profile gets the class'
   end, "HUNTER")
 end)
 
+test("database: a Devourer's seed keeps its caster default and still gets the Demon Hunter set", function()
+  local realSpec = NS.Compat.PlayerSpecID
+  NS.Compat.PlayerSpecID = function() return 1480 end
+  local ok, err = pcall(function()
+    local p = {}
+    withProfile(p, function()
+      D.PrepareProfile(p)
+      local names = {}
+      for _, id in ipairs(p.bandSetOrder) do names[#names + 1] = NS.BandSets.Get(id).name end
+      assertEqual(names[1], NS.BandSetPresets.caster40.name, "the spec override stays the default")
+      if NS.BandSetPresets.demonhunter then
+        -- red under: the override took first place and the class's own preset was never seeded.
+        assertEqual(names[2], NS.BandSetPresets.demonhunter.name, "the Demon Hunter set follows it")
+        assertEqual(#p.bandSetOrder, 5, "caster40, demonhunter, then the three other generic sets")
+        assertEqual(p.nextBandSetId, 6)
+      else
+        -- a client with no Demon Hunter preset (WoW Forever): the four generic sets alone.
+        assertEqual(#p.bandSetOrder, 4, "no class preset on this client: the four generic sets")
+        assertEqual(p.nextBandSetId, 5)
+      end
+    end, "DEMONHUNTER")
+  end)
+  NS.Compat.PlayerSpecID = realSpec
+  assertTrue(ok, tostring(err))
+end)
+
 test("database: the load pass normalizes a stored band set and repairs its counter and order", function()
   local p = {
     bandSets = { [7] = { name = "Hand-edited", bands = { { from = 30, to = 10, label = "X" } } } },

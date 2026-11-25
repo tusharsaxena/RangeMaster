@@ -37,9 +37,9 @@ addresses them, and an AceDB default with no row is a setting nobody can reach (
 
 | Key | Fresh profile | Writer | Notes |
 |---|---|---|---|
-| `bandSets` | the class's own preset, then the four generic ones (four for a hunter, whose own is the Hunter set) | `modules/BandSets.lua` | `[id] = NS.BANDSET_TEMPLATE` shape: `name`, `matchBy` (`"max"`/`"min"`), `unknown = { label = "?", color }`, `bands = { { from, to, label, frameColor, textColor, indicatorColor, sound, rule }, ... }` (`rule`: below) |
-| `bandSetOrder` | `{ 1, 2, 3, 4, 5 }` (`{ 1, 2, 3, 4 }` for a hunter) | `modules/BandSets.lua` | the first id is the **default set**; the seed puts the class default first |
-| `nextBandSetId` | `6` (`5` for a hunter) | `modules/BandSets.lua` | the id counter, bumped past the highest stored id on load |
+| `bandSets` | the class's own preset, then the generic ones it is not: five sets, or four for a hunter (its own is the Hunter set) and for an unreadable class or one this client has no preset for (its default is Melee / Ranged). A Devourer (spec 1480) seeds Caster 40 first, then the Demon Hunter set, then the other three generic ones | `modules/BandSets.lua` | `[id] = NS.BANDSET_TEMPLATE` shape: `name`, `matchBy` (`"max"`/`"min"`), `unknown = { label = "?", color }`, `bands = { { from, to, label, frameColor, textColor, indicatorColor, sound, rule }, ... }` (`rule`: below) |
+| `bandSetOrder` | `{ 1, 2, 3, 4, 5 }` (`{ 1, 2, 3, 4 }` in the four-set cases) | `modules/BandSets.lua` | the first id is the **default set**; the seed puts the class default (or the spec's override) first |
+| `nextBandSetId` | `6` (`5` in the four-set cases) | `modules/BandSets.lua` | the id counter, bumped past the highest stored id on load |
 | `containers` | `{}` | `modules/ContainerManager.lua` (`NS.CM`) | `[id] = NS.CONTAINER_TEMPLATE` shape (design spec 5.2) |
 | `containerOrder` | `{}` | likewise | rebuilt on load to hold exactly the stored ids |
 | `nextContainerId` | `1` | likewise | |
@@ -88,7 +88,7 @@ lowercase class token. The bands sit at the class's range tiers in that client's
 | `demonhunter` | 0-5 MELEE [melee], 5-15 BLADE [tier15], 15-30 RANGE [ranged], 30+ OOR [beyond] | (none) |
 | `evoker` | 0-8 CLOSE, 8-25 CAST [ranged], 25+ OOR [beyond] | (none) |
 
-Class defaults (`NS.BandSetPresets.DefaultFor(classFile, specID)`, the spec from `NS.Compat.PlayerSpecID`): a spec that plays unlike its class comes first, so Devourer (the Demon Hunter's 25 yd Intellect spec, 1480) → `caster40`; then the class's own preset on the running client; a class the client lacks, or an unreadable one → `melee_ranged`. Healer is the friendly override, no class's default. The first-run seed stores the class default, then `ORDER` (`melee_ranged`, `caster40`, `healer`, `hunter`) without it; `NS.BandSets.Create(name, key)` takes any key the client has (`NS.BandSetPresets.CLASS_KEYS`).
+Class defaults (`NS.BandSetPresets.DefaultFor(classFile, specID)`, the spec from `NS.Compat.PlayerSpecID`): a spec that plays unlike its class comes first, so Devourer (the Demon Hunter's 25 yd Intellect spec, 1480) → `caster40`; then the class's own preset on the running client; a class the client lacks, or an unreadable one → `melee_ranged`. Healer is the friendly override, no class's default. The first-run seed stores the class default, then the class's own preset when a spec override took first place (a Devourer keeps the Demon Hunter set), then `ORDER` (`melee_ranged`, `caster40`, `healer`, `hunter`) without either; `NS.BandSets.Create(name, key)` takes any key the client has (`NS.BandSetPresets.CLASS_KEYS`).
 
 **What the load pass repairs.** A member that is not a table, or is stored under a key that is not a
 positive integer, is dropped (a numeric string key is moved to its number); every member is backfilled

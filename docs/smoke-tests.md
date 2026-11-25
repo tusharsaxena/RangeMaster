@@ -553,7 +553,7 @@ showing the number and the band's label.
   - Monk: MELEE, RANGE (to 40), OOR. Result:
   - Druid: MELEE, BASH (to 13, Skull Bash in Cat or Bear Form), RANGE (to 40), OOR. Result:
   - Demon Hunter: MELEE, BLADE (to 15, Felblade if talented), RANGE (to 30), OOR; a Devourer's new
-    profile still starts on Caster 40. Result:
+    profile still starts on Caster 40, with the Demon Hunter set second in its list. Result:
   - Evoker: CLOSE, CAST (to 25), OOR. Result:
 - **BANDS-16. The tier roles in the editor (both clients).** On any band set, pick Spell on a band →
   **Role** lists Melee, Ranged, Friendly, then `10 yd tier` to `30 yd tier`; pick `10 yd tier` on a
