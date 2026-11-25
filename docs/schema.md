@@ -37,13 +37,23 @@ addresses them, and an AceDB default with no row is a setting nobody can reach (
 
 | Key | Fresh profile | Writer | Notes |
 |---|---|---|---|
-| `bandSets` | the class's own preset, then the generic ones it is not: five sets, or four for a hunter (its own is the Hunter set) and for an unreadable class or one this client has no preset for (its default is Melee / Ranged). A Devourer (spec 1480) seeds Caster 40 first, then the Demon Hunter set, then the other three generic ones | `modules/BandSets.lua` | `[id] = NS.BANDSET_TEMPLATE` shape: `name`, `matchBy` (`"max"`/`"min"`), `unknown = { label = "?", color }`, `bands = { { from, to, label, frameColor, textColor, indicatorColor, sound, rule }, ... }` (`rule`: below) |
+| `bandSets` | the class's own preset, then the generic ones it is not: five sets, or four for a hunter (its own is the Hunter set) and for an unreadable class or one this client has no preset for (its default is Melee / Ranged). A Devourer (spec 1480) seeds Caster 40 first, then the Demon Hunter set, then the other three generic ones | `modules/BandSets.lua` | `[id] = NS.BANDSET_TEMPLATE` shape: `name`, `matchBy` (`"max"`/`"min"`), `unknown = { label = "?", color }`, `bands = { { from, to, label, frameColor, textColor, indicatorColor, sound, rule }, ... }` (`rule`: below), and `origin` (schema v4: below) |
 | `bandSetOrder` | `{ 1, 2, 3, 4, 5 }` (`{ 1, 2, 3, 4 }` in the four-set cases) | `modules/BandSets.lua` | the first id is the **default set**; the seed puts the class default (or the spec's override) first |
 | `nextBandSetId` | `6` (`5` in the four-set cases) | `modules/BandSets.lua` | the id counter, bumped past the highest stored id on load |
 | `containers` | `{}` | `modules/ContainerManager.lua` (`NS.CM`) | `[id] = NS.CONTAINER_TEMPLATE` shape (design spec 5.2) |
 | `containerOrder` | `{}` | likewise | rebuilt on load to hold exactly the stored ids |
 | `nextContainerId` | `1` | likewise | |
 | `seeded` | `false` | `NS.CM.MarkSeeded` (reached through `NS.Presets.MarkPickerSeen`) | whether the first-run preset picker has shown on this profile (set as it shows, and by any preset applied) |
+
+**A set's origin (schema v4, RangeMaster#21).** `set.origin` is the key of the preset the set was made
+from (`"paladin"`, `"melee_ranged"`, any `NS.BandSets.PresetKeys()` key), or nil. The seed and
+`Create(name, key)` store it (`Create(name, nil)` is the Melee / Ranged copy, so `"melee_ranged"`),
+`Duplicate` copies it, a set made from a bands array (`Create(name, {})`, the New dialog's Blank) has
+none, and `CopyFrom` sets it to the source preset or to the source set's own origin. It is not in
+`NS.BANDSET_TEMPLATE`, so the load pass fills nothing: `NormalizeSet` drops a non-string origin and keeps
+any string, even a key this client has no preset for (a Retail class key on WoW Forever), so the profile
+still works when it goes back. `Diff`, `IsModified` and `RestorePreset` read it; with no preset for it on
+this client they answer nil, false and false.
 
 **A band's rule (schema v2).** `band.rule` is nil (a yard band), `{ type = "spell", role, spells }`,
 `{ type = "gap" }` or `{ type = "beyond" }`. `role` is `"melee"`, `"ranged"`, `"friendly"` or a tier role,
@@ -168,12 +178,13 @@ companion: `font = ""` is already the skin's face. A stored container moves once
 
 `NS.State.debug`, `NS.State.testMode`, `NS.State.simMode`, `NS.State.rejectedEvents`
 (`core/State.lua`) and the two selections, `NS.State.selectedContainer` and `selectedBandSet`
-(`settings/Schema.lua`), and the composed session rows `state.debugConsole`, `state.testMode` and
+(`settings/Schema.lua`), the preset the Band sets page is viewing, `NS.State.viewedPreset` (`settings/Schema.lua`),
+the band sets' one-level Undo slot (`settings/BandSetDialogs.lua`, dropped on a profile change), and the composed session rows `state.debugConsole`, `state.testMode` and
 `state.sim`, whose rows carry their own get/set.
 
 ## Migrations
 
-`core/Database.lua`'s ladder has two steps, so `NS.SCHEMA_VERSION` is 2 (the declared default stays 0).
+`core/Database.lua`'s ladder has four steps, so `NS.SCHEMA_VERSION` is 4 (the declared default stays 0).
 **v0 -> v1, the frame defaults:** a new container draws its border at 25% (`frame.border.alpha`, new)
 over a background (`frame.background.enabled` now true) with a matte dot; so that an existing one keeps
 its look, the step writes `frame.border.alpha = 1`, `frame.background.enabled = false` and
@@ -208,3 +219,10 @@ outside the ladder moved stored looks onto the skin and recorded `skin.defaultsF
 over every stored profile carrying that record: Font flags `"@skin"` go back to `"OUTLINE"`, a companion
 that is on beside the template's own value goes off (one on beside a picked value stays), and the record
 is cleared. A profile without the record is untouched.
+
+**Step 4, band set origins** (RangeMaster#21, 2026-11-25). Over every stored profile, a band set with no
+`origin` whose name, trimmed and case-blind, is the localized name of exactly one preset on this client
+(`NS.BandSets.PresetKeys()`, the class presets and the general ones) gets that preset's key. A set that
+already has an origin, a renamed set, and a name two presets share are left alone, so the step is
+idempotent. A fresh install climbs it against a profile with no band set; the seed then stores each
+set's origin itself.

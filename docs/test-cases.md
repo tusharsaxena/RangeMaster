@@ -66,10 +66,10 @@ Total.
 - degraded Schema stub: Get forwards the instance id to a row's own get
 - degraded Schema stub: ApplyDefault forwards the instance id to Set
 
-### test_database.lua (28)
+### test_database.lua (32)
 
 - database: the account-wide schemaVersion default is 0 (savedvariables-§1)
-- database: the ladder holds three steps, v0 -> v1 (the frame defaults), v1 -> v2 (band rules) and v2 -> v3 (own looks), and a fresh install is stamped 3
+- database: the ladder holds four steps, v0 -> v1 (the frame defaults), v1 -> v2 (band rules), v2 -> v3 (own looks) and v3 -> v4 (band set origins), and a fresh install is stamped 4
 - database: RunMigrations is a safe no-op when the DB is absent
 - database: the runner climbs every step, stamps each, and is idempotent
 - database: a step that raises leaves the stamp unmoved and says so once in chat
@@ -80,6 +80,7 @@ Total.
 - database: test_template_fill_missing_keys — a stored container gains what a later build added
 - database: the load pass repairs a container whose band set ids name no stored set
 - database: test_first_run_seeds_presets — a fresh profile gets the class's own set first, then the four
+- database: a Devourer's seed keeps its caster default and still gets the Demon Hunter set
 - database: the load pass normalizes a stored band set and repairs its counter and order
 - database: the active profile was prepared at load
 - database: step 1 writes border opacity 100% and the plain dot onto every stored container, in every profile
@@ -96,8 +97,11 @@ Total.
 - database: the Ka0s preset is frameless under a skin with a border of its own
 - database: step 3 takes back what the retired skin step wrote, in every profile it reached
 - database: the load moves nothing onto the skin
+- database: step 4 back-fills origin by a unique, case-blind preset name match, in every profile
+- database: step 4 leaves a name two presets share alone
+- database: step 4 through the runner from v3, then a fresh profile's seed carries its origins
 
-### test_bandsets.lua (27)
+### test_bandsets.lua (40)
 
 - bandsets: test_resolve_by_max — (20, 25) in Melee / Ranged lands in MID 20-30
 - bandsets: test_resolve_by_min — matchBy min reads the near bound
@@ -126,6 +130,19 @@ Total.
 - bandsets: a restore never rewinds the id counter, so a later Create mints an id never used
 - bandsets: SetBandRule writes a band's rule as a copy, nil makes a yard band, and announces
 - bandsets: SetBandRule refuses a bad set, band, type, role or spell list, and announces nothing
+- bandsets: a set made from a preset remembers it as origin; Duplicate copies it, a bands array has none
+- bandsets: the first-run seed stores each seeded set's preset as its origin
+- bandsets: PresetKeys lists every class preset, then the generic ones, each once
+- bandsets: Diff answers an empty list for an untouched preset copy and an entry per edited field
+- bandsets: Diff reads a band count change as one entry, ignores sounds and a missing alpha
+- bandsets: Diff is nil with no origin or no such preset on this client, and IsModified is false
+- bandsets: RestorePreset puts the origin's bands, matchBy and unknown back, keeping name, id and origin
+- bandsets: RestorePreset with keepSounds keeps each band's sound by index
+- bandsets: RestorePreset refuses an unknown set and one with no origin, and announces nothing
+- bandsets: CopyFrom a preset replaces the bands, sets the origin, and takes general fields only when asked
+- bandsets: CopyFrom one of my sets takes its bands, its sounds when asked, and its origin
+- bandsets: CopyFrom refuses copying into itself, an unknown target, source or preset, and announces nothing
+- bandsets: a Snapshot taken before RestorePreset or CopyFrom undoes it whole, origin included
 
 ### test_container_manager.lua (17)
 
@@ -723,7 +740,7 @@ Total.
 - settings: test_dot_shape_row — the Shape row offers the seven shapes, Bar and Spell icon, and /rm set takes the new ones
 - settings: test_plate_part_and_level_rows — Attach to part opens On the nameplate wherever it shows; Frame level sits under Attach to in every mode
 
-### test_settings_bandsets.lua (16)
+### test_settings_bandsets.lua (25)
 
 - bandsets: test_bandset_paths_get_set — /rm set bandSet.matchBy changes the selected band set
 - bandsets: SetBand moves an edge and the next band follows; an edge that would leave no width is refused
@@ -741,6 +758,32 @@ Total.
 - bandsets: removing a band selects its neighbor, and Add band selects the new band
 - bandsets: an edge change keeps the selected band, and a band the set lost is clamped
 - bandsets: switching band set resets the band selection to band 1
+- bandsets: the header holds the picker and New, Duplicate, Copy bands from and Delete; General has none
+- bandsets: the header's acts reach Duplicate, Delete and the dialogs' call sites
+- bandsets: the picker lists your sets, then the class presets, then the general ones, under group rows
+- bandsets: a group row picks nothing, a preset is viewed, and one of your sets ends the view
+- bandsets: a modified set is tagged, and the origin line names its preset, the change and Restore
+- bandsets: a viewed preset draws read-only: every control disabled, New alone enabled
+- bandsets: Use this preset and Copy into a set of mine open their dialogs with the preset
+- bandsets: /rm set bandSet.* and Defaults refuse while a preset is viewed; /rm bands ends the view
+- bandsets: the Defaults tooltip points to Restore for the bands
+
+### test_settings_bandset_dialogs.lua (14)
+
+- bandset dialogs: one companion window, modal and on Escape's list, closed by Cancel
+- bandset dialogs: New starts from your class's preset, named after it and made unique
+- bandset dialogs: New's name follows the start until it is typed in
+- bandset dialogs: New makes a blank set, a copy of one of yours, or the preset Use this preset names
+- bandset dialogs: Copy bands from copies into the current set from your others, then every preset
+- bandset dialogs: Copy with Sounds on enter off keeps each band's sound by its place
+- bandset dialogs: Copy into a set of mine asks for the target and keeps the source off it
+- bandset dialogs: Restore lists the differences, eight at most, then restores behind Keep my sounds
+- bandset dialogs: Restore refuses a set with no preset
+- bandset dialogs: a difference reads as its band, its field and both sides
+- bandset dialogs: /rm bands undo puts back what a Copy replaced, and only that set
+- bandset dialogs: Undo follows a Restore, refuses a deleted set and is forgotten on a profile change
+- bandset dialogs: /rm bands lists undo in its help line
+- bandset dialogs: Add band and Remove band share one row; Remove leaves the band's controls
 
 ### test_settings_presets.lua (15)
 
@@ -999,8 +1042,8 @@ Total.
 |-------|------:|
 | test_loadorder.lua | 16 |
 | test_schema.lua | 36 |
-| test_database.lua | 28 |
-| test_bandsets.lua | 27 |
+| test_database.lua | 32 |
+| test_bandsets.lua | 40 |
 | test_container_manager.lua | 17 |
 | test_presets.lua | 17 |
 | test_number_format.lua | 6 |
@@ -1032,7 +1075,8 @@ Total.
 | test_optionssetup.lua | 16 |
 | test_realpages.lua | 7 |
 | test_settings_containers.lua | 32 |
-| test_settings_bandsets.lua | 16 |
+| test_settings_bandsets.lua | 25 |
+| test_settings_bandset_dialogs.lua | 14 |
 | test_settings_presets.lua | 15 |
 | test_skinsetup.lua | 12 |
 | test_skin_picker.lua | 16 |
@@ -1055,4 +1099,4 @@ Total.
 | test_skin_switch.lua | 20 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **813** |
+| **Total** | **853** |

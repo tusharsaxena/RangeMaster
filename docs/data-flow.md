@@ -172,7 +172,11 @@ first-run seed puts the class (and spec) default there (`NS.BandSetPresets.Defau
 every container on it to the named replacement or the default (a friendly override on it falls away
 unless a replacement was named), and the last set cannot be deleted. Names stay unique, case-blind:
 `Create`, `Duplicate` (`"<name> copy"`) and `Rename` all go through `UniqueName` (`Caster 40 copy`,
-`Caster 40 copy 2`), as containers do, so `/rm bands <name>` names one set. A band may carry a rule
+`Caster 40 copy 2`), as containers do, so `/rm bands <name>` names one set. A set remembers the preset
+it was made from (`origin`, RangeMaster#21): `Diff` compares it with a fresh copy of that preset (sounds
+never counted), `RestorePreset` takes that copy's bands, match rule and unknown label and color, and
+`CopyFrom` replaces a set's bands with another set's or a preset's; both keep the set's name, id and
+containers and normalize before they announce. A band may carry a rule
 (dynamic-bands plan): `spell(role)` holds on its anchor's true, `gap` when the ranged anchor says
 false, the melee one does not say true and a shorter check confirms near (`NS.Range.Near`), and
 `beyond` when no spell band's anchor said true and the farthest one said false past its reach (a

@@ -33,7 +33,7 @@ change. A secret or failed answer reads as *unknown*, never as out of range.
 | Component | Files | What it does |
 |---|---|---|
 | Range engine | `modules/Range.lua` (`NS.Range`), `modules/Ticker.lua` (`NS.Ticker`), `core/Compat.lua` | A guarded, memoized bracket per unit token per tick; the per-class anchor spells resolved at rebuild and asked once per spell per unit per tick (shared with the chips); one adaptive ticker that sends `RANGE_UPDATED` on change |
-| Band sets | `modules/BandSets.lua` (`NS.BandSets`), `defaults/BandSetPresets.lua` | Named, shared, normalized bands of yards, each of which may carry a spell, dead-zone or beyond rule (its yards then the fallback); `Resolve` turns a bracket into a band, `ForUnit` picks the friendly override |
+| Band sets | `modules/BandSets.lua` (`NS.BandSets`), `defaults/BandSetPresets.lua` | Named, shared, normalized bands of yards, each of which may carry a spell, dead-zone or beyond rule (its yards then the fallback); `Resolve` turns a bracket into a band, `ForUnit` picks the friendly override; a set remembers the preset it came from (`origin`), so `Diff`, `RestorePreset` and `CopyFrom` can compare with it, restore it or copy from it |
 | Containers and presets | `modules/ContainerManager.lua` (`NS.CM`), `modules/Presets.lua` (`NS.Presets`) | The container registry's one writer and its coalesced, combat-held apply; Simple, Intermediate (Range Text), Intermediate (Range Numbers), Advanced, Expert and Ka0s, with a one-level Undo |
 | Rendering | `modules/Container.lua` (`NS.Container`), `modules/Style.lua`, `modules/Elements_*.lua` | One pooled instance per enabled container (one per plate for `nameplates` and `nameplatesExceptTarget`), repainted only on a band or text change |
 | Anchors | `modules/Anchors.lua` (`NS.Anchors`), `modules/Anchors_*.lua`, `modules/FrameProviders.lua`, `modules/FramePicker.lua` | Free on screen, on a unit frame, on a nameplate (own plate or every plate), at the cursor |
@@ -115,7 +115,8 @@ band set, seeds the class's own preset band set and the four generic ones on a p
 set when its `bandSet` names none, and sets `seeded` to `false` when absent.
 
 - **Band sets**: `bandSets`, `bandSetOrder`, `nextBandSetId`. Runtime writer `modules/BandSets.lua`
-  (`Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`, `SetBandSound`, `SetBandRule`, `RestoreSnapshot`); its
+  (`Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`, `SetBandSound`, `SetBandRule`, `RestorePreset`, `CopyFrom`,
+  `RestoreSnapshot`); its
   seed routine `BandSets.Seed` and its
   per-set repair `BandSets.NormalizeSet` are shared with the load pass, and its v1 -> v2 conversion
   `BandSets.ConvertSet` with the migration ladder (`docs/schema.md`). `Delete` also moves the
@@ -125,6 +126,18 @@ set when its `bandSet` names none, and sets `seeded` to `false` when absent.
   label, a color; an edge that would leave a band without width is refused), `AddBand` and
   `RemoveBand`, each normalizing after the write, and `SetBandRule` (a band's rule: Defined by, Role,
   Spell IDs), which touches no edge and so normalizes nothing.
+- **A set remembers its preset** (RangeMaster#21): `set.origin` is the preset key it was made from
+  (`"paladin"`, `"melee_ranged"`), or nil. `Create` from a key and the seed store it, `Duplicate` copies
+  it, a set made from a bands array (New's Blank) has none, and `CopyFrom` sets it to the source preset
+  or to the source set's own origin. Schema step 4 back-fills it by name on sets stored before
+  (`docs/schema.md`). A preset is still copied, never referenced: `Diff(id)` builds a fresh copy of the
+  origin and lists what differs (`{ band?, field, mine, preset }`, sounds never counted, nil with no
+  origin on this client), `IsModified` is a non-empty `Diff`, and `RestorePreset(id, keepSounds)` takes
+  the fresh copy's bands, match rule and unknown label and color, keeping the name, id and containers.
+  `PresetKeys()` lists each preset once (`classes`: `CLASS_KEYS`, Hunter included; `general`: the rest
+  of `ORDER`), and `PresetSet(key)` is a copy stored nowhere, which the Band sets page shows while a
+  preset is viewed read-only. The page takes `Snapshot()` before a restore or a copy, and `/rm bands
+  undo` puts back that one set (`settings/BandSetDialogs.lua`).
 - **Containers**: `containers`, `containerOrder`, `nextContainerId`, and the first-run sentinel
   `seeded`. Runtime writer `modules/ContainerManager.lua` (`NS.CM`: `Create`, `Delete`, `Duplicate`,
   `Rename`, `CopySettings`, `Clear`, `RestoreSnapshot`, `SetField` for one dotted field, which
@@ -152,7 +165,7 @@ stand-down takes every subscription down and a stand-up replays it.
 |---|---|---|---|---|
 | `RANGE_UPDATED` | `Ka0s_RangeMaster_RangeUpdated` | `modules/Ticker.lua` | `unit, state, minYd, maxYd` | `modules/Container.lua`: the instances watching that unit |
 | `CONTAINERS_CHANGED` | `Ka0s_RangeMaster_ContainersChanged` | `modules/ContainerManager.lua` (`FlushPending`, coalesced to the next frame, held in combat) | none | the renderer (`NS.Container.Sync`) |
-| `BANDSETS_CHANGED` | `Ka0s_RangeMaster_BandSetsChanged` | `modules/BandSets.lua` (every writer: `Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`, `SetField`, `SetBand`, `AddBand`, `RemoveBand`, `SetBandSound`, `SetBandRule`, `RestoreSnapshot`; never the load pass) | none | the renderer (`Repaint`) and `settings/BandSets.lua` (a redraw of the pages, coalesced to the next frame) |
+| `BANDSETS_CHANGED` | `Ka0s_RangeMaster_BandSetsChanged` | `modules/BandSets.lua` (every writer: `Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`, `SetField`, `SetBand`, `AddBand`, `RemoveBand`, `SetBandSound`, `SetBandRule`, `RestorePreset`, `CopyFrom`, `RestoreSnapshot`; never the load pass) | none | the renderer (`Repaint`) and `settings/BandSets.lua` (a redraw of the pages, coalesced to the next frame) |
 | `ANCHORS_CHANGED` | `Ka0s_RangeMaster_AnchorsChanged` | `modules/Range.lua` (the debounced rebuild, only when a band rule's resolved anchor spell, its reported range, or the anchor a druid's form puts in use moved) | none | the renderer (`Repaint`); the Band sets page (`settings/BandSets.lua`, a redraw for the spell bands' read-out) |
 | `MODE_CHANGED` | `Ka0s_RangeMaster_ModeChanged` | `core/RangeMaster.lua` (`NS.SetTestMode`, `NS.SetSimMode`) | `mode` (`"test"` or `"sim"`), `on`, `why` | `modules/Preview.lua` (what the displays draw), `modules/Sim.lua` (starts or stops the sweep) and `settings/Presets.lua` (the preset picker repaints its Test mode buttons while shown) |
 
@@ -258,6 +271,21 @@ follows the skin.
   Band sets page's Bands editor only: a band is one of a list the player grows, which no schema path
   can name, so `/rm get|set` reaches a band set's name, match rule and unknown label and color, not
   its bands (design spec 5.6 records this).
+- A set's `origin` on a profile stored before schema v4 is a guess by name: a set still named after one
+  preset (case-blind, trimmed) gets that preset, and a renamed one, or a name two presets share, gets
+  none and so has no origin line and no Restore. Copy bands from a preset gives it one.
+- A set is never synced to its preset: when an addon update changes a preset, a set made from it reads
+  `· modified` (the differences are the update's), and Restore takes the new preset. An origin whose
+  preset this client lacks (a Retail class key on a profile opened on WoW Forever) is kept, but shows no
+  origin line and no Restore there. A sound never counts as a difference, because no preset carries one.
+- The Undo after Copy bands from or Restore preset is `/rm bands undo`, named in the chat line: neither
+  the addon nor LibKa0s has a clickable chat link. It is one level, per profile and this session only,
+  puts back only the set that was written, and is refused once that set is deleted.
+- A shipped preset viewed on the Band sets page is read-only: it is never seeded into the profile and a
+  first edit never makes a copy (the owner, 2026-11-25). While one is viewed, every `bandSet.*` write is
+  refused; `/rm get bandSet.*` still reads the selected set of yours.
+- The picker's group names (Your band sets, Shipped presets · Classes, Shipped presets · General) are
+  disabled rows, not true headers: AceGUI's dropdown takes one item type for every row.
 - The preset picker (a window shaped as AuraMaster's: a dropdown, each pick previewed on the real
   screen in test mode, Apply / Not now) has no style switch and no Empty preset, which this addon's
   presets do not have; a disabled addon that is enabled later is not offered it on first run.
@@ -317,8 +345,8 @@ follows the skin.
 - The class default band set is picked by class at the first-run seed, and by spec only for
   Devourer (Caster 40, with the Demon Hunter set seeded second); a later spec change does not swap the default. Every class has its own
   preset per client (RangeMaster#20), but a profile seeded before the class presets existed keeps
-  its stored sets: the class's set is only created by `NS.BandSets.Create(name, key)` or on a fresh
-  profile.
+  its stored sets: the class's set is only created by `NS.BandSets.Create(name, key)` (the Band sets
+  page's New… or Use this preset…, or the Ka0s preset) or on a fresh profile.
 - A tier band (`tier10` ... `tier30`) asks a spell the class learns at some level or through a talent
   (Shadowstep, Felblade, Skull Bash, WoW Forever's Drain Life); until it is learned, and while it is
   unusable (WoW Forever's spell 20271 with no seal up, Charge in combat), the band reads its yards.

@@ -28,6 +28,8 @@ each lands in `core/RangeMaster.lua`'s `adoptProfile`:
 - the new profile is migrated and backfilled, and its registries repaired
   (`Database.PrepareProfile`);
 - the preset Undo slot is dropped (`NS.Presets.ForgetUndo`): it held the old profile's containers;
+- the band sets' Undo slot is dropped (`NS.ForgetBandSetUndo`) and an open band-set dialog closes
+  (`NS.HideBandSetDialog`, `settings/BandSetDialogs.lua`);
 - its skin is applied and the latch is re-read from its `enabled`, so switching to a profile where the
   addon is off stands it down, and back brings it up (slash-commands-§7);
 - one container apply is asked for (`NS.CM.RequestApply`), so the displays become the new profile's

@@ -15,7 +15,10 @@ local _, NS = ...
 --              [Add band] [Remove band]
 --              Sounds play on entering a band, ...   (the note, dim)
 --
--- THE HEADER (RangeMaster#21) is O.PageHeader's block, not O.PageBanner: the picker and four
+-- THE BAND SET MANAGER (RangeMaster#21: docs/superpowers/specs/2026-11-25-band-set-manager-design.md,
+-- the owner's six asks and the approved mockup; docs/settings-panel.md describes the page as built).
+--
+-- THE HEADER is O.PageHeader's block, not O.PageBanner: the picker and four
 -- page-wide acts are more than the banner's three, and the origin line sits under them. Its acts
 -- apply to the set whole, so they sit above the strip (options-ui-§14) and none is under General.
 -- Delete is disabled on the last set. The block is one AceGUI SimpleGroup with a Flow layout,
@@ -73,7 +76,8 @@ local _, NS = ...
 -- a class-color companion. Class color is the container's own Color from (the Containers page).
 --
 -- Both choices, and the Bands tab's rows being out of `/rm set`'s reach, are recorded as decided in the
--- design spec (5.6, "As built") and docs/ARCHITECTURE.md's Known Limitations.
+-- design spec (5.6, "As built") and docs/ARCHITECTURE.md's Known Limitations, as are the band set
+-- manager's limits (an origin guessed by name, no sync to a changed preset, the Undo a verb).
 
 local L = NS.L
 local H = NS.Helpers

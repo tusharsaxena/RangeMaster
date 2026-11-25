@@ -44,6 +44,16 @@ dead zone or "past every spell"), its name, its colors and an optional sound. Ev
 with a band set of its own, on Retail and on WoW Forever, with a band at each range its abilities
 really have: a paladin's 10 yard Hammer of Justice band between melee and ranged, a warrior's
 Charge band, a WoW Forever mage's Fire Blast, Frostbolt and Fireball bands.
+The picker at the top of the page lists your own band sets first, then every class's shipped set
+and the general ones, so you can look at another class's bands without making anything. A shipped set
+is read-only: **Use this preset…** makes your own copy of it. Beside the picker, **New…** starts a set
+from any shipped set, from a copy of one of yours or blank, **Duplicate** copies the one shown, **Copy
+bands from…** replaces its bands with another set's (its name and its displays stay), and **Delete…**
+removes it. A set made from a shipped one says so under the picker and marks itself modified once you
+change it, and its Restore button (**Restore Paladin preset…** on a paladin's set) puts it back, after
+showing what changes. After a copy or a restore,
+`/rm bands undo` puts the set back as it was. On the Bands tab, **Add band** and **Remove band** sit
+side by side under the list of bands.
 Under Display → Label a display can carry a caption, its own name or any text, above, below or beside
 it, inside its border or outside it, in its own font and color (the presets name each screen display
 above it). From
@@ -95,6 +105,7 @@ Everything else is under Settings → AddOns → Ka0s Range Master, and `/rm hel
 | Does it work on WoW Forever? | Yes, from the same download. Range Master uses each client's own spells and items to measure distance. |
 | Can I have a different band set for friends? | Yes. Each display has a Friendly band set, used whenever its unit is friendly. The Expert and Ka0s presets set it to Healer. |
 | Does it follow range talents such as Hawk Eye? | Yes, on bands defined by a spell. The preset band sets use them, so a hunter with Hawk Eye sees Auto Shot's band reach past 35 yards without changing anything. A band you set to yards stays at its yards. |
+| I changed my class's band set. Can I get the original back? | Yes. Band sets → pick the set, then its Restore button under the picker (**Restore Paladin preset…** on a paladin's set). It lists what changes first, and can keep the sounds you added. `/rm bands undo` takes the restore back. |
 | Will it slow my game down? | It does one small pass ten or twenty times a second, only while a display is watching a unit, and none at all when the addon is turned off. |
 
 ## Troubleshooting
@@ -128,7 +139,7 @@ Please file reports there rather than in comments, so nothing gets lost.
 
 | Version | Date | Highlights |
 |---------|------|------------|
-| 0.1.0 | Unreleased | - Range displays for your target, focus, pet, mouseover and every enemy nameplate, each showing a range bracket as a number, a band name, a colored shape and your own spells<br>- Shared band sets with their own colors and sounds, and a separate set for friendly units<br>- Bands that follow your own spells, so range talents, gear and forms move them; saved band sets are converted on first login<br>- Displays free on screen, on Blizzard or EllesmereUI unit frames or any frame you click, on nameplates (every nameplate, or every one but your target's, on the plate or on its cast bar while the unit casts), or at the cursor<br>- Six presets (Simple, two Intermediates for range text or range numbers, Advanced, Expert and Ka0s, the author's own), offered on first run, with Undo<br>- Dot shapes in six styles (plain, matte, glossy, glowing, neon, gem)<br>- An optional caption naming each display, on any side, inside or outside its border, in its own font and color<br>- Visibility by combat, reaction and missing unit<br>- Test mode and Sim mode for placing and checking your displays<br>- A band set for every class on Retail and WoW Forever, with a band at each range its abilities have (a paladin's 10 yard band, a warrior's Charge band)<br>- Works on Retail and WoW Forever |
+| 0.1.0 | Unreleased | - Range displays for your target, focus, pet, mouseover and every enemy nameplate, each showing a range bracket as a number, a band name, a colored shape and your own spells<br>- Shared band sets with their own colors and sounds, and a separate set for friendly units<br>- Bands that follow your own spells, so range talents, gear and forms move them; saved band sets are converted on first login<br>- Displays free on screen, on Blizzard or EllesmereUI unit frames or any frame you click, on nameplates (every nameplate, or every one but your target's, on the plate or on its cast bar while the unit casts), or at the cursor<br>- Six presets (Simple, two Intermediates for range text or range numbers, Advanced, Expert and Ka0s, the author's own), offered on first run, with Undo<br>- Dot shapes in six styles (plain, matte, glossy, glowing, neon, gem)<br>- An optional caption naming each display, on any side, inside or outside its border, in its own font and color<br>- Visibility by combat, reaction and missing unit<br>- Test mode and Sim mode for placing and checking your displays<br>- A band set for every class on Retail and WoW Forever, with a band at each range its abilities have (a paladin's 10 yard band, a warrior's Charge band)<br>- A band set manager: every shipped band set listed read-only beside your own, new sets from any of them, Copy bands from, Restore preset with a list of what changes, and Undo<br>- Works on Retail and WoW Forever |
 
 ## Credits
 
