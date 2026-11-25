@@ -1,0 +1,12 @@
+Independent review, Ka0sAddonsCommonTasks docs/2026-11-25-SEEDS_AND_FOREVERDB (workflows wf_df07c1ab-8d1, wf_219c4c4a-92a)
+SF-RM-01: 6 findings (minor, minor, minor, minor, minor, minor); fix pass: 106479d SF-RM-01: review fixes (true evidence in two rulings, DifficultyID test, Distract owner review, emptied-ladder comments, gate comma); fix gate green=True
+  - [minor] tools/seeds/forever_rulings.json:43 The WARRIOR.ladder 2764 removal reason says "no learnable warrior spell with no min range and a reach past melee". The bundle's own raw/ tables contradict that: Intimidating Shout 5246 is SpellRange 0
+  - [minor] tools/seeds/retail_rulings.json:11 The EVOKER.friendly keep reason claims "every Evoker spell is 25 yd on 12.1.5.70961". The frozen retail raw/ shows otherwise: learnable Evoker spells include Return 361227 (40 yd), Blessing of the Bro
+  - [minor] tools/seeds/test_seeds.py:44 Nothing tests the DifficultyID 0 filter. The one non-zero-difficulty SpellMisc fixture row, (99, 1, 6, W_STRIKE), is appended after W_STRIKE's difficulty-0 row. Facts already keeps the first row per s
+  - [minor] docs/seed-research/2026-11-25-forever/ANALYSIS.md:59 The analysis says Distract 1725 is an area cast with a targeting circle, so "a unit range check is not expected to answer it". Yet 1725 stays in forever ROGUE anchors.ranged (defaults/SpellSeeds.lua:9
+  - [minor] defaults/SpellSeeds.lua:85 The contract's own `### After` step (docs/validate-seeds.md) says "Add a comment beside a list a removal emptied". The forever WARRIOR (line 85) and ROGUE (line 96) `ladder = {}` lists have no comment
+  - [minor] CLAUDE.md:36 The gate sentence lost its separator. It now reads "...clients-§6) `~/.claude/dev-copilot/bin/ka0s-bounded luacheck .` (0/0; ...) and `python3 -m pytest ...`", with no comma or "and" between the Forev
+SF-RM-02: 2 findings (minor, minor); fix pass: 47aa64d SF-RM-02: review fixes (a Devourer's seed keeps the Demon Hunter set, schema's four-set cases); fix gate green=True
+  - [minor] modules/BandSets.lua:673 A spec override that leaves out the class preset: Seed puts DefaultFor's key first, then ORDER without it. For a Retail Devourer, DefaultFor returns caster40, so the first-run seed stores caster40, me
+  - [minor] docs/schema.md:40 The fresh-profile rows say every non-hunter profile gets five sets, `{ 1, 2, 3, 4, 5 }` with nextBandSetId 6. That is wrong in three cases, which seed four sets with nextBandSetId 5 because DefaultFor
+Lead gate re-run 2026-11-25 at this head: green (see EXECUTION_RECORD.md).
