@@ -509,9 +509,11 @@ local function anchorIds(list, where)
   return out
 end
 
-test("range: every class has anchors on both clients, a non-empty ranged role, roles from the three", function()
-  -- red under: a class seed with no `anchors`, or an empty ranged role (dynamic-bands plan D1).
+test("range: every class has anchors on both clients, a non-empty ranged role, roles from the three or the tiers", function()
+  -- red under: a class seed with no `anchors`, or an empty ranged role (dynamic-bands plan D1); a
+  -- tier list whose name is not one of core/Constants.lua's TIER_ROLES (RangeMaster#20).
   local ROLES = { melee = true, ranged = true, friendly = true }
+  for _, role in ipairs(NS.Constants.TIER_ROLES) do ROLES[role] = true end
   for _, client in ipairs({ "retail", "forever" }) do
     for classFile, seed in pairs(NS.SpellSeeds[client]) do
       local where = client .. "." .. classFile .. ".anchors"
@@ -550,6 +552,21 @@ test("range: the anchors carry the critic's corrections", function()
       assertNil(seed.anchors.long, client .. "." .. classFile .. ": no long (Hunter's Mark) role")
     end
   end
+end)
+
+test("range: no ladder seed is a min-range spell (seed validation, 2026-11-25)", function()
+  -- red under: Throw 2764 (8-30 on wowf 1.60.1.71091) or Heroic Throw 57755 (8-30 on wow
+  -- 12.1.5.70961) back in a ladder. spellRung drops a min-range seed, so it was never a rung
+  -- (docs/seed-research/2026-11-25-*/RULINGS.md, ladder-min).
+  local function has(list, id)
+    for _, v in ipairs(list) do if v == id then return true end end
+    return false
+  end
+  assertFalse(has(NS.SpellSeeds.retail.WARRIOR.ladder, 57755), "retail warrior: no Heroic Throw rung")
+  assertTrue(has(NS.SpellSeeds.retail.WARRIOR.ladder, 355), "retail warrior: Taunt (0-30) stays")
+  assertEqual(#NS.SpellSeeds.forever.WARRIOR.ladder, 0, "forever warrior: no ladder spell")
+  assertEqual(#NS.SpellSeeds.forever.ROGUE.ladder, 0, "forever rogue: no ladder spell")
+  assertTrue(has(NS.SpellSeeds.forever.WARRIOR.chips, 2764), "Throw stays a chip")
 end)
 
 test("range: a rebuild builds no ladder; only a Forever walk does, on first need", function()
@@ -965,6 +982,47 @@ test("rules: no melee spell (a Forever paladin) still reads OOR once the ranged 
     spec.bracket = { 0, 5 }
     spec.inRange[879] = true
     assertEqual(resolve(setId, spec), 1, "close in: MELEE by its yards")
+  end)
+end)
+
+test("rules: a tier band (the Forever paladin's 5-10 JUDGE) asks its tier's spells, between melee and ranged", function()
+  -- red under: a tier role the resolver does not resolve (RangeMaster#20): the band would read its
+  -- yards alone, so an 8 yd target out of a 5-10 bracket's reach would never read JUDGE.
+  local bands = NS.Database.DeepCopy(NS.BandSetPresets.BY_CLIENT.PALADIN.forever.bands)
+  local spec = { bands = bands, class = "PALADIN",
+    anchors = { melee = { 679 }, ranged = { 879, 24275 }, tier10 = { 20271, 853 } },
+    known = { [679] = true, [879] = true, [20271] = true, [853] = true },
+    info = { [679] = { "Holy Strike", 679, 0, 5 }, [879] = { "Exorcism", 879, 0, 30 },
+      [20271] = { "Judgment", 20271, 0, 10 }, [853] = { "Hammer of Justice", 853, 0, 10 } },
+    bracket = { 5, 10 }, inRange = { [679] = false, [20271] = true, [853] = true, [879] = true } }
+  withRules(spec, function(setId)
+    local a = NS.Range.Anchor("tier10")
+    assertEqual(a and a.id, 20271, "the tier resolves to its first known spell")
+    assertEqual(a and a.maxRange, 10, "with the range the client reports")
+    assertEqual(NS.Range.RoleInRange("tier10", "target"), true)
+    assertEqual(resolve(setId, spec), 2, "out of melee, in the 10 yd spell's reach: JUDGE")
+    spec.bracket, spec.inRange[20271], spec.inRange[853] = { 10, 15 }, false, false
+    assertEqual(resolve(setId, spec), 3, "past the tier, in Exorcism's reach: RANGE")
+    spec.bracket, spec.inRange[879] = { 30, 35 }, false
+    assertEqual(resolve(setId, spec), 4, "every spell out: OOR")
+    spec.bracket, spec.inRange[679] = { 0, 5 }, true
+    spec.inRange[20271], spec.inRange[853], spec.inRange[879] = true, true, true
+    assertEqual(resolve(setId, spec), 1, "the nearer melee band wins in band order")
+  end)
+  -- Without a seal the judge spell is unusable, and the tier passes to Hammer of Justice.
+  spec.usable = { [20271] = false }
+  spec.bracket, spec.inRange = { 5, 10 }, { [679] = false, [20271] = true, [853] = true, [879] = true }
+  withRules(spec, function(setId)
+    local _, by = NS.Range.RoleInRange("tier10", "target")
+    assertEqual(by and by.id, 853, "an unusable tier spell passes to the next")
+    assertEqual(resolve(setId, spec), 2, "JUDGE on Hammer of Justice's answer")
+  end)
+  -- A class with no 10 yd list (or nothing learned) reads the band's yards.
+  spec.usable, spec.anchors.tier10 = nil, nil
+  spec.bracket = { 5, 10 }
+  withRules(spec, function(setId)
+    assertNil(NS.Range.Anchor("tier10"), "no tier list: unresolved")
+    assertEqual(resolve(setId, spec), 2, "JUDGE by its fallback yards")
   end)
 end)
 

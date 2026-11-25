@@ -10,7 +10,8 @@ local _, NS = ...
 --                        open-ended ("40+")
 --   NS.Range.InSpellRange(id, unit)    -> true | false | nil (nil: not known, no unit, no answer)
 --   NS.Range.Anchor(role)              -> { id, name, minRange, maxRange } | nil: the anchor spell a
---                                         band rule of `role` ("melee", "ranged", "friendly") asks
+--                                         band rule of `role` ("melee", "ranged", "friendly", or a
+--                                         tier role "tier<N>", core/Constants.lua TIER_ROLES) asks
 --                                         first right now, of the candidates the last rebuild
 --                                         resolved (see THE ANCHORS below)
 --   NS.Range.AnchorFor(role, spells?)  -> the anchor a band rule asks: its own `spells` list's, or
@@ -54,7 +55,9 @@ local _, NS = ...
 -- Each token's entry is one reused table, so a tick allocates nothing once every token is seen.
 --
 -- THE ANCHORS (dynamic-bands plan D2). A band rule names a ROLE; the class's ordered anchor lists
--- (defaults/SpellSeeds.lua) name the spells. Each rebuild takes, per role, every seed the player
+-- (defaults/SpellSeeds.lua) name the spells. The roles are melee, ranged, friendly and the tier roles
+-- (RangeMaster#20: `tier10` is the class's 10 yd spells, the Forever paladin's Judgment), which
+-- resolve and answer exactly as ranged does. Each rebuild takes, per role, every seed the player
 -- knows once NS.Compat.CurrentSpellID has resolved it to the learned rank and a known override (a
 -- Forever seed is rank 1, and the rank-1 ID may not read as known once a higher rank is learned),
 -- with the name and the min and max range the client reports for that ID, a secret read as none.
@@ -265,7 +268,9 @@ end
 -- The anchors (dynamic-bands plan D2)
 -- ---------------------------------------------------------------------------
 
+-- Every role a band rule may name: the three, then the tier roles (core/Constants.lua TIER_ROLES).
 local ROLES = { "melee", "ranged", "friendly" }
+for _, role in ipairs(NS.Constants.TIER_ROLES) do ROLES[#ROLES + 1] = role end
 
 -- GetShapeshiftFormID's answer to the key a form-keyed anchor list uses (defaults/SpellSeeds.lua,
 -- druid melee): 1 Cat Form, 5 Bear Form, 8 Dire Bear Form where a client tells the two apart.
@@ -391,7 +396,7 @@ end
 --- client will not say), or nil when the role is unresolved. A druid's melee anchor follows the
 --- current form. Resolved on the first read when no rebuild has run yet. The table is the
 --- resolver's own: read it, never write it.
---- @param role string "melee" | "ranged" | "friendly"
+--- @param role string "melee" | "ranged" | "friendly" | a tier role ("tier10", ...)
 --- @return table|nil
 function Range.Anchor(role)
     return pick(candidates(role))
@@ -421,7 +426,7 @@ end
 --- The anchor a band rule of `role` asks first: of its own `spells` list when it has one, else of
 --- the role's (Range.Anchor), or nil when unresolved. What the Band sets page's read-out names.
 --- Read it, never write it.
---- @param role string "melee" | "ranged" | "friendly"
+--- @param role string "melee" | "ranged" | "friendly" | a tier role
 --- @param spells table|nil a band's own spell IDs
 --- @return table|nil
 function Range.AnchorFor(role, spells)
@@ -464,7 +469,7 @@ end
 --- vouch (NS.Compat.AnchorInRange: an unusable one passes to the next), the unit does not exist, or
 --- a melee true is voided (see THE RULES in the header). A preview's fake source answers through
 --- its InRole.
---- @param role string "melee" | "ranged" | "friendly"
+--- @param role string "melee" | "ranged" | "friendly" | a tier role
 --- @param spells table|nil a band's own spell IDs, in place of the class's anchors for `role`
 --- @return boolean|nil, table|nil
 function Range.RoleInRange(role, unit, spells)

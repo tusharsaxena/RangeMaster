@@ -48,6 +48,14 @@ C.BAND_RAMP = { "4ade80", "a3e635", "facc15", "fb923c", "ef4444" }
 C.UNKNOWN_COLOR = "9ca3af"
 C.UNKNOWN_LABEL = "?"
 
+-- The tier roles (RangeMaster#20): beside melee, ranged and friendly, a band rule may name one of a
+-- class's own range tiers, `tierN`, the class's spells that reach N yd (defaults/SpellSeeds.lua's
+-- anchors: the Forever paladin's tier10 is Judgment and Hammer of Justice). One vocabulary for every
+-- class, so a stored set reads the same on any character: a class with no list for a tier leaves that
+-- band on its yards. The order is the Band sets page's Role list after the three.
+C.TIER_ROLES = { "tier10", "tier13", "tier15", "tier20", "tier25", "tier30" }
+C.TIER_YARDS = { tier10 = 10, tier13 = 13, tier15 = 15, tier20 = 20, tier25 = 25, tier30 = 30 }
+
 --- A stored color from a ramp entry: `{ r, g, b, a }` in 0..1, a NEW table every call, so no two
 --- stored colors ever share one. `hex` is six hex digits, with or without a leading "#".
 --- @return table

@@ -70,14 +70,20 @@ items and interact distances; spells on both) and the spell seeds (`defaults/Spe
 `[client][classFile]`; Forever has no Death Knight, Monk, Demon Hunter or Evoker). Forever's
 `PLAYER_FOCUS_CHANGED` is registered only where `NS.Compat.IsEventValid` says the client knows it.
 
-**How the seed lists are maintained (clients-§10).** Neither per-client list in
-`defaults/SpellSeeds.lua` is derived from the client's DB2 yet. Each is hand-kept: a short list per
-class of long-stable spell IDs (rank 1 on Forever), and each ID is checked in a client by
-`docs/smoke-tests.md` RANGE-5 (every seed resolves on its own client). A stale ID cannot report a
-wrong range: the range engine trusts a spell only while it is known and usable, so an ID the client
-does not know is skipped. The first re-validation against wago.tools
-(`SpellName` and `SpellRange` at a pinned `wow` and `wowf` build) freezes its run as a dated bundle
-under `docs/`, and this paragraph then points at it.
+**How the seed lists are maintained (clients-§10).** Both per-client lists in
+`defaults/SpellSeeds.lua` are hand-kept, a short list per class of long-stable spell IDs (rank 1 on
+Forever), and **re-validated** against each client's own DB2 on wago.tools by `tools/seeds/seeds.py`,
+the contract `docs/validate-seeds.md` (`/dev-copilot:validate-seeds RangeMaster retail|forever`). A
+run pins one `wow` or `wowf` build and checks every shipped id's name, class, rank (Forever) and
+range (SpellMisc `RangeIndex` into SpellRange) against what the code asks of its list: a ladder rung
+has no min range, a melee anchor reaches no farther than `MELEE_REACH_YD`, a role's longest reach
+meets its preset band's far edge, a `tier<N>` anchor reaches N yd (the class presets' tier bands,
+RangeMaster#20), the Forever hunter's anchors fit the dead zone. Rulings are data
+(`tools/seeds/<flavor>_rulings.json`), and each run is a frozen bundle under `docs/seed-research/`;
+the first, 2026-11-25 (wow 12.1.5.70961, wowf 1.60.1.71091), took Throw and Heroic Throw out of the
+ladders, where neither could ever be a rung. `docs/smoke-tests.md` RANGE-5 still checks every seed resolves in a
+client. A stale ID cannot report a wrong range: the range engine trusts a spell only while it is
+known and usable, so an ID the client does not know is skipped.
 
 ## Settings Schema
 
@@ -105,7 +111,7 @@ its template. A delete re-selects the deleted item's neighbor (`NS.NeighborAfter
 `core/Database.lua`'s `Database.PrepareProfile` (called from `NS:RunMigrations`, so only from
 `InitDB` and the three AceDB profile callbacks): it re-keys and backfills every member from its
 template, rebuilds each order array, bumps each counter past the highest stored id, normalizes every
-band set, seeds the four preset band sets on a profile with none, points a container at the default
+band set, seeds the class's own preset band set and the four generic ones on a profile with none, points a container at the default
 set when its `bandSet` names none, and sets `seeded` to `false` when absent.
 
 - **Band sets**: `bandSets`, `bandSetOrder`, `nextBandSetId`. Runtime writer `modules/BandSets.lua`
@@ -309,7 +315,13 @@ follows the skin.
   ranged spell for a few seconds (Spatial Paradox, Sniper Shot) is read through that spell's own
   in-range answer, but does not reorder the candidates until the next rebuild.
 - The class default band set is picked by class at the first-run seed, and by spec only for
-  Devourer (Caster 40); a later spec change does not swap the default.
+  Devourer (Caster 40, with the Demon Hunter set seeded second); a later spec change does not swap the default. Every class has its own
+  preset per client (RangeMaster#20), but a profile seeded before the class presets existed keeps
+  its stored sets: the class's set is only created by `NS.BandSets.Create(name, key)` or on a fresh
+  profile.
+- A tier band (`tier10` ... `tier30`) asks a spell the class learns at some level or through a talent
+  (Shadowstep, Felblade, Skull Bash, WoW Forever's Drain Life); until it is learned, and while it is
+  unusable (WoW Forever's spell 20271 with no seal up, Charge in combat), the band reads its yards.
 
 ## Documentation map
 
@@ -357,7 +369,10 @@ generated directories are named once and never enumerated: `docs/audits/`, `docs
 
 ### Addon-specific (documentation-§3, Tier 3)
 
-None yet.
+| Doc | Covers |
+|---|---|
+| `validate-seeds.md` | The seed-validation contract `/dev-copilot:validate-seeds RangeMaster <flavor>` runs: the tool, its checks and the code each stands for, the ruling precedent, the steps and the gate |
+| `seed-research/` | Frozen per-build bundles written by `tools/seeds/seeds.py` (`SOURCES.md`, `candidates.json`, `DIFF.md`, `RULINGS.md`, a hand-written `ANALYSIS.md`, gzipped `raw/` tables); the dated bundles are not enumerated |
 
 ## Documented deviations
 

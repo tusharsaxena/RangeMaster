@@ -50,6 +50,7 @@ marked as such rather than listed as a requirement.
 | `git` | any recent | the vendored-payload gate, the line-ending gate, the layout-cap gate, the lint-config gate and the runner's manifest | `tests/_kit/vendor_sync.lua`, `tests/_kit/test_eol.lua`, `tests/_kit/test_layout_cap.lua`, `tests/test_lintconfig.lua` all shell out to `git` |
 | `bash` | any recent | running the vendored automated-test runner and the text tools it pipes through (`sed`, `grep`, `awk`, `date`, `find`, `wc`, `sort`, `head`, `tail`, `tr`) | `tests/_kit/run-automated-tests.sh` is `#!/usr/bin/env bash` |
 | POSIX shell with `ls` and `grep` | any | suites that list or scan source files by shelling out | `tests/test_locale.lua` (`ls -1`), `tests/_kit/framework.lua` (`ls -A`) |
+| `python3` (3.8+) with `pytest` | any recent | the seed tool `tools/seeds/seeds.py` and its suite `python3 -m pytest -q -p no:cacheprovider tools/seeds`, part of the commit gate; the tool itself is standard library only | `docs/validate-seeds.md`, `## Gate` |
 
 **Lua 5.1 is a requirement, not a preference.** The harness sandboxes each source file with
 `setfenv`, which was removed in 5.2. WoW's own client is Lua 5.1 too, which is why the harness can
@@ -76,6 +77,10 @@ luac5.1 -v               # Lua 5.1.5 …
 luacheck --version       # Luacheck: 1.x
 lizard --version         # 1.x
 git --version            # git version 2.x
+
+# the seed tool's suite (docs/validate-seeds.md)
+sudo apt-get install -y python3-pytest
+python3 -m pytest --version
 ```
 
 Versions are pinned only where a version matters: `lua5.1` is hard, `luacheck` and `lizard` are

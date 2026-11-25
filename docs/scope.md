@@ -7,7 +7,8 @@ on displays the player builds. Each display (a **container**) watches one unit: 
 `pet`, `mouseover`, or every enemy nameplate at once (or every one but the target's). It can show the bracket as a number, a band
 label, a colored indicator and a row of the player's own spells that light when in reach, all colored
 by a shared **band set**, with an optional caption naming the display. A band is a yard range or
-a spell rule (the class's melee, ranged or friendly spell is in reach, the hunter's dead zone, or past
+a spell rule (the class's melee, ranged or friendly spell, or one of its range tiers such as a paladin's
+10 yd spells, is in reach, the hunter's dead zone, or past
 every spell band), so a band follows talents, gear and forms; its yards are the fallback. A display sits on the screen, on a unit frame (Blizzard's, EllesmereUI's or
 any named frame), on a nameplate, or at the cursor. It can play a sound when the band changes, and it
 can hide by combat state, reaction or a missing unit.
