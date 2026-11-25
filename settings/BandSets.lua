@@ -1,10 +1,11 @@
 local _, NS = ...
 -- settings/BandSets.lua — the Band sets page: the shared band sets every container colors by.
 --
---     band   [Band set v picker ]                 [ New band set ]
+--     header [Band set v picker      ] [New…] [Duplicate] [Copy bands from…] [Delete…]
+--            From the Paladin preset · modified (band 2 label)     [Restore Paladin preset…]
 --     strip  [ General ][ Bands ]
 --     General  [Name] [Match band by] / -- Unknown range -- [Unknown label] [Unknown color]
---              Used by: Target, Pet            [Duplicate band set] [Delete band set…]
+--              Used by: Target, Pet
 --     Bands    +------------------+  -- Band 1: 0–5 yd MELEE (Spell: Melee) --
 --              | # 1 MELEE · 0–5 yd |  [Defined by] [Role] / [Spell IDs] [Fallback (yards)] /
 --              | # 2 DEAD · 5–8 yd  |  Now: Raptor Strike (2973), melee range   (a spell band only)
@@ -13,6 +14,28 @@ local _, NS = ...
 --              +------------------+
 --              [Add band]
 --              Sounds play on entering a band, ...   (the note, dim)
+--
+-- THE HEADER (RangeMaster#21) is O.PageHeader's block, not O.PageBanner: the picker and four
+-- page-wide acts are more than the banner's three, and the origin line sits under them. Its acts
+-- apply to the set whole, so they sit above the strip (options-ui-§14) and none is under General.
+-- Delete is disabled on the last set. The block is one AceGUI SimpleGroup with a Flow layout,
+-- parented to the header's frame by hand (QuickComms' band, settings/Groups.lua: the shape known to
+-- draw), and the last render's block is released only after this render's is built.
+--
+-- THE PICKER IS GROUPED: "Your band sets" (the default first, "(default)"; a set that differs from
+-- its preset, "modified"), "Shipped presets · Classes" (every class preset this client has, in its
+-- class color, yours tagged "your class") and "Shipped presets · General". The group names are
+-- disabled rows (AceGUI's SetItemDisabled), so only a set or a preset can be chosen. A preset's key
+-- in the list is "preset:<key>"; choosing one VIEWS it (NS.ViewPreset, settings/Schema.lua).
+--
+-- THE ORIGIN LINE: a set made from a preset (`set.origin`, modules/BandSets.lua) says so, and
+-- what differs when it does, beside Restore <Preset> preset…, enabled only while it differs. A
+-- preset VIEWED shows instead that it is read-only, with Use this preset… (the New dialog, prefilled)
+-- and Copy into a set of mine… (Copy bands from, the preset as the source). While a preset is viewed
+-- both tabs show its values with every control disabled, Duplicate, Copy bands from and Delete are
+-- disabled, and `/rm set bandSet.*` is refused. The three dialogs are BS-03's: until it lands the
+-- call sites below (NS.ShowNewBandSetDialog, NS.ShowCopyBandsDialog, NS.ShowRestoreBandSetDialog)
+-- are stand-ins.
 --
 -- THE BANDS TAB IS A SIDE-TAB GROUP (O.SideTabs, the library's rail look inside the content): one
 -- entry per band, "<place> <label> · <span> yd" led by a chip of its frame color (#), and beside it
@@ -147,16 +170,47 @@ local function afterGeneral(ctx)
     local names = usedBy(id)
     H.TextRow(ctx, names and L["Used by: %s"]:format(names) or L["No container uses this band set."],
         { fontObject = "GameFontDisableSmall" })
-    H.InlineButtonPair(ctx,
-        { text = L["Duplicate band set"], tooltip = L["Make a copy of this band set to edit."], onClick = doDuplicate },
-        { text = L["Delete band set\226\128\166"],
-          tooltip = L["Delete this band set. The containers using it move to the default band set. Asks first."],
-          onClick = doDelete })
 end
 
 -- ---------------------------------------------------------------------------
 -- The Bands tab: the host editor
 -- ---------------------------------------------------------------------------
+
+-- ── the set the page shows: one of the player's, or a preset viewed read-only ──────────────────
+
+-- A viewed preset's id on this page: a string no stored set has (stored ids are numbers), so a
+-- writer handed it (NS.BandSets.SetBand and the rest) finds no set and refuses.
+local VIEW_PREFIX = "preset:"
+local viewCache   -- { key, set }: the viewed preset, built once per key (a preset never changes)
+
+--- The preset being viewed, as a set, and its page id; nil while one of the player's sets is shown.
+local function viewedSet()
+    local key = NS.ViewedPreset()
+    if not key then
+        viewCache = nil
+        return nil
+    end
+    if not (viewCache and viewCache.key == key) then viewCache = { key = key, set = NS.BandSets.PresetSet(key) } end
+    return viewCache.set, VIEW_PREFIX .. key
+end
+
+--- The set page id `id` names: a stored set by number, the viewed preset by its string.
+local function setOf(id)
+    if type(id) ~= "string" then return NS.BandSets.Get(id) end
+    local set, viewId = viewedSet()
+    if viewId == id then return set end
+    return nil
+end
+
+--- The set the page shows, and its page id: the viewed preset, else the selected set.
+local function shownSet()
+    local set, id = viewedSet()
+    if set then return set, id end
+    return NS.SelectedBandSet()
+end
+
+--- Whether page id `id` is a preset viewed (read-only).
+local function isView(id) return type(id) == "string" end
 
 --- The LibSharedMedia sounds, led by None ("" stores no sound).
 local function soundValues()
@@ -180,7 +234,7 @@ local function edgeItem(id, i, b, nextBand)
         tooltip = fallback
             and L["Where this band ends while its rule cannot decide (a spell not learned, unusable or with no answer), and for its label. The next band starts here."]
             or L["Where this band ends. The next band starts here."],
-        get = function() return NS.BandSets.Get(id).bands[i].to end,
+        get = function() return setOf(id).bands[i].to end,
         set = function(v) NS.BandSets.SetBand(id, i, "to", v) end,
     }
 end
@@ -199,7 +253,7 @@ end
 local function colorItem(id, i, field, label, tooltip)
     return {
         type = "color", label = label, hasAlpha = false, tooltip = tooltip, paletteSwatch = true,
-        get = function() return NS.BandSets.Get(id).bands[i][field] end,
+        get = function() return setOf(id).bands[i][field] end,
         set = function(v) NS.BandSets.SetBand(id, i, field, v) end,
     }
 end
@@ -229,7 +283,7 @@ end
 --- its place, else the one before it).
 local function removeBand(id, i)
     if not NS.BandSets.RemoveBand(id, i) then return print(L["A band set keeps at least one band."]) end
-    selectBand(id, math.min(i, #NS.BandSets.Get(id).bands))
+    selectBand(id, math.min(i, #setOf(id).bands))
 end
 
 --- Add a band to set `id` and select it.
@@ -243,6 +297,7 @@ local function removeItem(id, i)
         local w = NS.AceGUI:Create("Button")
         w:SetText(L["Remove band"])
         w:SetRelativeWidth(rel or 0.5)
+        if isView(id) then w:SetDisabled(true) end
         w:SetCallback("OnClick", function() removeBand(id, i) end)
         parent:AddChild(w)
         return w
@@ -298,7 +353,7 @@ NS.__bandReadout = readout
 --- Write band `i`'s Defined by: a spell band keeps its role and list, and a new one takes melee in
 --- the first band and ranged elsewhere. Yards clears the rule; the band's yards never move.
 local function setDefinedBy(id, i, v)
-    local b = NS.BandSets.Get(id).bands[i]
+    local b = setOf(id).bands[i]
     if v == "yards" then return NS.BandSets.SetBandRule(id, i, nil) end
     if v ~= "spell" then return NS.BandSets.SetBandRule(id, i, { type = v }) end
     if ruleType(b) == "spell" then return true end
@@ -321,7 +376,7 @@ local function definedByItem(id, i)
     return {
         type = "string", values = DEFINED_BY, sorting = DEFINED_BY_SORT, label = L["Defined by"],
         tooltip = L["What puts the unit in this band. Yards: its range reading. Spell: a spell of the role saying the unit is in range, which follows talents, gear and auras. Dead zone: too close for the ranged spell and too far for melee. Beyond the last spell band: every spell band's spell says out of range."],
-        get = function() return ruleType(NS.BandSets.Get(id).bands[i]) end,
+        get = function() return ruleType(setOf(id).bands[i]) end,
         set = function(v) setDefinedBy(id, i, v) end,
     }
 end
@@ -330,9 +385,9 @@ local function roleItem(id, i)
     return {
         type = "string", values = ROLES, sorting = ROLES_SORT, label = L["Role"],
         tooltip = L["Which of your class's spells this band asks: a melee strike, a ranged attack, a spell cast on friends, or a range tier, the class's spells that reach that far (a paladin's 10 yd tier is Hammer of Justice). A class with no spell for the tier uses the band's yards."],
-        get = function() return NS.BandSets.Get(id).bands[i].rule.role end,
+        get = function() return setOf(id).bands[i].rule.role end,
         set = function(v)
-            local r = NS.BandSets.Get(id).bands[i].rule
+            local r = setOf(id).bands[i].rule
             NS.BandSets.SetBandRule(id, i, { type = "spell", role = v, spells = r.spells })
         end,
     }
@@ -343,7 +398,7 @@ local function spellIdsItem(id, i)
         type = "string", dialogControl = "EditBox", maxLetters = 80, label = L["Spell IDs"],
         tooltip = L["Spells this band asks in place of your class's, by ID, separated by commas; the first one you know is used. Empty: your class's spells for the role. Press Enter to apply."],
         get = function()
-            local spells = NS.BandSets.Get(id).bands[i].rule.spells
+            local spells = setOf(id).bands[i].rule.spells
             if type(spells) ~= "table" then return "" end
             local parts = {}
             for k, v in ipairs(spells) do parts[k] = tostring(v) end
@@ -352,7 +407,7 @@ local function spellIdsItem(id, i)
         set = function(v)
             local ids = parseIds(v)
             if ids == false then return print(L["Spell IDs are whole numbers, separated by commas."]) end
-            local r = NS.BandSets.Get(id).bands[i].rule
+            local r = setOf(id).bands[i].rule
             NS.BandSets.SetBandRule(id, i, { type = "spell", role = r.role, spells = ids })
         end,
     }
@@ -368,14 +423,14 @@ local function bandTail(id, i)
     return {
         { type = "string", dialogControl = "EditBox", maxLetters = 12, label = L["Label"],
           tooltip = L["The band's name, which the text label shows."],
-          get = function() return NS.BandSets.Get(id).bands[i].label end,
+          get = function() return setOf(id).bands[i].label end,
           set = function(v) NS.BandSets.SetBand(id, i, "label", v) end },
         colorItem(id, i, "frameColor", L["Frame color"], L["The border and background color in this band, while Color from is Band color."]),
         colorItem(id, i, "textColor", L["Text color"], L["The number and label color in this band, while Color from is Band color."]),
         colorItem(id, i, "indicatorColor", L["Dot color"], L["The dot and spell chip color in this band, while Color from is Band color."]),
         { type = "string", dialogControl = "Ka0sMedia_Sound", values = SOUNDS, label = L["Sound on enter"],
           tooltip = L["Played when the unit enters this band, on containers with Play band sounds on."],
-          get = function() return NS.BandSets.Get(id).bands[i].sound or "" end,
+          get = function() return setOf(id).bands[i].sound or "" end,
           set = function(v) NS.BandSets.SetBandSound(id, i, v ~= "" and v or nil) end },
         removeItem(id, i),
     }
@@ -431,7 +486,7 @@ end
 local railButtons   -- the entries the last draw made (a test seam)
 
 local function renderBands(ctx)
-    local set, id = NS.SelectedBandSet()
+    local set, id = shownSet()
     if not set then return H.TextRow(ctx, L["No band set exists yet."]) end
     local entries = {}
     for i, b in ipairs(set.bands) do entries[i] = railEntry(i, b) end
@@ -439,9 +494,9 @@ local function renderBands(ctx)
         entries = entries, value = selectedBand(id, set), width = RAIL_WIDTH,
         onSelect = function(i) selectBand(id, i) end,
         render = function(c, i)
-            local b = NS.BandSets.Get(id).bands[i]
+            local b = setOf(id).bands[i]
             H.Section(c, bandHeading(i, b))
-            H.RenderGrid(c, bandItems(id, NS.BandSets.Get(id), i))
+            H.RenderGrid(c, bandItems(id, setOf(id), i))
         end,
     })
     H.InlineButtonPair(ctx, {
@@ -453,48 +508,346 @@ local function renderBands(ctx)
 end
 
 -- ---------------------------------------------------------------------------
+-- The dialogs' call sites (BS-03 replaces the stand-ins)
+-- ---------------------------------------------------------------------------
+
+--- The New dialog. `spec` = { preset = key?, name = string? }, prefilled by Use this preset…. The
+--- stand-in creates the set at once, from the preset (Melee / Ranged without one), and selects it.
+function NS.ShowNewBandSetDialog(spec)
+    spec = type(spec) == "table" and spec or {}
+    local id = NS.BandSets.Create(spec.name or L["New band set"], spec.preset or "melee_ranged")
+    if id then NS.ShowBandSet(id) end
+    return id
+end
+
+--- Copy bands from…. `spec` = { into = id?, from = id | { preset = key }? }: Copy into a set of
+--- mine… names the source and asks for the set. The stand-in only logs.
+function NS.ShowCopyBandsDialog(spec)
+    spec = type(spec) == "table" and spec or {}
+    NS.Debug("BandSets", "Copy bands from (into %s): the dialog lands with BS-03", tostring(spec.into))
+end
+
+--- The Restore dialog for set `id`: its differences from its preset, then Restore. The stand-in
+--- only logs.
+function NS.ShowRestoreBandSetDialog(id)
+    NS.Debug("BandSets", "Restore set %s: the dialog lands with BS-03", tostring(id))
+end
+
+-- ---------------------------------------------------------------------------
+-- The header: the picker, the acts, the origin line
+-- ---------------------------------------------------------------------------
+
+local HEADER_KEY = "header:"
+
+--- A preset's display name ("Paladin"), or its key when it has none.
+local function presetName(key)
+    local p = NS.BandSetPresets[key]
+    return type(p) == "table" and p.name or tostring(key)
+end
+
+--- `text` in color r, g, b (0-1) as an escape, or plain when the color is not three numbers.
+local function colored(text, r, g, b)
+    if not (type(r) == "number" and type(g) == "number" and type(b) == "number") then return text end
+    local function byte(v) return math.floor(math.max(0, math.min(1, v)) * 255 + 0.5) end
+    return ("|cff%02x%02x%02x%s|r"):format(byte(r), byte(g), byte(b), text)
+end
+
+--- A class preset's name in its class color (RAID_CLASS_COLORS), or plain when the client has none.
+local function classColored(key, text)
+    local c = type(RAID_CLASS_COLORS) == "table" and RAID_CLASS_COLORS[key:upper()] or nil
+    if type(c) ~= "table" then return text end
+    return colored(text, c.r, c.g, c.b)
+end
+
+--- The player's own class preset key ("paladin"), or nil.
+local function yourClassKey()
+    local classFile = NS.Compat.PlayerClass()
+    return type(classFile) == "string" and classFile:lower() or nil
+end
+
+--- Add one disabled group row and answer its key.
+local function addHeader(list, order, headers, name, text)
+    local key = HEADER_KEY .. name
+    list[key], order[#order + 1] = colored(text, NS.Skin.Color("text.heading")), key
+    headers[#headers + 1] = key
+end
+
+--- The player's sets: the default first, "(default)"; a set that differs from its preset, "modified".
+local function addOwnSets(list, order)
+    for i, id in ipairs(NS.BandSets.List()) do
+        local text = NS.BandSets.Get(id).name
+        if i == 1 then text = L["%s (default)"]:format(text) end
+        if NS.BandSets.IsModified(id) then text = L["%s \194\183 modified"]:format(text) end
+        list[id], order[#order + 1] = text, id
+    end
+end
+
+--- The picker's entries: three groups, each led by a disabled row. Answers the list, its order and
+--- the group rows' keys.
+local function pickerEntries()
+    local list, order, headers = {}, {}, {}
+    local keys, mine = NS.BandSets.PresetKeys(), yourClassKey()
+    addHeader(list, order, headers, "mine", L["Your band sets"])
+    addOwnSets(list, order)
+    addHeader(list, order, headers, "classes", L["Shipped presets \194\183 Classes"])
+    for _, key in ipairs(keys.classes) do
+        local text = classColored(key, presetName(key))
+        if key == mine then text = L["%s (your class)"]:format(text) end
+        list[VIEW_PREFIX .. key], order[#order + 1] = text, VIEW_PREFIX .. key
+    end
+    addHeader(list, order, headers, "general", L["Shipped presets \194\183 General"])
+    for _, key in ipairs(keys.general) do
+        list[VIEW_PREFIX .. key], order[#order + 1] = presetName(key), VIEW_PREFIX .. key
+    end
+    return list, order, headers
+end
+NS.__bandSetPickerEntries = pickerEntries
+
+--- A picker choice: one of the player's sets is selected (ending a view), a preset is viewed, and a
+--- group row (never choosable in the client) changes nothing.
+local function choose(v)
+    if type(v) == "number" then return NS.ShowBandSet(v) end
+    local key = type(v) == "string" and v:match("^" .. VIEW_PREFIX .. "(.+)$")
+    if key and NS.ViewPreset(key) then NS.RequestPanelRefresh() end
+end
+NS.__chooseBandSet = choose
+
+-- What each Diff field reads as in the origin line's summary.
+local DIFF_WORDS = {
+    to = L["edge"], label = L["label"], rule = L["rule"], frameColor = L["frame color"],
+    textColor = L["text color"], indicatorColor = L["dot color"], matchBy = L["match rule"],
+    ["unknown.label"] = L["unknown label"], ["unknown.color"] = L["unknown color"], bands = L["band count"],
+}
+
+--- The origin line's short summary of `diff`: the first two differences, then how many more.
+local function diffSummary(diff)
+    local parts = {}
+    for i = 1, math.min(2, #diff) do
+        local e = diff[i]
+        local word = DIFF_WORDS[e.field] or tostring(e.field)
+        parts[i] = e.band and L["band %d %s"]:format(e.band, word) or word
+    end
+    local text = table.concat(parts, ", ")
+    if #diff > 2 then text = L["%s and %d more"]:format(text, #diff - 2) end
+    return text
+end
+
+--- The origin line for the page's subject: { text, acts = { { text, tooltip, onClick, disabled } } },
+--- or nil for a set with no preset on this client.
+local function originLine()
+    local viewed = NS.ViewedPreset()
+    if viewed then
+        return { text = L["A shipped preset: read-only. Make it yours to use it on a container or to edit it."], acts = {
+            { text = L["Use this preset\226\128\166"],
+              tooltip = L["Make a band set of your own from this preset, to use on a container or to edit."],
+              onClick = function() NS.ShowNewBandSetDialog({ preset = viewed, name = presetName(viewed) }) end },
+            { text = L["Copy into a set of mine\226\128\166"],
+              tooltip = L["Replace the bands of one of your band sets with this preset's. Asks which set first."],
+              onClick = function() NS.ShowCopyBandsDialog({ from = { preset = viewed } }) end },
+        } }
+    end
+    local set, id = NS.SelectedBandSet()
+    local diff = id and NS.BandSets.Diff(id)
+    if not diff then return nil end
+    local name = presetName(set.origin)
+    local text = #diff > 0 and L["From the %s preset \194\183 modified (%s)"]:format(name, diffSummary(diff))
+        or L["From the %s preset"]:format(name)
+    return { text = text, acts = { {
+        text = L["Restore %s preset\226\128\166"]:format(name), disabled = #diff == 0,
+        tooltip = L["Put this set's bands, match rule and unknown label and color back to its preset. Shows what changes first."],
+        onClick = function() NS.ShowRestoreBandSetDialog(id) end,
+    } } }
+end
+NS.__bandSetOriginLine = originLine
+
+local function doCopyBands()
+    local _, id = NS.SelectedBandSet()
+    if id then NS.ShowCopyBandsDialog({ into = id }) end
+end
+
+--- The header's four acts. While a preset is viewed only New… is enabled; Delete is disabled on the
+--- last set.
+local function headerActs()
+    local viewing = NS.ViewedPreset() ~= nil
+    return {
+        { text = L["New\226\128\166"], onClick = function() NS.ShowNewBandSetDialog({}) end,
+          tooltip = L["Make a new band set: from a shipped preset, a copy of one of yours, or blank."] },
+        { text = L["Duplicate"], onClick = doDuplicate, disabled = viewing,
+          tooltip = L["Make a copy of this band set to edit."] },
+        { text = L["Copy bands from\226\128\166"], onClick = doCopyBands, disabled = viewing,
+          tooltip = L["Replace this set's bands with another set's or a preset's. Its name and the containers using it stay. Asks first."] },
+        { text = L["Delete\226\128\166"], onClick = doDelete, disabled = viewing or #NS.BandSets.List() <= 1,
+          tooltip = L["Delete this band set. The containers using it move to the default band set. Asks first."] },
+    }
+end
+
+-- The header's one row (the picker and the acts' shares) and, under it, the origin line's.
+local HEADER_H, ORIGIN_H = 44, 32
+local PICKER_W, ACT_W = 0.35, 0.16
+-- The origin line's shares by how many acts it has: its text, then each act.
+local ORIGIN_W = { { text = 0.68, act = 0.3 }, { text = 0.58, act = 0.2 } }
+
+local function refused(kind, subject)
+    local check = H.__combatRefused
+    return check ~= nil and check(kind, subject) == true
+end
+
+--- A header button for `act`, `width` of the row: pcall'd and refused in combat as a banner's is.
+local function headerButton(act, width)
+    local btn = NS.AceGUI:Create("Button")
+    btn:SetText(act.text)
+    btn:SetRelativeWidth(width)
+    btn:SetDisabled(act.disabled and true or false)
+    btn:SetCallback("OnClick", function()
+        if refused("banner action", act.text) then return end
+        local ok, err = pcall(act.onClick)
+        if not ok then print(tostring(err)) end
+    end)
+    H.AttachTooltip(btn, act.text, act.tooltip)
+    return btn
+end
+
+local function headerPicker(value)
+    local dd = NS.AceGUI:Create("Dropdown")
+    local list, order, headers = pickerEntries()
+    dd:SetLabel(L["Band set"])
+    dd:SetList(list, order)
+    for _, key in ipairs(headers) do
+        if dd.SetItemDisabled then dd:SetItemDisabled(key, true) end
+    end
+    dd:SetValue(value)
+    dd:SetRelativeWidth(PICKER_W)
+    dd:SetCallback("OnValueChanged", function(_, _, v)
+        -- A change of subject is a structural redraw: refused in combat, as PageBanner's is.
+        if refused("banner select", v) or v == value then return dd:SetValue(value) end
+        local ok, err = pcall(choose, v)
+        if not ok then print(tostring(err)) end
+        if not ok or (type(v) == "string" and v:find(HEADER_KEY, 1, true) == 1) then dd:SetValue(value) end
+    end)
+    H.AttachTooltip(dd, L["Band set"], L["Which band set this page edits, or a shipped preset to look at. Band sets are shared: every container on one changes with it."])
+    return dd
+end
+
+--- The origin line's widgets into `block`: its text, then its acts.
+local function addOrigin(band, block, line)
+    local widths = ORIGIN_W[#line.acts] or ORIGIN_W[1]
+    local text = NS.AceGUI:Create("Label")
+    text:SetText(line.text)
+    text:SetRelativeWidth(widths.text)
+    H.LabelFont(text, "GameFontHighlightSmall")
+    block:AddChild(text)
+    band.origin, band.originActs = text, {}
+    for i, act in ipairs(line.acts) do
+        local btn = headerButton(act, widths.act)
+        block:AddChild(btn)
+        band.originActs[i] = btn
+    end
+end
+
+-- The Flow layout reads the block's content width, which only SetWidth changes, so the header's
+-- width is passed on at the build and again from the frame's OnSizeChanged (the first page opened is
+-- drawn before the canvas has laid itself out).
+local function fitHeader(ctx, block, frame)
+    local function fit(width)
+        if type(width) ~= "number" or width <= 0 or block.rmLaidOutAt == width then return end
+        block.rmLaidOutAt = width
+        block:SetWidth(width)
+        block:DoLayout()
+    end
+    fit(frame.GetWidth and frame:GetWidth())
+    if frame.SetScript then
+        frame:SetScript("OnSizeChanged", function(_, width)
+            if ctx.rmHeader and ctx.rmHeader.block == block then fit(width) end
+        end)
+    end
+end
+
+local function buildHeader(ctx, frame, value, line)
+    local block = NS.AceGUI:Create("SimpleGroup")
+    if not (block and block.frame) then return end
+    block:SetLayout("Flow")
+    block.frame:SetParent(frame)
+    block.frame:ClearAllPoints()
+    block.frame:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
+    block.frame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, 0)
+    block.frame:Show()
+    local band = { block = block, picker = headerPicker(value), acts = {} }
+    block:AddChild(band.picker)
+    for i, act in ipairs(headerActs()) do
+        band.acts[i] = headerButton(act, ACT_W)
+        block:AddChild(band.acts[i])
+    end
+    if line then addOrigin(band, block, line) end
+    ctx.rmHeader = band
+    fitHeader(ctx, block, frame)
+end
+
+--- Draw the header (O.PageHeader), then release the last render's block: released first, AceGUI's
+--- pool could hand its widgets straight back to this render while one is still on the stack.
+local function drawHeader(ctx, value)
+    local old, line = ctx.rmHeader, originLine()
+    ctx.rmHeader = nil
+    H.PageHeader(ctx, { height = line and (HEADER_H + ORIGIN_H) or HEADER_H, build = function(_, frame)
+        buildHeader(ctx, frame, value, line)
+    end })
+    if old and old.block and NS.AceGUI then NS.AceGUI:Release(old.block) end
+end
+
+-- ---------------------------------------------------------------------------
 -- The page
 -- ---------------------------------------------------------------------------
 
-local function bandSetList()
-    local list, order = {}, {}
-    for _, id in ipairs(NS.BandSets.List()) do
-        list[id] = NS.BandSets.Get(id).name
-        order[#order + 1] = id
+--- A viewed preset's General rows: the page's own, path-less, reading the preset and writing nothing
+--- (every control is drawn disabled; settings/Schema.lua refuses a `bandSet.*` write as well).
+local function presetRows(rows, set)
+    local out = {}
+    for i, row in ipairs(rows or {}) do
+        local copy = {}
+        for k, v in pairs(row) do copy[k] = v end
+        local field = tostring(row.path):match("^bandSet%.(.+)$") or ""
+        copy.path, copy.validate, copy.onChange = nil, nil, nil
+        copy.get = function()
+            local v = set
+            for part in field:gmatch("[^%.]+") do v = type(v) == "table" and v[part] or nil end
+            return v
+        end
+        copy.set = function() end
+        out[i] = copy
     end
-    if order[1] then list[order[1]] = L["%s (default)"]:format(list[order[1]]) end
-    return list, order
-end
-
-local function doNew()
-    local id = NS.BandSets.Create(L["New band set"], "melee_ranged")
-    if id then NS.ShowBandSet(id) end
+    return out
 end
 
 local render
 
-local OPTS = {
-    tabs = { { key = BANDS, label = BANDS, tooltip = L["Each band's rule, edge, label, colors and sound."],
-               render = function(ctx) renderBands(ctx) end } },
+local BANDS_TAB = { key = BANDS, label = BANDS, tooltip = L["Each band's rule, edge, label, colors and sound."],
+                    render = function(ctx) renderBands(ctx) end }
+
+local OPTS = { tabs = { BANDS_TAB }, rerender = function(ctx) render(ctx) end }
+
+-- A viewed preset: both tabs are host-drawn from the preset, and the page is drawn disabled.
+local VIEW_OPTS = {
+    tabs = { { key = GENERAL, render = function(ctx, rows)
+                 H.RenderRows(ctx, presetRows(rows, (viewedSet())), nil, nil, { noHeadings = true })
+             end }, BANDS_TAB },
+    disabledFor = function() return true end,
     rerender = function(ctx) render(ctx) end,
 }
 
 function render(ctx)
     H.ClearScroll(ctx)
     local scroll = H.EnsureScroll(ctx)
+    local _, viewId = viewedSet()
     local _, id = NS.SelectedBandSet()
-    local list, order = bandSetList()
-    H.PageBanner(ctx, {
-        label = L["Band set"], list = list, order = order, value = id,
-        tooltip = L["Which band set this page edits. Band sets are shared: every container on one changes with it."],
-        onSelect = function(v) if v ~= id then NS.ShowBandSet(v) end end,
-        action = { text = L["New band set"], tooltip = L["Create a band set from Melee / Ranged, to edit."],
-                   onClick = doNew },
-    })
-    H.RenderTabbedSchema(ctx, PAGE, { [GENERAL] = afterGeneral }, nil, OPTS)
+    drawHeader(ctx, viewId or id)
+    if viewId then
+        H.RenderTabbedSchema(ctx, PAGE, nil, nil, VIEW_OPTS)
+    else
+        H.RenderTabbedSchema(ctx, PAGE, { [GENERAL] = afterGeneral }, nil, OPTS)
+    end
     if scroll and scroll.DoLayout then scroll:DoLayout() end
 end
 NS.__renderBandSetsPage = function(ctx) return render(ctx) end
+NS.__bandSetHeader = function(ctx) return ctx and ctx.rmHeader end
 NS.__bandItems = bandItems
 NS.__bandRail = function() return railButtons end
 NS.__selectBand, NS.__selectedBand = selectBand, selectedBand
@@ -515,9 +868,14 @@ local function build(mainCategory)
     local ctx = H.CreatePanel("RangeMasterBandSetsPanel", L["Band sets"], {
         pageKey         = PAGE,
         defaultsButton  = true,
-        defaultsTooltip = L["Restore the selected band set's match rule and unknown label and color to their defaults. Its name and its bands are kept: Delete band set removes it whole."],
+        defaultsTooltip = L["Restore the selected band set's match rule and unknown label and color to their defaults. Its name and its bands are kept: to put a preset's bands back, use Restore preset under the picker."],
     })
-    ctx.panel.defaultsOnClick = function() H.RestoreDefaults(PAGE, ctx) end
+    ctx.panel.defaultsOnClick = function()
+        if NS.ViewedPreset() then
+            return print(L["A shipped preset is being viewed, and it is read-only: choose one of your band sets first (/rm bands lists them)."])
+        end
+        H.RestoreDefaults(PAGE, ctx)
+    end
     H.SetRenderer(ctx, render)
     return Settings.RegisterCanvasLayoutSubcategory(mainCategory, ctx.panel, L["Band sets"])
 end

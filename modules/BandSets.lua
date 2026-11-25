@@ -18,6 +18,7 @@ local _, NS = ...
 --   NS.BandSets.ConvertSet(set, friendly?) -> set       the v1 -> v2 step's band rules (core/Database.lua)
 --   NS.BandSets.Snapshot() -> snap, RestoreSnapshot(snap) -> boolean   the registry whole, for an Undo
 --   NS.BandSets.PresetKeys() -> { classes = { key, ... }, general = { key, ... } }   each preset once
+--   NS.BandSets.PresetSet(key) -> set | nil              a fresh, normalized copy of a preset, stored nowhere
 --   NS.BandSets.Diff(id) -> { { band?, field, mine, preset }, ... } | nil   nil: no origin on this client
 --   NS.BandSets.IsModified(id) -> boolean                 Diff has an entry
 --   NS.BandSets.RestorePreset(id, keepSounds?) -> boolean  bands, matchBy, unknown back to the origin
@@ -738,6 +739,15 @@ function BandSets.PresetKeys()
     for _, key in ipairs(P.CLASS_KEYS) do add(out.classes, key) end
     for _, key in ipairs(P.ORDER) do add(out.general, key) end
     return out
+end
+
+--- A fresh, normalized copy of preset `key` as a set (its name, matchBy, unknown band and bands,
+--- `origin` the key), stored nowhere: what the Band sets page shows while a preset is viewed
+--- read-only. Nil for a key that is no preset on this client.
+--- @return table|nil
+function BandSets.PresetSet(key)
+    if not isPresetKey(key) then return nil end
+    return build(nil, key)
 end
 
 --- How close two stored numbers must be to read as the same (a color picker's floats).

@@ -118,7 +118,7 @@ test("bandsets: the Band sets page draws General and Bands, and the editor's con
     ctx.activeTab = "General"
     NS.__renderBandSetsPage(ctx)
     local labels = E.labels(ctx)
-    for _, label in ipairs({ "Name", "Match band by", "Unknown label", "Unknown color", "Duplicate band set" }) do
+    for _, label in ipairs({ "Name", "Match band by", "Unknown label", "Unknown color" }) do
       assertTrue(labels[label], "General shows " .. label)
     end
     ctx.activeTab = "Bands"
@@ -401,5 +401,252 @@ test("bandsets: switching band set resets the band selection to band 1", functio
     assertEqual(NS.__selectedBand(other, B.Get(other)), 1, "another set opens on band 1")
     NS.ShowBandSet(id)
     assertEqual(NS.__selectedBand(id, B.Get(id)), 1, "and so does coming back")
+  end)
+end)
+
+-- ── the header, the grouped picker, the origin line and the preset view (RangeMaster#21, BS-02) ──
+
+local ELLIPSIS = "\226\128\166"
+
+--- The Band sets page drawn on tab `tab` (General when nil); answers the ctx, its labels and header.
+local function drawPage(tab)
+  local ctx = E.page("bandsets", "Band sets")
+  ctx.activeTab = tab or "General"
+  withAnchorFor(function() return nil end, function() NS.__renderBandSetsPage(ctx) end)
+  return ctx, E.labels(ctx), NS.__bandSetHeader(ctx)
+end
+
+--- The texts of the header's acts, in order.
+local function actTexts(hdr)
+  local out = {}
+  for i, w in ipairs(hdr.acts) do out[i] = w.text end
+  return out
+end
+
+--- Run `body` with NS[name] replaced by a recorder; answers the calls' first arguments.
+local function spying(name, body)
+  local real, calls = NS[name], {}
+  NS[name] = function(arg) calls[#calls + 1] = arg end
+  local ok, err = pcall(body)
+  NS[name] = real
+  if not ok then error(err, 0) end
+  return calls
+end
+
+--- Every control drawn in `ctx`'s scroll that a player can change, with whether it is disabled.
+local CONTROL = { EditBox = true, Dropdown = true, CheckBox = true, Slider = true, ColorPicker = true,
+  Button = true, Ka0sMedia_Sound = true }
+local function controls(ctx)
+  local out = {}
+  local function walk(w)
+    for _, child in ipairs(w.children or {}) do
+      if CONTROL[child.type] then out[#out + 1] = child end
+      walk(child)
+    end
+  end
+  walk(ctx.scroll)
+  return out
+end
+
+test("bandsets: the header holds the picker and New, Duplicate, Copy bands from and Delete; General has none", function()
+  -- red under: the picker and New band set in the banner, Duplicate and Delete under General.
+  E.with(function()
+    local _, labels, hdr = drawPage()
+    assertTrue(hdr ~= nil, "the page draws its header")
+    assertEqual(hdr.picker.labelText, "Band set")
+    local texts = actTexts(hdr)
+    assertEqual(#texts, 4)
+    assertEqual(texts[1], "New" .. ELLIPSIS)
+    assertEqual(texts[2], "Duplicate")
+    assertEqual(texts[3], "Copy bands from" .. ELLIPSIS)
+    assertEqual(texts[4], "Delete" .. ELLIPSIS)
+    for _, w in ipairs(hdr.acts) do assertFalse(w.disabled, w.text .. " is enabled on one of your sets") end
+    assertNil(labels["Duplicate band set"], "General no longer carries Duplicate")
+    assertNil(labels["Delete band set" .. ELLIPSIS], "nor Delete")
+    assertNil(labels["Duplicate"], "nor the header's")
+    for _, id in ipairs(B.List()) do
+      if id ~= B.DefaultId() then NS.DeleteBandSet(id) end
+    end
+    hdr = NS.__bandSetHeader((drawPage()))
+    assertTrue(hdr.acts[4].disabled, "Delete is disabled on the last set")
+    assertFalse(hdr.acts[2].disabled, "Duplicate is not")
+  end)
+end)
+
+test("bandsets: the header's acts reach Duplicate, Delete and the dialogs' call sites", function()
+  E.with(function()
+    local _, id = NS.SelectedBandSet()
+    local _, _, hdr = drawPage()
+    local n = #B.List()
+    hdr.acts[2]:__fire("OnClick")
+    assertEqual(#B.List(), n + 1, "Duplicate makes a copy")
+    assertTrue(select(2, NS.SelectedBandSet()) ~= id, "and selects it")
+    local copies = spying("ShowCopyBandsDialog", function() select(3, drawPage()).acts[3]:__fire("OnClick") end)
+    assertEqual(#copies, 1, "Copy bands from opens its dialog")
+    assertEqual(copies[1].into, select(2, NS.SelectedBandSet()), "into the set shown")
+    local news = spying("ShowNewBandSetDialog", function() select(3, drawPage()).acts[1]:__fire("OnClick") end)
+    assertEqual(#news, 1, "New opens its dialog")
+    local shown = E.spyPopups()
+    select(3, drawPage()).acts[4]:__fire("OnClick")
+    assertEqual(shown[1] and shown[1].which, "RANGEMASTER_DELETE_BANDSET", "Delete asks first")
+  end)
+end)
+
+test("bandsets: the picker lists your sets, then the class presets, then the general ones, under group rows", function()
+  -- red under: a picker of the player's sets alone.
+  E.with(function()
+    local list, order, headers = NS.__bandSetPickerEntries()
+    local keys = B.PresetKeys()
+    assertEqual(#keys.classes, NS.Compat.ClientKey() == "forever" and 9 or 13, "every class preset this client has")
+    assertEqual(#headers, 3, "three group rows")
+    assertEqual(order[1], headers[1], "Your band sets leads")
+    assertTrue(list[headers[1]]:find("Your band sets", 1, true) ~= nil)
+    local ids = B.List()
+    for i, id in ipairs(ids) do assertEqual(order[i + 1], id, "your sets in order, under it") end
+    assertTrue(list[ids[1]]:find("(default)", 1, true) ~= nil, "the default set is tagged")
+    assertNil(list[ids[2]]:find("(default)", 1, true), "and only the default")
+    local at = #ids + 2
+    assertEqual(order[at], headers[2])
+    assertTrue(list[headers[2]]:find("Shipped presets \194\183 Classes", 1, true) ~= nil)
+    for i, key in ipairs(keys.classes) do assertEqual(order[at + i], "preset:" .. key, "the classes in class order") end
+    at = at + #keys.classes + 1
+    assertEqual(order[at], headers[3])
+    assertTrue(list[headers[3]]:find("Shipped presets \194\183 General", 1, true) ~= nil)
+    for i, key in ipairs(keys.general) do assertEqual(order[at + i], "preset:" .. key, "then the general presets") end
+    assertEqual(#order, at + #keys.general, "and nothing else")
+    local mage = list["preset:mage"]
+    assertTrue(mage:find("(your class)", 1, true) ~= nil, "your class is tagged")
+    assertTrue(mage:find("|cff", 1, true) == 1, "in its class color")
+    assertNil(list["preset:priest"]:find("(your class)", 1, true), "and only yours")
+    assertNil(list["preset:melee_ranged"]:find("|cff", 1, true), "a general preset takes no class color")
+  end)
+end)
+
+test("bandsets: a group row picks nothing, a preset is viewed, and one of your sets ends the view", function()
+  E.with(function()
+    local _, id = NS.SelectedBandSet()
+    NS.__chooseBandSet("header:mine")
+    assertNil(NS.ViewedPreset(), "a group row views nothing")
+    assertEqual(select(2, NS.SelectedBandSet()), id, "and keeps the selection")
+    NS.__chooseBandSet("preset:caster40")
+    assertEqual(NS.ViewedPreset(), "caster40", "a preset is viewed")
+    assertEqual(select(2, NS.SelectedBandSet()), id, "the selection stays, for /rm get")
+    local _, _, hdr = drawPage()
+    assertEqual(hdr.picker.value, "preset:caster40", "the picker shows the preset")
+    NS.__chooseBandSet(id)
+    assertNil(NS.ViewedPreset(), "choosing your own set (the same one) ends the view")
+    assertFalse(NS.ViewPreset("BY_CLIENT"), "a module field is no preset")
+    assertFalse(NS.ViewPreset("nope"))
+  end)
+end)
+
+test("bandsets: a modified set is tagged, and the origin line names its preset, the change and Restore", function()
+  -- red under: no origin line and no modified tag.
+  E.with(function()
+    local set, id = NS.SelectedBandSet()
+    assertEqual(set.origin, "mage", "the seeded default is the class preset")
+    local _, _, hdr = drawPage()
+    assertEqual(hdr.origin and hdr.origin.text, "From the Mage preset")
+    assertEqual(hdr.originActs[1].text, "Restore Mage preset" .. ELLIPSIS)
+    assertTrue(hdr.originActs[1].disabled, "Restore is disabled while the set matches its preset")
+    assertNil(NS.__bandSetPickerEntries()[id]:find("modified", 1, true))
+    B.SetBand(id, 1, "label", "XX")
+    _, _, hdr = drawPage()
+    assertEqual(hdr.origin.text, "From the Mage preset \194\183 modified (band 1 label)")
+    assertFalse(hdr.originActs[1].disabled, "a modified set can be restored")
+    assertTrue(NS.__bandSetPickerEntries()[id]:find("modified", 1, true) ~= nil, "the picker tags it")
+    local restores = spying("ShowRestoreBandSetDialog", function() hdr.originActs[1]:__fire("OnClick") end)
+    assertEqual(restores[1], id, "Restore opens its dialog for the set")
+    B.SetField(id, "matchBy", "min")
+    B.SetBand(id, 2, "label", "YY")
+    assertEqual(NS.__bandSetOriginLine().text,
+      "From the Mage preset \194\183 modified (match rule, band 1 label and 1 more)", "two, then how many more")
+    local blank = B.Create("Blank", { { from = 0, label = "ANY" } })
+    NS.SelectBandSet(blank)
+    _, _, hdr = drawPage()
+    assertNil(hdr.origin, "a set with no preset has no origin line")
+  end)
+end)
+
+test("bandsets: a viewed preset draws read-only: every control disabled, New alone enabled", function()
+  -- red under: a preset with no view, or a view whose controls still write.
+  E.with(function()
+    local before = B.Snapshot()
+    NS.__chooseBandSet("preset:melee_ranged")
+    local ctx, labels, hdr = drawPage()
+    assertFalse(hdr.acts[1].disabled, "New stays enabled")
+    for i = 2, 4 do assertTrue(hdr.acts[i].disabled, hdr.acts[i].text .. " is disabled") end
+    assertEqual(hdr.origin.text, "A shipped preset: read-only. Make it yours to use it on a container or to edit it.")
+    assertEqual(hdr.originActs[1].text, "Use this preset" .. ELLIPSIS)
+    assertEqual(hdr.originActs[2].text, "Copy into a set of mine" .. ELLIPSIS)
+    for _, label in ipairs({ "Name", "Match band by", "Unknown label", "Unknown color" }) do
+      assertTrue(labels[label], "General shows the preset's " .. label)
+    end
+    assertNil(labels["No container uses this band set."], "and no Used by line: a preset is on no container")
+    local general = controls(ctx)
+    assertTrue(#general >= 4, "General draws its controls")
+    for _, w in ipairs(general) do assertTrue(w.disabled, tostring(w.labelText or w.text) .. " is disabled") end
+    local name
+    for _, w in ipairs(general) do if w.labelText == "Name" then name = w end end
+    assertEqual(name and (name.text or name.value), B.PresetSet("melee_ranged").name, "it reads the preset")
+    ctx, labels = drawPage("Bands")
+    assertTrue(labels["Add band"] and labels["Remove band"], "Bands draws the preset's bands")
+    assertEqual(#NS.__bandRail(), #B.PresetSet("melee_ranged").bands, "one rail entry per preset band")
+    for _, w in ipairs(controls(ctx)) do assertTrue(w.disabled, tostring(w.labelText or w.text) .. " is disabled") end
+    local viewId = "preset:melee_ranged"
+    local items = NS.__bandItems(viewId, B.PresetSet("melee_ranged"), 1)
+    itemLabeled(items, "Label").set("XX")
+    NS.__removeBand(viewId, 1)
+    assertEqual(NS.Database.DeepCopy(B.Snapshot()).bandSets[1].bands[1].label, before.bandSets[1].bands[1].label,
+      "a write through a preset's control reaches no stored set")
+    assertEqual(#B.List(), #before.bandSetOrder)
+  end)
+end)
+
+test("bandsets: Use this preset and Copy into a set of mine open their dialogs with the preset", function()
+  E.with(function()
+    NS.__chooseBandSet("preset:healer")
+    local _, _, hdr = drawPage()
+    local news = spying("ShowNewBandSetDialog", function() hdr.originActs[1]:__fire("OnClick") end)
+    assertEqual(news[1] and news[1].preset, "healer", "the New dialog, prefilled with the preset")
+    assertEqual(news[1].name, B.PresetSet("healer").name, "and its name")
+    local copies = spying("ShowCopyBandsDialog", function() hdr.originActs[2]:__fire("OnClick") end)
+    assertEqual(copies[1] and copies[1].from and copies[1].from.preset, "healer", "Copy bands from, the preset its source")
+    assertNil(copies[1].into, "the set to copy into is asked")
+    local n = #B.List()
+    local id = NS.ShowNewBandSetDialog({ preset = "healer", name = B.PresetSet("healer").name })
+    assertEqual(#B.List(), n + 1, "until BS-03, New creates the set at once")
+    assertEqual(B.Get(id).origin, "healer", "from the preset")
+    assertEqual(select(2, NS.SelectedBandSet()), id, "and selects it")
+    assertNil(NS.ViewedPreset(), "which ends the view")
+  end)
+end)
+
+test("bandsets: /rm set bandSet.* and Defaults refuse while a preset is viewed; /rm bands ends the view", function()
+  E.with(function()
+    local _, id = NS.SelectedBandSet()
+    NS.ViewPreset("caster40")
+    local out = slash("set bandSet.matchBy min")
+    assertTrue(E.said(out, "read-only"), "the write is refused aloud")
+    assertEqual(B.Get(id).matchBy, "max", "and the selected set is untouched")
+    slash("set bandSet.name Hijacked")
+    assertTrue(B.Get(id).name ~= "Hijacked", "a name too")
+    local ctx = drawPage()
+    out = E.capture(function() ctx.panel.defaultsOnClick() end)
+    assertTrue(E.said(out, "read-only"), "Defaults refuses too")
+    slash("bands 1")
+    assertNil(NS.ViewedPreset(), "/rm bands <n> selects a set and ends the view")
+    slash("set bandSet.matchBy min")
+    assertEqual(B.Get(B.List()[1]).matchBy, "min", "and writes reach the set again")
+  end)
+end)
+
+test("bandsets: the Defaults tooltip points to Restore for the bands", function()
+  -- red under: the tooltip that sent the player to Delete band set for the bands.
+  E.with(function()
+    local tip = tostring(drawPage().panel.defaultsTooltip)
+    assertTrue(tip:find("its bands are kept", 1, true) ~= nil, "Defaults keeps the bands")
+    assertTrue(tip:find("Restore preset", 1, true) ~= nil, "and the tooltip names Restore preset for them")
+    assertNil(tip:find("Delete band set", 1, true), "not Delete")
   end)
 end)
