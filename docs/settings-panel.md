@@ -150,7 +150,7 @@ close mark only, skinned; Escape, Cancel, the Settings panel closing and a profi
 
 | Dialog | Controls | Writes |
 |---|---|---|
-| New band set | Name (unique through `UniqueName`; it follows the start until typed in), then Start from: (•) A shipped preset, a dropdown of every preset with your class first; ( ) A copy of one of my sets, a dropdown; ( ) Blank: one open-ended band; Create, Cancel | `Create(name, key)`, `Duplicate` then `Rename`, or `Create(name, {})`; the new set is selected |
+| New band set | Name (unique through `UniqueName`; it follows the start until typed in), then Start from: (•) A shipped preset, a dropdown of every preset (the classes in class order, then the general ones), starting on your class; ( ) A copy of one of my sets, a dropdown; ( ) Blank: one open-ended band; Create, Cancel | `Create(name, key)`, `Duplicate` then `Rename`, or `Create(name, {})`; the new set is selected |
 | Copy bands from | Into (the current set, or a dropdown of yours from Copy into a set of mine…); From (your other sets, then every preset); Bands (always on), Sounds on enter (on), Match rule and unknown label and color (off); the summary, `Paladin's 4 bands are replaced by Mage's 5. Its name and the containers using it stay.`; Copy, Cancel | `CopyFrom(id, source, opts)`, never into itself |
 | Restore Paladin preset | `Put 'Paladin' back to the Paladin preset. What changes:`, then one line per `Diff` entry (`Band 2 label: HOLY -> JUDGE`), eight at most, then `and N more`; Keep my sounds (on); Restore, Cancel | `RestorePreset(id, keepSounds)`; refused aloud when the set has no preset on this client or already matches it |
 

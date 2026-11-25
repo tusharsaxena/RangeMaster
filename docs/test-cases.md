@@ -765,7 +765,7 @@ Total.
 - bandsets: a modified set is tagged, and the origin line names its preset, the change and Restore
 - bandsets: a viewed preset draws read-only: every control disabled, New alone enabled
 - bandsets: Use this preset and Copy into a set of mine open their dialogs with the preset
-- bandsets: /rm set bandSet.* and Defaults refuse while a preset is viewed; /rm bands ends the view
+- bandsets: /rm set bandSet.*, /rm reset bandSet.* and Defaults refuse while a preset is viewed; /rm bands ends the view
 - bandsets: the Defaults tooltip points to Restore for the bands
 
 ### test_settings_bandset_dialogs.lua (14)

@@ -615,8 +615,8 @@ check names Paladin, use your own class's set and preset.
   Classes → Warrior** → the line under the picker reads `A shipped preset: read-only. Make it yours to
   use it on a container or to edit it.` beside **Use this preset…** and **Copy into a set of mine…**;
   both tabs show the Warrior bands with every control grayed; **Duplicate**, **Copy bands from…** and
-  **Delete…** are grayed and **New…** is not; the header **Defaults** and `/rm set bandSet.matchBy min`
-  each print `A shipped preset is being viewed, and it is read-only: ...` and change nothing.
+  **Delete…** are grayed and **New…** is not; the header **Defaults**, `/rm set bandSet.matchBy min`
+  and `/rm reset bandSet.matchBy` each print `A shipped preset is being viewed, and it is read-only: ...` and change nothing.
   **Use this preset…** → the New dialog with the Warrior preset picked and the name `Warrior` (or `Warrior 2`) prefilled. **Copy into a set
   of mine…** → Copy bands from with Warrior as the source and a dropdown of your sets under Into. No
   container's Band set dropdown lists the preset. Result:

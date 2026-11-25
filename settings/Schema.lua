@@ -630,6 +630,15 @@ local SELECTION = {
     },
 }
 
+--- The refusal a selection-relative `path` answers right now (a band set's while a preset is
+--- viewed), or nil. `/rm reset` asks it first: the library's CliReset reads any false from
+--- applyDefault as NO_DEFAULT, which would call a refused reset "no default".
+function NS.SelectionRefusal(path)
+    local prefix = tostring(path):match("^(%a+)%.")
+    local sel = prefix and SELECTION[prefix]
+    return sel and sel.refuse and sel.refuse() or nil
+end
+
 local function copyValue(v)
     if type(v) ~= "table" then return v end
     local out = {}

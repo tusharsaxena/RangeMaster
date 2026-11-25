@@ -616,7 +616,7 @@ test("bandsets: Use this preset and Copy into a set of mine open their dialogs w
   end)
 end)
 
-test("bandsets: /rm set bandSet.* and Defaults refuse while a preset is viewed; /rm bands ends the view", function()
+test("bandsets: /rm set bandSet.*, /rm reset bandSet.* and Defaults refuse while a preset is viewed; /rm bands ends the view", function()
   E.with(function()
     local _, id = NS.SelectedBandSet()
     NS.ViewPreset("caster40")
@@ -625,6 +625,13 @@ test("bandsets: /rm set bandSet.* and Defaults refuse while a preset is viewed; 
     assertEqual(B.Get(id).matchBy, "max", "and the selected set is untouched")
     slash("set bandSet.name Hijacked")
     assertTrue(B.Get(id).name ~= "Hijacked", "a name too")
+    -- red under: CliReset read the refused applyDefault as "has no default to restore".
+    B.SetField(id, "matchBy", "min")
+    out = slash("reset bandSet.matchBy")
+    assertTrue(E.said(out, "read-only"), "/rm reset is refused aloud with the read-only line")
+    assertFalse(E.said(out, "no default"), "never as a setting with no default")
+    assertEqual(B.Get(id).matchBy, "min", "and the selected set is untouched")
+    B.SetField(id, "matchBy", "max")
     local ctx = drawPage()
     out = E.capture(function() ctx.panel.defaultsOnClick() end)
     assertTrue(E.said(out, "read-only"), "Defaults refuses too")
