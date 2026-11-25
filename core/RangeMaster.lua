@@ -370,6 +370,9 @@ local function adoptProfile(tag, fmt, ...)
     -- The registries are the new profile's now: a preset's Undo slot was the old one's, and the
     -- renderer hears the new containers through the registry's own sender (modules/ContainerManager).
     if NS.Presets and NS.Presets.ForgetUndo then NS.Presets.ForgetUndo() end
+    -- The same for a band set's Copy or Restore (settings/BandSetDialogs.lua), and its dialog goes down.
+    if NS.ForgetBandSetUndo then NS.ForgetBandSetUndo() end
+    if NS.HideBandSetDialog then NS.HideBandSetDialog() end
     NS.ApplySkinChoice()
     NS.SyncEnabledHold()
     if NS.CM and NS.CM.RequestApply then NS.CM.RequestApply() end

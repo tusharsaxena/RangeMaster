@@ -28,7 +28,7 @@ Sl.__STUB_DISABLED_LINE_FORMAT = STUB_DISABLED_LINE_FORMAT
 local cli
 
 local runEnabled, runResetAll, runResetPosition, runLock, runTest, runSim, runDebug, runPerf
-local runContainers, runSelect, runNew, runDelete, runPick, runBands, runPreset
+local runContainers, runSelect, runNew, runDelete, runPick, runBands, runPreset, runReset
 
 NS.COMMANDS = {
     {"help",          L["List available commands"],
@@ -49,7 +49,7 @@ NS.COMMANDS = {
     {"set",           L["Set a setting \226\128\148 /rm set path value (try /rm list)"],
         function(rest) cli:CliSet(rest) end},
     {"reset",         L["Reset one setting to its default \226\128\148 /rm reset path"],
-        function(rest) cli:CliReset(rest) end},
+        function(rest) runReset(rest) end},
     {"resetall",      L["Reset every setting to defaults"],
         function() runResetAll() end},
     -- The library's verb (LibKa0s-Slash minor 17): bare lists the profiles, a name switches to an
@@ -74,7 +74,7 @@ NS.COMMANDS = {
         function(rest) runDelete(rest) end},
     {"pick",          L["Attach the selected range display to a frame you click on screen"],
         function() runPick() end},
-    {"bands",         L["List the band sets, or select one by number or name \226\128\148 /rm bands 2"],
+    {"bands",         L["List the band sets, select one by number or name, or undo the last Copy bands from or Restore preset \226\128\148 /rm bands [2|undo]"],
         function(rest) runBands(rest) end},
     {"preset",        L["Open the preset picker, apply a preset, or undo the last \226\128\148 /rm preset [simple|text|numbers|advanced|expert|ka0s|undo]"],
         function(rest) runPreset(rest) end},
@@ -286,6 +286,10 @@ end
 
 function runBands(rest)
     local arg = trimmed(rest)
+    -- `undo` is the word before any name: the Undo after a Copy bands from or a Restore preset
+    -- (settings/BandSetDialogs.lua), as `/rm preset undo` follows a preset. A set named "undo" is
+    -- still reached by its number.
+    if arg:lower() == "undo" then return NS.UndoBandSets() end
     local ids = NS.BandSets.List()
     if arg ~= "" then
         local id, why = resolveIn(ids, arg, bandSetName)
@@ -301,6 +305,19 @@ function runBands(rest)
         printf(L["%s%d. %s"], id == selected and "* " or "  ", i, bandSetName(id))
     end
     if set then print(NS.BandRibbon(set)) end
+end
+
+--- `/rm reset <path>`: a selection-relative path whose selection refuses writes (a band set's while a
+--- preset is viewed) prints that refusal, the one `/rm set` prints, before the library's CliReset
+--- could call it NO_DEFAULT. Every other path is the library's.
+function runReset(rest)
+    local path = (rest or ""):match("^(%S+)")
+    local why = path and NS.SelectionRefusal and NS.SelectionRefusal(path)
+    if why then
+        NS.Debug("Cmd", "refused reset %s: %s", path, "selection refuses writes")
+        return print(why)
+    end
+    cli:CliReset(rest)
 end
 
 --- Whether `word` is a preset key (NS.Presets.ORDER, the one list of them).

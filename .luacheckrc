@@ -16,7 +16,7 @@ exclude_files = { "libs/", "tests/_kit/", "docs/audits/", "docs/reviews/", "docs
 -- The WoW client API this addon reads. A name nothing reads comes off the list (test_lintconfig).
 read_globals = {
   "_G", "LibStub", "CreateFrame", "UIParent", "STANDARD_TEXT_FONT", "C_AddOns",
-  "UnitClass", "RAID_CLASS_COLORS",          -- core/CoreSetup.lua's library-absent class resolver
+  "UnitClass", "RAID_CLASS_COLORS",          -- core/CoreSetup.lua's library-absent class resolver; settings/BandSets.lua's class presets
   "InCombatLockdown", "Settings", "SettingsPanel",
   "issecretvalue", "canaccessvalue",         -- core/Compat.lua's guard stand-ins
   "debugprofilestop",                        -- the perf bracket's clock (performance-§2)

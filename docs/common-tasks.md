@@ -95,9 +95,11 @@ Recipes for the changes made most often here. Each names the real files; run the
   band ends there (`tools/seeds/seeds.py`'s `tier-reach` and `band-reach` check both). A new generic
   preset key joins `ORDER`, its name and labels join
   `locales/enUS.lua`, and the table in `docs/schema.md` follows. Presets are copied into a profile
-  only on a fresh profile (the seed) or by `NS.BandSets.Create(name, key)`; a stored set is the
-  player's and is never rewritten (the one exception is the v1 -> v2 step, which gave every stored
-  band the rule its yards suggest, `docs/schema.md`). `tests/test_bandsets.lua` holds the shapes.
+  only on a fresh profile (the seed), by `NS.BandSets.Create(name, key)`, or when the player asks
+  (`CopyFrom` from a preset, `RestorePreset`); otherwise a stored set is the player's and is never rewritten (the one exception is the v1 -> v2 step, which gave every stored
+  band the rule its yards suggest, `docs/schema.md`). A stored set made from the preset you changed
+  then reads `· modified` on the Band sets page, and its Restore preset… takes the new bands. A preset
+  renamed in `locales/enUS.lua` no longer matches by name in schema step 4's back-fill. `tests/test_bandsets.lua` holds the shapes.
 
 ## Add a locale string
 

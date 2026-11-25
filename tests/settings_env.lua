@@ -15,10 +15,12 @@ local E = {}
 --- Run `body(p)` on a fresh profile.
 function E.with(body)
   local saved = { db = NS.db, popup = M.StaticPopup_Show, combat = M.InCombatLockdown,
-    selC = NS.State.selectedContainer, selB = NS.State.selectedBandSet, band = NS.State.selectedBand }
+    selC = NS.State.selectedContainer, selB = NS.State.selectedBandSet, band = NS.State.selectedBand,
+    view = NS.State.viewedPreset }
   local p = {}
   NS.db = { profile = p, global = saved.db.global }
   NS.State.selectedContainer, NS.State.selectedBandSet, NS.State.selectedBand = nil, nil, nil
+  NS.State.viewedPreset = nil
   NS.CM.__reset()
   NS.Presets.__reset()
   local ok, err = pcall(function()
@@ -33,7 +35,7 @@ function E.with(body)
   NS.db = saved.db
   M.StaticPopup_Show, M.InCombatLockdown = saved.popup, saved.combat
   NS.State.selectedContainer, NS.State.selectedBandSet = saved.selC, saved.selB
-  NS.State.selectedBand = saved.band
+  NS.State.selectedBand, NS.State.viewedPreset = saved.band, saved.view
   if not ok then error(err, 0) end
 end
 

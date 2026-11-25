@@ -11,7 +11,7 @@ by the sidebar is covered by the library's lock (options-ui-§2).
 | Ka0s Range Master (landing) | The logo, the TOC Notes line and the slash command list (`settings/About.lua`) |
 | General | Master controls, the presets and the skin (`settings/General.lua`, `settings/Presets.lua`) |
 | Containers | One range container at a time: a banner picker with New container, and a nav rail of four entries: General, Display, Visibility, Sounds (`settings/Containers*.lua`) |
-| Band sets | One band set at a time: a banner picker with New band set, its General tab and the Bands editor (`settings/BandSets.lua`) |
+| Band sets | One band set at a time, or a shipped preset viewed read-only: a header with the grouped picker, New…, Duplicate, Copy bands from… and Delete…, the origin line under it, the General tab and the Bands editor (`settings/BandSets.lua`); the New, Copy bands from and Restore dialogs (`settings/BandSetDialogs.lua`) |
 | Profiles | AceDB profiles: switch, copy, delete, reset (`settings/Profiles.lua`) |
 
 Every Containers and Band sets row is selection-relative, `container.<field>` or `bandSet.<field>`
@@ -108,22 +108,74 @@ settings panel cleared, as the labels beside them do; it is on by default, and t
 
 ## Band sets
 
-The band carries the band-set picker (the default set marked) and **New band set**. **General**:
-Name, Match band by, and the Unknown range subsection (Unknown label, Unknown color, a palette swatch
-with no class companion), then the containers using the set and **Duplicate band set** / **Delete
-band set…** (confirmed; its containers move to the default set; the last set is never deleted).
+The band set manager (RangeMaster#21, `docs/superpowers/specs/2026-11-25-band-set-manager-design.md`).
+
+**The header** (`O.PageHeader`, one AceGUI Flow group: the banner holds at most three acts) is the
+picker, then **New…**, **Duplicate**, **Copy bands from…** and **Delete…**. They act on the set whole,
+so they sit above the tab strip (options-ui-§14) and none is on the General tab. Delete asks first, moves
+the set's containers to the default set, and is disabled while the profile has one set.
+
+**The picker is grouped.** Each group is led by a disabled row in the skin's heading color (AceGUI's
+`SetList` takes one item type, so the groups are rows a click cannot choose):
+
+| Group | Rows |
+|---|---|
+| Your band sets | every stored set in `bandSetOrder`, the first `(default)`, one that differs from its preset `· modified` |
+| Shipped presets · Classes | every `CLASS_KEYS` preset this client has (13 on Retail, 9 on WoW Forever, Hunter among them), each in its class color, yours `(your class)` |
+| Shipped presets · General | Melee / Ranged, Caster 40, Healer |
+
+A preset's value is `preset:<key>` (`NS.BandSets.PresetKeys`). Choosing one **views** it
+(`NS.ViewPreset`, session state `NS.State.viewedPreset`, never stored and never a container's set).
+
+**The origin line**, under the picker:
+
+- A set of yours with an origin on this client (`set.origin`) reads `From the Paladin preset`, then
+  `· modified (match rule, band 2 label and 1 more)` when `NS.BandSets.Diff` has entries, beside
+  **Restore Paladin preset…**, enabled only while modified.
+- A set with no origin, or one whose preset this client lacks (a Retail class key on WoW Forever), has no
+  line.
+- A viewed preset reads `A shipped preset: read-only. Make it yours to use it on a container or to edit
+  it.`, beside **Use this preset…** (the New dialog, prefilled with the preset and its name) and **Copy
+  into a set of mine…** (Copy bands from, the preset as the source and a dropdown of your sets as the
+  target).
+
+**While a preset is viewed**, both tabs show its values with every control disabled, Duplicate, Copy
+bands from and Delete are disabled and New… stays enabled. Every `bandSet.*` write (`/rm set`,
+`/rm reset`, the header **Defaults**) is refused with `A shipped preset is being viewed, and it is
+read-only: choose one of your band sets first (/rm bands lists them).` Choosing a set of yours, `/rm
+bands N` or a profile change ends the view.
+
+**The dialogs** are one companion window (`settings/BandSetDialogs.lua`: MODAL, toplevel, clamped,
+close mark only, skinned; Escape, Cancel, the Settings panel closing and a profile change take it down).
+
+| Dialog | Controls | Writes |
+|---|---|---|
+| New band set | Name (unique through `UniqueName`; it follows the start until typed in), then Start from: (•) A shipped preset, a dropdown of every preset (the classes in class order, then the general ones), starting on your class; ( ) A copy of one of my sets, a dropdown; ( ) Blank: one open-ended band; Create, Cancel | `Create(name, key)`, `Duplicate` then `Rename`, or `Create(name, {})`; the new set is selected |
+| Copy bands from | Into (the current set, or a dropdown of yours from Copy into a set of mine…); From (your other sets, then every preset); Bands (always on), Sounds on enter (on), Match rule and unknown label and color (off); the summary, `Paladin's 4 bands are replaced by Mage's 5. Its name and the containers using it stay.`; Copy, Cancel | `CopyFrom(id, source, opts)`, never into itself |
+| Restore Paladin preset | `Put 'Paladin' back to the Paladin preset. What changes:`, then one line per `Diff` entry (`Band 2 label: HOLY -> JUDGE`), eight at most, then `and N more`; Keep my sounds (on); Restore, Cancel | `RestorePreset(id, keepSounds)`; refused aloud when the set has no preset on this client or already matches it |
+
+**Undo.** Before Copy or Restore the dialog takes `NS.BandSets.Snapshot()`, and the chat line names the
+verb: `Restored 'Paladin' to the Paladin preset. /rm bands undo puts it back.` (or `Copied the bands of
+'Mage' into 'Paladin'. ...`). `/rm bands undo` (`NS.UndoBandSets`) puts back only the set that was
+written, so a set made, edited or deleted since is left as it is. One level, per profile, this session;
+refused when that set has been deleted since. The addon and LibKa0s have no chat-link pattern, so the
+Undo is the verb the line names, as `/rm preset undo` is after a preset.
+
+**General**: Name, Match band by, and the Unknown range subsection (Unknown label, Unknown color, a
+palette swatch with no class companion), then the containers using the set.
 **Bands** (a host editor, with no band ribbon above it) is a side-tab group (`O.SideTabs`, the nav
 rail's look drawn inside the content, 170 px wide): a rail on the left with one entry per band,
 `1 MELEE · 0–5 yd` (place, label, span) led by a chip of the band's frame color and with the band's
 heading as its tooltip, and beside it only the selected band's heading and controls; **Add band**
-sits under the rail, then the sounds note. The rail is the tab's second level, in the scroll
+and **Remove band** share one row under the rail (Remove band acts on the selected band and is
+disabled while the set has one band), then the sounds note. The rail is the tab's second level, in the scroll
 (options-ui-§13: one tab divided by like subjects; no third level). The band selected is session
 state (`NS.State.selectedBand`, never persisted): it survives a redraw, **Add band** selects the new
 band, **Remove band** selects its neighbor (the band after it, else the one before), an index the set
 no longer has clamps to the last band, and another band set opens on band 1. A rail click is refused
 in combat by the library. The selected band's controls: **Defined by** first (Yards, Spell, Dead zone,
 Beyond the last spell band; written through `NS.BandSets.SetBandRule`), then the yard slider, Label,
-Frame / Text / Dot color and Sound on enter, and Remove band. A spell
+Frame / Text / Dot color and Sound on enter. A spell
 band adds **Role** (Melee, Ranged, Friendly, then the class's range tiers, "10 yd tier" to "30 yd tier", `core/Constants.lua` `TIER_ROLES`), **Spell IDs** (comma-separated, empty for the class's
 anchors; a part that is not a whole ID refuses the entry aloud) and a read-out note naming the spell a
 tick asks (`NS.Range.AnchorFor`) and the range the client reports ("Now: Arcane Shot (3044), 8-41 yd",
@@ -139,7 +191,8 @@ band, so none takes a class-color companion; class color is the container's own 
 controls are path-less (options-ui-§13 host editor), so `/rm get|set` does not reach them; every
 band-set name is unique (`NS.BandSets.UniqueName`), and a name two sets still share (a hand-edited
 SavedVariables file) is refused by `/rm bands` as ambiguous. The header **Defaults** restores the match rule and the unknown label and
-color; the name and the bands are kept.
+color; the name and the bands are kept (its tooltip points to Restore preset for the bands), and it is
+refused while a preset is viewed.
 
 ## The launcher
 

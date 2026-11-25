@@ -564,10 +564,36 @@ function NS.SelectContainer(id)
     return true
 end
 
---- Select band set `id` (nil: the default). Refuses an id that names no band set.
+--- Select band set `id` (nil: the default). Refuses an id that names no band set. Selecting one
+--- of the player's sets ends a preset view (NS.ViewPreset below).
 function NS.SelectBandSet(id)
     if id ~= nil and not (NS.BandSets and NS.BandSets.Get(id)) then return false end
     NS.State.selectedBandSet = id
+    NS.State.viewedPreset = nil
+    return true
+end
+
+-- A SHIPPED PRESET CAN BE VIEWED, READ-ONLY (RangeMaster#21). The Band sets page's picker lists the
+-- presets under the player's own sets; choosing one sets NS.State.viewedPreset to its key (session
+-- state, never persisted, never a container's set) and leaves the selection alone. While it is set
+-- the page shows the preset with every control disabled, and every `bandSet.*` write is refused
+-- (the SELECTION table below), so `/rm set` never edits a set the page is not showing. Selecting a
+-- band set (NS.SelectBandSet: the picker, `/rm bands <n>`, a delete, a profile change) ends it.
+
+--- The key of the preset the Band sets page is viewing, or nil (one of the player's sets).
+function NS.ViewedPreset()
+    local key = NS.State.viewedPreset
+    if key ~= nil and not (NS.BandSets and NS.BandSets.PresetSet and NS.BandSets.PresetSet(key)) then
+        NS.State.viewedPreset = nil
+        return nil
+    end
+    return key
+end
+
+--- View preset `key` read-only. Refuses a key that is no preset on this client.
+function NS.ViewPreset(key)
+    if not (NS.BandSets and NS.BandSets.PresetSet and NS.BandSets.PresetSet(key)) then return false end
+    NS.State.viewedPreset = key
     return true
 end
 
@@ -596,8 +622,22 @@ local SELECTION = {
             return NS.BandSets.SetField(id, field, v)
         end,
         none = function() return NS.L["No band set exists yet."] end,
+        refuse = function()
+            if NS.ViewedPreset() then
+                return NS.L["A shipped preset is being viewed, and it is read-only: choose one of your band sets first (/rm bands lists them)."]
+            end
+        end,
     },
 }
+
+--- The refusal a selection-relative `path` answers right now (a band set's while a preset is
+--- viewed), or nil. `/rm reset` asks it first: the library's CliReset reads any false from
+--- applyDefault as NO_DEFAULT, which would call a refused reset "no default".
+function NS.SelectionRefusal(path)
+    local prefix = tostring(path):match("^(%a+)%.")
+    local sel = prefix and SELECTION[prefix]
+    return sel and sel.refuse and sel.refuse() or nil
+end
 
 local function copyValue(v)
     if type(v) ~= "table" then return v end
@@ -643,11 +683,14 @@ local function stampSet(row, sel, field)
     end
 end
 
---- The row's check: refused while nothing is selected, then the row's own validate.
+--- The row's check: refused while nothing is selected or the selection refuses writes (a band
+--- set's, while a preset is viewed), then the row's own validate.
 local function stampValidate(row, sel)
     local own = row.validate
     return function(v, rid)
         if not sel.selected() then return false, sel.none() end
+        local why = sel.refuse and sel.refuse()
+        if why then return false, why end
         if own then return own(v, rid) end
         return true
     end
