@@ -17,6 +17,20 @@ local _, NS = ...
 --   NS.BandSets.ForUnit(container, unit) -> setId
 --   NS.BandSets.ConvertSet(set, friendly?) -> set       the v1 -> v2 step's band rules (core/Database.lua)
 --   NS.BandSets.Snapshot() -> snap, RestoreSnapshot(snap) -> boolean   the registry whole, for an Undo
+--   NS.BandSets.PresetKeys() -> { classes = { key, ... }, general = { key, ... } }   each preset once
+--   NS.BandSets.Diff(id) -> { { band?, field, mine, preset }, ... } | nil   nil: no origin on this client
+--   NS.BandSets.IsModified(id) -> boolean                 Diff has an entry
+--   NS.BandSets.RestorePreset(id, keepSounds?) -> boolean  bands, matchBy, unknown back to the origin
+--   NS.BandSets.CopyFrom(id, source, opts?) -> boolean     source a set id or { preset = key };
+--                                                          opts { sounds?, general? }
+--
+-- A SET REMEMBERS ITS PRESET (RangeMaster#21): `set.origin` is the preset key it was made from, or
+-- nil. Create from a preset key (or nil, the Melee / Ranged copy) and the seed store it; Duplicate
+-- copies it; a set made from a bands array has none; CopyFrom sets it to the source preset, or to the
+-- source set's own origin. core/Database.lua's step 4 back-fills it on sets stored before it by name.
+-- A preset is still copied, never referenced: Diff and RestorePreset build a fresh copy of the
+-- origin and compare with, or take, that. A sound is the player's layer on top (no preset carries
+-- one), so Diff never counts it and RestorePreset keeps it by band index only when asked.
 --
 -- THE DEFAULT SET IS THE FIRST ONE IN bandSetOrder. The first-run seed puts the class default there
 -- (defaults/BandSetPresets.lua's DefaultFor), so a fresh container lands on it; deleting it makes the
@@ -146,6 +160,7 @@ function BandSets.NormalizeSet(set)
     if set.matchBy ~= "max" and set.matchBy ~= "min" then set.matchBy = "max" end
     if type(set.name) ~= "string" then set.name = tostring(set.name) end
     if type(set.unknown.label) ~= "string" then set.unknown.label = NS.Constants.UNKNOWN_LABEL end
+    if type(set.origin) ~= "string" then set.origin = nil end
     set.bands = BandSets.NormalizeBands(set.bands)
     return set
 end
@@ -433,14 +448,29 @@ function BandSets.UniqueName(base, exceptId)
     return ("%s %d"):format(base, n)
 end
 
+--- Whether `key` names a shipped preset on this client: one of CLASS_KEYS or ORDER that holds bands
+--- (a class WoW Forever lacks has a nil key there; the module's own fields are never a preset).
+local function isPresetKey(key)
+    local P = NS.BandSetPresets
+    if type(key) ~= "string" or type(P[key]) ~= "table" or type(P[key].bands) ~= "table" then return false end
+    for _, list in ipairs({ P.CLASS_KEYS, P.ORDER }) do
+        for _, k in ipairs(list) do
+            if k == key then return true end
+        end
+    end
+    return false
+end
+
 --- A new set from a preset key, a bands array, or nothing (Melee / Ranged). Nil for an unknown key.
+--- A set made from a preset carries its key as `origin`.
 local function build(name, arg)
     local set = copy(NS.BANDSET_TEMPLATE)
-    local preset = NS.BandSetPresets[arg == nil and "melee_ranged" or arg]
+    local key = arg == nil and "melee_ranged" or arg
+    local preset = isPresetKey(key) and NS.BandSetPresets[key] or nil
     if type(arg) == "table" then
         set.bands = copy(arg)
-    elseif type(preset) == "table" and preset.bands then
-        set.bands, set.matchBy = copy(preset.bands), preset.matchBy
+    elseif preset then
+        set.bands, set.matchBy, set.origin = copy(preset.bands), preset.matchBy, key
     else
         return nil
     end
@@ -687,6 +717,161 @@ function BandSets.Seed(p)
         n = n + 1
     end
     return n
+end
+
+-- ---------------------------------------------------------------------------
+-- Origins: a set's preset, how it differs, Restore and Copy bands from (RangeMaster#21)
+-- ---------------------------------------------------------------------------
+
+--- Every shipped preset on this client, each once: the class presets (CLASS_KEYS, in class order),
+--- then the generic ones (ORDER) that are not a class's own. The Hunter preset is in both lists, and
+--- it is the class's, so it is listed under the classes.
+--- @return table { classes = { key, ... }, general = { key, ... } }
+function BandSets.PresetKeys()
+    local P = NS.BandSetPresets
+    local out, listed = { classes = {}, general = {} }, {}
+    local function add(list, key)
+        if isPresetKey(key) and not listed[key] then
+            list[#list + 1], listed[key] = key, true
+        end
+    end
+    for _, key in ipairs(P.CLASS_KEYS) do add(out.classes, key) end
+    for _, key in ipairs(P.ORDER) do add(out.general, key) end
+    return out
+end
+
+--- How close two stored numbers must be to read as the same (a color picker's floats).
+local EPSILON = 0.002
+
+--- Deep equality, numbers within EPSILON.
+local function same(a, b)
+    if type(a) == "number" and type(b) == "number" then return math.abs(a - b) <= EPSILON end
+    if type(a) ~= "table" or type(b) ~= "table" then return a == b end
+    for k, v in pairs(a) do
+        if not same(v, b[k]) then return false end
+    end
+    for k in pairs(b) do
+        if a[k] == nil then return false end
+    end
+    return true
+end
+
+--- Two colors, a missing alpha reading 1.
+local function sameColor(a, b)
+    if type(a) ~= "table" or type(b) ~= "table" then return same(a, b) end
+    for _, k in ipairs({ "r", "g", "b", "a" }) do
+        local x, y = a[k], b[k]
+        if k == "a" then x, y = x == nil and 1 or x, y == nil and 1 or y end
+        if not same(x, y) then return false end
+    end
+    return true
+end
+
+--- The band fields Diff compares, in the order it lists them, each with its test. Not `from` (it is
+--- the band before's `to`) and not `sound` (the player's layer; see the header).
+local BAND_DIFF = {
+    { "to", same }, { "label", same }, { "rule", same },
+    { "frameColor", sameColor }, { "textColor", sameColor }, { "indicatorColor", sameColor },
+}
+
+local function entry(out, band, field, mine, preset)
+    out[#out + 1] = { band = band, field = field, mine = copy(mine), preset = copy(preset) }
+end
+
+--- A fresh, normalized copy of set `set`'s origin preset, or nil (no origin, or none on this client).
+local function originOf(set)
+    if not (set and isPresetKey(set.origin)) then return nil end
+    return build(nil, set.origin)
+end
+
+--- Set `id`'s differences from its origin preset: the set's own fields (matchBy, unknown.label,
+--- unknown.color, `band` nil), one `bands` entry when the band counts differ, then each band both
+--- have, field by field. Nil when the set has no origin or this client has no such preset; an empty
+--- list when the two match.
+--- @return table|nil { { band = i|nil, field, mine, preset }, ... }
+function BandSets.Diff(id)
+    local set = BandSets.Get(id)
+    local ref = originOf(set)
+    if not ref then return nil end
+    local out = {}
+    if set.matchBy ~= ref.matchBy then entry(out, nil, "matchBy", set.matchBy, ref.matchBy) end
+    local unknown = type(set.unknown) == "table" and set.unknown or {}
+    if unknown.label ~= ref.unknown.label then entry(out, nil, "unknown.label", unknown.label, ref.unknown.label) end
+    if not sameColor(unknown.color, ref.unknown.color) then
+        entry(out, nil, "unknown.color", unknown.color, ref.unknown.color)
+    end
+    local mine, theirs = set.bands, ref.bands
+    if #mine ~= #theirs then entry(out, nil, "bands", #mine, #theirs) end
+    for i = 1, math.min(#mine, #theirs) do
+        for _, f in ipairs(BAND_DIFF) do
+            local field, eq = f[1], f[2]
+            if not eq(mine[i][field], theirs[i][field]) then entry(out, i, field, mine[i][field], theirs[i][field]) end
+        end
+    end
+    return out
+end
+
+--- Whether set `id` differs from its origin preset (Diff has an entry). False with no origin.
+function BandSets.IsModified(id)
+    local diff = BandSets.Diff(id)
+    return diff ~= nil and #diff > 0
+end
+
+--- Give each of `bands` the sound of the band at its index in `old`, where there is one.
+local function soundsByIndex(bands, old)
+    for i, b in ipairs(bands) do
+        b.sound = old[i] and old[i].sound or nil
+    end
+end
+
+--- Put set `id` back to its origin preset: its bands, matchBy and unknown band replaced by a fresh
+--- copy; its name, id, origin and the containers on it stay. With `keepSounds` each band keeps the
+--- sound of its index where that band exists (every band, when the counts match); without, the
+--- preset's bands carry none. Refuses an unknown set and one with no origin on this client.
+function BandSets.RestorePreset(id, keepSounds)
+    local set = BandSets.Get(id)
+    local ref = originOf(set)
+    if not ref then return false end
+    local old = set.bands
+    set.bands, set.matchBy, set.unknown = ref.bands, ref.matchBy, ref.unknown
+    if keepSounds then soundsByIndex(set.bands, old) end
+    BandSets.NormalizeSet(set)
+    announce()
+    return true
+end
+
+--- CopyFrom's source: a fresh copy of a preset (`{ preset = key }`) or the stored set, and the origin
+--- the target takes from it. Nil for an unknown source and for the target itself.
+local function copySource(id, source)
+    if type(source) == "table" then
+        if not isPresetKey(source.preset) then return nil end
+        return build(nil, source.preset), source.preset
+    end
+    if source == id then return nil end
+    local src = BandSets.Get(source)
+    if not src then return nil end
+    return src, src.origin
+end
+
+--- Copy bands into set `id` from `source`, a set id or `{ preset = key }`. Its bands are replaced by
+--- a copy of the source's; with `opts.sounds` they bring the source's sounds (a preset has none),
+--- otherwise each keeps the sound its index had. With `opts.general` matchBy and the unknown band
+--- come too. The name, id and containers stay; `origin` becomes the preset, or the source set's own
+--- origin (none when it has none). Refuses an unknown target or source and copying a set into itself.
+function BandSets.CopyFrom(id, source, opts)
+    local set = BandSets.Get(id)
+    if not set then return false end
+    local src, origin = copySource(id, source)
+    if not src then return false end
+    opts = type(opts) == "table" and opts or {}
+    local old = set.bands
+    set.bands = copy(src.bands)
+    if not opts.sounds then soundsByIndex(set.bands, old) end
+    if opts.general then set.matchBy, set.unknown = src.matchBy, copy(src.unknown) end
+    set.origin = origin
+    BandSets.NormalizeSet(set)
+    announce()
+    return true
 end
 
 -- ---------------------------------------------------------------------------

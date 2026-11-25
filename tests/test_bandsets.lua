@@ -610,3 +610,287 @@ test("bandsets: SetBandRule refuses a bad set, band, type, role or spell list, a
     assertEqual(after and after.type, before and before.type, "and leaves the rule as it was")
   end)
 end)
+
+-- ---------------------------------------------------------------------------
+-- Origins: set.origin, PresetKeys, Diff, IsModified, RestorePreset, CopyFrom (RangeMaster#21)
+-- ---------------------------------------------------------------------------
+
+--- Deep equality for a test's comparisons.
+local function deepEqual(a, b)
+  if type(a) ~= "table" or type(b) ~= "table" then return a == b end
+  for k, v in pairs(a) do
+    if not deepEqual(v, b[k]) then return false end
+  end
+  for k in pairs(b) do
+    if a[k] == nil then return false end
+  end
+  return true
+end
+
+--- A Diff, one "band:field" word an entry ("-" for a set field), joined.
+local function diffWords(diff)
+  local out = {}
+  for i, e in ipairs(diff) do out[i] = (e.band or "-") .. ":" .. e.field end
+  return table.concat(out, ",")
+end
+
+--- The class preset count per client (the spec: 9 on WoW Forever, 13 on Retail).
+local CLASS_COUNT = { forever = 9, retail = 13 }
+
+test("bandsets: a set made from a preset remembers it as origin; Duplicate copies it, a bands array has none", function()
+  -- Red before RangeMaster#21: no stored set remembers its preset.
+  withFreshProfile(function()
+    assertEqual(B.Get(B.Create("P", "paladin")).origin, "paladin", "Create from a preset key")
+    assertEqual(B.Get(B.Create("M")).origin, "melee_ranged", "Create with no source copies Melee / Ranged")
+    assertNil(B.Get(B.Create("Arr", { { from = 0, to = nil, label = "X" } })).origin, "a bands array has none")
+    assertNil(B.Get(B.Create("Blank", {})).origin, "a blank set has none")
+    assertNil(B.Create("Bad", "BY_CLIENT"), "a field of the preset module is not a preset key")
+    assertNil(B.Create("Bad", "DefaultFor"), "nor is its function")
+    local src = B.Create("C", "caster40")
+    assertEqual(B.Get(B.Duplicate(src)).origin, "caster40", "Duplicate copies the origin")
+    local set = B.Get(src)
+    set.origin = 42
+    B.NormalizeSet(set)
+    assertNil(set.origin, "an origin that is not a key string is dropped on normalize")
+  end)
+end)
+
+test("bandsets: the first-run seed stores each seeded set's preset as its origin", function()
+  withFreshProfile(function()
+    local ids = B.List()
+    assertEqual(B.Get(ids[1]).origin, P.DefaultFor(NS.Compat.PlayerClass(), NS.Compat.PlayerSpecID()),
+      "the default set is the class default")
+    for _, id in ipairs(ids) do
+      local set = B.Get(id)
+      assertTrue(type(set.origin) == "string", set.name .. " has an origin")
+      assertEqual(set.name, P[set.origin].name, set.name .. " is its origin's copy")
+      assertFalse(B.IsModified(id), set.name .. " is not modified")
+    end
+  end, "PALADIN")
+end)
+
+test("bandsets: PresetKeys lists every class preset, then the generic ones, each once", function()
+  local keys = B.PresetKeys()
+  assertEqual(#keys.classes, CLASS_COUNT[NS.Compat.ClientKey()], "the client's class preset count")
+  assertEqual(table.concat(keys.classes, ","), table.concat(P.CLASS_KEYS, ","), "in class order")
+  assertEqual(table.concat(keys.general, ","), "melee_ranged,caster40,healer",
+    "the Hunter preset is a class's, so it is listed once, under the classes")
+  local seen = {}
+  for _, list in ipairs({ keys.classes, keys.general }) do
+    for _, key in ipairs(list) do
+      assertNil(seen[key], key .. " is listed once")
+      seen[key] = true
+      assertTrue(type(P[key]) == "table" and type(P[key].bands) == "table", key .. " is a preset")
+    end
+  end
+  keys.classes[1] = "mutated"
+  assertEqual(B.PresetKeys().classes[1], P.CLASS_KEYS[1], "each call answers new tables")
+  assertEqual(P.CLASS_KEYS[1], "warrior", "CLASS_KEYS itself is untouched")
+end)
+
+test("bandsets: Diff answers an empty list for an untouched preset copy and an entry per edited field", function()
+  withFreshProfile(function()
+    local id = B.Create("Pal", "paladin")
+    local diff = B.Diff(id)
+    assertEqual(#diff, 0, "a fresh copy matches its preset")
+    assertFalse(B.IsModified(id))
+    local presetLabel = P.paladin.bands[2].label
+    assertTrue(B.SetBand(id, 2, "label", "HOLY"))
+    diff = B.Diff(id)
+    assertEqual(diffWords(diff), "2:label")
+    assertEqual(diff[1].mine, "HOLY")
+    assertEqual(diff[1].preset, presetLabel)
+    assertTrue(B.IsModified(id))
+    assertTrue(B.SetBand(id, 1, "frameColor", { r = 0.1, g = 0.2, b = 0.3, a = 1 }))
+    assertTrue(B.SetField(id, "matchBy", "min"))
+    assertTrue(B.SetField(id, "unknown.label", "??"))
+    assertEqual(diffWords(B.Diff(id)), "-:matchBy,-:unknown.label,1:frameColor,2:label",
+      "set fields first, then each band's fields")
+    diff = B.Diff(id)
+    diff[1].mine = "mutated"
+    assertEqual(B.Get(id).matchBy, "min", "an entry holds copies, never the set's own values")
+  end)
+end)
+
+test("bandsets: Diff reads a band count change as one entry, ignores sounds and a missing alpha", function()
+  withFreshProfile(function()
+    local id = B.Create("Pal", "paladin")
+    local n = #B.Get(id).bands
+    assertTrue(B.SetBandSound(id, 1, "Mine"))
+    assertEqual(#B.Diff(id), 0, "a sound is the player's layer, not a departure from the preset")
+    local c = B.Get(id).bands[1].textColor
+    c.a = nil
+    assertEqual(#B.Diff(id), 0, "a color with no alpha reads as alpha 1")
+    c.r = c.r + 0.001
+    assertEqual(#B.Diff(id), 0, "a color picker's float noise is not a change")
+    assertTrue(B.RemoveBand(id, n))
+    local diff = B.Diff(id)
+    assertEqual(diff[1].field, "bands", "the count comes first")
+    assertNil(diff[1].band)
+    assertEqual(diff[1].mine, n - 1)
+    assertEqual(diff[1].preset, n)
+    local counted = 0
+    for _, e in ipairs(diff) do
+      if e.field == "bands" then counted = counted + 1 end
+    end
+    assertEqual(counted, 1, "a difference in band count is one entry")
+  end)
+end)
+
+test("bandsets: Diff is nil with no origin or no such preset on this client, and IsModified is false", function()
+  withFreshProfile(function()
+    local id = B.Create("Arr", { { from = 0, to = 10, label = "A" }, { from = 10, label = "B" } })
+    assertNil(B.Diff(id), "no origin")
+    assertFalse(B.IsModified(id))
+    B.Get(id).origin = "no_such_preset"
+    assertNil(B.Diff(id), "an origin this client has no preset for")
+    if NS.Compat.ClientKey() == "forever" then
+      B.Get(id).origin = "deathknight"
+      assertNil(B.Diff(id), "a Retail-only class preset is gone on WoW Forever")
+    end
+    assertNil(B.Diff(424242), "an unknown id")
+    assertFalse(B.IsModified(424242))
+  end)
+end)
+
+test("bandsets: RestorePreset puts the origin's bands, matchBy and unknown back, keeping name, id and origin", function()
+  withFreshProfile(function()
+    local id = B.Create("Holy", "paladin")
+    assertTrue(B.SetBand(id, 2, "label", "HOLY"))
+    B.AddBand(id)
+    assertTrue(B.SetField(id, "matchBy", "min"))
+    assertTrue(B.SetField(id, "unknown.label", "??"))
+    assertTrue(B.SetBandSound(id, 1, "One"))
+    local order = table.concat(B.List(), ",")
+    local n = countChanged(function() assertTrue(B.RestorePreset(id)) end)
+    assertEqual(n, 1, "announces once")
+    local set = B.Get(id)
+    assertEqual(#B.Diff(id), 0, "matches the preset again")
+    assertEqual(set.name, "Holy", "the name stays")
+    assertEqual(set.origin, "paladin", "the origin stays")
+    assertEqual(table.concat(B.List(), ","), order, "the id and the order stay")
+    assertNil(set.bands[1].sound, "without keepSounds the preset's bands carry no sound")
+    assertTrue(set.bands ~= P.paladin.bands and set.bands[1] ~= P.paladin.bands[1], "a copy, never the preset")
+    assertTrue(set.unknown ~= P.paladin.unknown, "its own unknown band")
+  end)
+end)
+
+test("bandsets: RestorePreset with keepSounds keeps each band's sound by index", function()
+  withFreshProfile(function()
+    local id = B.Create("Holy", "paladin")
+    local n = #B.Get(id).bands
+    for i = 1, n do assertTrue(B.SetBandSound(id, i, "S" .. i)) end
+    assertTrue(B.SetBand(id, 1, "label", "X"))
+    assertTrue(B.RestorePreset(id, true))
+    for i = 1, n do assertEqual(B.Get(id).bands[i].sound, "S" .. i, "same count: band " .. i .. " keeps its sound") end
+    -- One band fewer: the preset's last band has no band of mine at its index, so it gets none.
+    assertTrue(B.RemoveBand(id, n))
+    for i = 1, n - 1 do assertTrue(B.SetBandSound(id, i, "T" .. i)) end
+    assertTrue(B.RestorePreset(id, true))
+    local bands = B.Get(id).bands
+    assertEqual(#bands, n, "the preset's band count is back")
+    for i = 1, n - 1 do assertEqual(bands[i].sound, "T" .. i, "band " .. i .. " keeps its index's sound") end
+    assertNil(bands[n].sound, "a band with no band of mine at its index has none")
+  end)
+end)
+
+test("bandsets: RestorePreset refuses an unknown set and one with no origin, and announces nothing", function()
+  withFreshProfile(function()
+    local id = B.Create("Arr", { { from = 0, label = "A" } })
+    assertEqual(countChanged(function()
+      assertFalse(B.RestorePreset(id), "no origin")
+      assertFalse(B.RestorePreset(424242), "an unknown id")
+      B.Get(id).origin = "no_such_preset"
+      assertFalse(B.RestorePreset(id), "an origin this client has no preset for")
+    end), 0)
+    assertEqual(labels(B.Get(id).bands), "A", "the set is untouched")
+  end)
+end)
+
+test("bandsets: CopyFrom a preset replaces the bands, sets the origin, and takes general fields only when asked", function()
+  withFreshProfile(function()
+    local id = B.Create("Mine", "melee_ranged")
+    assertTrue(B.SetField(id, "matchBy", "min"))
+    assertTrue(B.SetField(id, "unknown.label", "??"))
+    assertTrue(B.SetBandSound(id, 1, "One"))
+    local n = countChanged(function() assertTrue(B.CopyFrom(id, { preset = "caster40" })) end)
+    assertEqual(n, 1, "announces once")
+    local set = B.Get(id)
+    assertEqual(labels(set.bands), labels(P.caster40.bands), "the preset's bands")
+    assertTrue(set.bands[1] ~= P.caster40.bands[1], "copied, never referenced")
+    assertEqual(set.origin, "caster40", "the origin is now the preset")
+    assertEqual(set.name, "Mine", "the name stays")
+    assertEqual(set.matchBy, "min", "general off: matchBy stays")
+    assertEqual(set.unknown.label, "??", "general off: the unknown band stays")
+    assertEqual(set.bands[1].sound, "One", "sounds off: band 1 keeps its sound")
+    assertEqual(diffWords(B.Diff(id)), "-:matchBy,-:unknown.label", "the kept general fields read as changes")
+    assertTrue(B.CopyFrom(id, { preset = "caster40" }, { sounds = true, general = true }))
+    set = B.Get(id)
+    assertEqual(set.matchBy, "max", "general on: the preset's matchBy")
+    assertEqual(set.unknown.label, NS.Constants.UNKNOWN_LABEL, "general on: the preset's unknown band")
+    assertNil(set.bands[1].sound, "sounds on: the preset's (none)")
+    assertEqual(#B.Diff(id), 0)
+  end)
+end)
+
+test("bandsets: CopyFrom one of my sets takes its bands, its sounds when asked, and its origin", function()
+  withFreshProfile(function()
+    local src = B.Create("Src", "paladin")
+    assertTrue(B.SetBand(src, 1, "label", "SRC"))
+    assertTrue(B.SetBandSound(src, 1, "SrcSound"))
+    assertTrue(B.SetField(src, "matchBy", "min"))
+    local dst = B.Create("Dst", "caster40")
+    assertTrue(B.SetBandSound(dst, 1, "DstSound"))
+    assertTrue(B.CopyFrom(dst, src))
+    local set = B.Get(dst)
+    assertEqual(labels(set.bands), labels(B.Get(src).bands), "the source's bands")
+    assertTrue(set.bands[1] ~= B.Get(src).bands[1], "copied")
+    assertEqual(set.bands[1].sound, "DstSound", "sounds off: my own sound by index")
+    assertEqual(set.origin, "paladin", "the source set's origin")
+    assertEqual(set.matchBy, "max", "general off")
+    assertTrue(B.CopyFrom(dst, src, { sounds = true, general = true }))
+    assertEqual(B.Get(dst).bands[1].sound, "SrcSound", "sounds on: the source's")
+    assertEqual(B.Get(dst).matchBy, "min", "general on: the source's matchBy")
+    local bare = B.Create("Bare", { { from = 0, label = "Z" } })
+    assertTrue(B.CopyFrom(dst, bare))
+    assertNil(B.Get(dst).origin, "a source with no origin leaves none")
+    assertEqual(B.Get(dst).name, "Dst", "the name stays")
+  end)
+end)
+
+test("bandsets: CopyFrom refuses copying into itself, an unknown target, source or preset, and announces nothing", function()
+  withFreshProfile(function()
+    local id = B.Create("Mine", "paladin")
+    local before = labels(B.Get(id).bands)
+    assertEqual(countChanged(function()
+      assertFalse(B.CopyFrom(id, id), "into itself")
+      assertFalse(B.CopyFrom(424242, B.DefaultId()), "an unknown target")
+      assertFalse(B.CopyFrom(id, 424242), "an unknown source set")
+      assertFalse(B.CopyFrom(id, { preset = "no_such_preset" }), "an unknown preset")
+      assertFalse(B.CopyFrom(id, { preset = "ORDER" }), "a field of the preset module")
+      assertFalse(B.CopyFrom(id, {}), "a source table naming no preset")
+    end), 0)
+    assertEqual(labels(B.Get(id).bands), before, "the set is untouched")
+    assertEqual(B.Get(id).origin, "paladin")
+  end)
+end)
+
+test("bandsets: a Snapshot taken before RestorePreset or CopyFrom undoes it whole, origin included", function()
+  withFreshProfile(function()
+    local id = B.Create("Holy", "paladin")
+    assertTrue(B.SetBand(id, 2, "label", "HOLY"))
+    assertTrue(B.SetBandSound(id, 1, "One"))
+    local before = NS.Database.DeepCopy(B.Get(id))
+    local snap = B.Snapshot()
+    assertTrue(B.RestorePreset(id))
+    assertTrue(B.RestoreSnapshot(snap), "undo the restore")
+    assertTrue(deepEqual(B.Get(id), before), "the restore is undone whole")
+    snap = B.Snapshot()
+    assertTrue(B.CopyFrom(id, { preset = "caster40" }, { sounds = true, general = true }))
+    assertEqual(B.Get(id).origin, "caster40")
+    assertTrue(B.RestoreSnapshot(snap), "undo the copy")
+    assertTrue(deepEqual(B.Get(id), before), "the copy is undone whole")
+    assertEqual(B.Get(id).origin, "paladin", "the origin comes back")
+    assertTrue(B.IsModified(id), "and so does the modification")
+  end)
+end)

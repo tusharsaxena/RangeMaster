@@ -348,10 +348,41 @@ local function restoreOwnLooks(db)
     end)
 end
 
+--- v3 -> v4, band set origins (RangeMaster#21): a set stored before a set remembered its preset gets
+--- `origin` when its name, trimmed and without case, is the localized name of exactly one preset on
+--- this client (NS.BandSets.PresetKeys). A set that already has one, a renamed set and a name two
+--- presets share are left alone; a set seeded after this step gets its origin from the seed itself.
+local function presetsByName()
+    local P, keys = NS.BandSetPresets, NS.BandSets.PresetKeys()
+    local byName, shared = {}, {}
+    for _, list in ipairs({ keys.classes, keys.general }) do
+        for _, key in ipairs(list) do
+            local name = tostring(P[key].name):match("^%s*(.-)%s*$"):lower()
+            if byName[name] and byName[name] ~= key then shared[name] = true end
+            byName[name] = key
+        end
+    end
+    for name in pairs(shared) do byName[name] = nil end
+    return byName
+end
+
+local function backfillOrigins(db)
+    local byName = presetsByName()
+    eachProfile(db, function(p)
+        if type(p.bandSets) ~= "table" then return end
+        for _, set in pairs(p.bandSets) do
+            if type(set) == "table" and set.origin == nil and type(set.name) == "string" then
+                set.origin = byName[set.name:match("^%s*(.-)%s*$"):lower()]
+            end
+        end
+    end)
+end
+
 local SCHEMA_STEPS = {
     { to = 1, apply = keepStoredLook },
     { to = 2, apply = convertBandRules },
     { to = 3, apply = restoreOwnLooks },
+    { to = 4, apply = backfillOrigins },
 }
 
 --- The runner's target: the highest step's `to`, or 0 with no step.

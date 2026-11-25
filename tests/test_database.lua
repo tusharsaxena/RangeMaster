@@ -14,13 +14,15 @@ test("database: the account-wide schemaVersion default is 0 (savedvariables-§1)
   assertEqual(NS.defaults.global.schemaVersion, 0)
 end)
 
-test("database: the ladder holds three steps, v0 -> v1 (the frame defaults), v1 -> v2 (band rules) and v2 -> v3 (own looks), and a fresh install is stamped 3", function()
-  -- Red under the v0.1.0 ladder, which was empty with a target of 0, and under the one-step ladder.
-  assertEqual(#NS.__migrationSteps, 3, "three steps")
+test("database: the ladder holds four steps, v0 -> v1 (the frame defaults), v1 -> v2 (band rules), v2 -> v3 (own looks) and v3 -> v4 (band set origins), and a fresh install is stamped 4", function()
+  -- Red under the v0.1.0 ladder, which was empty with a target of 0, and under the three-step ladder.
+  assertEqual(#NS.__migrationSteps, 4, "four steps")
   assertEqual(NS.__migrationSteps[1].to, 1, "the first step climbs to v1")
   assertEqual(NS.__migrationSteps[2].to, 2, "the second step climbs to v2")
-  assertEqual(NS.SCHEMA_VERSION, 3, "the runner's target is the highest step's `to`")
-  assertEqual(NS.db.global.schemaVersion, 3, "a fresh install is stamped at the target")
+  assertEqual(NS.__migrationSteps[3].to, 3, "the third step climbs to v3")
+  assertEqual(NS.__migrationSteps[4].to, 4, "the fourth step climbs to v4")
+  assertEqual(NS.SCHEMA_VERSION, 4, "the runner's target is the highest step's `to`")
+  assertEqual(NS.db.global.schemaVersion, 4, "a fresh install is stamped at the target")
 end)
 
 test("database: RunMigrations is a safe no-op when the DB is absent", function()
@@ -45,7 +47,7 @@ test("database: the runner climbs every step, stamps each, and is idempotent", f
   g.schemaVersion = NS.SCHEMA_VERSION
   assertTrue(ok, tostring(err))
   assertEqual(table.concat(ran, ","), "1,2", "each step ran once, in order")
-  assertEqual(stamp, 3, "the stamp advanced past each step")
+  assertEqual(stamp, 4, "the stamp advanced past each step")
 end)
 
 test("database: a step that raises leaves the stamp unmoved and says so once in chat", function()
@@ -628,4 +630,80 @@ test("database: the load moves nothing onto the skin", function()
   -- red under: FollowSkinDefaults from RunMigrations, or a backfill of true
   eachCompanion(c, function(part, key) assertEqual(part[key], false, key) end)
   assertNil(p.skin and p.skin.defaultsFollowSkin, "no record")
+end)
+
+-- ---------------------------------------------------------------------------
+-- Migration step 4: band set origins (RangeMaster#21). A set stored before a set remembered its
+-- preset gets `origin` when its name is exactly one preset's localized name on this client.
+-- ---------------------------------------------------------------------------
+
+local function step4()
+  for _, s in ipairs(NS.__migrationSteps) do if s.to == 4 then return s end end
+end
+
+--- A stored set as v3 kept it: a name and bands, no origin.
+local function v3Set(name)
+  return { name = name, matchBy = "max", bands = { { from = 0, label = "X" } } }
+end
+
+test("database: step 4 back-fills origin by a unique, case-blind preset name match, in every profile", function()
+  -- Red under the three-step ladder: no stored set carries an origin.
+  local BP = NS.BandSetPresets
+  local step = step4()
+  assertTrue(step ~= nil, "a step climbs to v4")
+  local a = { bandSets = {
+    [1] = v3Set(BP.paladin.name:lower()), [2] = v3Set("  " .. BP.melee_ranged.name .. " "),
+    [3] = v3Set(BP.caster40.name:upper()), [4] = v3Set(BP.hunter.name), [5] = v3Set("My set"),
+    [6] = v3Set(BP.paladin.name .. " copy"), [7] = v3Set(NS.L["Death Knight"]),
+    [8] = "junk",
+  } }
+  local kept = v3Set(BP.paladin.name)
+  kept.origin = "caster40"
+  a.bandSets[9] = kept
+  local b = { bandSets = { [1] = v3Set(BP.healer.name) } }
+  local c = { containers = {} }
+  step.apply({ profile = a, sv = { profiles = { A = a, B = b, C = c } } })
+  local s = a.bandSets
+  assertEqual(s[1].origin, "paladin", "a name in another case")
+  assertEqual(s[2].origin, "melee_ranged", "a name with stray spaces")
+  assertEqual(s[3].origin, "caster40")
+  assertEqual(s[4].origin, "hunter", "the Hunter preset, listed once")
+  assertNil(s[5].origin, "a name of the player's own")
+  assertNil(s[6].origin, "a duplicate's name is not the preset's")
+  if NS.Compat.ClientKey() == "forever" then
+    assertNil(s[7].origin, "a class this client has no preset for")
+  else
+    assertEqual(s[7].origin, "deathknight")
+  end
+  assertEqual(kept.origin, "caster40", "an origin already stored is kept")
+  assertEqual(b.bandSets[1].origin, "healer", "a profile not in use is migrated too")
+  assertNil(c.bandSets, "a profile with no band set is left alone")
+  step.apply({ profile = a })
+  assertEqual(s[1].origin, "paladin", "a second run changes nothing")
+end)
+
+test("database: step 4 leaves a name two presets share alone", function()
+  local BP = NS.BandSetPresets
+  local healerName = BP.healer.name
+  BP.healer.name = BP.caster40.name
+  local p = { bandSets = { [1] = v3Set(BP.caster40.name), [2] = v3Set(BP.paladin.name) } }
+  local ok, err = pcall(step4().apply, { profile = p })
+  BP.healer.name = healerName
+  assertTrue(ok, tostring(err))
+  assertNil(p.bandSets[1].origin, "two presets match: no origin is a guess")
+  assertEqual(p.bandSets[2].origin, "paladin", "a unique match still lands")
+end)
+
+test("database: step 4 through the runner from v3, then a fresh profile's seed carries its origins", function()
+  local p = { bandSets = { [1] = v3Set(NS.BandSetPresets.caster40.name) }, bandSetOrder = { 1 }, nextBandSetId = 2 }
+  migrate({ profile = p, global = { schemaVersion = 3 } }, function(db)
+    assertEqual(db.global.schemaVersion, 4, "stamped at v4")
+  end)
+  assertEqual(p.bandSets[1].origin, "caster40", "the climb from v3 runs step 4")
+  local fresh = {}
+  migrate({ profile = fresh })
+  assertTrue(#fresh.bandSetOrder > 0, "the load pass seeded the presets")
+  for _, id in ipairs(fresh.bandSetOrder) do
+    assertTrue(type(fresh.bandSets[id].origin) == "string", fresh.bandSets[id].name .. " was seeded with its origin")
+  end
 end)
