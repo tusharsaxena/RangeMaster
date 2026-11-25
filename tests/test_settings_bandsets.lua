@@ -335,7 +335,7 @@ test("bandsets: the Bands tab lists every band on a rail and draws only the sele
     assertNil(labels["Band 2: 5\226\128\14740 yd CAST (Spell: Ranged)"], "and the others are not drawn")
     assertNil(labels["Role"], "nor their controls (band 1 is a yard band)")
     assertTrue(labels["Add band"], "Add band sits under the rail")
-    assertTrue(labels["Remove band"], "the selected band keeps Remove band")
+    assertTrue(labels["Remove band"], "Remove band sits beside Add band")
   end)
 end)
 
@@ -613,12 +613,6 @@ test("bandsets: Use this preset and Copy into a set of mine open their dialogs w
     local copies = spying("ShowCopyBandsDialog", function() hdr.originActs[2]:__fire("OnClick") end)
     assertEqual(copies[1] and copies[1].from and copies[1].from.preset, "healer", "Copy bands from, the preset its source")
     assertNil(copies[1].into, "the set to copy into is asked")
-    local n = #B.List()
-    local id = NS.ShowNewBandSetDialog({ preset = "healer", name = B.PresetSet("healer").name })
-    assertEqual(#B.List(), n + 1, "until BS-03, New creates the set at once")
-    assertEqual(B.Get(id).origin, "healer", "from the preset")
-    assertEqual(select(2, NS.SelectedBandSet()), id, "and selects it")
-    assertNil(NS.ViewedPreset(), "which ends the view")
   end)
 end)
 

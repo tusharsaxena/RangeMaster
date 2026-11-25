@@ -10,9 +10,9 @@ local _, NS = ...
 --              | # 1 MELEE · 0–5 yd |  [Defined by] [Role] / [Spell IDs] [Fallback (yards)] /
 --              | # 2 DEAD · 5–8 yd  |  Now: Raptor Strike (2973), melee range   (a spell band only)
 --              | # 3 CAST · 8–40 yd |  [Label] [Frame color] / [Text color] [Dot color] /
---              | # 4 OOR · 40+ yd   |  [Sound on enter] [Remove band]
+--              | # 4 OOR · 40+ yd   |  [Sound on enter]
 --              +------------------+
---              [Add band]
+--              [Add band] [Remove band]
 --              Sounds play on entering a band, ...   (the note, dim)
 --
 -- THE HEADER (RangeMaster#21) is O.PageHeader's block, not O.PageBanner: the picker and four
@@ -33,9 +33,10 @@ local _, NS = ...
 -- preset VIEWED shows instead that it is read-only, with Use this preset… (the New dialog, prefilled)
 -- and Copy into a set of mine… (Copy bands from, the preset as the source). While a preset is viewed
 -- both tabs show its values with every control disabled, Duplicate, Copy bands from and Delete are
--- disabled, and `/rm set bandSet.*` is refused. The three dialogs are BS-03's: until it lands the
--- call sites below (NS.ShowNewBandSetDialog, NS.ShowCopyBandsDialog, NS.ShowRestoreBandSetDialog)
--- are stand-ins.
+-- disabled, and `/rm set bandSet.*` is refused. The three dialogs (New…, Copy bands from…, Restore
+-- <Preset> preset…) and the Undo after a copy or a restore are settings/BandSetDialogs.lua's
+-- (NS.ShowNewBandSetDialog, NS.ShowCopyBandsDialog, NS.ShowRestoreBandSetDialog, NS.UndoBandSets);
+-- this file reaches them at click time and hands them its preset names through NS.BandSetsPage.
 --
 -- THE BANDS TAB IS A SIDE-TAB GROUP (O.SideTabs, the library's rail look inside the content): one
 -- entry per band, "<place> <label> · <span> yd" led by a chip of its frame color (#), and beside it
@@ -45,7 +46,9 @@ local _, NS = ...
 -- redraw, Add band selects the new band, Remove band its neighbor (the next, else the one before),
 -- an index the set no longer has clamps to the last band, and another band set opens on band 1. An
 -- edge cannot re-sort the bands from here (its slider stops short of both neighbors), so an edge
--- change keeps the band selected by its place.
+-- change keeps the band selected by its place. Add band and Remove band share one row under the rail
+-- (RangeMaster#21: side by side), Remove band acting on the selected band and disabled while the set
+-- has one band; neither is among the band's own controls.
 --
 -- The General tab's rows are selection-relative, `bandSet.<field>` (settings/Schema.lua), so `/rm
 -- get|set bandSet.matchBy` edits the band set the banner shows, through NS.BandSets.SetField. The
@@ -209,9 +212,6 @@ local function shownSet()
     return NS.SelectedBandSet()
 end
 
---- Whether page id `id` is a preset viewed (read-only).
-local function isView(id) return type(id) == "string" end
-
 --- The LibSharedMedia sounds, led by None ("" stores no sound).
 local function soundValues()
     local lsm = H.LSMValues("sound")
@@ -290,18 +290,6 @@ end
 local function addBand(id)
     local index = NS.BandSets.AddBand(id)
     if index then selectBand(id, index) end
-end
-
-local function removeItem(id, i)
-    return { make = function(_, parent, rel)
-        local w = NS.AceGUI:Create("Button")
-        w:SetText(L["Remove band"])
-        w:SetRelativeWidth(rel or 0.5)
-        if isView(id) then w:SetDisabled(true) end
-        w:SetCallback("OnClick", function() removeBand(id, i) end)
-        parent:AddChild(w)
-        return w
-    end }
 end
 
 -- ── the band's rule (dynamic-bands plan D5) ──────────────────────────────────────────────────
@@ -432,12 +420,11 @@ local function bandTail(id, i)
           tooltip = L["Played when the unit enters this band, on containers with Play band sounds on."],
           get = function() return setOf(id).bands[i].sound or "" end,
           set = function(v) NS.BandSets.SetBandSound(id, i, v ~= "" and v or nil) end },
-        removeItem(id, i),
     }
 end
 
 --- One band's controls, two to a line: Defined by first, then (a spell band) its role, its spell
---- override and the read-out, then the yards, the label, the colors, the sound and Remove.
+--- override and the read-out, then the yards, the label, the colors and the sound.
 local function bandItems(id, set, i)
     local b, nextBand = set.bands[i], set.bands[i + 1]
     local items = { definedByItem(id, i) }
@@ -499,38 +486,18 @@ local function renderBands(ctx)
             H.RenderGrid(c, bandItems(id, setOf(id), i))
         end,
     })
-    H.InlineButtonPair(ctx, {
+    local pair = H.InlineButtonPair(ctx, {
         text = L["Add band"], tooltip = L["Split a new band off the front of the open-ended last band, and select it."],
         onClick = function() addBand(id) end,
-    }, nil)
+    }, {
+        text = L["Remove band"], tooltip = L["Remove the selected band. The band after it starts where it did. A band set keeps at least one band."],
+        onClick = function() removeBand(id, selectedBand(id, setOf(id))) end,
+    })
+    -- Remove band is disabled while the set has one band (a viewed preset's page is drawn disabled whole).
+    local remove = pair and pair.children and pair.children[2]
+    if remove and #set.bands <= 1 then remove:SetDisabled(true) end
     H.TextRow(ctx, L["Sounds play on entering a band, after it has held for 0.2 seconds, at most once a second, and never on the first band after the unit changes."],
         { fontObject = "GameFontDisableSmall" })
-end
-
--- ---------------------------------------------------------------------------
--- The dialogs' call sites (BS-03 replaces the stand-ins)
--- ---------------------------------------------------------------------------
-
---- The New dialog. `spec` = { preset = key?, name = string? }, prefilled by Use this preset…. The
---- stand-in creates the set at once, from the preset (Melee / Ranged without one), and selects it.
-function NS.ShowNewBandSetDialog(spec)
-    spec = type(spec) == "table" and spec or {}
-    local id = NS.BandSets.Create(spec.name or L["New band set"], spec.preset or "melee_ranged")
-    if id then NS.ShowBandSet(id) end
-    return id
-end
-
---- Copy bands from…. `spec` = { into = id?, from = id | { preset = key }? }: Copy into a set of
---- mine… names the source and asks for the set. The stand-in only logs.
-function NS.ShowCopyBandsDialog(spec)
-    spec = type(spec) == "table" and spec or {}
-    NS.Debug("BandSets", "Copy bands from (into %s): the dialog lands with BS-03", tostring(spec.into))
-end
-
---- The Restore dialog for set `id`: its differences from its preset, then Restore. The stand-in
---- only logs.
-function NS.ShowRestoreBandSetDialog(id)
-    NS.Debug("BandSets", "Restore set %s: the dialog lands with BS-03", tostring(id))
 end
 
 -- ---------------------------------------------------------------------------
@@ -572,23 +539,25 @@ local function addHeader(list, order, headers, name, text)
     headers[#headers + 1] = key
 end
 
---- The player's sets: the default first, "(default)"; a set that differs from its preset, "modified".
-local function addOwnSets(list, order)
+--- The player's sets into `list` and `order`, all but `except`: the default first, "(default)"; a
+--- set that differs from its preset, "modified". Answers how many it added.
+local function addOwnSets(list, order, except)
+    local n = 0
     for i, id in ipairs(NS.BandSets.List()) do
-        local text = NS.BandSets.Get(id).name
-        if i == 1 then text = L["%s (default)"]:format(text) end
-        if NS.BandSets.IsModified(id) then text = L["%s \194\183 modified"]:format(text) end
-        list[id], order[#order + 1] = text, id
+        if id ~= except then
+            local text = NS.BandSets.Get(id).name
+            if i == 1 then text = L["%s (default)"]:format(text) end
+            if NS.BandSets.IsModified(id) then text = L["%s \194\183 modified"]:format(text) end
+            list[id], order[#order + 1], n = text, id, n + 1
+        end
     end
+    return n
 end
 
---- The picker's entries: three groups, each led by a disabled row. Answers the list, its order and
---- the group rows' keys.
-local function pickerEntries()
-    local list, order, headers = {}, {}, {}
+--- Every shipped preset into `list` and `order` as "preset:<key>", under two group rows: the class
+--- presets in their class colors, yours tagged "your class", then the general ones.
+local function addPresets(list, order, headers)
     local keys, mine = NS.BandSets.PresetKeys(), yourClassKey()
-    addHeader(list, order, headers, "mine", L["Your band sets"])
-    addOwnSets(list, order)
     addHeader(list, order, headers, "classes", L["Shipped presets \194\183 Classes"])
     for _, key in ipairs(keys.classes) do
         local text = classColored(key, presetName(key))
@@ -599,6 +568,15 @@ local function pickerEntries()
     for _, key in ipairs(keys.general) do
         list[VIEW_PREFIX .. key], order[#order + 1] = presetName(key), VIEW_PREFIX .. key
     end
+end
+
+--- The picker's entries: three groups, each led by a disabled row. Answers the list, its order and
+--- the group rows' keys.
+local function pickerEntries()
+    local list, order, headers = {}, {}, {}
+    addHeader(list, order, headers, "mine", L["Your band sets"])
+    addOwnSets(list, order)
+    addPresets(list, order, headers)
     return list, order, headers
 end
 NS.__bandSetPickerEntries = pickerEntries
@@ -659,6 +637,21 @@ local function originLine()
     } } }
 end
 NS.__bandSetOriginLine = originLine
+
+--- A band rule as Defined by and the heading read it: "Yards", "Spell: Ranged", "Dead zone", ...
+local function ruleText(rule)
+    local kind = ruleType({ rule = rule })
+    if kind == "spell" then return L["Spell: %s"]:format(ROLES[rule.role]) end
+    return DEFINED_BY[kind]
+end
+
+-- What settings/BandSetDialogs.lua reads from this page, so the dialogs name presets, color classes
+-- and word a difference exactly as the picker and the origin line do.
+NS.BandSetsPage = {
+    PresetName = presetName, ClassColored = classColored, YourClassKey = yourClassKey, Colored = colored,
+    DiffWords = DIFF_WORDS, RuleText = ruleText, Match = MATCH, HeaderKey = HEADER_KEY, ViewPrefix = VIEW_PREFIX,
+    AddHeader = addHeader, AddOwnSets = addOwnSets, AddPresets = addPresets,
+}
 
 local function doCopyBands()
     local _, id = NS.SelectedBandSet()

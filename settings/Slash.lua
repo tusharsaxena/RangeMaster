@@ -74,7 +74,7 @@ NS.COMMANDS = {
         function(rest) runDelete(rest) end},
     {"pick",          L["Attach the selected range display to a frame you click on screen"],
         function() runPick() end},
-    {"bands",         L["List the band sets, or select one by number or name \226\128\148 /rm bands 2"],
+    {"bands",         L["List the band sets, select one by number or name, or undo the last Copy bands from or Restore preset \226\128\148 /rm bands [2|undo]"],
         function(rest) runBands(rest) end},
     {"preset",        L["Open the preset picker, apply a preset, or undo the last \226\128\148 /rm preset [simple|text|numbers|advanced|expert|ka0s|undo]"],
         function(rest) runPreset(rest) end},
@@ -286,6 +286,10 @@ end
 
 function runBands(rest)
     local arg = trimmed(rest)
+    -- `undo` is the word before any name: the Undo after a Copy bands from or a Restore preset
+    -- (settings/BandSetDialogs.lua), as `/rm preset undo` follows a preset. A set named "undo" is
+    -- still reached by its number.
+    if arg:lower() == "undo" then return NS.UndoBandSets() end
     local ids = NS.BandSets.List()
     if arg ~= "" then
         local id, why = resolveIn(ids, arg, bandSetName)

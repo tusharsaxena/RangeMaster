@@ -310,6 +310,7 @@ Kit.run{
     "test_realpages",
     "test_settings_containers",
     "test_settings_bandsets",
+    "test_settings_bandset_dialogs",
     "test_settings_presets",
     "test_skinsetup",
     "test_skin_picker",
