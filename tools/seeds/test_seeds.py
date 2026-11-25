@@ -18,7 +18,7 @@ import seeds  # noqa: E402
 
 # Invented ids. W = a warrior-family spell, M = a mage-family one.
 W_STRIKE, W_THROW, W_TAUNT, W_SELF, W_FAR_MELEE = 900001, 900002, 900003, 900004, 900005
-M_BOLT, M_BOLT_R2, M_BUFF, M_GHOST = 900011, 900012, 900013, 900014
+M_BOLT, M_BOLT_R2, M_BUFF, M_GHOST, M_BLAST = 900011, 900012, 900013, 900014, 900015
 OTHER_CLASS, MASKED = 900021, 900022
 
 
@@ -34,12 +34,12 @@ def fixture_tables(tmp_path, forever=True, thin=False):
     """`{table: path}` for an invented build. `thin` drops the sentinels' names."""
     names = [(W_STRIKE, "Test Strike"), (W_THROW, "Test Throw"), (W_TAUNT, "Test Taunt"), (W_SELF, "Test Shout"),
              (W_FAR_MELEE, "Test Lunge"), (M_BOLT, "Test Bolt"), (M_BOLT_R2, "Test Bolt"), (M_BUFF, "Test Brilliance"),
-             (M_GHOST, "Test Bolt"), (OTHER_CLASS, "Test Prayer"), (MASKED, "Test Sling")]
+             (M_GHOST, "Test Bolt"), (OTHER_CLASS, "Test Prayer"), (MASKED, "Test Sling"), (M_BLAST, "Test Blast")]
     if not thin:
         names += [(116, "Frostbolt"), (133, "Fireball"), (5176, "Wrath")]
     t = {"SpellName": write_csv(tmp_path / "SpellName.csv", ["ID", "Name_lang"], names)}
     misc = [(W_STRIKE, 2), (W_THROW, 74), (W_TAUNT, 4), (W_SELF, 1), (W_FAR_MELEE, 3), (M_BOLT, 35), (M_BOLT_R2, 35),
-            (M_BUFF, 4), (M_GHOST, 1), (OTHER_CLASS, 4), (MASKED, 74), (116, 4), (133, 35), (5176, 4)]
+            (M_BUFF, 4), (M_GHOST, 1), (OTHER_CLASS, 4), (MASKED, 74), (M_BLAST, 3), (116, 4), (133, 35), (5176, 4)]
     t["SpellMisc"] = write_csv(tmp_path / "SpellMisc.csv", ["ID", "DifficultyID", "RangeIndex", "SpellID"],
                                # A difficulty-1 row comes first: only DifficultyID 0 rows may set a spell's range.
                                [(99, 1, 6, W_STRIKE)] + [(i + 1, 0, r, s) for i, (s, r) in enumerate(misc)])
@@ -51,7 +51,7 @@ def fixture_tables(tmp_path, forever=True, thin=False):
     t["SpellClassOptions"] = write_csv(tmp_path / "SpellClassOptions.csv", ["ID", "SpellID", "SpellClassSet"],
                                        [(1, W_STRIKE, 4), (2, W_THROW, 4), (3, W_TAUNT, 4), (4, W_SELF, 4),
                                         (5, W_FAR_MELEE, 4), (6, M_BOLT, 3), (7, M_BOLT_R2, 3), (8, M_BUFF, 3),
-                                        (9, M_GHOST, 3), (10, OTHER_CLASS, 6), (11, MASKED, 8)])
+                                        (9, M_GHOST, 3), (10, OTHER_CLASS, 6), (11, MASKED, 8), (12, M_BLAST, 3)])
     t["ChrClasses"] = write_csv(tmp_path / "ChrClasses.csv", ["Filename", "ID", "SpellClassSet"],
                                 [("WARRIOR", 1, 4), ("MAGE", 8, 3), ("PRIEST", 5, 6), ("ROGUE", 4, 8)])
     # MASKED is the rogue family, but its learn row's ClassMask carries the warrior bit (1).
@@ -64,36 +64,43 @@ def fixture_tables(tmp_path, forever=True, thin=False):
 
 
 PRESETS_LUA = """local Presets = {}
-Presets.melee_ranged = {
-    name = L["Melee / Ranged"], matchBy = "max",
-    bands = {
-        band(0, 5, L["MELEE"], GREEN, spell("melee")), band(5, 30, L["CLOSE"], LIME),
-        band(30, 40, L["LONG"], ORANGE, spell("ranged")), band(40, nil, L["OOR"], RED, beyond()),
-    },
-}
-Presets.caster40 = {
-    bands = { band(0, 8, L["CLOSE"], ORANGE), band(8, 40, L["CAST"], GREEN, spell("ranged")),
-              band(40, nil, L["OOR"], RED, beyond()) },
-}
-Presets.healer = {
-    bands = { band(0, 30, L["NEAR"], GREEN), band(30, 40, L["FAR"], YELLOW, spell("friendly")),
-              band(40, nil, L["OOR"], RED, beyond()) },
-}
+Presets.melee_ranged = preset(L["Melee / Ranged"], {
+    band(0, 5, L["MELEE"], GREEN, spell("melee")), band(5, 30, L["CLOSE"], LIME),
+    band(30, 40, L["LONG"], ORANGE, spell("ranged")), band(40, nil, L["OOR"], RED, beyond()),
+})
+Presets.caster40 = preset(L["Caster 40"], {
+    band(0, 8, L["CLOSE"], ORANGE), band(8, 40, L["CAST"], GREEN, spell("ranged")),
+    band(40, nil, L["OOR"], RED, beyond()),
+})
+Presets.healer = preset(L["Healer"], {
+    band(0, 30, L["NEAR"], GREEN), band(30, 40, L["FAR"], YELLOW, spell("friendly")),
+    band(40, nil, L["OOR"], RED, beyond()),
+})
 local HUNTER_BY_CLIENT = {
-    forever = {
-        bands = {
-            band(0, 5, L["MELEE"], YELLOW, spell("melee")), band(5, 8, L["DEAD"], ORANGE, gap()),
-            band(8, 35, L["RANGE"], GREEN, spell("ranged")), band(35, nil, L["OOR"], RED, beyond()),
-        },
-    },
-    retail = {
-        bands = { band(0, 5, L["MELEE"], LIME, spell("melee")), band(5, 40, L["RANGED"], GREEN, spell("ranged")),
-                  band(40, nil, L["OOR"], RED, beyond()) },
-    },
+    forever = preset(L["Hunter"], {
+        band(0, 5, L["MELEE"], YELLOW, spell("melee")), band(5, 8, L["DEAD"], ORANGE, gap()),
+        band(8, 35, L["RANGE"], GREEN, spell("ranged")), band(35, nil, L["OOR"], RED, beyond()),
+    }),
+    retail = preset(L["Hunter"], {
+        band(0, 5, L["MELEE"], LIME, spell("melee")), band(5, 40, L["RANGED"], GREEN, spell("ranged")),
+        band(40, nil, L["OOR"], RED, beyond()),
+    }),
 }
-local CLASS_DEFAULT = {
-    HUNTER = "hunter",
-    MAGE = "caster40",
+local MAGE_BY_CLIENT = {
+    forever = preset(L["Mage"], {
+        band(0, 8, L["CLOSE"], ORANGE), band(8, 20, L["BLAST"], GREEN, spell("tier20")),
+        band(20, 40, L["CAST"], LIME, spell("ranged")), band(40, nil, L["OOR"], RED, beyond()),
+    }),
+    retail = preset(L["Mage"], {
+        band(0, 8, L["CLOSE"], ORANGE), band(8, 40, L["CAST"], GREEN, spell("ranged")),
+        band(40, nil, L["OOR"], RED, beyond()),
+    }),
+}
+local PRIEST_BY_CLIENT = {
+    forever = preset(L["Priest"], {
+        band(0, 8, L["CLOSE"], ORANGE), band(8, 20, L["SHORT"], GREEN, spell("tier20")),
+        band(20, 30, L["CAST"], LIME, spell("ranged")), band(30, nil, L["OOR"], RED, beyond()),
+    }),
 }
 """
 
@@ -108,7 +115,8 @@ NS.SpellSeeds = {
         WARRIOR = { chips = { 900001, 900004 },  ladder = { 900002, 900003 },
                     anchors = { melee = { 900001, 900005 }, ranged = { 900002, 900003, 900022 } } },
         MAGE    = { chips = { 900011 },  ladder = { 900011 },
-                    anchors = { ranged = { 900012, 900021 }, friendly = { 900013 } } },
+                    anchors = { ranged = { 900012, 900021 }, friendly = { 900013 },
+                                tier20 = { 900015, 900011 } } },
         HUNTER  = { chips = {}, ladder = {},
                     anchors = { melee = { cat = { 900001 }, bear = { 900005 } }, ranged = { 900003 } } },
         PRIEST  = { chips = { 999999 }, ladder = {}, anchors = { ranged = { 900021 } } },
@@ -153,9 +161,16 @@ def test_real_presets_and_reach():
     fh = presets["presets"]["hunter.forever"]
     assert [(b["from"], b["to"], b["rule"]) for b in fh] == [
         (0, 5, "spell:melee"), (5, 8, "gap"), (8, 35, "spell:ranged"), (35, None, "beyond")]
-    assert presets["default"]["MAGE"] == "caster40"
+    assert presets["default"]["MAGE"] == {"forever": "mage.forever", "retail": "mage.retail"}
     assert seeds.preset_for(presets, "forever", "HUNTER") == "hunter.forever"
-    assert seeds.preset_for(presets, "retail", "WARRIOR") == "melee_ranged"
+    assert seeds.preset_for(presets, "retail", "WARRIOR") == "warrior.retail"
+    assert seeds.preset_for(presets, "forever", "EVOKER") == "melee_ranged", "no Forever list: Melee / Ranged"
+    assert seeds.preset_for(presets, "retail", "EVOKER") == "evoker.retail"
+    fp = presets["presets"]["paladin.forever"]
+    assert [(b["from"], b["to"], b["label"], b["rule"]) for b in fp[:2]] == [
+        (0, 5, "MELEE", "spell:melee"), (5, 10, "JUDGE", "spell:tier10")], "the owner's case: a 10 yd tier"
+    assert len([k for k in presets["presets"] if k.endswith(".retail")]) == 13
+    assert len([k for k in presets["presets"] if k.endswith(".forever")]) == 9
     assert seeds.role_band(presets["presets"]["healer"], "friendly")["to"] == 40
     assert seeds.read_melee_reach(seeds.RANGE_FILE) == 8
 
@@ -335,3 +350,47 @@ def test_reports_render(tmp_path):
     assert "a \\| b" in md and "Unruled" not in md
     assert "Unruled" in seeds.rulings_md(doc, {}, "2026-11-25")
     assert "`wowf`" in seeds.sources_md("forever", "1.0.0.1", "2026-11-25", False)
+
+
+# ── the tier anchors (RangeMaster#20) ───────────────────────────────────────────────────
+
+def test_real_seed_file_carries_the_tiers():
+    parsed = seeds.read_seeds(seeds.SEEDS_FILE)
+    assert parsed["forever"]["classes"]["PALADIN"]["tier10"] == [20271, 853]
+    assert parsed["retail"]["classes"]["WARRIOR"]["tier25"] == [100]
+    for flavor in ("retail", "forever"):
+        for cls, lists in parsed[flavor]["classes"].items():
+            for name in lists:
+                assert name in seeds.LIST_NAMES, "%s.%s.%s is a list the tool checks" % (flavor, cls, name)
+
+
+def test_tier_reach_flag(tmp_path):
+    keys = flag_keys(derive(tmp_path))
+    assert "shipped:tier-reach:MAGE.tier20:900011" in keys, "a 35 yd spell in the 20 yd tier"
+    assert "shipped:tier-reach:MAGE.tier20:900015" not in keys, "a 20 yd one is the tier's"
+
+
+def test_tier_band_reach_and_min(tmp_path):
+    doc = derive(tmp_path)
+    flag = next(f for f in doc["flags"] if f["key"] == "shipped:band-reach:MAGE.tier20:900011")
+    assert "ends at 20 yd" in flag["why"], "the longest tier reach is checked against its band, as ranged's is"
+    facts = seeds.Facts(fixture_tables(tmp_path))
+    bands = seeds._bands('band(0, 5, L["MELEE"], G, spell("melee")), band(5, 30, L["THROW"], G, spell("tier30")), '
+                         'band(30, nil, L["OOR"], R, beyond())')
+    out = seeds.role_flags(facts, "WARRIOR", {"melee": [W_STRIKE], "tier30": [W_THROW]}, "x", bands, [])
+    assert [f["kind"] for f in out] == ["band-reach"] and "min range 8 yd" in out[0]["why"], \
+        "an 8-30 tier spell under a band starting at 5 yd"
+    bands[1]["from"] = 8
+    assert seeds.role_flags(facts, "WARRIOR", {"melee": [W_STRIKE], "tier30": [W_THROW]}, "x", bands, []) == []
+
+
+def test_unseeded_role_flag(tmp_path):
+    doc = derive(tmp_path)
+    flag = next(f for f in doc["flags"] if f["kind"] == "unseeded")
+    assert flag["key"] == "shipped:unseeded:PRIEST.tier20:0"
+    assert "reads its yards" in flag["why"]
+    r = {}
+    seeds.set_ruling(r, flag["key"], "keep", "a tier the class gains later")
+    with pytest.raises(SystemExit):
+        seeds.set_ruling(r, flag["key"], "remove", "x")
+    seeds.set_ruling(r, "shipped:band-reach:MAGE.tier20:900011", "keep", "tier keys rule like role keys")

@@ -77,7 +77,8 @@ the contract `docs/validate-seeds.md` (`/dev-copilot:validate-seeds RangeMaster 
 run pins one `wow` or `wowf` build and checks every shipped id's name, class, rank (Forever) and
 range (SpellMisc `RangeIndex` into SpellRange) against what the code asks of its list: a ladder rung
 has no min range, a melee anchor reaches no farther than `MELEE_REACH_YD`, a role's longest reach
-meets its preset band's far edge, the Forever hunter's anchors fit the dead zone. Rulings are data
+meets its preset band's far edge, a `tier<N>` anchor reaches N yd (the class presets' tier bands,
+RangeMaster#20), the Forever hunter's anchors fit the dead zone. Rulings are data
 (`tools/seeds/<flavor>_rulings.json`), and each run is a frozen bundle under `docs/seed-research/`;
 the first, 2026-11-25 (wow 12.1.5.70961, wowf 1.60.1.71091), took Throw and Heroic Throw out of the
 ladders, where neither could ever be a rung. `docs/smoke-tests.md` RANGE-5 still checks every seed resolves in a
@@ -110,7 +111,7 @@ its template. A delete re-selects the deleted item's neighbor (`NS.NeighborAfter
 `core/Database.lua`'s `Database.PrepareProfile` (called from `NS:RunMigrations`, so only from
 `InitDB` and the three AceDB profile callbacks): it re-keys and backfills every member from its
 template, rebuilds each order array, bumps each counter past the highest stored id, normalizes every
-band set, seeds the four preset band sets on a profile with none, points a container at the default
+band set, seeds the class's own preset band set and the four generic ones on a profile with none, points a container at the default
 set when its `bandSet` names none, and sets `seeded` to `false` when absent.
 
 - **Band sets**: `bandSets`, `bandSetOrder`, `nextBandSetId`. Runtime writer `modules/BandSets.lua`
@@ -314,7 +315,13 @@ follows the skin.
   ranged spell for a few seconds (Spatial Paradox, Sniper Shot) is read through that spell's own
   in-range answer, but does not reorder the candidates until the next rebuild.
 - The class default band set is picked by class at the first-run seed, and by spec only for
-  Devourer (Caster 40); a later spec change does not swap the default.
+  Devourer (Caster 40); a later spec change does not swap the default. Every class has its own
+  preset per client (RangeMaster#20), but a profile seeded before the class presets existed keeps
+  its stored sets: the class's set is only created by `NS.BandSets.Create(name, key)` or on a fresh
+  profile.
+- A tier band (`tier10` ... `tier30`) asks a spell the class learns at some level or through a talent
+  (Shadowstep, Felblade, Skull Bash, WoW Forever's Drain Life); until it is learned, and while it is
+  unusable (WoW Forever's spell 20271 with no seal up, Charge in combat), the band reads its yards.
 
 ## Documentation map
 

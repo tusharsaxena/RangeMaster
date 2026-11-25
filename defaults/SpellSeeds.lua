@@ -2,7 +2,8 @@ local _, NS = ...
 -- defaults/SpellSeeds.lua — the per-client, per-class spell seeds (clients-§5; design spec 5.1).
 --
 --   NS.SpellSeeds[client][classFile] = { chips = { spellID, ... }, ladder = { spellID, ... },
---                                        anchors = { melee = {...}, ranged = {...}, friendly = {...} } }
+--                                        anchors = { melee = {...}, ranged = {...}, friendly = {...},
+--                                                    tier<N> = {...}, ... } }
 --
 -- `client` is "retail" or "forever" (NS.Compat.ClientKey()), `classFile` the uppercase class token
 -- UnitClass answers second. DATA ONLY: nothing here asks the client anything.
@@ -21,12 +22,18 @@ local _, NS = ...
 --            corrections). One ordered fallback list per ROLE: the first one the player knows is
 --            the role's anchor, resolved to its current rank and override (NS.Compat.CurrentSpellID)
 --            and asked per tick (NS.Compat.AnchorInRange). A role a class has no list for is
---            unresolved, and its band falls back to its yards. Three roles:
+--            unresolved, and its band falls back to its yards. Three roles, and the tiers:
 --              melee     a 0-5 yd strike. Casters have none: their first band stays a yard band.
 --                        Druid melee is keyed by form instead, { cat = {...}, bear = {...} }: a
 --                        form's strike answers only in that form.
 --              ranged    the class's attack or cast range (Forever hunter: Auto Shot's 8-35).
 --              friendly  a heal or buff, for a friendly unit's set.
+--              tier<N>   the class's own range tier (RangeMaster#20): spells that reach N yd, no
+--                        farther, which a class preset's band between melee and ranged asks
+--                        (defaults/BandSetPresets.lua). The names are core/Constants.lua's
+--                        TIER_ROLES; a tier is listed only where the class has a real ability at that
+--                        distinct range (the Forever paladin's tier10: Judgment 20271, Hammer of
+--                        Justice 853). Resolved and asked as ranged is.
 --            No reactive spell (Mongoose Bite answers only after a dodge) and no long-range role
 --            (the owner ruled no Hunter's Mark band).
 --
@@ -37,29 +44,32 @@ local _, NS = ...
 -- RE-VALIDATED against each client's own DB2 (clients-§10) by tools/seeds/seeds.py, the contract
 -- docs/validate-seeds.md: retail on wow 12.1.5.70961 and forever on wowf 1.60.1.71091, 2026-11-25
 -- (docs/seed-research/2026-11-25-retail/ and 2026-11-25-forever/). The tool writes the lists'
--- ids; this header is rolled by hand.
+-- ids; this header is rolled by hand. The tier lists (RangeMaster#20, 2026-11-25) were read off the same
+-- two builds' tables and are checked by the same tool (`tier-reach`, `band-reach`).
 
 NS.SpellSeeds = {
     retail = {
         WARRIOR     = { chips = { 100, 57755, 355 },          ladder = { 355 },
-                        anchors = { melee = { 1464, 6552 }, ranged = { 57755, 355, 100 } } },
+                        anchors = { melee = { 1464, 6552 }, ranged = { 57755, 355, 100 }, tier25 = { 100 } } },
         PALADIN     = { chips = { 20271, 62124, 19750 },      ladder = { 20271, 19750 },
                         anchors = { melee = { 35395, 96231 }, ranged = { 20271, 31935 },
-                                    friendly = { 19750 } } },
+                                    friendly = { 19750 }, tier10 = { 853 } } },
         HUNTER      = { chips = { 185358, 56641, 147362 },    ladder = { 185358, 147362 },
                         anchors = { melee = { 186270, 195645, 187707 },
                                     ranged = { 185358, 56641, 75, 193455 } } },
         ROGUE       = { chips = { 185565, 36554, 1766 },      ladder = { 185565, 36554 },
-                        anchors = { melee = { 193315, 1766 }, ranged = { 185763, 114014, 185565 } } },
+                        anchors = { melee = { 193315, 1766 }, ranged = { 185763, 114014, 185565 },
+                                    tier25 = { 36554 } } },
         -- Holy Fire 14914 stands in for Shadow Word: Pain on Holy (12.0); Shadow's Smite resolves to Mind Flay.
         PRIEST      = { chips = { 585, 589, 2061 },           ladder = { 585, 2061 },
                         anchors = { ranged = { 585, 589, 8092, 47540, 14914 }, friendly = { 2061 } } },
         DEATHKNIGHT = { chips = { 49576, 47541, 47528 },      ladder = { 49576, 47528 },
-                        anchors = { melee = { 49998, 206930 }, ranged = { 47541, 49184, 49576 } } },
+                        anchors = { melee = { 49998, 206930 }, ranged = { 47541, 49184, 49576 },
+                                    tier15 = { 47528 } } },
         -- Restoration has Healing Wave 77472 in place of Healing Surge (12.0).
         SHAMAN      = { chips = { 188196, 57994, 8004 },      ladder = { 188196, 57994 },
                         anchors = { melee = { 73899, 17364, 60103 }, ranged = { 188196, 188389, 57994 },
-                                    friendly = { 8004, 77472 } } },
+                                    friendly = { 8004, 77472 }, tier30 = { 57994 } } },
         MAGE        = { chips = { 116, 118, 2139 },           ladder = { 116, 118 },
                         anchors = { ranged = { 116, 133, 30451, 108853 } } },
         WARLOCK     = { chips = { 686, 5782, 172 },           ladder = { 686, 5782 },
@@ -69,7 +79,8 @@ NS.SpellSeeds = {
                                     friendly = { 116670 } } },
         DRUID       = { chips = { 5176, 8921, 8936 },         ladder = { 5176, 8936 },
                         anchors = { melee = { cat = { 5221, 1822 }, bear = { 33917, 6807 } },
-                                    ranged = { 5176, 190984, 8921 }, friendly = { 8936 } } },
+                                    ranged = { 5176, 190984, 8921 }, friendly = { 8936 },
+                                    tier13 = { 106839 } } },
         -- Disrupt 183752 is Combat Range 0-5 in 12.1.5, not the 20 yd LibRangeCheck still labels
         -- it: a chip, never a ladder rung, and the last melee anchor (Improved Disrupt makes it 10 yd,
         -- Guile 25, and a melee anchor reported past 8 yd is skipped). Vengeance's own strikes
@@ -77,18 +88,20 @@ NS.SpellSeeds = {
         -- 473662 and Reap 1226019 close the ranged list.
         DEMONHUNTER = { chips = { 185123, 185245, 183752 },   ladder = { 185123, 185245 },
                         anchors = { melee = { 162243, 162794, 263642, 203782, 228477, 183752 },
-                                    ranged = { 185123, 185245, 473662, 1226019 } } },
+                                    ranged = { 185123, 185245, 473662, 1226019 }, tier15 = { 232893 } } },
         EVOKER      = { chips = { 362969, 361469, 351338 },   ladder = { 362969, 351338 },
                         anchors = { ranged = { 362969, 361469, 356995 }, friendly = { 361469 } } },
     },
     forever = {
         -- ladder emptied: Throw 2764 is 8-30, never a rung (seed-research 2026-11-25-forever).
         WARRIOR = { chips = { 100, 2764, 20252 },  ladder = {},
-                    anchors = { melee = { 78, 772, 1715 }, ranged = { 100, 20252, 2764, 2480, 7918, 7919 } } },
+                    anchors = { melee = { 78, 772, 1715 }, ranged = { 100, 20252, 2764, 2480, 7918, 7919 },
+                                tier25 = { 100, 20252 } } },
         -- Holy Strike 679 (L6, 0-5; WoW Forever's own trainer strike, absent from Classic Era) is the
         -- melee anchor; the seal-and-judge spell 20271 is 0-10 yd, too far for a melee band.
         PALADIN = { chips = { 20271, 853, 635 },   ladder = { 20271, 635 },
-                    anchors = { melee = { 679 }, ranged = { 879, 24275 }, friendly = { 635, 19750 } } },
+                    anchors = { melee = { 679 }, ranged = { 879, 24275 }, friendly = { 635, 19750 },
+                                tier10 = { 20271, 853 } } },
         -- Wing Clip 2974 (level 12) is the melee anchor (the owner, 2026-11-24): Raptor Strike 2973 and
         -- Attack 6603 carry no range requirement on WoW Forever and answer in range at any distance, so
         -- the 5-8 yd dead zone read MELEE. Below level 12 the melee band reads its yards.
@@ -100,11 +113,13 @@ NS.SpellSeeds = {
         PRIEST  = { chips = { 585, 589, 2050 },    ladder = { 585, 2050 },
                     anchors = { ranged = { 585, 8092, 589 }, friendly = { 2050, 2061 } } },
         SHAMAN  = { chips = { 403, 8042, 331 },    ladder = { 403, 8042 },
-                    anchors = { melee = { 17364 }, ranged = { 403, 370, 421 }, friendly = { 331 } } },
+                    anchors = { melee = { 17364 }, ranged = { 403, 370, 421 }, friendly = { 331 },
+                                tier20 = { 8042, 8050, 8056 } } },
         MAGE    = { chips = { 133, 116, 2136 },    ladder = { 133, 116, 2136 },
-                    anchors = { ranged = { 133, 116, 5143 }, friendly = { 1459 } } },
+                    anchors = { ranged = { 133, 116, 5143 }, friendly = { 1459 }, tier20 = { 2136 },
+                                tier30 = { 116 } } },
         WARLOCK = { chips = { 686, 172, 5782 },    ladder = { 686, 5782 },
-                    anchors = { ranged = { 686, 172, 348 } } },
+                    anchors = { ranged = { 686, 172, 348 }, tier20 = { 689, 5782 } } },
         DRUID   = { chips = { 5176, 8921, 5185 },  ladder = { 5176, 5185 },
                     anchors = { melee = { cat = { 1082, 5221 }, bear = { 6807, 6795, 5211 } },
                                 ranged = { 5176, 8921, 339 }, friendly = { 5185 } } },

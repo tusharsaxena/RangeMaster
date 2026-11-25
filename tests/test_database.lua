@@ -157,24 +157,34 @@ test("database: the load pass repairs a container whose band set ids name no sto
   end)
 end)
 
-test("database: test_first_run_seeds_presets — a fresh profile gets the four sets, class default first", function()
+test("database: test_first_run_seeds_presets — a fresh profile gets the class's own set first, then the four", function()
   local p = {}
   withProfile(p, function()
     D.PrepareProfile(p)
-    assertEqual(#p.bandSetOrder, 4, "four band sets seeded")
-    assertEqual(p.nextBandSetId, 5)
+    assertEqual(#p.bandSetOrder, 5, "the Mage set and the four generic sets seeded (RangeMaster#20)")
+    assertEqual(p.nextBandSetId, 6)
     assertEqual(p.seeded, false, "the first-run container picker has not run")
-    assertEqual(NS.BandSets.Get(NS.BandSets.DefaultId()).name, NS.BandSetPresets.caster40.name,
-      "a Mage's default is Caster 40")
+    assertEqual(NS.BandSets.Get(NS.BandSets.DefaultId()).name, NS.BandSetPresets.mage.name,
+      "a Mage's default is the Mage set")
     -- idempotent: a second pass seeds nothing more
     D.PrepareProfile(p)
-    assertEqual(#p.bandSetOrder, 4)
+    assertEqual(#p.bandSetOrder, 5)
   end, "MAGE")
+  local pal = {}
+  withProfile(pal, function()
+    D.PrepareProfile(pal)
+    local first = NS.BandSets.Get(NS.BandSets.DefaultId())
+    assertEqual(first.name, NS.BandSetPresets.paladin.name, "a Paladin's default is the Paladin set")
+    local roles = {}
+    for _, b in ipairs(first.bands) do roles[#roles + 1] = b.rule and (b.rule.role or b.rule.type) or "yards" end
+    assertEqual(table.concat(roles, ","), "melee,tier10,ranged,beyond", "its 5-10 band asks the 10 yd tier")
+  end, "PALADIN")
   local h = {}
   withProfile(h, function()
     D.PrepareProfile(h)
     assertEqual(NS.BandSets.Get(NS.BandSets.DefaultId()).name, NS.BandSetPresets.hunter.name,
       "a Hunter's default is the Hunter set")
+    assertEqual(#h.bandSetOrder, 4, "the Hunter set is the class's own: four sets, no duplicate")
     local seen = {}
     for _, id in ipairs(h.bandSetOrder) do seen[NS.BandSets.Get(id).name] = true end
     for _, key in ipairs(NS.BandSetPresets.ORDER) do

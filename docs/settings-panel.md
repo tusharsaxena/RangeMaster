@@ -124,7 +124,7 @@ no longer has clamps to the last band, and another band set opens on band 1. A r
 in combat by the library. The selected band's controls: **Defined by** first (Yards, Spell, Dead zone,
 Beyond the last spell band; written through `NS.BandSets.SetBandRule`), then the yard slider, Label,
 Frame / Text / Dot color and Sound on enter, and Remove band. A spell
-band adds **Role** (Melee, Ranged, Friendly), **Spell IDs** (comma-separated, empty for the class's
+band adds **Role** (Melee, Ranged, Friendly, then the class's range tiers, "10 yd tier" to "30 yd tier", `core/Constants.lua` `TIER_ROLES`), **Spell IDs** (comma-separated, empty for the class's
 anchors; a part that is not a whole ID refuses the entry aloud) and a read-out note naming the spell a
 tick asks (`NS.Range.AnchorFor`) and the range the client reports ("Now: Arcane Shot (3044), 8-41 yd",
 "melee range", "range not reported"), or "Not learned: using 5-30 yd" when nothing resolves. On a band

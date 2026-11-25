@@ -24,7 +24,7 @@ unless a check names one. The anchors are run as a matrix, one result per mode a
 | RANGE-1..21 | Range engine | brackets, unknown, the Forever ladder, the ticker's rate and stop, the seed spells; the anchor probes: reported ranges under talents, rank IDs, the talent event, overrides, Auto Shot unarmed; the seed-validation ladder changes |
 | DRAW-1..12 | Containers drawn | brackets drawn, unknown gray, elements and order, the skin face, disable, the Bar dot's border and gloss, Fixed colors, outline and shadow, the border and the spell chips following the skin, Class mode in test mode, High Contrast's HUD shadow |
 | CONT-1..14 | Containers page | New container (no band preview), the rail, Position, Duplicate / Delete / Copy settings from, Defaults, Color from, the Dot tab and its Style tiles, Border opacity, the caption's positions, the caption's styling, one line, the skin companion rows, the Style tiles' Scope, the frame picker's label |
-| BANDS-1..11 | Band sets page | the picker, the Bands editor (no band ribbon), shared sets, the friendly override, the unknown label; spell bands: the rule controls, the read-out, the owner's Hawk Eye case, the dead zone, the v1 -> v2 conversion, the band rail |
+| BANDS-1..17 | Band sets page | the picker, the Bands editor (no band ribbon), shared sets, the friendly override, the unknown label; spell bands: the rule controls, the read-out, the owner's Hawk Eye case, the dead zone, the v1 -> v2 conversion, the band rail; every class's own set per client, the tier roles, an old profile kept |
 | PRESET-1..5 | Presets | the first-run picker, Apply on an empty profile, Apply over containers with Undo, what each of the six shows, the dropdown's selected row |
 | ANCHOR-1..13 | Anchors | every mode on both clients: screen, unit frames (Blizzard, EllesmereUI, custom, missing), own nameplate, all nameplates, cursor, the picker, all nameplates except target, the drag strip's marks, the cast bar part, Frame strata and Frame level on a plate, the preview nameplate, the drag strip's right-click |
 | VIS-1..3 | Visibility | combat and reaction rules, out-of-combat opacity, the master rows |
@@ -515,6 +515,55 @@ failure is a bracket edge that moved. Reverse one by putting its id back in `def
   on (General > Skin) → the rail pane and entries take the skin like the Containers page's rail.
   Result: PASS (owner, 2026-11-24, both clients)
 
+BANDS-12 to BANDS-17 are the class band sets (RangeMaster#20, Ka0sAddonsCommonTasks
+`docs/2026-11-25-SEEDS_AND_FOREVERDB/`, SF-RM-02). Each class's expected bands are in `docs/schema.md`,
+*The class presets*. Start each from a **new profile** (Profiles → New, then `/reload`) so the first-run
+seed runs; dismiss the preset picker with **Not now** and make one target container (`/rm new target`)
+showing the number and the band's label.
+
+- **BANDS-12. The owner's case: the Forever paladin's JUDGE band (WoW Forever, Paladin, level 6 or more,
+  a Seal up).** Band sets → the banner lists `Paladin (default)`, then Melee / Ranged, Caster 40, Healer,
+  Hunter. Bands → `1 MELEE · 0–5`, `2 JUDGE · 5–10`, `3 RANGE · 10–30`, `4 OOR · 30+`; band 2's read-out
+  is `Now: Judgement (20271), 0–10 yd`. Target a dummy: in melee → MELEE; step back to about 8 yd →
+  JUDGE; past 10 yd → RANGE; past 30 yd → OOR. Drop the Seal → band 2's read-out turns to Hammer of
+  Justice (853) while it is off cooldown, and the walk reads the same. Result:
+- **BANDS-13. The Forever hunter keeps its set (WoW Forever, Hunter).** The banner lists `Hunter
+  (default)` once (no second Hunter set), then Melee / Ranged, Caster 40, Healer. Its bands are still
+  MELEE, DEAD, RANGE, OOR, and RANGE-18's walk still reads the same. Result:
+- **BANDS-14. Every other WoW Forever class's own set (WoW Forever).** For each class, on a new
+  profile: the banner's first set is the class's, `(default)`, with the bands below, and a walk away
+  from a dummy steps through them in order (a band whose spell the character has not learned reads its
+  yards, so check at a level that has it: Charge 4, Holy Strike 6, Earth Shock 4, Fire Blast 6,
+  Drain Life 14).
+  - Warrior: MELEE, CLOSE, CHARGE (8–25, out of combat), RANGE (a thrown weapon or bow equipped), OOR. Result:
+  - Rogue: MELEE, CLOSE, RANGE (a thrown weapon or bow equipped), OOR. Result:
+  - Priest: CLOSE, CAST (to 30), OOR. Result:
+  - Shaman: MELEE, SHOCK (to 20), CAST (to 30), OOR. Result:
+  - Mage: CLOSE, BLAST (to 20), CAST (to 30, Frostbolt), LONG (to 35, Fireball), OOR. Result:
+  - Warlock: CLOSE, DRAIN (to 20), CAST (to 30), OOR. Result:
+  - Druid: MELEE (in Cat or Bear Form), RANGE (to 30, caster form), OOR. Result:
+- **BANDS-15. Every Retail class's own set (Retail).** As BANDS-14, each class on a new profile:
+  - Warrior: MELEE, CLOSE, CHARGE (8–25), RANGE (to 30), OOR. Result:
+  - Paladin: MELEE, HAMMER (to 10, Hammer of Justice), RANGE (to 30), OOR. Result:
+  - Hunter: MELEE, RANGED, OOR, as before. Result:
+  - Rogue: MELEE, STEP (to 25, Shadowstep; an Outlaw without it reads the yards), RANGE (to 30), OOR. Result:
+  - Priest, Mage, Warlock: CLOSE, CAST (to 40), OOR, named after the class. Result:
+  - Death Knight: MELEE, FREEZE (to 15, Mind Freeze), RANGE (to 30), OOR. Result:
+  - Shaman: MELEE, SHEAR (to 30, Wind Shear), CAST (to 40), OOR. Result:
+  - Monk: MELEE, RANGE (to 40), OOR. Result:
+  - Druid: MELEE, BASH (to 13, Skull Bash in Cat or Bear Form), RANGE (to 40), OOR. Result:
+  - Demon Hunter: MELEE, BLADE (to 15, Felblade if talented), RANGE (to 30), OOR; a Devourer's new
+    profile still starts on Caster 40. Result:
+  - Evoker: CLOSE, CAST (to 25), OOR. Result:
+- **BANDS-16. The tier roles in the editor (both clients).** On any band set, pick Spell on a band →
+  **Role** lists Melee, Ranged, Friendly, then `10 yd tier` to `30 yd tier`; pick `10 yd tier` on a
+  paladin → the read-out names a 10 yd spell; on a class with no 10 yd list → `Not learned: using
+  <yards> yd`. The heading reads `(Spell: 10 yd tier)`. Result:
+- **BANDS-17. An existing profile is kept (both clients).** Log in on a profile saved before this build
+  → its band sets, their order, names, edges and rules are exactly as they were: no class set is added
+  and none is rewritten. Applying the **Ka0s** preset there creates the class's own set and puts the
+  displays on it. Result:
+
 ## Presets
 
 - **PRESET-1. First-run picker.** On a new profile the **Choose a preset** window opens above the
@@ -742,4 +791,5 @@ Set the rules on Containers → Visibility.
 | MODES-8, PRESET-5 | the LibKa0s v1.113.0 re-vendor (Ka0sAddonsCommonTasks 2026-11-24-FEEDBACK_BATCH, round 2, FB2-RM-01), 2026-11-24 | the step panel on every start path and the preset dropdown's selected row in gold under every skin (Azeroth, Obsidian, WoW Forever on Forever; amended by FB2-RM-02) have not been seen in a client yet |
 | ANCHOR-13 | the LibKa0s v1.111.0 re-vendor (Ka0sAddonsCommonTasks 2026-11-23-STRIP_RIGHT_CLICK, SRC-RM-01), 2026-11-23 | the strip's right-click on the band and each mark, now the gear's own action with no `onRightClick` (DragHandle minor 17), has not been seen in a client yet |
 | RANGE-18 | the hunter dead-zone fix (RM-DZ-02, then branch feat/2026-11-24-rangemaster-wingclip, RM-DZ-03), 2026-11-24 | Wing Clip (2974) as the Forever hunter's melee anchor and the dead zone's number pulled in to 8 yd: whether MELEE holds in melee, DEAD at 5-8 yd reading `5–8`. Passed on WoW Forever, the owner, 2026-11-25. |
+| BANDS-12..17 | the class band sets (Ka0sAddonsCommonTasks `docs/2026-11-25-SEEDS_AND_FOREVERDB/`, SF-RM-02; RangeMaster#20), 2026-11-25 | every class's own preset per client and the tier roles (`tier10` to `tier30`) have not been seen in a client yet: whether each tier spell answers as DB2 says, and the walk steps through each set's bands. The owner plays at least the WoW Forever Paladin and Hunter. |
 | RANGE-19..21 | the first seed validation (Ka0sAddonsCommonTasks `docs/2026-11-25-SEEDS_AND_FOREVERDB/`, SF-RM-01), 2026-11-25 | Throw 2764 out of the Forever warrior's and rogue's ladders and Heroic Throw 57755 out of the Retail warrior's, each a min-range spell DB2 says could never be a rung: whether the client reports that min range and the brackets are unchanged. |

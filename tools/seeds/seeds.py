@@ -6,7 +6,8 @@ WHAT THIS IS
     Range Master ships one seed file that mirrors the client's own DB2 data:
 
     defaults/SpellSeeds.lua   NS.SpellSeeds[client][classFile] = { chips, ladder, anchors =
-                              { melee, ranged, friendly } } (druid melee keyed by form: cat, bear).
+                              { melee, ranged, friendly, tier<N>... } } (druid melee keyed by form:
+                              cat, bear; tier<N> a class's own N yd range tier, RangeMaster#20).
                               HAND-CURATED, not derived: a short list per class. So a run proposes no
                               new ids. It checks every shipped id against the client's own DB2 and
                               against what the addon's code assumes of that id's RANGE.
@@ -26,11 +27,16 @@ WHAT THIS IS
         melee-reach  a melee anchor with a min range, or reaching past modules/Range.lua's
                      MELEE_REACH_YD (the resolver drops it, knownList)
         ranged-reach a ranged anchor that reaches no farther than MELEE_REACH_YD
+        tier-reach   a tier<N> anchor whose reach is not N yd: the tier names its yards
     And per role (key `shipped:<kind>:<CLASS>.<role>:<id of the role's first anchor>`, ruled keep):
         band-reach   the role's longest reach (the anchor the resolver asks first, longerFirst) is
                      not the far edge of the band the class's default preset gives that role
-                     (defaults/BandSetPresets.lua; friendly: the Healer preset). Past that reach the
-                     anchor says false, so beyond reads OOR there whatever the band's yards say.
+                     (defaults/BandSetPresets.lua: the class's own <CLASS>_BY_CLIENT list for the
+                     flavor, else Melee / Ranged; friendly: the Healer preset), or, for a tier, that
+                     anchor's min range lies past the band's near edge. Past that reach the anchor
+                     says false, so beyond reads OOR there whatever the band's yards say.
+        unseeded     the class's default preset has a band asking a role the class has no anchor
+                     list for (id 0): that band can only ever read its yards
         gap-fit      the default preset has a dead-zone (gap) band and a ranged anchor's min range is
                      not that band's far edge, a melee anchor's reach is not its near edge, or no
                      ranged anchor has a min range at all (the gap can never hold, Range.Near)
@@ -110,12 +116,19 @@ FOREVER_TABLES = (
     ("Spell", "NameSubtext_lang: the rank text, for the rank flag"),
 )
 
-LIST_NAMES = ("chips", "ladder", "melee", "melee.cat", "melee.bear", "ranged", "friendly")
-ID_KINDS = ("unnamed", "renamed", "class", "rank", "no-range", "ladder-min", "melee-reach", "ranged-reach")
-ROLE_KINDS = ("band-reach", "gap-fit")
+# The tier roles (core/Constants.lua TIER_ROLES, RangeMaster#20): a list named tier<N> holds spells that
+# reach N yd. tests/test_range.lua pins every seeded name to that vocabulary, so the tool reads N off
+# the name and needs no copy of the list.
+TIER_LIST = re.compile(r"^tier(\d+)$")
+TIER_LISTS = tuple("tier%d" % n for n in (10, 13, 15, 20, 25, 30))
+LIST_NAMES = ("chips", "ladder", "melee", "melee.cat", "melee.bear", "ranged", "friendly") + TIER_LISTS
+ID_KINDS = ("unnamed", "renamed", "class", "rank", "no-range", "ladder-min", "melee-reach", "ranged-reach",
+            "tier-reach")
+ROLE_KINDS = ("band-reach", "gap-fit", "unseeded")
+ROLE_LISTS = ("melee", "ranged", "friendly") + TIER_LISTS
 ID_RULINGS = ("keep", "remove")
 ROLE_RULINGS = ("keep",)
-KEY = re.compile(r"^shipped:(?P<kind>[a-z-]+):(?P<cls>[A-Z]+)\.(?P<list>[a-z.]+):(?P<id>\d+)$")
+KEY = re.compile(r"^shipped:(?P<kind>[a-z-]+):(?P<cls>[A-Z]+)\.(?P<list>[a-z0-9.]+):(?P<id>\d+)$")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 RANK_RE = re.compile(r"^Rank (\d+)$")
 
@@ -126,7 +139,7 @@ COMBAT_RANGE = (2, 5.0)  # SpellRange 2, "Combat Range", reaches 5 yd on both cl
 
 FLAVOR_OPEN = re.compile(r"^    (retail|forever) = \{\s*$")
 CLASS_OPEN = re.compile(r"^\s+([A-Z]+)\s*=\s*\{")
-FLAT_LIST = re.compile(r"\b(chips|ladder|melee|ranged|friendly|cat|bear)\s*=\s*\{([\d,\s]*)\}")
+FLAT_LIST = re.compile(r"\b(chips|ladder|melee|ranged|friendly|cat|bear|tier\d+)\s*=\s*\{([\d,\s]*)\}")
 COMMENT_NAME = re.compile(r"((?:[A-Z][\w':-]*)(?: (?:of|the|[A-Z][\w':-]*))*) (\d{3,7})\b")
 BAND_CALL = re.compile(r'band\((\d+),\s*(nil|\d+),\s*L\["([^"]+)"\],\s*\w+'
                        r'(?:,\s*(?:spell\("(\w+)"\)|(gap)\(\)|(beyond)\(\)))?\)')
@@ -308,20 +321,25 @@ def _block(lines: list, opener: re.Pattern) -> str:
     raise SystemExit("%s: no block matching %s." % (PRESETS_FILE.name, opener.pattern))
 
 
+BY_CLIENT_OPEN = re.compile(r"^local ([A-Z]+)_BY_CLIENT = \{")
+
+
 def read_presets(path: Path) -> dict:
-    """`{"presets": {key: [band]}, "default": {CLASS: key}}` from defaults/BandSetPresets.lua: the
-    four preset keys (hunter per client, as `hunter.forever` and `hunter.retail`) and CLASS_DEFAULT
-    (a class it does not name gets melee_ranged, Presets.DefaultFor)."""
+    """`{"presets": {key: [band]}, "default": {CLASS: {flavor: key}}}` from defaults/BandSetPresets.lua:
+    the three generic presets, and each `<CLASS>_BY_CLIENT` block's lists, keyed `<class>.<flavor>`
+    (`hunter.forever`, `paladin.retail`). A class's default on a flavor is its own list there
+    (Presets.DefaultFor, whose spec overrides are not a class's); a class with none gets melee_ranged."""
     lines = read_text(path).split("\n")
-    presets = {}
+    presets, defaults = {}, {}
     for key in ("melee_ranged", "caster40", "healer"):
-        presets[key] = _bands(_block(lines, re.compile(r"^Presets\.%s = \{" % key)))
-    hunters = _block(lines, re.compile(r"^local HUNTER_BY_CLIENT = \{")).split("\n")
-    for client in FLAVORS:
-        presets["hunter." + client] = _bands(_block(hunters, re.compile(r"^    %s = \{" % client)))
-    defaults = {}
-    for cls, key in re.findall(r"\b([A-Z]+) = \"(\w+)\"", _block(lines, re.compile(r"^local CLASS_DEFAULT = \{"))):
-        defaults[cls] = key
+        presets[key] = _bands(_block(lines, re.compile(r"^Presets\.%s = (?:\{|preset\()" % key)))
+    for cls in [m.group(1) for m in map(BY_CLIENT_OPEN.match, lines) if m]:
+        block = _block(lines, re.compile(r"^local %s_BY_CLIENT = \{" % cls)).split("\n")
+        for client in FLAVORS:
+            if any(re.match(r"^    %s = " % client, line) for line in block):
+                key = "%s.%s" % (cls.lower(), client)
+                presets[key] = _bands(_block(block, re.compile(r"^    %s = (?:\{|preset\()" % client)))
+                defaults.setdefault(cls, {})[client] = key
     for key, bands in presets.items():
         if not bands:
             raise SystemExit("%s: preset %s parsed no band(...) rows." % (path, key))
@@ -336,8 +354,7 @@ def read_melee_reach(path: Path) -> int:
 
 
 def preset_for(presets: dict, flavor: str, cls: str) -> str:
-    key = presets["default"].get(cls, "melee_ranged")
-    return "hunter." + flavor if key == "hunter" else key
+    return presets["default"].get(cls, {}).get(flavor, "melee_ranged")
 
 
 def role_band(bands: list, role: str):
@@ -494,6 +511,9 @@ def verdict(facts: Facts, flavor: str, cls: str, lst: str, spell: int, comment_n
         flag("melee-reach", "%g-%g yd: a melee anchor must reach 0 to %d yd" % (lo, hi, reach))
     if lst == "ranged" and hi <= reach:
         flag("ranged-reach", "%g yd: a ranged anchor must reach past %d yd" % (hi, reach))
+    tier = TIER_LIST.match(lst)
+    if tier and hi != int(tier.group(1)):
+        flag("tier-reach", "%g-%g yd: a %s anchor must reach %s yd" % (lo, hi, lst, tier.group(1)))
     return v
 
 
@@ -501,18 +521,34 @@ def role_flags(facts: Facts, cls: str, lists: dict, preset_key: str, bands: list
     """The per-role flags: band-reach (ranged against the default preset, friendly against Healer)
     and gap-fit (the default preset's dead zone)."""
     out = []
-    for role, role_bands, where in (("ranged", bands, preset_key), ("friendly", healer, "healer")):
+    checked = [("ranged", bands, preset_key), ("friendly", healer, "healer")]
+    checked += [(role, bands, preset_key) for role in TIER_LISTS]
+    for role, role_bands, where in checked:
         ids = [s for s in lists.get(role, []) if facts.range_of(s, _side(role))]
         band = role_band(role_bands, role)
         if not ids or not band or band["to"] is None:
             continue
         top = max(ids, key=lambda s: facts.range_of(s, _side(role))[3])  # ties: the first (seed order)
-        hi = facts.range_of(top, _side(role))[3]
+        lo, hi = facts.range_of(top, _side(role))[2:]
+        why = []
         if hi != band["to"]:
+            why.append("the longest %s reach is %g yd (%d); preset %s's %s band ends at %d yd"
+                       % (role, hi, top, where, band["label"], band["to"]))
+        if TIER_LIST.match(role) and lo > band["from"]:
+            why.append("its min range %g yd lies past the %s band's near edge %d yd" % (lo, band["label"], band["from"]))
+        if why:
             out.append({"key": "shipped:band-reach:%s.%s:%d" % (cls, role, top), "kind": "band-reach",
                         "class": cls, "list": role, "id": top, "name": facts.names.get(top, ""),
-                        "why": "the longest %s reach is %g yd (%d); preset %s's %s band ends at %d yd"
-                               % (role, hi, top, where, band["label"], band["to"])})
+                        "why": "; ".join(why)})
+    seeded = {k.split(".")[0] for k in lists if lists[k]}
+    for band in bands:
+        rule = band["rule"] or ""
+        role = rule[len("spell:"):] if rule.startswith("spell:") else None
+        if role and role not in seeded:
+            out.append({"key": "shipped:unseeded:%s.%s:0" % (cls, role), "kind": "unseeded", "class": cls,
+                        "list": role, "id": 0, "name": "",
+                        "why": "preset %s's %s band asks %s, and the class has no %s anchors: it reads its yards"
+                               % (preset_key, band["label"], role, role)})
     gaps = [b for b in bands if b["rule"] == "gap"]
     if gaps:
         gap = gaps[0]
@@ -696,7 +732,7 @@ def set_ruling(rulings: dict, key: str, ruling: str, reason: str) -> None:
         raise SystemExit("%r is not shipped:<kind>:<CLASS>.<list>:<id>." % key)
     kind, lst = match.group("kind"), match.group("list")
     if kind in ROLE_KINDS:
-        allowed, lists = ROLE_RULINGS, ("ranged", "friendly")
+        allowed, lists = ROLE_RULINGS, ROLE_LISTS
     elif kind in ID_KINDS:
         allowed, lists = ID_RULINGS, LIST_NAMES
     else:

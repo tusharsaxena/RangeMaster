@@ -36,7 +36,8 @@ local _, NS = ...
 -- else: the editor moves a band by moving its edge, and offers no reorder control.
 --
 -- A BAND'S RULE (dynamic-bands plan D5): Defined by picks Yards (no rule), Spell, Dead zone or Beyond
--- the last spell band, written through NS.BandSets.SetBandRule. A spell band also takes a role and an
+-- the last spell band, written through NS.BandSets.SetBandRule. A spell band also takes a role (melee,
+-- ranged, friendly or a class's range tier, "10 yd tier": core/Constants.lua TIER_ROLES) and an
 -- optional list of spell IDs in place of the class's anchors, and shows a read-out of the anchor in
 -- use (NS.Range.AnchorFor) with the range the client reports, or the yards it falls back to when none
 -- is learned. On a band with a rule the edge slider is its Fallback (yards). ANCHORS_CHANGED redraws
@@ -255,9 +256,14 @@ local DEFINED_BY = { yards = L["Yards"], spell = L["Spell"], gap = L["Dead zone"
 local DEFINED_BY_SORT = { "yards", "spell", "gap", "beyond" }
 local ROLES = { melee = L["Melee"], ranged = L["Ranged"], friendly = L["Friendly"] }
 local ROLES_SORT = { "melee", "ranged", "friendly" }
+-- Then the tier roles (RangeMaster#20), nearest first: "10 yd tier" is the class's 10 yd spells.
+for _, role in ipairs(NS.Constants.TIER_ROLES) do
+    ROLES[role] = L["%d yd tier"]:format(NS.Constants.TIER_YARDS[role])
+    ROLES_SORT[#ROLES_SORT + 1] = role
+end
 
 --- The band's rule type as Defined by reads it: "yards" for none, or for one Resolve cannot read (an
---- unknown type, a spell rule whose role is not one of the three).
+--- unknown type, a spell rule whose role is not one of ROLES).
 local function ruleType(b)
     local r = b.rule
     if type(r) ~= "table" or r.type == "yards" or not DEFINED_BY[r.type] then return "yards" end
@@ -323,7 +329,7 @@ end
 local function roleItem(id, i)
     return {
         type = "string", values = ROLES, sorting = ROLES_SORT, label = L["Role"],
-        tooltip = L["Which of your class's spells this band asks: a melee strike, a ranged attack, or a spell cast on friends."],
+        tooltip = L["Which of your class's spells this band asks: a melee strike, a ranged attack, a spell cast on friends, or a range tier, the class's spells that reach that far (a paladin's 10 yd tier is Hammer of Justice). A class with no spell for the tier uses the band's yards."],
         get = function() return NS.BandSets.Get(id).bands[i].rule.role end,
         set = function(v)
             local r = NS.BandSets.Get(id).bands[i].rule

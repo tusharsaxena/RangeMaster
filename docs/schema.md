@@ -37,16 +37,20 @@ addresses them, and an AceDB default with no row is a setting nobody can reach (
 
 | Key | Fresh profile | Writer | Notes |
 |---|---|---|---|
-| `bandSets` | the four presets | `modules/BandSets.lua` | `[id] = NS.BANDSET_TEMPLATE` shape: `name`, `matchBy` (`"max"`/`"min"`), `unknown = { label = "?", color }`, `bands = { { from, to, label, frameColor, textColor, indicatorColor, sound, rule }, ... }` (`rule`: below) |
-| `bandSetOrder` | `{ 1, 2, 3, 4 }` | `modules/BandSets.lua` | the first id is the **default set**; the seed puts the class default first |
-| `nextBandSetId` | `5` | `modules/BandSets.lua` | the id counter, bumped past the highest stored id on load |
+| `bandSets` | the class's own preset, then the four generic ones (four for a hunter, whose own is the Hunter set) | `modules/BandSets.lua` | `[id] = NS.BANDSET_TEMPLATE` shape: `name`, `matchBy` (`"max"`/`"min"`), `unknown = { label = "?", color }`, `bands = { { from, to, label, frameColor, textColor, indicatorColor, sound, rule }, ... }` (`rule`: below) |
+| `bandSetOrder` | `{ 1, 2, 3, 4, 5 }` (`{ 1, 2, 3, 4 }` for a hunter) | `modules/BandSets.lua` | the first id is the **default set**; the seed puts the class default first |
+| `nextBandSetId` | `6` (`5` for a hunter) | `modules/BandSets.lua` | the id counter, bumped past the highest stored id on load |
 | `containers` | `{}` | `modules/ContainerManager.lua` (`NS.CM`) | `[id] = NS.CONTAINER_TEMPLATE` shape (design spec 5.2) |
 | `containerOrder` | `{}` | likewise | rebuilt on load to hold exactly the stored ids |
 | `nextContainerId` | `1` | likewise | |
 | `seeded` | `false` | `NS.CM.MarkSeeded` (reached through `NS.Presets.MarkPickerSeen`) | whether the first-run preset picker has shown on this profile (set as it shows, and by any preset applied) |
 
 **A band's rule (schema v2).** `band.rule` is nil (a yard band), `{ type = "spell", role, spells }`,
-`{ type = "gap" }` or `{ type = "beyond" }`. `role` is `"melee"`, `"ranged"` or `"friendly"`. `spells`
+`{ type = "gap" }` or `{ type = "beyond" }`. `role` is `"melee"`, `"ranged"`, `"friendly"` or a tier role,
+`"tier10"`, `"tier13"`, `"tier15"`, `"tier20"`, `"tier25"` or `"tier30"` (`core/Constants.lua` `TIER_ROLES`,
+RangeMaster#20: the class's spells that reach that many yards, such as the WoW Forever paladin's spell
+20271 and Hammer of Justice for `tier10`). The tier roles came with the class presets and need no ladder
+step: a stored rule is read as it was, and a class with no list for a tier reads that band's yards. `spells`
 is nil (the class's anchors for the role, `defaults/SpellSeeds.lua`) or a list of spell IDs that
 overrides them. A rule names a role, not a spell, so one set serves every class in a shared profile.
 `from`/`to` stay finite yards: they are the band's fallback, used when its anchor is not learned,
@@ -64,7 +68,27 @@ yards, then its rule in brackets; a band with no bracket is a yard band:
 | `healer` | 0-30 NEAR, 30-40 FAR [spell(friendly)], 40+ OOR [beyond] (meant as a friendly override) |
 | `hunter` | WoW Forever: 0-5 MELEE [spell(melee)], 5-8 DEAD [gap], 8-35 RANGE [spell(ranged)], 35+ OOR [beyond]. Retail: 0-5 MELEE [spell(melee)], 5-40 RANGED [spell(ranged)], 40+ OOR [beyond] |
 
-Class defaults (`NS.BandSetPresets.DefaultFor(classFile, specID)`, the spec from `NS.Compat.PlayerSpecID`): a spec that plays unlike its class comes first, so Devourer (the Demon Hunter's 25 yd Intellect spec, 1480) → `caster40`; then Hunter → `hunter`; Mage, Warlock, Priest, Evoker → `caster40`; every other class, or an unreadable one → `melee_ranged`.
+**The class presets** (RangeMaster#20), one list per client in `<CLASS>_BY_CLIENT`, the key the
+lowercase class token. The bands sit at the class's range tiers in that client's DB2
+(`docs/validate-seeds.md`); a class WoW Forever lacks has no Forever list and no key there:
+
+| Key | Retail | WoW Forever |
+|---|---|---|
+| `warrior` | 0-5 MELEE [melee], 5-8 CLOSE, 8-25 CHARGE [tier25], 25-30 RANGE [ranged], 30+ OOR [beyond] | the same |
+| `paladin` | 0-5 MELEE [melee], 5-10 HAMMER [tier10], 10-30 RANGE [ranged], 30+ OOR [beyond] | 0-5 MELEE [melee], 5-10 JUDGE [tier10], 10-30 RANGE [ranged], 30+ OOR [beyond] |
+| `hunter` | the Hunter set above | the Hunter set above |
+| `rogue` | 0-5 MELEE [melee], 5-25 STEP [tier25], 25-30 RANGE [ranged], 30+ OOR [beyond] | 0-5 MELEE [melee], 5-8 CLOSE, 8-30 RANGE [ranged], 30+ OOR [beyond] |
+| `priest` | 0-8 CLOSE, 8-40 CAST [ranged], 40+ OOR [beyond] | 0-8 CLOSE, 8-30 CAST [ranged], 30+ OOR [beyond] |
+| `deathknight` | 0-5 MELEE [melee], 5-15 FREEZE [tier15], 15-30 RANGE [ranged], 30+ OOR [beyond] | (none) |
+| `shaman` | 0-5 MELEE [melee], 5-30 SHEAR [tier30], 30-40 CAST [ranged], 40+ OOR [beyond] | 0-5 MELEE [melee], 5-20 SHOCK [tier20], 20-30 CAST [ranged], 30+ OOR [beyond] |
+| `mage` | 0-8 CLOSE, 8-40 CAST [ranged], 40+ OOR [beyond] | 0-8 CLOSE, 8-20 BLAST [tier20], 20-30 CAST [tier30], 30-35 LONG [ranged], 35+ OOR [beyond] |
+| `warlock` | 0-8 CLOSE, 8-40 CAST [ranged], 40+ OOR [beyond] | 0-8 CLOSE, 8-20 DRAIN [tier20], 20-30 CAST [ranged], 30+ OOR [beyond] |
+| `monk` | 0-5 MELEE [melee], 5-40 RANGE [ranged], 40+ OOR [beyond] | (none) |
+| `druid` | 0-5 MELEE [melee], 5-13 BASH [tier13], 13-40 RANGE [ranged], 40+ OOR [beyond] | 0-5 MELEE [melee], 5-30 RANGE [ranged], 30+ OOR [beyond] |
+| `demonhunter` | 0-5 MELEE [melee], 5-15 BLADE [tier15], 15-30 RANGE [ranged], 30+ OOR [beyond] | (none) |
+| `evoker` | 0-8 CLOSE, 8-25 CAST [ranged], 25+ OOR [beyond] | (none) |
+
+Class defaults (`NS.BandSetPresets.DefaultFor(classFile, specID)`, the spec from `NS.Compat.PlayerSpecID`): a spec that plays unlike its class comes first, so Devourer (the Demon Hunter's 25 yd Intellect spec, 1480) → `caster40`; then the class's own preset on the running client; a class the client lacks, or an unreadable one → `melee_ranged`. Healer is the friendly override, no class's default. The first-run seed stores the class default, then `ORDER` (`melee_ranged`, `caster40`, `healer`, `hunter`) without it; `NS.BandSets.Create(name, key)` takes any key the client has (`NS.BandSetPresets.CLASS_KEYS`).
 
 **What the load pass repairs.** A member that is not a table, or is stored under a key that is not a
 positive integer, is dropped (a numeric string key is moved to its number); every member is backfilled

@@ -89,7 +89,11 @@ Recipes for the changes made most often here. Each names the real files; run the
 - Edit `defaults/BandSetPresets.lua`: bands are `band(from, to, label, rampColor, rule)`, `to` nil for
   open-ended, colors from `NS.Constants.BAND_RAMP`, `rule` nil for a yard band or one of `spell(role)`,
   `gap()`, `beyond()` (the yards are then the band's fallback). A per-client difference goes in two lists, as
-  `HUNTER_BY_CLIENT` does (clients-§5). A new preset key joins `ORDER`, its name and labels join
+  every `<CLASS>_BY_CLIENT` does (clients-§5). A class preset's band between melee and ranged asks a
+  tier role, `spell("tier10")`: its list goes in that class's `anchors` in `defaults/SpellSeeds.lua`, its
+  name is one of `core/Constants.lua`'s `TIER_ROLES`, its spells reach exactly that many yards and the
+  band ends there (`tools/seeds/seeds.py`'s `tier-reach` and `band-reach` check both). A new generic
+  preset key joins `ORDER`, its name and labels join
   `locales/enUS.lua`, and the table in `docs/schema.md` follows. Presets are copied into a profile
   only on a fresh profile (the seed) or by `NS.BandSets.Create(name, key)`; a stored set is the
   player's and is never rewritten (the one exception is the v1 -> v2 step, which gave every stored

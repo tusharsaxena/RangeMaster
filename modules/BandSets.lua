@@ -31,7 +31,10 @@ local _, NS = ...
 -- and RemoveBand, which can, normalize after the write.
 --
 -- A BAND MAY CARRY A RULE (dynamic-bands plan): `band.rule = { type = "spell", role, spells? }`,
--- `{ type = "gap" }` or `{ type = "beyond" }`; its yards stay, as the band's fallback. Resolve, given
+-- `{ type = "gap" }` or `{ type = "beyond" }`; its yards stay, as the band's fallback. The role is
+-- melee, ranged, friendly or a class's range tier, `tier<N>` (RangeMaster#20; core/Constants.lua
+-- TIER_ROLES): a tier band is a spell band like any other, so a class preset's 5-10 JUDGE band holds
+-- on Judgment's true and reads its yards when the class has no 10 yd list. Resolve, given
 -- the unit, walks the bands in order and takes the first that holds:
 --   a yard band (no rule, or one it cannot read) holds when the bracket falls in its yards;
 --   spell(role) holds on its anchor's true (NS.Range.RoleInRange); on a nil it is a yard band;
@@ -553,8 +556,10 @@ function BandSets.SetBand(id, bandIndex, field, value)
     return true
 end
 
---- The roles a spell rule names (defaults/SpellSeeds.lua's anchor lists).
+--- The roles a spell rule names (defaults/SpellSeeds.lua's anchor lists): the three, and the tier
+--- roles (core/Constants.lua TIER_ROLES, RangeMaster#20).
 local ROLES = { melee = true, ranged = true, friendly = true }
+for _, role in ipairs(NS.Constants.TIER_ROLES) do ROLES[role] = true end
 
 --- A spell override list SetBandRule takes: nil, or a non-empty array of whole spell IDs from 1.
 local function spellList(v)
@@ -659,8 +664,9 @@ function BandSets.Delete(id, reassignTo)
     return true
 end
 
---- The seed routine (the load pass calls it on a profile with no band set): the four presets, the
---- player's class default first, so it is the default set. Announces nothing: no reader is up yet.
+--- The seed routine (the load pass calls it on a profile with no band set): the player's class
+--- default first, so it is the default set (DefaultFor: the class's own preset, RangeMaster#20), then
+--- the generic presets (NS.BandSetPresets.ORDER) it is not. Announces nothing: no reader is up yet.
 --- @return number  how many sets were seeded
 function BandSets.Seed(p)
     if defaultIdOf(p) then return 0 end

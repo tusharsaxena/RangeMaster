@@ -7,7 +7,7 @@ AceDBOptions' table, and `/rm profile [name]` lists profiles or switches to an e
 
 - **Per profile:** everything under `db.profile` (`docs/schema.md`): the Master controls, the skin
   choice, both registries (the containers and the band sets) and the first-run sentinel `seeded`. A
-  new profile starts with no container and the four preset band sets, and is offered the first-run
+  new profile starts with no container, the class's own preset band set and the four generic ones, and is offered the first-run
   preset picker.
 - **Installation-wide:** `db.global` — the schema stamp, the minimap button (`global.minimap`, so a
   profile switch never moves the button) and the one-time skin notice.

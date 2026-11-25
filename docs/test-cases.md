@@ -79,7 +79,7 @@ Total.
 - database: a profile reset re-reads the latch and traces once
 - database: test_template_fill_missing_keys — a stored container gains what a later build added
 - database: the load pass repairs a container whose band set ids name no stored set
-- database: test_first_run_seeds_presets — a fresh profile gets the four sets, class default first
+- database: test_first_run_seeds_presets — a fresh profile gets the class's own set first, then the four
 - database: the load pass normalizes a stored band set and repairs its counter and order
 - database: the active profile was prepared at load
 - database: step 1 writes border opacity 100% and the plain dot onto every stored container, in every profile
@@ -97,7 +97,7 @@ Total.
 - database: step 3 takes back what the retired skin step wrote, in every profile it reached
 - database: the load moves nothing onto the skin
 
-### test_bandsets.lua (24)
+### test_bandsets.lua (27)
 
 - bandsets: test_resolve_by_max — (20, 25) in Melee / Ranged lands in MID 20-30
 - bandsets: test_resolve_by_min — matchBy min reads the near bound
@@ -118,7 +118,10 @@ Total.
 - bandsets: test_for_unit_friendly_override — a friendly unit reads bandSetFriendly when set
 - bandsets: test_hunter_preset_per_client — Forever has the 5-8 dead zone, Retail does not
 - bandsets: the four presets have the spec's shape, every one well formed
-- bandsets: DefaultFor picks a class's preset, and an unknown class gets Melee / Ranged
+- bandsets: every class has its own preset per client, at its DB2 range tiers (RangeMaster#20)
+- bandsets: every rule of a class preset names a role its class has anchors for on that client
+- bandsets: the running client's class presets are the ones Create and the seed take
+- bandsets: DefaultFor picks the class's own preset, and an unknown class gets Melee / Ranged
 - bandsets: SetBandSound writes one band's sound, announces, and refuses a bad set or band
 - bandsets: a restore never rewinds the id counter, so a later Create mints an id never used
 - bandsets: SetBandRule writes a band's rule as a copy, nil makes a yard band, and announces
@@ -164,7 +167,7 @@ Total.
 - presets: test_ka0s_shape — the owner's Ka0s profile: five containers, number + text, any unit
 - presets: test_ka0s_class_set — Ka0s finds the class's own set by name, whichever set is the default
 
-### test_number_format.lua (5)
+### test_number_format.lua (6)
 
 - number: the six formats on the bracket (20, 25)
 - number: an open-ended bracket reads 40+ in every format, never an invented far bound
@@ -380,7 +383,7 @@ Total.
 - compat: ShapeshiftFormID answers the form, nil for none, a secret, a raise or no API
 - compat: the degraded load's anchor reads answer nil
 
-### test_range.lua (57)
+### test_range.lua (59)
 
 - range: test_known_bracket — a 20 to 25 yd answer reads known 20, 25
 - range: the library is asked with no cache of its own (maxCacheAge 0)
@@ -405,8 +408,9 @@ Total.
 - range: Rebuild is debounced to one rebuild after the last call
 - range: a Rebuild asked while stood down arms nothing and runs at the stand-up
 - range: every class seed table is well-formed on both clients
-- range: every class has anchors on both clients, a non-empty ranged role, roles from the three
+- range: every class has anchors on both clients, a non-empty ranged role, roles from the three or the tiers
 - range: the anchors carry the critic's corrections
+- range: no ladder seed is a min-range spell (seed validation, 2026-11-25)
 - range: a rebuild builds no ladder; only a Forever walk does, on first need
 - anchors: a role resolves to its first KNOWN anchor, with the client's name and range
 - anchors: a rank-1 seed resolves to the learned rank, a role with nothing known is nil
@@ -421,6 +425,7 @@ Total.
 - rules: the dead zone holds only when a shorter check confirms the target is near
 - rules: every spell out of range reads OOR, short of beyond's yards too (owner, 2026-11-19)
 - rules: no melee spell (a Forever paladin) still reads OOR once the ranged spell is out
+- rules: a tier band (the Forever paladin's 5-10 JUDGE) asks its tier's spells, between melee and ranged
 - rules: an unlearned anchor falls back to its band's yards, and unknown stays unknown
 - rules: a nil or secret answer is no answer: the yards decide, or unknown
 - rules: yards that contradict a band's own anchor never paint that band
@@ -995,10 +1000,10 @@ Total.
 | test_loadorder.lua | 16 |
 | test_schema.lua | 36 |
 | test_database.lua | 28 |
-| test_bandsets.lua | 24 |
+| test_bandsets.lua | 27 |
 | test_container_manager.lua | 17 |
 | test_presets.lua | 17 |
-| test_number_format.lua | 5 |
+| test_number_format.lua | 6 |
 | test_container_render.lua | 64 |
 | test_anchors_screen.lua | 15 |
 | test_anchors_frame.lua | 18 |
@@ -1008,7 +1013,7 @@ Total.
 | test_visibility.lua | 11 |
 | test_sounds.lua | 12 |
 | test_compat.lua | 14 |
-| test_range.lua | 57 |
+| test_range.lua | 59 |
 | test_ticker.lua | 13 |
 | test_envsetup.lua | 6 |
 | test_coresetup.lua | 8 |
@@ -1050,4 +1055,4 @@ Total.
 | test_skin_switch.lua | 20 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **807** |
+| **Total** | **813** |

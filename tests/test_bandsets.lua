@@ -393,16 +393,145 @@ test("bandsets: the four presets have the spec's shape, every one well formed", 
   end)
 end)
 
-test("bandsets: DefaultFor picks a class's preset, and an unknown class gets Melee / Ranged", function()
+-- The class presets (RangeMaster#20), every class on both clients: labels | rules, band by band. The
+-- tiers are DB2's (SF-RM-01's bundles, docs/seed-research/2026-11-25-*), the yards each band's
+-- fallback. Pinned whole, so a band moved, added or re-ruled is a red here first.
+local CLASS_SHAPES = {
+  retail = {
+    WARRIOR = "MELEE,CLOSE,CHARGE,RANGE,OOR|melee,yards,tier25,ranged,beyond|5,8,25,30",
+    PALADIN = "MELEE,HAMMER,RANGE,OOR|melee,tier10,ranged,beyond|5,10,30",
+    HUNTER = "MELEE,RANGED,OOR|melee,ranged,beyond|5,40",
+    ROGUE = "MELEE,STEP,RANGE,OOR|melee,tier25,ranged,beyond|5,25,30",
+    PRIEST = "CLOSE,CAST,OOR|yards,ranged,beyond|8,40",
+    DEATHKNIGHT = "MELEE,FREEZE,RANGE,OOR|melee,tier15,ranged,beyond|5,15,30",
+    SHAMAN = "MELEE,SHEAR,CAST,OOR|melee,tier30,ranged,beyond|5,30,40",
+    MAGE = "CLOSE,CAST,OOR|yards,ranged,beyond|8,40",
+    WARLOCK = "CLOSE,CAST,OOR|yards,ranged,beyond|8,40",
+    MONK = "MELEE,RANGE,OOR|melee,ranged,beyond|5,40",
+    DRUID = "MELEE,BASH,RANGE,OOR|melee,tier13,ranged,beyond|5,13,40",
+    DEMONHUNTER = "MELEE,BLADE,RANGE,OOR|melee,tier15,ranged,beyond|5,15,30",
+    EVOKER = "CLOSE,CAST,OOR|yards,ranged,beyond|8,25",
+  },
+  forever = {
+    WARRIOR = "MELEE,CLOSE,CHARGE,RANGE,OOR|melee,yards,tier25,ranged,beyond|5,8,25,30",
+    PALADIN = "MELEE,JUDGE,RANGE,OOR|melee,tier10,ranged,beyond|5,10,30",
+    HUNTER = "MELEE,DEAD,RANGE,OOR|melee,gap,ranged,beyond|5,8,35",
+    ROGUE = "MELEE,CLOSE,RANGE,OOR|melee,yards,ranged,beyond|5,8,30",
+    PRIEST = "CLOSE,CAST,OOR|yards,ranged,beyond|8,30",
+    SHAMAN = "MELEE,SHOCK,CAST,OOR|melee,tier20,ranged,beyond|5,20,30",
+    MAGE = "CLOSE,BLAST,CAST,LONG,OOR|yards,tier20,tier30,ranged,beyond|8,20,30,35",
+    WARLOCK = "CLOSE,DRAIN,CAST,OOR|yards,tier20,ranged,beyond|8,20,30",
+    DRUID = "MELEE,RANGE,OOR|melee,ranged,beyond|5,30",
+  },
+}
+
+--- The bands' far edges, the open-ended last one left out.
+local function edges(bands)
+  local out = {}
+  for i = 1, #bands - 1 do out[i] = tostring(bands[i].to) end
+  return table.concat(out, ",")
+end
+
+test("bandsets: every class has its own preset per client, at its DB2 range tiers (RangeMaster#20)", function()
+  -- red under: a class with no preset on a client it exists on, or a preset whose bands moved.
+  local C = NS.Constants
+  for client, shapes in pairs(CLASS_SHAPES) do
+    local n = 0
+    for classFile, want in pairs(shapes) do
+      n = n + 1
+      local where = client .. "." .. classFile
+      local own = P.BY_CLIENT[classFile] and P.BY_CLIENT[classFile][client]
+      assertTrue(type(own) == "table", where .. " has a preset")
+      assertEqual(labels(own.bands) .. "|" .. rules(own.bands) .. "|" .. edges(own.bands), want, where)
+      assertEqual(own.matchBy, "max", where)
+      assertTrue(#own.bands >= 3 and #own.bands <= 5, where .. ": three to five bands")
+      assertEqual(own.bands[1].from, 0, where .. " starts at 0")
+      assertEqual(own.bands[#own.bands].label, "OOR", where .. " ends out of range")
+      for i, b in ipairs(own.bands) do
+        if i > 1 then assertEqual(b.from, own.bands[i - 1].to, where .. ": band " .. i .. " is contiguous") end
+        local role = b.rule and b.rule.type == "spell" and b.rule.role
+        if role and C.TIER_YARDS[role] then
+          assertEqual(b.to, C.TIER_YARDS[role], where .. ": a " .. role .. " band ends at its tier's yards")
+        end
+      end
+    end
+    assertEqual(n, client == "retail" and 13 or 9, client .. ": every class of the client")
+  end
+  for classFile in pairs(CLASS_SHAPES.retail) do
+    if not CLASS_SHAPES.forever[classFile] then
+      assertNil(P.BY_CLIENT[classFile].forever, classFile .. " has no WoW Forever list (no such class there)")
+    end
+  end
+end)
+
+test("bandsets: every rule of a class preset names a role its class has anchors for on that client", function()
+  -- red under: a band asking a tier the class's seed has no list for (it would always read its yards).
+  for client, shapes in pairs(CLASS_SHAPES) do
+    for classFile in pairs(shapes) do
+      local anchors = NS.SpellSeeds[client][classFile].anchors
+      for _, b in ipairs(P.BY_CLIENT[classFile][client].bands) do
+        local role = b.rule and b.rule.type == "spell" and b.rule.role
+        if role then
+          local list = anchors[role]
+          assertTrue(type(list) == "table" and next(list) ~= nil,
+            client .. "." .. classFile .. ": the " .. b.label .. " band's role " .. role .. " has anchors")
+        end
+      end
+    end
+  end
+  -- The Forever paladin's 10 yd tier is the owner's case (2026-11-25): the seal-and-judge spell 20271
+  -- first, Hammer of Justice 853 after it.
+  local tier10 = NS.SpellSeeds.forever.PALADIN.anchors.tier10
+  assertEqual(table.concat(tier10, ","), "20271,853")
+end)
+
+test("bandsets: the running client's class presets are the ones Create and the seed take", function()
+  local client = NS.Compat.ClientKey() == "forever" and "forever" or "retail"
+  local keys = {}
+  for _, key in ipairs(P.CLASS_KEYS) do keys[key] = true end
+  for classFile in pairs(CLASS_SHAPES.retail) do
+    local key = classFile:lower()
+    local own = P.BY_CLIENT[classFile][client]
+    if own then
+      assertTrue(P[key] == own, key .. " is this client's list")
+      assertTrue(keys[key], key .. " is in CLASS_KEYS")
+    else
+      assertNil(P[key], key .. ": no preset on a client without the class")
+      assertNil(keys[key], key .. " is not in CLASS_KEYS")
+    end
+  end
+  assertEqual(#P.CLASS_KEYS, client == "retail" and 13 or 9)
+  withFreshProfile(function()
+    for _, key in ipairs(P.CLASS_KEYS) do
+      local id = B.Create(nil, key)
+      assertTrue(id ~= nil, key .. " creates")
+      assertWellFormed(id)
+      assertEqual(rules(B.Get(id).bands), rules(P[key].bands), key .. ": the stored copy carries the rules")
+      for i, b in ipairs(B.Get(id).bands) do
+        assertTrue(b.rule == nil or b.rule ~= P[key].bands[i].rule, key .. ": a rule is copied, never shared")
+      end
+    end
+    if client == "forever" then assertNil(B.Create(nil, "evoker"), "no Evoker preset on WoW Forever") end
+  end)
+end)
+
+test("bandsets: DefaultFor picks the class's own preset, and an unknown class gets Melee / Ranged", function()
+  for _, key in ipairs(P.CLASS_KEYS) do
+    assertEqual(P.DefaultFor(key:upper()), key, key:upper() .. "'s default is its own preset")
+  end
   assertEqual(P.DefaultFor("HUNTER"), "hunter")
-  assertEqual(P.DefaultFor("MAGE"), "caster40")
-  assertEqual(P.DefaultFor("WARRIOR"), "melee_ranged")
+  assertEqual(P.DefaultFor("PALADIN"), "paladin", "the owner's case: a paladin has its own set (RangeMaster#20)")
   assertEqual(P.DefaultFor(nil), "melee_ranged")
-  -- red under: a class-only pick (Devourer, a 25 yd Intellect spec, got Melee / Ranged; owner 2026-11-19).
-  assertEqual(P.DefaultFor("DEMONHUNTER", 1480), "caster40", "Devourer reads as a caster")
-  assertEqual(P.DefaultFor("DEMONHUNTER", 577), "melee_ranged", "Havoc keeps its class's set")
-  assertEqual(P.DefaultFor("DEMONHUNTER"), "melee_ranged", "no spec answer: the class's set")
   assertEqual(P.DefaultFor("NOT_A_CLASS"), "melee_ranged")
+  if NS.Compat.ClientKey() == "forever" then
+    assertEqual(P.DefaultFor("EVOKER"), "melee_ranged", "a class the client lacks: Melee / Ranged")
+  else
+    -- red under: a class-only pick (Devourer, a 25 yd Intellect spec, got Melee / Ranged; owner 2026-11-19).
+    assertEqual(P.DefaultFor("DEMONHUNTER", 1480), "caster40", "Devourer reads as a caster")
+    assertEqual(P.DefaultFor("DEMONHUNTER", 577), "demonhunter", "Havoc keeps its class's set")
+    assertEqual(P.DefaultFor("DEMONHUNTER"), "demonhunter", "no spec answer: the class's set")
+  end
+  assertEqual(P.DefaultFor("DEMONHUNTER", 1480), "caster40", "the spec override holds on any client")
 end)
 
 test("bandsets: SetBandSound writes one band's sound, announces, and refuses a bad set or band", function()

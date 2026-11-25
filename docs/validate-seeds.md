@@ -29,7 +29,9 @@ against what the addon's code assumes of that id's range, and every disagreement
 | `ladder-min` | `ladder` | `core/Compat.lua`'s `spellRung` adds a rung only for a max range above 0 with **no min range** |
 | `melee-reach` | `anchors.melee` (and the druid's `cat`/`bear`) | no min range, and a reach no farther than `MELEE_REACH_YD` (`modules/Range.lua`; the resolver drops a melee seed past it) |
 | `ranged-reach` | `anchors.ranged` | a reach past `MELEE_REACH_YD` |
-| `band-reach` | each class's `ranged` and `friendly` roles | the longest reach the role has (the anchor `longerFirst` puts first) is the far edge of the band the class's default preset gives that role (`defaults/BandSetPresets.lua`; `friendly` against the Healer preset). Past that reach the anchor says false and `beyond` reads OOR, whatever the band's yards say |
+| `tier-reach` | `anchors.tier<N>` (RangeMaster#20) | the spell reaches exactly N yd: a tier names its yards, and the class preset's band for it ends there |
+| `band-reach` | each class's `ranged`, `friendly` and `tier<N>` roles | the longest reach the role has (the anchor `longerFirst` puts first) is the far edge of the band the class's default preset gives that role (`defaults/BandSetPresets.lua`: the class's own `<CLASS>_BY_CLIENT` list for the flavor, else Melee / Ranged; `friendly` against the Healer preset), and a tier anchor's min range is no farther than its band's near edge (Charge's 8 yd under an 8-25 CHARGE band). Past that reach the anchor says false and `beyond` reads OOR, whatever the band's yards say |
+| `unseeded` | a role the class's default preset asks (key id `0`) | the class has an anchor list for it; a band asking a role with none only ever reads its yards |
 | `gap-fit` | a class whose default preset has a gap band (the Forever hunter) | every min-range ranged anchor's min is the gap's far edge, every melee anchor's reach its near edge, and at least one ranged anchor has a min range (`Range.Near`) |
 
 The chips have no band of their own: a chip is asked "in range?" and shows the answer. The DIFF
@@ -54,9 +56,10 @@ Range Master serves Retail and WoW Forever (the roster's Clients column), so bot
 - **Rulings are data.** They live in `tools/seeds/retail_rulings.json` and
   `tools/seeds/forever_rulings.json`, written only by `seeds.py rule`. A key is
   `shipped:<kind>:<CLASS>.<list>:<id>`; the list is `chips`, `ladder`, `melee`, `melee.cat`,
-  `melee.bear`, `ranged` or `friendly`. An id flag (`unnamed`, `renamed`, `class`, `rank`, `no-range`,
-  `ladder-min`, `melee-reach`, `ranged-reach`) is ruled `keep` or `remove`. A role flag (`band-reach`,
-  `gap-fit`) is ruled `keep`: it is about a preset's yards, which the tool never writes, and a change
+  `melee.bear`, `ranged`, `friendly` or a tier (`tier10`, `tier13`, `tier15`, `tier20`, `tier25`,
+  `tier30`). An id flag (`unnamed`, `renamed`, `class`, `rank`, `no-range`, `ladder-min`, `melee-reach`,
+  `ranged-reach`, `tier-reach`) is ruled `keep` or `remove`. A role flag (`band-reach`, `gap-fit`,
+  `unseeded`) is ruled `keep`: it is about a preset's yards, which the tool never writes, and a change
   there is the owner's. A ruling is never keyed by build: it holds until the thing it ruled on stops
   being proposed.
 - **Precedent, in this order, never re-litigated:**
@@ -216,6 +219,14 @@ and WoW Forever, so the headless suite runs under both kit profiles (clients-§6
 
 ## Notes
 
+- **The tier anchors' first check (RangeMaster#20, 2026-11-25).** The class presets and the `tier<N>`
+  lists came after the two first-run bundles were frozen, so they were checked by a `derive --replay`
+  of those bundles' own `raw/` tables into a scratch copy (the frozen bundles were left as they are):
+  every tier id exists, is its class's, is rank 1 on Forever and reaches its tier's yards; the
+  per-class presets removed the 14 `band-reach` flags the generic presets' 40 yd edges raised (the
+  old rulings stay as provenance), and the one flag left on each flavor is an existing `keep`
+  (Retail's Evoker and Forever's mage `friendly` under Healer). `check` read OK on both. The next
+  run on a new build writes the tiers into its own bundle.
 - **DB2 says the base reach.** A talent (Hawk Eye, Flame Throwing) lengthens a reach the client then
   reports (`docs/smoke-tests.md` RANGE-6), and DB2 knows nothing of it. A `band-reach` flag on a
   class whose talents close the gap is still a flag: the untalented player sees it.

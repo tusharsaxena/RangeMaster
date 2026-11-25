@@ -3,7 +3,7 @@
 ![WoW](https://img.shields.io/badge/WoW-Midnight_12.1.5_and_Forever_1.60.1-purple)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
-![Tests](https://img.shields.io/badge/Tests-807%2F807_passing-green)
+![Tests](https://img.shields.io/badge/Tests-813%2F813_passing-green)
 
 Supports Retail and WoW Forever. Range Master lets you build your own range displays for your
 target, your focus, your pet, whatever is under your mouse, and every enemy nameplate on screen.
@@ -40,7 +40,10 @@ preset asks first, and **Undo last preset** (or `/rm preset undo`) puts them bac
 To build one yourself, open the **Containers** page with `/rm` and press New container. Pick its
 unit, its band set and where it sits, then what it shows. The **Band sets** page holds the distance
 bands every display colors by: what decides each band (a distance, one of your spells, the hunter's
-dead zone or "past every spell"), its name, its colors and an optional sound.
+dead zone or "past every spell"), its name, its colors and an optional sound. Every class starts
+with a band set of its own, on Retail and on WoW Forever, with a band at each range its abilities
+really have: a paladin's 10 yard Hammer of Justice band between melee and ranged, a warrior's
+Charge band, a WoW Forever mage's Fire Blast, Frostbolt and Fireball bands.
 Under Display → Label a display can carry a caption, its own name or any text, above, below or beside
 it, inside its border or outside it, in its own font and color (the presets name each screen display
 above it). From
@@ -77,7 +80,8 @@ Everything else is under Settings → AddOns → Ka0s Range Master, and `/rm hel
 - Each display looks the bracket up in its band set and colors itself by the band it lands in. It
   only redraws when the band or the text changes.
 - A band can instead be defined by a spell: "Auto Shot reaches it" rather than "8 to 35 yards". Range
-  Master then asks the game whether your own spell for that role (melee, ranged or a heal) would
+  Master then asks the game whether your own spell for that role (melee, ranged, a heal, or one of
+  your class's range tiers, such as the 10 yards of a paladin's Hammer of Justice) would
   reach the unit, so the band follows your talents, gear and form. Its yards stay as a fallback for
   when the spell is not learned yet or the game will not answer.
 - When the game will not answer, for example because the unit is out of sight or the value is
@@ -124,7 +128,7 @@ Please file reports there rather than in comments, so nothing gets lost.
 
 | Version | Date | Highlights |
 |---------|------|------------|
-| 0.1.0 | Unreleased | - Range displays for your target, focus, pet, mouseover and every enemy nameplate, each showing a range bracket as a number, a band name, a colored shape and your own spells<br>- Shared band sets with their own colors and sounds, and a separate set for friendly units<br>- Bands that follow your own spells, so range talents, gear and forms move them; saved band sets are converted on first login<br>- Displays free on screen, on Blizzard or EllesmereUI unit frames or any frame you click, on nameplates (every nameplate, or every one but your target's, on the plate or on its cast bar while the unit casts), or at the cursor<br>- Six presets (Simple, two Intermediates for range text or range numbers, Advanced, Expert and Ka0s, the author's own), offered on first run, with Undo<br>- Dot shapes in six styles (plain, matte, glossy, glowing, neon, gem)<br>- An optional caption naming each display, on any side, inside or outside its border, in its own font and color<br>- Visibility by combat, reaction and missing unit<br>- Test mode and Sim mode for placing and checking your displays<br>- Works on Retail and WoW Forever |
+| 0.1.0 | Unreleased | - Range displays for your target, focus, pet, mouseover and every enemy nameplate, each showing a range bracket as a number, a band name, a colored shape and your own spells<br>- Shared band sets with their own colors and sounds, and a separate set for friendly units<br>- Bands that follow your own spells, so range talents, gear and forms move them; saved band sets are converted on first login<br>- Displays free on screen, on Blizzard or EllesmereUI unit frames or any frame you click, on nameplates (every nameplate, or every one but your target's, on the plate or on its cast bar while the unit casts), or at the cursor<br>- Six presets (Simple, two Intermediates for range text or range numbers, Advanced, Expert and Ka0s, the author's own), offered on first run, with Undo<br>- Dot shapes in six styles (plain, matte, glossy, glowing, neon, gem)<br>- An optional caption naming each display, on any side, inside or outside its border, in its own font and color<br>- Visibility by combat, reaction and missing unit<br>- Test mode and Sim mode for placing and checking your displays<br>- A band set for every class on Retail and WoW Forever, with a band at each range its abilities have (a paladin's 10 yard band, a warrior's Charge band)<br>- Works on Retail and WoW Forever |
 
 ## Credits
 
