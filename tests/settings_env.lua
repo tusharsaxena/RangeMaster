@@ -12,7 +12,6 @@ local NS, M = T.NS, T.mocks
 
 local E = {}
 
---- Run `body(p)` on a fresh profile.
 --- The four generic sets an older seed added after the class's own (R4-RM-02 seeds the class's alone,
 --- and leaves a profile that has them as it is): the pages are tested on a profile holding several.
 local function legacySets()
@@ -25,6 +24,7 @@ local function legacySets()
   end
 end
 
+--- Run `body(p)` on a fresh profile.
 function E.with(body)
   local saved = { db = NS.db, popup = M.StaticPopup_Show, combat = M.InCombatLockdown,
     selC = NS.State.selectedContainer, selB = NS.State.selectedBandSet, band = NS.State.selectedBand,
