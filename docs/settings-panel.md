@@ -117,8 +117,9 @@ the set's containers to the default set, and is disabled while the profile has o
 
 **The picker is grouped.** Each group is led by a disabled row in the skin's heading color (AceGUI's
 `SetList` takes one item type, so the groups are rows a click cannot choose). In the open list a group
-row draws three points larger than a set, flush left, on a faint band of that same color (R5-RM-01),
-and the New, Copy bands from and Restore dialogs' dropdowns dress theirs the same way:
+row draws three points larger than a set and flush left, with no band behind it (R5-RM-01; the band
+R5-RM-01 drew in that same color was removed by R6-RM-01), and the New, Copy bands from and Restore
+dialogs' dropdowns dress theirs the same way:
 
 | Group | Rows |
 |---|---|

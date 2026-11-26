@@ -208,7 +208,8 @@ local function editBox(block, text, value, tip)
 end
 
 --- A dropdown of `list`/`order` on `value`; its group rows (`headers`) are disabled and dressed as the
---- page picker's (R5-RM-01), and choosing one anyway puts the value back. `onPick(v)` hears every real choice.
+--- page picker's (R5-RM-01, R6-RM-01), and choosing one anyway puts the value back. `onPick(v)` hears
+--- every real choice.
 local function dropdown(block, text, entries, value, onPick, rel, tip)
     local w = NS.AceGUI:Create("Dropdown")
     w:SetLabel(text)

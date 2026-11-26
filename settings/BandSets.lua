@@ -30,7 +30,8 @@ local _, NS = ...
 -- class color, yours tagged "your class") and "Shipped presets · General" (each in a color of its own,
 -- none a class's: NS.Constants.PRESET_COLORS, R5-RM-03). The group names are
 -- disabled rows (AceGUI's SetItemDisabled), so only a set or a preset can be chosen, and each draws
--- larger, flush left, on a band of the heading color (R5-RM-01, dressHeaders). A preset's key
+-- larger and flush left in the heading color, with nothing behind it (R5-RM-01, R6-RM-01,
+-- dressHeaders). A preset's key
 -- in the list is "preset:<key>"; choosing one VIEWS it (NS.ViewPreset, settings/Schema.lua).
 --
 -- THE ORIGIN LINE: a set made from a preset (`set.origin`, modules/BandSets.lua) says so, and
@@ -549,37 +550,30 @@ local function addHeader(list, order, headers, name, text)
 end
 
 -- A group row's look in the open list (R5-RM-01; the owner, round 5: "Make the category headers more
--- obvious (larger font, background color, etc)"): its text HEADER_GROW points larger than a set's,
--- flush left where a set's check sits, on a band of the heading color at HEADER_BAND_ALPHA. AceGUI
--- pools the pull-out's items for every dropdown in the client, so the dress is undone on the item's
--- next release (its own OnRelease, chained once, as LibKa0s's Skin:OnRelease chains a widget's).
-local HEADER_GROW, HEADER_BAND_ALPHA = 3, 0.22
+-- obvious (larger font, background color, etc)"): its text HEADER_GROW points larger than a set's and
+-- flush left where a set's check sits, in the heading color addHeader gives its text. R5-RM-01's band
+-- of that color behind it is gone (R6-RM-01; the owner, round 6: "remove that yellow band from
+-- headers, looks ugly"), so nothing is drawn on the item's frame. AceGUI pools the pull-out's items
+-- for every dropdown in the client, so the dress is undone on the item's next release (its own
+-- OnRelease, chained once, as LibKa0s's Skin:OnRelease chains a widget's).
+local HEADER_GROW = 3
 local HEADER_TEXT_X, STOCK_TEXT_X = 6, 18   -- AceGUI's ItemBase lays the text 18 px in, past the check
 
---- Put pull-out item `item` back as AceGUI made it: its font, its inset, its band hidden.
+--- Put pull-out item `item` back as AceGUI made it: its font and its inset.
 local function undressHeader(item)
     local st = rawget(item, "rmHeader")
     if not st then return end
     item.rmHeader = nil
     if st.font[1] then item.text:SetFont(st.font[1], st.font[2], st.font[3]) end
     item.text:SetPoint("TOPLEFT", item.frame, "TOPLEFT", STOCK_TEXT_X, 0)
-    if st.band then st.band:Hide() end
 end
 
 --- Dress pull-out item `item` as a group row, and chain its undress onto its next release.
-local function dressHeader(item, r, g, b)
+local function dressHeader(item)
     if rawget(item, "rmHeader") then return end
     local frame, fs = item.frame, item.text
     local path, size, flags = fs:GetFont()
-    local band = frame.rmHeaderBand
-    if not band then
-        band = frame:CreateTexture(nil, "BACKGROUND")
-        band:SetAllPoints()
-        frame.rmHeaderBand = band
-    end
-    band:SetColorTexture(r, g, b, HEADER_BAND_ALPHA)
-    band:Show()
-    item.rmHeader = { font = { path, size, flags }, band = band }
+    item.rmHeader = { font = { path, size, flags } }
     if path and type(size) == "number" then fs:SetFont(path, size + HEADER_GROW, flags) end
     fs:SetPoint("TOPLEFT", frame, "TOPLEFT", HEADER_TEXT_X, 0)
     local had = rawget(item, "OnRelease")
@@ -599,14 +593,12 @@ end
 local function dressHeaders(dd)
     local po = type(dd) == "table" and dd.pullout
     if not (type(po) == "table" and type(po.IterateItems) == "function") then return 0 end
-    local r, g, b = NS.Skin.Color("text.heading")
-    if type(r) ~= "number" then r, g, b = 1, 0.82, 0 end
     local n = 0
     for _, item in po:IterateItems() do
         local ud = type(item) == "table" and item.userdata
         local v = type(ud) == "table" and ud.value
         if type(v) == "string" and v:find(HEADER_KEY, 1, true) == 1 then
-            dressHeader(item, r, g, b)
+            dressHeader(item)
             n = n + 1
         end
     end

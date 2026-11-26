@@ -798,7 +798,7 @@ Total.
 - bandsets: Use this preset and Copy into a set of mine open their dialogs with the preset
 - bandsets: /rm set bandSet.*, /rm reset bandSet.* and Defaults refuse while a preset is viewed; /rm bands ends the view
 - bandsets: the Defaults tooltip points to Restore for the bands
-- bandsets: the picker's group rows draw larger, flush left, on a band of the heading color
+- bandsets: the picker's group rows draw larger and flush left, with no band behind them
 - bandsets: a group row that fails to undress still goes back to AceGUI's pool
 - bandsets: your sets made from a class preset read in that class's color; the rest stay plain
 - bandsets: the general presets read in colors of their own, apart from every class's and each other's
