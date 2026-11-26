@@ -10,7 +10,7 @@ marked as such rather than listed as a requirement.
 | Group | Who needs it | Short answer |
 |---|---|---|
 | Runtime (in-game) | Players | World of Warcraft, Retail (patch 12.1.5) or WoW Forever. Nothing else. |
-| Development | Contributors | Lua **5.1** (+ `luac`), `luacheck`, `lizard`, `git`, `bash`, `~/.claude/dev-copilot/bin/ka0s-bounded` (the dev-copilot plugin), and a POSIX shell with `ls` and `grep`. |
+| Development | Contributors | Lua **5.1** (+ `luac`), `luacheck`, `lizard`, `git`, `bash`, `~/.claude/dev-copilot/bin/ka0s-bounded` (the dev-copilot plugin), `python3` with `pytest` (the seed tool's suite), and a POSIX shell with `ls` and `grep`. |
 | Release / assets | Whoever regenerates the logo | Pillow, by hand, only when the logo art changes. Not needed to build, run or test. |
 
 ## Runtime (in-game) — what a player needs
@@ -120,6 +120,7 @@ python3 -c "import PIL; print(PIL.__version__)"   # verify
 lua tests/run.lua                                     # the suite — must be green
 KA0S_KIT_CLIENT=forever lua tests/run.lua             # the same, as WoW Forever — must be green
 ~/.claude/dev-copilot/bin/ka0s-bounded luacheck .     # must be 0 warnings / 0 errors
+python3 -m pytest -q -p no:cacheprovider tools/seeds  # the seed tool's suite — must pass
 ~/.claude/dev-copilot/bin/ka0s-bounded bash tests/_kit/run-automated-tests.sh --suite complexity --no-bundle
                                                       # the sighted complexity report (release-time); never raw
                                                       # `lizard`, which is blind in Lua (automated-tests-§3)
