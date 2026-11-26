@@ -27,7 +27,8 @@ local _, NS = ...
 --
 -- THE PICKER IS GROUPED: "Your band sets" (the default first, "(default)"; a set that differs from
 -- its preset, "modified"), "Shipped presets · Classes" (every class preset this client has, in its
--- class color, yours tagged "your class") and "Shipped presets · General". The group names are
+-- class color, yours tagged "your class") and "Shipped presets · General" (each in a color of its own,
+-- none a class's: NS.Constants.PRESET_COLORS, R5-RM-03). The group names are
 -- disabled rows (AceGUI's SetItemDisabled), so only a set or a preset can be chosen, and each draws
 -- larger, flush left, on a band of the heading color (R5-RM-01, dressHeaders). A preset's key
 -- in the list is "preset:<key>"; choosing one VIEWS it (NS.ViewPreset, settings/Schema.lua).
@@ -638,8 +639,17 @@ local function addOwnSets(list, order, except)
     return n
 end
 
+--- A general preset's name in its own color (NS.Constants.PRESET_COLORS, R5-RM-03), or plain.
+local function generalColored(key, text)
+    local hex = NS.Constants.PRESET_COLORS[key]
+    if not hex then return text end
+    local c = NS.Constants.HexColor(hex)
+    return colored(text, c.r, c.g, c.b)
+end
+
 --- Every shipped preset into `list` and `order` as "preset:<key>", under two group rows: the class
---- presets in their class colors, yours tagged "your class", then the general ones.
+--- presets in their class colors, yours tagged "your class", then the general ones, each in its own
+--- color.
 local function addPresets(list, order, headers)
     local keys, mine = NS.BandSets.PresetKeys(), yourClassKey()
     addHeader(list, order, headers, "classes", L["Shipped presets \194\183 Classes"])
@@ -650,7 +660,7 @@ local function addPresets(list, order, headers)
     end
     addHeader(list, order, headers, "general", L["Shipped presets \194\183 General"])
     for _, key in ipairs(keys.general) do
-        list[VIEW_PREFIX .. key], order[#order + 1] = presetName(key), VIEW_PREFIX .. key
+        list[VIEW_PREFIX .. key], order[#order + 1] = generalColored(key, presetName(key)), VIEW_PREFIX .. key
     end
 end
 

@@ -518,7 +518,7 @@ test("bandsets: the picker lists your sets, then the class presets, then the gen
     assertTrue(mage:find("(your class)", 1, true) ~= nil, "your class is tagged")
     assertTrue(mage:find("|cff", 1, true) == 1, "in its class color")
     assertNil(list["preset:priest"]:find("(your class)", 1, true), "and only yours")
-    assertNil(list["preset:melee_ranged"]:find("|cff", 1, true), "a general preset takes no class color")
+    assertNil(list["preset:melee_ranged"]:find("(your class)", 1, true), "a general preset is no class's")
   end)
 end)
 
@@ -736,5 +736,35 @@ test("bandsets: your sets made from a class preset read in that class's color; t
     list = NS.__bandSetPickerEntries()
     assertEqual(list[war]:find(P.ClassColored("warrior", "Arms bands"), 1, true), 1,
       "renamed and modified, it keeps its class color: it still came from the Warrior preset")
+  end)
+end)
+
+-- ── R5-RM-03: the general presets wear colors of their own, none a class's (the owner, round 5: "Give
+-- unique non class colors for Shipped Presets") ──
+
+-- The client's class colors (RAID_CLASS_COLORS, Retail's; WoW Forever's classes share these), as hex.
+local CLASS_HEX = { "c69b6d", "f48cba", "aad372", "fff468", "ffffff", "c41e3a", "0070dd", "3fc7eb", "8788ee",
+  "00ff98", "ff7c0a", "a330c9", "33937f" }
+
+test("bandsets: the general presets read in colors of their own, apart from every class's and each other's", function()
+  -- red under: Melee / Ranged, Caster 40 and Healer listed plain.
+  E.with(function()
+    local list = NS.__bandSetPickerEntries()
+    local seen = {}
+    for _, key in ipairs(B.PresetKeys().general) do
+      local text = list["preset:" .. key]
+      local hex = text:match("^|cff(%x%x%x%x%x%x)")
+      assertTrue(hex ~= nil, key .. " is colored")
+      hex = hex:lower()
+      assertEqual(hex, NS.Constants.PRESET_COLORS[key]:lower(), key .. " in its own color")
+      assertTrue(text:find(B.PresetSet(key).name, 1, true) ~= nil, key .. " keeps its name")
+      for _, class in ipairs(CLASS_HEX) do assertTrue(hex ~= class, key .. " is no class's color") end
+      assertNil(seen[hex], key .. " shares no color with another general preset")
+      seen[hex] = true
+    end
+    assertEqual(#B.PresetKeys().general, 3, "Melee / Ranged, Caster 40 and Healer")
+    -- A set of yours made from one stays plain (R5-RM-02: only a class source colors your set).
+    local caster = B.Create(nil, "caster40")
+    assertNil(NS.__bandSetPickerEntries()[caster]:find("|cff", 1, true), "your copy of a general preset is plain")
   end)
 end)

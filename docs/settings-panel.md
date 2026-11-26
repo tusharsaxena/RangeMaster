@@ -124,7 +124,7 @@ and the New, Copy bands from and Restore dialogs' dropdowns dress theirs the sam
 |---|---|
 | Your band sets | every stored set in `bandSetOrder`: on a new profile its creator's set alone, then each set a character is assigned or the player makes (R4-RM-02); this character's assigned set `(default)` (R4-RM-01), one that differs from its preset `· modified`; a set made from a class preset (its `origin`) in that class's color, renamed or modified, any other plain (R5-RM-02) |
 | Shipped presets · Classes | every `CLASS_KEYS` preset this client has (13 on Retail, 9 on WoW Forever, Hunter among them), each in its class color, yours `(your class)` |
-| Shipped presets · General | Melee / Ranged, Caster 40, Healer |
+| Shipped presets · General | Melee / Ranged in lime, Caster 40 in rose, Healer in aqua: colors of their own, none a class's (`NS.Constants.PRESET_COLORS`, R5-RM-03) |
 
 A preset's value is `preset:<key>` (`NS.BandSets.PresetKeys`). Choosing one **views** it
 (`NS.ViewPreset`, session state `NS.State.viewedPreset`, never stored and never a container's set).
