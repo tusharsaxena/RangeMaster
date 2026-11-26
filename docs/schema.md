@@ -191,7 +191,10 @@ the one set (R4-REV). It then never moves by itself, not on a respec, a profile 
 login: **Use for this character** on the Band sets page (`Assign`) changes it (and releases this
 character's `hostile` picks on the set it used until then, so the containers the v5 step pinned to the
 old default follow the new one; a pick on any other set stays), and a delete of the set
-moves it to where the delete moved the containers (the set it names, else the profile's first set). An
+moves it to where the delete moved the containers (the set it names, else the profile's first set),
+except the deleting character's own, which never lands on another class's set: it takes its spec or
+class set, else the first set that is no class's, and the delete's target only when none is left
+(R4-REV). An
 assignment that names no set (a hand edit) is dropped by the load pass, which then assigns afresh. This
 reverses the per-character spec's C3 ("nothing is written back") for the hostile set.
 

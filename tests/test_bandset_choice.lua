@@ -511,6 +511,28 @@ test("bandset assignment: deleting an assigned set moves the assignment, and nev
   end)
 end)
 
+test("bandset assignment: deleting its own set never moves a character onto another class's", function()
+  withAccount(function(acct)
+    acct.login("Pal - Realm", "PALADIN")
+    local paladin, melee = setFrom("paladin"), own("melee_ranged")
+    acct.login("Hunt - Realm", "HUNTER")
+    local hunter = assignedOf(acct, "Hunt - Realm")
+    acct.login("Rogue - Realm", "ROGUE")
+    assertTrue(NS.BandSetChoice.Assign(hunter)) -- the rogue uses the Hunter set too
+    acct.login("Hunt - Realm", "HUNTER")
+    -- The Band sets page's Delete names no target, so the containers move to the first set, Paladin.
+    local name = B.Get(hunter).name
+    assertEqual(NS.DeleteBandSet(hunter), name)
+    assertEqual(assignedOf(acct, "Hunt - Realm"), melee,
+      "red before: the hunter was moved onto the Paladin set")
+    assertEqual(assignedOf(acct, "Rogue - Realm"), paladin,
+      "another character's class is unknown here, so it goes where the containers went")
+    -- With nothing but another class's set left, the delete's target is all there is.
+    B.Delete(melee)
+    assertEqual(assignedOf(acct, "Hunt - Realm"), paladin)
+  end)
+end)
+
 test("bandset assignment: a profile copy copies every character's, a reset or delete forgets them", function()
   withAccount(function(acct)
     acct.login("Pal - Realm", "PALADIN")

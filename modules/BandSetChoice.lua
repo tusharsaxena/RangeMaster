@@ -392,14 +392,31 @@ local function repoint(e, setId, target)
     if e.friendly == setId then e.friendly = target end
 end
 
+--- The deleting character's assignment target: `assignTo` unless that is another class's set; then
+--- its spec or class set, else the first set that is no other class's, and only then `assignTo`.
+local function ownAssignTarget(assignTo)
+    local p = profile()
+    if not (p and type(p.bandSets) == "table") then return assignTo end
+    local spec, own = classKeys()
+    local set = assignTo ~= nil and p.bandSets[assignTo]
+    if set and not otherClass(set.origin, spec, own) then return assignTo end
+    return firstFrom(p, spec) or firstFrom(p, own) or firstOwnable(p, spec, own) or assignTo
+end
+
 --- Band set `setId` was deleted: every character's pick on it, in the active profile, moves to
 --- `target` when one is named, else is cleared (that container then falls back, section 2). Every
 --- character's assignment on it moves to `assignTo` (the set the delete moved the containers to), so a
---- character's next load never re-creates the preset the player deleted (R4-RM-01).
+--- character's next load never re-creates the preset the player deleted (R4-RM-01). The deleting
+--- character's own class is known, so its own assignment never lands on another class's set
+--- (ownAssignTarget; R4-REV, as BSC-REV). Other characters' classes are not stored, so theirs go to
+--- `assignTo`.
 function Choice.Forget(setId, target, assignTo)
     local name = profileName()
+    local mineT = assignedTable(false)
     eachAssigned(function(bsa)
-        if name ~= nil and bsa[name] == setId then bsa[name] = assignTo end
+        if name ~= nil and bsa[name] == setId then
+            bsa[name] = bsa == mineT and ownAssignTarget(assignTo) or assignTo
+        end
     end)
     eachCharacter(function(bsc)
         local t = sub(bsc, name, false)

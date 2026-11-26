@@ -694,7 +694,10 @@ paladin and a hunter, as BANDS-26, on a NEW profile made for the run unless a ch
   assignment) → **Delete…** → Yes. Log onto the hunter → its containers read **Default band set
   (Paladin)**, the first set (the delete moved the assignment where the containers went), no error,
   and Caster 40 is not back in **Your band sets**. Pick **Hunter** → **Use for this character** → the
-  hunter reads Hunter again. Result:
+  hunter reads Hunter again. Still on the hunter, make **Melee / Ranged** yours (Shipped presets ·
+  General → **Use this preset…** → Create), then Band sets → **Hunter** → **Delete…** → Yes → the
+  hunter's containers read **Default band set (Melee / Ranged)**, never Paladin (a character deleting
+  its own set never lands on another class's). Result:
 - **BANDS-36. The Ka0s preset uses the character's set.** On the hunter, rename the Hunter set `My
   bands` (Band sets → General → Name), then General → Presets → **Ka0s** → Apply → the four displays and
   the target plate use `My bands`, no second Hunter set appears, and **Your band sets** gains Healer

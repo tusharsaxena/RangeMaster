@@ -356,8 +356,9 @@ follows the skin.
 - A character's band set is assigned at its first load on a profile, by class, and by spec only for
   Devourer (Caster 40); a later spec change never moves it (R4-RM-01), so a Demon Hunter who respecs
   picks its set with **Use for this character**. A Devourer whose spec the client cannot read at load
-  is assigned at the first event that can. Deleting a set with no replacement named moves every
-  character's assignment on it to the profile's first set, which may be another class's: that
+  is assigned at the first event that can. Deleting a set with no replacement named moves every other
+  character's assignment on it to the profile's first set, which may be another class's (their classes
+  are not stored; the deleting character's own goes to its class set or a generic one): that
   character picks its own again with **Use for this character** (the assignment is never cleared, so
   a deleted class set is never re-created behind the player's back). A profile made before R4-RM-02
   keeps every set the older seed gave it (the owner: "New profiles only").
