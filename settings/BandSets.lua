@@ -610,15 +610,26 @@ local function dressHeaders(dd)
 end
 NS.__dressBandSetHeaders = dressHeaders
 
+--- Whether preset key `origin` is a class's, on either client (BY_CLIENT), so a Retail class's set
+--- opened on WoW Forever still counts; classColored leaves it plain where the client has no color.
+local function fromClass(origin)
+    return type(origin) == "string" and NS.BandSetPresets.BY_CLIENT[origin:upper()] ~= nil
+end
+
 --- The player's sets into `list` and `order`, all but `except`, in order: this character's default
 --- (its class set, else the first that is no other class's; modules/BandSetChoice.lua, spec C5, C10), "(default)"; a
---- set that differs from its preset, "modified". Answers how many it added.
+--- set that differs from its preset, "modified". A set made from a class preset reads in that class's
+--- color, renamed or modified (its `origin`; R5-RM-02, the owner, round 5: "Color code your band sets
+--- which are spawned from a class reset by that class color"); any other set stays plain. Answers how
+--- many it added.
 local function addOwnSets(list, order, except)
     local n = 0
     local default = NS.BandSetChoice.CharacterDefaultId()
     for _, id in ipairs(NS.BandSets.List()) do
         if id ~= except then
-            local text = NS.BandSets.Get(id).name
+            local set = NS.BandSets.Get(id)
+            local text = set.name
+            if fromClass(set.origin) then text = classColored(set.origin, text) end
             if id == default then text = L["%s (default)"]:format(text) end
             if NS.BandSets.IsModified(id) then text = L["%s \194\183 modified"]:format(text) end
             list[id], order[#order + 1], n = text, id, n + 1

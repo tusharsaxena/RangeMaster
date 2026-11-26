@@ -122,7 +122,7 @@ and the New, Copy bands from and Restore dialogs' dropdowns dress theirs the sam
 
 | Group | Rows |
 |---|---|
-| Your band sets | every stored set in `bandSetOrder`: on a new profile its creator's set alone, then each set a character is assigned or the player makes (R4-RM-02); this character's assigned set `(default)` (R4-RM-01), one that differs from its preset `· modified` |
+| Your band sets | every stored set in `bandSetOrder`: on a new profile its creator's set alone, then each set a character is assigned or the player makes (R4-RM-02); this character's assigned set `(default)` (R4-RM-01), one that differs from its preset `· modified`; a set made from a class preset (its `origin`) in that class's color, renamed or modified, any other plain (R5-RM-02) |
 | Shipped presets · Classes | every `CLASS_KEYS` preset this client has (13 on Retail, 9 on WoW Forever, Hunter among them), each in its class color, yours `(your class)` |
 | Shipped presets · General | Melee / Ranged, Caster 40, Healer |
 

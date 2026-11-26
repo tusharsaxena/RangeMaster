@@ -711,3 +711,30 @@ test("bandsets: the picker's group rows draw larger, flush left, on a band of th
     assertTrue(band.shown)
   end)
 end)
+
+-- ── R5-RM-02: a set of yours made from a class preset wears that class's color (the owner, round 5:
+-- "Color code your band sets which are spawned from a class reset by that class color") ──
+
+test("bandsets: your sets made from a class preset read in that class's color; the rest stay plain", function()
+  -- red under: every set of yours plain, whatever preset it came from.
+  E.with(function()
+    local P = NS.BandSetsPage
+    local war = B.Create(nil, "warrior")
+    local caster = B.Create(nil, "caster40")
+    local blank = B.Create("Blank", { { from = 0, label = "ANY" } })
+    local list = NS.__bandSetPickerEntries()
+    local mage = B.DefaultId()
+    assertEqual(B.Get(mage).origin, "mage", "the env's seeded default is the Mage set")
+    assertEqual(list[mage]:find(P.ClassColored("mage", B.Get(mage).name), 1, true), 1,
+      "the default set is in the mage color, its (default) tag after it")
+    assertEqual(list[war], P.ClassColored("warrior", B.Get(war).name), "a set from the Warrior preset is in the warrior color")
+    assertTrue(list[war]:find("|cff", 1, true) == 1)
+    assertNil(list[caster]:find("|cff", 1, true), "a set from a general preset stays plain")
+    assertNil(list[blank]:find("|cff", 1, true), "and so does a set with no preset")
+    B.Rename(war, "Arms bands")
+    B.SetBand(war, 1, "label", "XX")
+    list = NS.__bandSetPickerEntries()
+    assertEqual(list[war]:find(P.ClassColored("warrior", "Arms bands"), 1, true), 1,
+      "renamed and modified, it keeps its class color: it still came from the Warrior preset")
+  end)
+end)
