@@ -14,7 +14,7 @@ local _, NS = ...
 --   NS.BandSets.SetBandRule(id, bandIndex, rule?) -> boolean   one band's rule (nil: a yard band)
 --   NS.BandSets.AddBand(id) -> index, RemoveBand(id, bandIndex) -> boolean
 --   NS.BandSets.Resolve(setId, state, minYd, maxYd, unit?) -> bandIndex | "unknown" | nil (state "none")
---   NS.BandSets.ForUnit(container, unit) -> setId
+--   NS.BandSets.ForUnit(container, unit, id?) -> setId   this character's (modules/BandSetChoice.lua)
 --   NS.BandSets.ConvertSet(set, friendly?) -> set       the v1 -> v2 step's band rules (core/Database.lua)
 --   NS.BandSets.Snapshot() -> snap, RestoreSnapshot(snap) -> boolean   the registry whole, for an Undo
 --   NS.BandSets.PresetKeys() -> { classes = { key, ... }, general = { key, ... } }   each preset once
@@ -87,6 +87,7 @@ end
 local function copy(v) return NS.Database.DeepCopy(v) end
 
 local function announce()
+    if NS.BandSetChoice and NS.BandSetChoice.Invalidate then NS.BandSetChoice.Invalidate() end
     NS.bus:SendMessage(NS.MSG.BANDSETS_CHANGED)
 end
 
@@ -398,15 +399,23 @@ function BandSets.Resolve(setId, state, minYd, maxYd, unit)
     return resolveRules(set.bands, pick, state, minYd, maxYd, unit)
 end
 
---- The set a container uses for `unit`: its friendly override when one is set, exists and the client
---- says the unit is friendly; else its own set when that exists; else the default.
-function BandSets.ForUnit(container, unit)
-    local p = profile()
-    local sets = p and p.bandSets or {}
-    local friendly = container.bandSetFriendly
-    if friendly ~= nil and sets[friendly] and NS.Compat.IsFriend(unit) == true then return friendly end
-    if container.bandSet ~= nil and sets[container.bandSet] then return container.bandSet end
-    return BandSets.DefaultId()
+--- The set container `container` (id `id`) uses for `unit`: its friendly override when one applies and
+--- the client says the unit is friendly; else its own set. Both are this character's
+--- (modules/BandSetChoice.lua: the character's pick, its class default, the profile's field, the
+--- default set). Without `id`, or without a character store, the profile's fields alone, as before.
+function BandSets.ForUnit(container, unit, id)
+    local Choice = NS.BandSetChoice
+    if id == nil or not (Choice and Choice.HasStore()) then
+        local p = profile()
+        local sets = p and p.bandSets or {}
+        local friendly = container.bandSetFriendly
+        if friendly ~= nil and sets[friendly] and NS.Compat.IsFriend(unit) == true then return friendly end
+        if container.bandSet ~= nil and sets[container.bandSet] then return container.bandSet end
+        return BandSets.DefaultId()
+    end
+    local friendly = Choice.Friendly(id, container)
+    if friendly ~= nil and NS.Compat.IsFriend(unit) == true then return friendly end
+    return Choice.Hostile(id, container)
 end
 
 -- ---------------------------------------------------------------------------
@@ -691,6 +700,8 @@ function BandSets.Delete(id, reassignTo)
     end
     local named = reassignTo ~= nil and reassignTo ~= id and p.bandSets[reassignTo] ~= nil
     reassign(id, named and reassignTo or defaultIdOf(p), named)
+    -- Every character's pick on it (modules/BandSetChoice.lua) moves with the named set, else clears.
+    if NS.BandSetChoice then NS.BandSetChoice.Forget(id, named and reassignTo or nil) end
     announce()
     return true
 end

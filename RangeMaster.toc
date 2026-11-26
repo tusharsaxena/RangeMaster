@@ -96,6 +96,7 @@ defaults\BandSetPresets.lua
 # Conventional: the band-set registry's writer, Resolve and ForUnit; the db, the presets and the bus
 # are reached at call time (the load pass calls Seed and NormalizeSet from OnInitialize).
 modules\BandSets.lua
+modules\BandSetChoice.lua
 # LOAD-BEARING: before modules\Ticker.lua, whose tick reads NS.Range; captures NS.Perf and
 # LibRangeCheck-3.0 at load.
 modules\Range.lua

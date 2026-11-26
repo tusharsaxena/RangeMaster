@@ -121,8 +121,8 @@ the template holds nil:
 
 | Path | Reads / writes | Why |
 |---|---|---|
-| `container.bandSet` | `0` = the default band set | the template's `nil` is filled with `DefaultId()` on create and on load |
-| `container.bandSetFriendly` | `0` = none (`nil` stored) | nil uses `bandSet` for every reaction |
+| `container.bandSet` | `0` = no pick: this character's default (`db.char`, above the global store) | this character's pick, not the profile field; without a character scope the profile field, whose `nil` is filled with `DefaultId()` on create and on load |
+| `container.bandSetFriendly` | `0` = Same as Band set (`false` stored as this character's pick) | with no pick the row shows the profile's `bandSetFriendly`; nil uses `bandSet` for every reaction |
 | `container.elements.number.font`, `container.elements.text.font`, `container.label.font` | `Skin` = `""` stored | `""` is the skin's face (`modules/Style.lua`) |
 | `container.frame.border.texture` | `Solid` = `""` stored | `""` draws the solid edge strips |
 
@@ -166,6 +166,32 @@ Band color and Class color come ahead of every color companion: the band color i
 meaning (the owner's U-30 of 2026-11-20) and a class color is the unit's. The faces take no
 companion: `font = ""` is already the skin's face. A stored container moves once (Migrations, below).
 
+## The character store (`db.char`)
+
+AceDB's character scope holds one thing: each character's band set picks (`modules/BandSetChoice.lua`,
+the store's one runtime writer; spec `docs/superpowers/specs/2026-11-26-band-set-per-character-design.md`).
+There are no defaults: an absent key is "no pick".
+
+| Key | Shape | Notes |
+|---|---|---|
+| `bandSetChoice[<profile name>][<container id>].hostile` | a set id, or absent | this character's Band set for that container; absent: no pick |
+| `bandSetChoice[<profile name>][<container id>].friendly` | a set id, `false`, or absent | a set id is the Friendly band set; `false` is Same as Band set; absent: the profile's `bandSetFriendly` |
+
+The profile's name comes first because container ids repeat across profiles. **Which set a container
+uses.** Hostile: this character's pick; else this character's class default, the first set in
+`bandSetOrder` whose `origin` is `DefaultFor(class, spec)`, else `DefaultFor(class)`; else the
+container's `bandSet`, unless its `origin` is another class's preset; else the first set in the order
+that is not another class's preset (a rogue on a profile a paladin seeded gets Melee / Ranged, never
+the Paladin set); else the default set. "(default)" on the Band sets page is the same chain without a
+container. Friendly: this character's pick (`false`: the hostile set);
+else the container's `bandSetFriendly`; else the hostile set. Nothing is written back. A band set
+delete clears every character's picks on it, or moves them to the set the delete names. Every
+character's store is reached through `db.sv.char`. A container copy or duplicate copies the picks. A
+profile copy carries them to the new profile's name, and a profile reset or delete forgets them. The
+load pass (`NS:RunMigrations`, after `PrepareProfile`) drops the current character's picks that name a
+container or a set that no longer exists. Without a character scope (the no-AceDB fallback) the
+container's two fields are the selection, as before.
+
 ## The global store (`db.global`)
 
 | Key | Default | Notes |
@@ -184,7 +210,7 @@ the band sets' one-level Undo slot (`settings/BandSetDialogs.lua`, dropped on a 
 
 ## Migrations
 
-`core/Database.lua`'s ladder has four steps, so `NS.SCHEMA_VERSION` is 4 (the declared default stays 0).
+`core/Database.lua`'s ladder has five steps, so `NS.SCHEMA_VERSION` is 5 (the declared default stays 0).
 **v0 -> v1, the frame defaults:** a new container draws its border at 25% (`frame.border.alpha`, new)
 over a background (`frame.background.enabled` now true) with a matte dot; so that an existing one keeps
 its look, the step writes `frame.border.alpha = 1`, `frame.background.enabled = false` and
@@ -226,3 +252,14 @@ is cleared. A profile without the record is untouched.
 already has an origin, a renamed set, and a name two presets share are left alone, so the step is
 idempotent. A fresh install climbs it against a profile with no band set; the seed then stores each
 set's origin itself.
+
+**Step 5, band set picks per character** (the owner, 2026-11-26). The character that loads first after
+the update gets, for every container of every stored profile, the container's `bandSet` as its own
+`db.char.bandSetChoice` pick, where it has none. The exception is a set whose `origin` is another
+class's preset, which is not pinned. The paladin keeps its Paladin set, and a hunter that loads first
+still gets the Hunter set. `bandSetFriendly` is not copied, because an absent friendly pick already
+reads it. Characters that load later have no pick and use their class default. Without a character
+scope the step changes nothing. **A known trade-off:** data from before step 5 does not record which
+character chose a set, so a generic set (Caster 40, say) is pinned on whichever character loads first.
+If the paladin chose Caster 40 and the hunter loads first, the hunter keeps Caster 40 and the paladin
+reads its Paladin set until it picks again.

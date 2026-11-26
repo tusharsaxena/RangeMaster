@@ -167,6 +167,8 @@ function NS:InitDB()
             NS.db.RegisterCallback(NS, "OnProfileChanged", function() NS.OnProfileChanged() end)
             NS.db.RegisterCallback(NS, "OnProfileCopied", function(_, _, source) NS.OnProfileCopied(source) end)
             NS.db.RegisterCallback(NS, "OnProfileReset", function() NS.OnProfileReset() end)
+            -- A deleted profile's per-character band set picks go with it (modules/BandSetChoice.lua).
+            NS.db.RegisterCallback(NS, "OnProfileDeleted", function(_, _, name) NS.OnProfileDeleted(name) end)
             -- Before a switch and before SavedVariables are written: a preset preview goes back.
             NS.db.RegisterCallback(NS, "OnProfileShutdown", function() NS.OnProfileShutdown() end)
             NS.db.RegisterCallback(NS, "OnDatabaseShutdown", function() NS.OnProfileShutdown() end)
@@ -383,6 +385,9 @@ local SCHEMA_STEPS = {
     { to = 2, apply = convertBandRules },
     { to = 3, apply = restoreOwnLooks },
     { to = 4, apply = backfillOrigins },
+    -- v4 -> v5, the band set a container uses is the character's own (spec 2026-11-26, C7): the
+    -- loading character keeps each container's set as its own pick, unless it is another class's.
+    { to = 5, apply = function(db) NS.BandSetChoice.Migrate(db) end },
 }
 
 --- The runner's target: the highest step's `to`, or 0 with no step.
@@ -420,5 +425,6 @@ function NS:RunMigrations()
     if type(NS.db.profile) == "table" then
         Database.Backfill(NS.db.profile, NS.defaults.profile)
         Database.PrepareProfile(NS.db.profile)
+        if NS.BandSetChoice then NS.BandSetChoice.Prepare() end
     end
 end

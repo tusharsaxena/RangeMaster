@@ -648,7 +648,8 @@ local function tileTint(c)
     local el = c.elements.indicator
     local col = el.color
     if el.colorMode == "band" then
-        local set = NS.BandSets and NS.BandSets.Get and NS.BandSets.Get(c.bandSet or NS.BandSets.DefaultId())
+        local _, cid = NS.SelectedContainer()
+        local set = NS.BandSets and NS.BandSets.Get and NS.BandSets.Get(NS.BandSetChoice.Hostile(cid, c))
         local band = set and set.bands and set.bands[1]
         col = (band and band.indicatorColor) or col
     end

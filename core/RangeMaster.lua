@@ -214,6 +214,8 @@ function addon:OnAddonLoaded(_, name)
 end
 
 function addon:OnSpellsChanged()
+    -- A respec can move this character's class default band set (Devourer, modules/BandSetChoice.lua).
+    if NS.BandSetChoice then NS.BandSetChoice.Invalidate() end
     NS.Range.Rebuild()
 end
 
@@ -397,6 +399,8 @@ end
 function NS.OnProfileReset()
     -- The profile was replaced whole: a preset preview in it is dropped, not restored over it.
     if NS.HidePresetPicker then NS.HidePresetPicker(true) end
+    -- Its containers and band sets are new, so every character's picks for it are forgotten.
+    if NS.BandSetChoice then NS.BandSetChoice.ForgetProfile(currentProfile()) end
     local n = NS.ConsumeResetCount and NS.ConsumeResetCount()
     if n then
         adoptProfile("Set", "reset profile '%s' to defaults (%s rows)", currentProfile(), n)
@@ -405,7 +409,14 @@ function NS.OnProfileReset()
     end
 end
 
+--- AceDB's OnProfileDeleted: every character's band set picks for that profile are forgotten.
+function NS.OnProfileDeleted(name)
+    if NS.BandSetChoice then NS.BandSetChoice.ForgetProfile(name) end
+end
+
 function NS.OnProfileCopied(source)
     if NS.HidePresetPicker then NS.HidePresetPicker(true) end
+    -- The source's containers and band sets came across with their ids, so the picks come too.
+    if NS.BandSetChoice then NS.BandSetChoice.CopyProfile(source, currentProfile()) end
     adoptProfile("Set", "copied profile '%s' -> '%s'", tostring(source or "?"), currentProfile())
 end

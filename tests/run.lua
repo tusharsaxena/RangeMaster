@@ -278,6 +278,7 @@ Kit.run{
     "test_schema",
     "test_database",
     "test_bandsets",
+    "test_bandset_choice",
     "test_container_manager",
     "test_presets",
     "test_number_format",

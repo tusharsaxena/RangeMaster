@@ -14,15 +14,16 @@ test("database: the account-wide schemaVersion default is 0 (savedvariables-§1)
   assertEqual(NS.defaults.global.schemaVersion, 0)
 end)
 
-test("database: the ladder holds four steps, v0 -> v1 (the frame defaults), v1 -> v2 (band rules), v2 -> v3 (own looks) and v3 -> v4 (band set origins), and a fresh install is stamped 4", function()
+test("database: the ladder holds five steps, v0 -> v1 (the frame defaults), v1 -> v2 (band rules), v2 -> v3 (own looks), v3 -> v4 (band set origins) and v4 -> v5 (per-character band sets), and a fresh install is stamped 5", function()
   -- Red under the v0.1.0 ladder, which was empty with a target of 0, and under the three-step ladder.
-  assertEqual(#NS.__migrationSteps, 4, "four steps")
+  assertEqual(#NS.__migrationSteps, 5, "five steps")
   assertEqual(NS.__migrationSteps[1].to, 1, "the first step climbs to v1")
   assertEqual(NS.__migrationSteps[2].to, 2, "the second step climbs to v2")
   assertEqual(NS.__migrationSteps[3].to, 3, "the third step climbs to v3")
   assertEqual(NS.__migrationSteps[4].to, 4, "the fourth step climbs to v4")
-  assertEqual(NS.SCHEMA_VERSION, 4, "the runner's target is the highest step's `to`")
-  assertEqual(NS.db.global.schemaVersion, 4, "a fresh install is stamped at the target")
+  assertEqual(NS.__migrationSteps[5].to, 5, "the fifth step climbs to v5 (tests/test_bandset_choice.lua)")
+  assertEqual(NS.SCHEMA_VERSION, 5, "the runner's target is the highest step's `to`")
+  assertEqual(NS.db.global.schemaVersion, 5, "a fresh install is stamped at the target")
 end)
 
 test("database: RunMigrations is a safe no-op when the DB is absent", function()
@@ -47,7 +48,7 @@ test("database: the runner climbs every step, stamps each, and is idempotent", f
   g.schemaVersion = NS.SCHEMA_VERSION
   assertTrue(ok, tostring(err))
   assertEqual(table.concat(ran, ","), "1,2", "each step ran once, in order")
-  assertEqual(stamp, 4, "the stamp advanced past each step")
+  assertEqual(stamp, 5, "the stamp advanced past each step")
 end)
 
 test("database: a step that raises leaves the stamp unmoved and says so once in chat", function()
@@ -697,7 +698,7 @@ end)
 test("database: step 4 through the runner from v3, then a fresh profile's seed carries its origins", function()
   local p = { bandSets = { [1] = v3Set(NS.BandSetPresets.caster40.name) }, bandSetOrder = { 1 }, nextBandSetId = 2 }
   migrate({ profile = p, global = { schemaVersion = 3 } }, function(db)
-    assertEqual(db.global.schemaVersion, 4, "stamped at v4")
+    assertEqual(db.global.schemaVersion, 5, "stamped at v5, the ladder's top")
   end)
   assertEqual(p.bandSets[1].origin, "caster40", "the climb from v3 runs step 4")
   local fresh = {}

@@ -24,7 +24,7 @@ unless a check names one. The anchors are run as a matrix, one result per mode a
 | RANGE-1..21 | Range engine | brackets, unknown, the Forever ladder, the ticker's rate and stop, the seed spells; the anchor probes: reported ranges under talents, rank IDs, the talent event, overrides, Auto Shot unarmed; the seed-validation ladder changes |
 | DRAW-1..12 | Containers drawn | brackets drawn, unknown gray, elements and order, the skin face, disable, the Bar dot's border and gloss, Fixed colors, outline and shadow, the border and the spell chips following the skin, Class mode in test mode, High Contrast's HUD shadow |
 | CONT-1..14 | Containers page | New container (no band preview), the rail, Position, Duplicate / Delete / Copy settings from, Defaults, Color from, the Dot tab and its Style tiles, Border opacity, the caption's positions, the caption's styling, one line, the skin companion rows, the Style tiles' Scope, the frame picker's label |
-| BANDS-1..25 | Band sets page | the picker, the Bands editor (no band ribbon), shared sets, the friendly override, the unknown label; spell bands: the rule controls, the read-out, the owner's Hawk Eye case, the dead zone, the v1 -> v2 conversion, the band rail; every class's own set per client, the tier roles, an old profile kept; the band set manager: Delete in the header, Add and Remove band side by side, every class preset listed, New from a preset, modified and Restore, Copy bands from, a preset read-only, Undo |
+| BANDS-1..30 | Band sets page | the picker, the Bands editor (no band ribbon), shared sets, the friendly override, the unknown label; spell bands: the rule controls, the read-out, the owner's Hawk Eye case, the dead zone, the v1 -> v2 conversion, the band rail; every class's own set per client, the tier roles, an old profile kept; the band set manager: Delete in the header, Add and Remove band side by side, every class preset listed, New from a preset, modified and Restore, Copy bands from, a preset read-only, Undo; the band set per character: two characters on one profile, a character's class default and "(default)", the upgrade, a deleted set, the friendly pick |
 | PRESET-1..5 | Presets | the first-run picker, Apply on an empty profile, Apply over containers with Undo, what each of the six shows, the dropdown's selected row |
 | ANCHOR-1..13 | Anchors | every mode on both clients: screen, unit frames (Blizzard, EllesmereUI, custom, missing), own nameplate, all nameplates, cursor, the picker, all nameplates except target, the drag strip's marks, the cast bar part, Frame strata and Frame level on a plate, the preview nameplate, the drag strip's right-click |
 | VIS-1..3 | Visibility | combat and reaction rules, out-of-combat opacity, the master rows |
@@ -627,6 +627,42 @@ check names Paladin, use your own class's set and preset.
   set, delete it, then `/rm bands undo` → `Nothing to undo: that band set has been deleted since.`
   Switch profile after a copy → `/rm bands undo` has nothing to undo, and an open dialog closed. Result: PASS (owner, 2026-11-25)
 
+BANDS-26 to BANDS-30 are the band set per character (the owner's report of 2026-11-26;
+`docs/superpowers/specs/2026-11-26-band-set-per-character-design.md`). Run them with two characters of
+different classes, for example a paladin and a hunter, on one profile (Profiles → both on **Default**).
+
+- **BANDS-26. Two characters keep their own pick** ("Band set selection for a single Ace3 profile
+  should be tied to the character you are on"). On the paladin, Containers → a container → General →
+  **Band set** → pick **Caster 40**. Log out and onto the hunter on the same profile, then open the same
+  container. **Band set** reads **Default band set (Hunter)**, and the display draws the Hunter set's
+  bands. Pick **Healer** there. Log back onto the paladin. **Band set** still reads **Caster 40**.
+  `/rm get container.bandSet` on each character prints its own pick. Result: not run
+- **BANDS-27. A character's own class set is its default.** On the hunter, set **Band set** to
+  **Default band set (Hunter)** → the display uses the Hunter set. Band sets → the picker marks
+  **Hunter (default)**. On the paladin it marks **Paladin (default)** on the same profile. A class whose
+  set this profile lacks (a third character, for example a rogue or a mage on the paladin's profile)
+  reads **Default band set (Melee / Ranged)**, never Paladin, and the Band sets picker marks
+  **Melee / Ranged (default)**. A container whose own set is a generic one (Caster 40) reads **Default
+  band set (Caster 40)** there. Result: not run
+- **BANDS-28. The upgrade keeps your pick.** Before updating, note each container's Band set on the
+  character you play most. Update, then log in on that character first → every container still reads the
+  set you noted. If it was another class's set (the Paladin set on a hunter), it reads **Default band
+  set (Hunter)** instead. Then log in on a second character of another class → its containers on the
+  first character's class set read its own class set. Known trade-off: a generic set (Caster 40) chosen
+  before the update goes to whichever character logs in first; if that is not the character that chose
+  it, the chooser reads its own class set and has to pick Caster 40 again. Result: not run
+- **BANDS-29. A deleted set falls back on every character.** On the paladin, pick a set of your own
+  (**New…** → Melee / Ranged, named `Test`) as a container's Band set; do the same on the hunter. On
+  the paladin, Band sets → `Test` → **Delete…** → Yes → the container reads **Default band set
+  (Paladin)**. Before deleting, the General tab's Used by line on the paladin ends **1 other
+  character(s)**: the hunter's pick, which the delete clears too. Log onto the hunter → it reads
+  **Default band set (Hunter)**, with no error. Result: not run
+- **BANDS-30. The Friendly band set is the character's.** Apply the **Expert** preset on the paladin →
+  **Friendly band set** reads **Healer**. On the hunter, set **Friendly band set** to **Same as Band
+  set** → a friendly target draws the hunter's Band set. Log onto the paladin → **Friendly band set**
+  still reads **Healer**. Profiles → copy **Default** into a new profile on the hunter → its picks come
+  along. Reset that profile → its displays read the defaults, with no error. Result: not run
+
 ## Presets
 
 - **PRESET-1. First-run picker.** On a new profile the **Choose a preset** window opens above the
@@ -857,4 +893,5 @@ Set the rules on Containers → Visibility.
 | BANDS-12..17 | the class band sets (Ka0sAddonsCommonTasks `docs/2026-11-25-SEEDS_AND_FOREVERDB/`, SF-RM-02; RangeMaster#20), 2026-11-25 | every class's own preset per client and the tier roles (`tier10` to `tier30`) have not been seen in a client yet: whether each tier spell answers as DB2 says, and the walk steps through each set's bands. The owner plays at least the WoW Forever Paladin and Hunter. BANDS-12 to BANDS-14 passed on WoW Forever, BANDS-15 on Retail, and BANDS-16 and BANDS-17 on both clients, the owner, 2026-11-25. |
 | RANGE-19..21 | the first seed validation (Ka0sAddonsCommonTasks `docs/2026-11-25-SEEDS_AND_FOREVERDB/`, SF-RM-01), 2026-11-25 | Throw 2764 out of the Forever warrior's and rogue's ladders and Heroic Throw 57755 out of the Retail warrior's, each a min-range spell DB2 says could never be a rung: whether the client reports that min range and the brackets are unchanged. RANGE-19 and RANGE-20 passed on WoW Forever and RANGE-21 on Retail, the owner, 2026-11-25. |
 | BANDS-18..25 | the band set manager (branch feat/2026-11-25-band-set-manager, BS-01 to BS-04; RangeMaster#21), 2026-11-25 | the header row, the grouped picker, the origin line, the read-only preset view, the three dialogs, Add band beside Remove band and `/rm bands undo` have not been seen in a client yet. Passed, the owner, 2026-11-25. |
+| BANDS-26..30 | the band set per character (branch feat/2026-11-26-band-set-per-character, BSC-1; the owner's report of 2026-11-26) | each character's own Band set and Friendly band set on a shared profile, the class default and "(default)", the v5 upgrade, a deleted set and a profile copy and reset have not been seen in a client yet |
 | BANDS-1, BANDS-2, BANDS-11 (amended) | the band set manager (RangeMaster#21), 2026-11-25 | wherever these name **New band set**, **Duplicate band set** or **Delete band set…** on the General tab, or Remove band among a band's controls, BANDS-18, BANDS-19 and BANDS-21 supersede them: the acts are in the header as New…, Duplicate and Delete…, and Remove band sits beside Add band under the rail |

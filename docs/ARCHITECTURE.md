@@ -33,6 +33,7 @@ change. A secret or failed answer reads as *unknown*, never as out of range.
 | Component | Files | What it does |
 |---|---|---|
 | Range engine | `modules/Range.lua` (`NS.Range`), `modules/Ticker.lua` (`NS.Ticker`), `core/Compat.lua` | A guarded, memoized bracket per unit token per tick; the per-class anchor spells resolved at rebuild and asked once per spell per unit per tick (shared with the chips); one adaptive ticker that sends `RANGE_UPDATED` on change |
+| Band set picks | `modules/BandSetChoice.lua` (`NS.BandSetChoice`) | Each character's own Band set and Friendly band set per container, in `db.char`; with no pick, the character's class default set (by `origin`), then the container's profile field unless it is another class's set, then the first set that is no other class's |
 | Band sets | `modules/BandSets.lua` (`NS.BandSets`), `defaults/BandSetPresets.lua` | Named, shared, normalized bands of yards, each of which may carry a spell, dead-zone or beyond rule (its yards then the fallback); `Resolve` turns a bracket into a band, `ForUnit` picks the friendly override; a set remembers the preset it came from (`origin`), so `Diff`, `RestorePreset` and `CopyFrom` can compare with it, restore it or copy from it |
 | Containers and presets | `modules/ContainerManager.lua` (`NS.CM`), `modules/Presets.lua` (`NS.Presets`) | The container registry's one writer and its coalesced, combat-held apply; Simple, Intermediate (Range Text), Intermediate (Range Numbers), Advanced, Expert and Ka0s, with a one-level Undo |
 | Rendering | `modules/Container.lua` (`NS.Container`), `modules/Style.lua`, `modules/Elements_*.lua` | One pooled instance per enabled container (one per plate for `nameplates` and `nameplatesExceptTarget`), repainted only on a band or text change |
@@ -114,6 +115,10 @@ template, rebuilds each order array, bumps each counter past the highest stored 
 band set, seeds the class's own preset band set and the four generic ones on a profile with none, points a container at the default
 set when its `bandSet` names none, and sets `seeded` to `false` when absent.
 
+- **Band set picks** (`db.char`, not the profile): `bandSetChoice[<profile>][<container id>]`. Runtime
+  writer `modules/BandSetChoice.lua` (`Set`, `Forget`, `CopyContainer`, `CopyProfile`, `ForgetProfile`,
+  `Prepare`, and schema v5's `Migrate`). It holds the Band set and Friendly band set each character picked.
+  `NS.BandSets.ForUnit(container, unit, id)` reads them (`docs/schema.md`, The character store).
 - **Band sets**: `bandSets`, `bandSetOrder`, `nextBandSetId`. Runtime writer `modules/BandSets.lua`
   (`Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`, `SetBandSound`, `SetBandRule`, `RestorePreset`, `CopyFrom`,
   `RestoreSnapshot`); its
@@ -121,7 +126,8 @@ set when its `bandSet` names none, and sets `seeded` to `false` when absent.
   per-set repair `BandSets.NormalizeSet` are shared with the load pass, and its v1 -> v2 conversion
   `BandSets.ConvertSet` with the migration ladder (`docs/schema.md`). `Delete` also moves the
   `bandSet` / `bandSetFriendly` references of the containers that used the deleted set, through the
-  container registry's writer `NS.CM.SetField` (architecture-§5). The Band
+  container registry's writer `NS.CM.SetField` (architecture-§5), and clears or moves every character's
+  pick on it through `NS.BandSetChoice.Forget`. The Band
   sets page writes through `SetField` (match rule, unknown label and color), `SetBand` (an edge, a
   label, a color; an edge that would leave a band without width is refused), `AddBand` and
   `RemoveBand`, each normalizing after the write, and `SetBandRule` (a band's rule: Defined by, Role,

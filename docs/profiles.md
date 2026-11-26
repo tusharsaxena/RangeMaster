@@ -9,6 +9,10 @@ AceDBOptions' table, and `/rm profile [name]` lists profiles or switches to an e
   choice, both registries (the containers and the band sets) and the first-run sentinel `seeded`. A
   new profile starts with no container, the class's own preset band set and the four generic ones, and is offered the first-run
   preset picker.
+- **Per character, within each profile:** `db.char.bandSetChoice`, which holds the Band set and
+  Friendly band set each character picked for each container (`modules/BandSetChoice.lua`,
+  `docs/schema.md` The character store). A profile copy carries every character's picks to the new
+  profile, and a reset or a delete forgets them (`OnProfileDeleted`).
 - **Installation-wide:** `db.global` — the schema stamp, the minimap button (`global.minimap`, so a
   profile switch never moves the button) and the one-time skin notice.
 - **Session only:** the debug flag, Test mode, Sim mode, the selected container and band set, and

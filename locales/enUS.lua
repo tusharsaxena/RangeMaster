@@ -519,6 +519,7 @@ L["Delete the band set '%s'? The containers using it move to the default band se
 L["Deleted band set '%s'."] = "Deleted band set '%s'."
 L["The last band set cannot be deleted."] = "The last band set cannot be deleted."
 L["Used by: %s"] = "Used by: %s"
+L["%d other character(s)"] = "%d other character(s)"
 L["No container uses this band set."] = "No container uses this band set."
 L["Make a copy of this band set to edit."] = "Make a copy of this band set to edit."
 L["Delete this band set. The containers using it move to the default band set. Asks first."] = "Delete this band set. The containers using it move to the default band set. Asks first."
