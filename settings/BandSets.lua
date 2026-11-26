@@ -585,7 +585,10 @@ local function dressHeader(item, r, g, b)
     local had = rawget(item, "OnRelease")
     item.OnRelease = function(self, ...)
         rawset(self, "OnRelease", had)
-        undressHeader(self)
+        -- AceGUI:Release calls OnRelease raw: a failed undress must never keep the pooled item from
+        -- its own release, which every other addon's dropdown relies on (R5-REV).
+        local ok, err = pcall(undressHeader, self)
+        if not ok then print(tostring(err)) end
         local orig = self.OnRelease
         if type(orig) == "function" then return orig(self, ...) end
     end

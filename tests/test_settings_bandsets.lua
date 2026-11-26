@@ -712,6 +712,27 @@ test("bandsets: the picker's group rows draw larger, flush left, on a band of th
   end)
 end)
 
+test("bandsets: a group row that fails to undress still goes back to AceGUI's pool", function()
+  -- R5-REV: the pull-out item is pooled for every addon's dropdowns, and AceGUI:Release calls OnRelease
+  -- raw, so an undress that throws must not skip the item's own release (its SetDisabled(false), its
+  -- unparenting). Red under: the chain calling undressHeader unguarded.
+  E.with(function()
+    local head, headReleased = fakeItem("header:mine")
+    local dd = { pullout = { items = { head } } }
+    function dd.pullout:IterateItems() return ipairs(self.items) end
+    local stock = head.OnRelease
+    assertEqual(NS.__dressBandSetHeaders(dd), 1)
+    head.text.SetPoint = function() error("boom") end
+    local realPrint = print
+    rawset(_G, "print", function() end)
+    local ok, err = pcall(head.OnRelease, head)
+    rawset(_G, "print", realPrint)
+    assertTrue(ok, "the release raised: " .. tostring(err))
+    assertEqual(headReleased(), 1, "the item's own release still ran")
+    assertEqual(rawget(head, "OnRelease"), stock, "and the chain is taken back")
+  end)
+end)
+
 -- ── R5-RM-02: a set of yours made from a class preset wears that class's color (the owner, round 5:
 -- "Color code your band sets which are spawned from a class reset by that class color") ──
 
