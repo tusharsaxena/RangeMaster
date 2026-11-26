@@ -36,7 +36,9 @@ local _, NS = ...
 -- ONCE, at the character's first load on a profile (EnsureAssigned, from Prepare): the first set whose
 -- `origin` is DefaultFor(class, spec), else a new one made from that preset. A class whose default
 -- needs its spec (a Devourer, NS.BandSetPresets.SpecDependent) waits while the spec reads nil, and
--- the first PLAYER_ENTERING_WORLD or spell/spec event that can read it writes it. It then never moves
+-- the first PLAYER_ENTERING_WORLD or spell/spec event that can read it writes it (turning a seed made
+-- before the spec read, still the profile's one unmodified set, into the spec's preset in place:
+-- replaceSeed, R4-REV). It then never moves
 -- by itself, not on a respec, a profile swap or a login: only "Use for this character" (Assign, the
 -- Band sets page) and a delete of the set (Forget moves it to the delete's target) change it. Assign
 -- also releases this character's hostile picks on the set it used until then (R4-REV: the v5 step
@@ -266,6 +268,23 @@ local function specPending()
     return C.PlayerSpecID() == nil and NS.BandSetPresets.SpecDependent(C.PlayerClass())
 end
 
+--- The seed a deferred spec left (R4-REV): BandSets.Seed cannot wait for the spec, so a Devourer's
+--- new profile holds the class's own set (Demon Hunter) alone. While that one set is still the class
+--- preset, unmodified, and no other character is assigned it or picks it, it is turned into `key` (the
+--- spec's preset) in place, keeping its id, so the profile holds the creator's set alone (R4-RM-02).
+--- Answers its id, or nil.
+local function replaceSeed(p, key)
+    local order = type(p.bandSetOrder) == "table" and p.bandSetOrder or {}
+    local id = order[1]
+    local set = #order == 1 and p.bandSets[id]
+    local _, own = classKeys()
+    if not (type(set) == "table" and set.origin == own and own ~= key) then return nil end
+    if NS.BandSets.IsModified(id) or Choice.OthersUsing(id) > 0 then return nil end
+    if not NS.BandSets.ReplaceWithPreset(id, key) then return nil end
+    NS.Debug("BandSets", "the seed %s became the %s preset (its spec read late)", tostring(id), key)
+    return id
+end
+
 --- The first-load writer: when this character has no assignment that names a set on the active
 --- profile, assign the first set from its class (or spec) preset, made from the preset when the
 --- profile has none. Waits while the spec is pending. Answers the assignment (nil: none yet) and
@@ -278,7 +297,7 @@ function Choice.EnsureAssigned()
         return nil, false
     end
     local key = classKeys()
-    local id = firstFrom(p, key) or NS.BandSets.Create(nil, key)
+    local id = firstFrom(p, key) or replaceSeed(p, key) or NS.BandSets.Create(nil, key)
     if id == nil then return nil, false end
     assignedTable(true)[name] = id
     Choice.Invalidate()

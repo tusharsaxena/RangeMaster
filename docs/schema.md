@@ -184,7 +184,10 @@ written once, at the character's first load on a profile (`EnsureAssigned`, from
 first set in `bandSetOrder` whose `origin` is `DefaultFor(class, spec)`, an edited or renamed copy
 included, else a new set made from that preset. A class whose default waits on its spec
 (`SpecDependent`: a Devourer) is not assigned while the spec reads nil; `PLAYER_ENTERING_WORLD` and the
-spell and spec events try again. It then never moves by itself, not on a respec, a profile swap or a
+spell and spec events try again. The seed cannot wait, so a Devourer's new profile is seeded with the
+Demon Hunter set; when the deferred write finds that set alone, unmodified and no other character's, it
+turns it into Caster 40 in place (`NS.BandSets.ReplaceWithPreset`, its id kept), so the profile holds
+the one set (R4-REV). It then never moves by itself, not on a respec, a profile swap or a
 login: **Use for this character** on the Band sets page (`Assign`) changes it (and releases this
 character's `hostile` picks on the set it used until then, so the containers the v5 step pinned to the
 old default follow the new one; a pick on any other set stays), and a delete of the set

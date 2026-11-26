@@ -22,6 +22,7 @@ local _, NS = ...
 --   NS.BandSets.Diff(id) -> { { band?, field, mine, preset }, ... } | nil   nil: no origin on this client
 --   NS.BandSets.IsModified(id) -> boolean                 Diff has an entry
 --   NS.BandSets.RestorePreset(id, keepSounds?) -> boolean  bands, matchBy, unknown back to the origin
+--   NS.BandSets.ReplaceWithPreset(id, key) -> boolean   the set becomes preset `key`, its id kept
 --   NS.BandSets.CopyFrom(id, source, opts?) -> boolean     source a set id or { preset = key };
 --                                                          opts { sounds?, general? }
 --
@@ -722,6 +723,20 @@ function BandSets.Seed(p)
     local key = NS.BandSetPresets.DefaultFor(NS.Compat.PlayerClass(), NS.Compat.PlayerSpecID())
     insert(p, build(nil, key))
     return 1
+end
+
+--- Make stored set `id` a fresh copy of preset `key` in place: same id, so every reference to it
+--- stays. The seed a deferred spec left (R4-REV): Seed cannot wait for the spec, so a Devourer's new
+--- profile is seeded with the Demon Hunter set, and modules/BandSetChoice.lua turns that seed, while
+--- it is still unmodified and no other character's, into the Caster 40 the Devourer is assigned.
+--- Refuses an unknown id or key.
+function BandSets.ReplaceWithPreset(id, key)
+    local p, set = profile(), build(nil, key)
+    if not (set and p and p.bandSets and p.bandSets[id]) then return false end
+    set.name = BandSets.UniqueName(set.name, id)
+    p.bandSets[id] = set
+    announce()
+    return true
 end
 
 -- ---------------------------------------------------------------------------

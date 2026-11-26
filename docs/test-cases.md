@@ -144,7 +144,7 @@ Total.
 - bandsets: CopyFrom refuses copying into itself, an unknown target, source or preset, and announces nothing
 - bandsets: a Snapshot taken before RestorePreset or CopyFrom undoes it whole, origin included
 
-### test_bandset_choice.lua (25)
+### test_bandset_choice.lua (27)
 
 - bandset choice: two characters sharing one profile keep separate selections
 - bandset choice: a new character with no pick gets its own class preset
@@ -169,6 +169,8 @@ Total.
 - bandset assignment: a Devourer whose spec is not readable yet is assigned at the first event that reads it
 - bandset assignment: the schema is v6, and no character store means no assignment (spec C8)
 - bandset seeding: a new profile holds its creator's set alone, and grows as characters arrive
+- bandset seeding: a Devourer's new profile, seeded before the spec reads, holds Caster 40 alone
+- bandset seeding: a Devourer leaves a Demon Hunter set alone once it is edited or someone uses it
 - bandset seeding: a container preset adds the sets it uses, and nothing else
 - bandset seeding: an existing profile keeps every set it has (owner: new profiles only)
 
@@ -1072,7 +1074,7 @@ Total.
 | test_schema.lua | 36 |
 | test_database.lua | 32 |
 | test_bandsets.lua | 40 |
-| test_bandset_choice.lua | 25 |
+| test_bandset_choice.lua | 27 |
 | test_container_manager.lua | 17 |
 | test_presets.lua | 17 |
 | test_number_format.lua | 6 |
@@ -1128,4 +1130,4 @@ Total.
 | test_skin_switch.lua | 20 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **878** |
+| **Total** | **880** |

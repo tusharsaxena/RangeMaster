@@ -611,6 +611,59 @@ test("bandset seeding: a new profile holds its creator's set alone, and grows as
   end)
 end)
 
+test("bandset seeding: a Devourer's new profile, seeded before the spec reads, holds Caster 40 alone", function()
+  local realSpec = NS.Compat.PlayerSpecID
+  local spec = nil
+  NS.Compat.PlayerSpecID = function() return spec end
+  local ok, err = pcall(withAccount, function(acct)
+    if not NS.BandSetPresets.demonhunter then return end -- a client with no Demon Hunter
+    local p = acct.login("DH - Realm", "DEMONHUNTER")
+    assertEqual(origins(), "demonhunter", "the seed cannot wait for the spec")
+    local seeded = B.DefaultId()
+    local cid = addContainer(p, seeded)
+    spec = 1480
+    NS:OnEnterWorld("PLAYER_ENTERING_WORLD", true, false)
+    assertEqual(origins(), "caster40", "red before: Demon Hunter, Caster 40 (one assigned to nobody)")
+    assertEqual(assignedOf(acct, "DH - Realm"), seeded, "the seed became Caster 40 in place, keeping its id")
+    assertEqual(B.Get(seeded).name, NS.BandSetPresets.caster40.name)
+    assertEqual(p.containers[cid].bandSet, seeded, "so a container on it stays on it")
+  end)
+  NS.Compat.PlayerSpecID = realSpec
+  assertTrue(ok, tostring(err))
+end)
+
+test("bandset seeding: a Devourer leaves a Demon Hunter set alone once it is edited or someone uses it", function()
+  local realSpec = NS.Compat.PlayerSpecID
+  local spec = nil
+  NS.Compat.PlayerSpecID = function() return spec end
+  local ok, err = pcall(withAccount, function(acct)
+    if not NS.BandSetPresets.demonhunter then return end
+    -- A Havoc Demon Hunter made the profile and is assigned its set.
+    spec = 577
+    acct.login("Havoc - Realm", "DEMONHUNTER")
+    local dh = setFrom("demonhunter")
+    spec = nil
+    acct.login("Dev - Realm", "DEMONHUNTER")
+    spec = 1480
+    NS:OnEnterWorld("PLAYER_ENTERING_WORLD", true, false)
+    assertEqual(origins(), "demonhunter,caster40", "another character's set is never turned into Caster 40")
+    assertEqual(assignedOf(acct, "Havoc - Realm"), dh)
+  end)
+  -- An edited seed is the player's: it stays, and Caster 40 is made beside it.
+  local ok2, err2 = pcall(withAccount, function(acct)
+    if not NS.BandSetPresets.demonhunter then return end
+    spec = nil
+    acct.login("DH - Realm", "DEMONHUNTER")
+    B.SetBand(B.DefaultId(), 1, "label", "XX")
+    spec = 1480
+    NS:OnEnterWorld("PLAYER_ENTERING_WORLD", true, false)
+    assertEqual(origins(), "demonhunter,caster40", "an edited seed is kept")
+  end)
+  NS.Compat.PlayerSpecID = realSpec
+  assertTrue(ok, tostring(err))
+  assertTrue(ok2, tostring(err2))
+end)
+
 test("bandset seeding: a container preset adds the sets it uses, and nothing else", function()
   withAccount(function(acct)
     acct.login("Pal - Realm", "PALADIN")
