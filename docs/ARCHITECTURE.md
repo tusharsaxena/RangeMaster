@@ -282,6 +282,13 @@ follows the skin.
   Band sets page's Bands editor only: a band is one of a list the player grows, which no schema path
   can name, so `/rm get|set` reaches a band set's name, match rule and unknown label and color, not
   its bands (design spec 5.6 records this).
+- A Healer set the Expert or Ka0s preset made before R5-RM-04 (round 5: a preset now makes no set but
+  the class's) stays under Your band sets, and so does the old seed's on a profile older than R4-RM-02.
+  No migration removes it: such a set is byte for byte the set the player gets from Shipped presets
+  · General → Healer → Use this preset…, a container's friendly field pointing at it is written the
+  same by a preset and by a pick made before the band set per character, and nothing records which
+  made it. The player deletes it on the Band sets page (Delete…; the containers on it fall back to
+  their own set for friends).
 - A set's `origin` on a profile stored before schema v4 is a guess by name: a set still named after one
   preset (case-blind, trimmed) gets that preset, and a renamed one, or a name two presets share, gets
   none and so has no origin line and no Restore. Copy bands from a preset gives it one.
@@ -296,7 +303,9 @@ follows the skin.
   first edit never makes a copy (the owner, 2026-11-25). While one is viewed, every `bandSet.*` write is
   refused; `/rm get bandSet.*` still reads the selected set of yours.
 - The picker's group names (Your band sets, Shipped presets · Classes, Shipped presets · General) are
-  disabled rows, not true headers: AceGUI's dropdown takes one item type for every row.
+  disabled rows, not true headers: AceGUI's dropdown takes one item type for every row. Each is dressed
+  after `SetList` (a larger font, flush left, a faint band behind it; R5-RM-01) and undressed on the
+  pooled item's next release, so another addon's dropdown that reuses the item draws it stock.
 - The preset picker (a window shaped as AuraMaster's: a dropdown, each pick previewed on the real
   screen in test mode, Apply / Not now) has no style switch and no Empty preset, which this addon's
   presets do not have; a disabled addon that is enabled later is not offered it on first run.

@@ -219,12 +219,12 @@ and band-colored border on, the border and the band tint at 10%, the plate conta
 matte dot; a plate container sits on the cast bar while casting, else the plate, at offset 0
 (`nameplate.attachTo = "castbarWhenCasting"`); only the elements differ. Simple: the dot. Intermediate
 (Range Text, `text`): the band's text label. Intermediate (Range Numbers, `numbers`): the range
-number. Advanced: dot + number + text. Expert: Advanced with spell chips, the Healer set as the
-friendly override on target, focus and mouseover (reused by name, else created), sounds on target (its set's out-of-range band gets `NS.Presets.OOR_SOUND` through
+number. Advanced: dot + number + text. Expert: Advanced with spell chips, the player's own Healer set as the
+friendly override on target, focus and mouseover (the set named Healer, else the first made from the healer preset; never created, R5-RM-04: with none, a friend reads the same set as a foe), sounds on target (its set's out-of-range band gets `NS.Presets.OOR_SOUND` through
 `NS.BandSets.SetBandSound` when it has no sound), plus target on its own nameplate (diamond + number)
 and every other nameplate, friendly ones too (`nameplatesExceptTarget` with `includeFriendly`, dot + the `max` number), both
 shown whenever their unit is there. Ka0s (five containers, every one frameless: no border, no background): the four with the number
-above the band name (`layout.direction = "column"`, `joinText` off) on the class's own band set (by name, else created), the Healer set on friendly target, focus and
+above the band name (`layout.direction = "column"`, `joinText` off) on the class's own band set (by name, else created), the player's Healer set (as Expert's) on friendly target, focus and
 mouseover, and the target's own plate with the number alone; no every-plate container and no sound. `Describe(key)` feeds the
 preset cards on General › Presets. `PickerDue` / `MarkPickerSeen` are the one runtime reader and
 writer of `profile.seeded`, the first-run preset picker's sentinel (`settings/Presets.lua` shows the

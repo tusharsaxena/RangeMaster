@@ -518,7 +518,7 @@ test("bandsets: the picker lists your sets, then the class presets, then the gen
     assertTrue(mage:find("(your class)", 1, true) ~= nil, "your class is tagged")
     assertTrue(mage:find("|cff", 1, true) == 1, "in its class color")
     assertNil(list["preset:priest"]:find("(your class)", 1, true), "and only yours")
-    assertNil(list["preset:melee_ranged"]:find("|cff", 1, true), "a general preset takes no class color")
+    assertNil(list["preset:melee_ranged"]:find("(your class)", 1, true), "a general preset is no class's")
   end)
 end)
 
@@ -649,5 +649,175 @@ test("bandsets: the Defaults tooltip points to Restore for the bands", function(
     assertTrue(tip:find("its bands are kept", 1, true) ~= nil, "Defaults keeps the bands")
     assertTrue(tip:find("Restore preset", 1, true) ~= nil, "and the tooltip names Restore preset for them")
     assertNil(tip:find("Delete band set", 1, true), "not Delete")
+  end)
+end)
+
+-- ── R5-RM-01: the picker's group rows stand out (the owner, round 5: "Make the category headers more
+-- obvious (larger font, background color, etc)") ──
+
+--- A pull-out item as AceGUI's Dropdown-Item-Toggle carries it: its frame, its text and the value
+--- the Dropdown stored on it. Answers the item and a reader of how often its own OnRelease ran.
+local function fakeItem(value)
+  local text = { font = { "Fonts\\FRIZQT__.TTF", 10, "" }, x = 18 }
+  function text:GetFont() return self.font[1], self.font[2], self.font[3] end
+  function text:SetFont(path, size, flags) self.font = { path, size, flags } end
+  function text:SetPoint(point, _, _, x) if point == "TOPLEFT" then self.x = x end end
+  local frame = { textures = {} }
+  function frame:CreateTexture(_, layer)
+    local tex = { layer = layer, shown = true }
+    tex.SetColorTexture = function(t, r, g, b, a) t.color = { r, g, b, a } end
+    tex.SetAllPoints = function() end
+    tex.Show = function(t) t.shown = true end
+    tex.Hide = function(t) t.shown = false end
+    self.textures[#self.textures + 1] = tex
+    return tex
+  end
+  local released = 0
+  local item = { frame = frame, text = text, userdata = { value = value } }
+  item.OnRelease = function() released = released + 1 end
+  return item, function() return released end
+end
+
+test("bandsets: the picker's group rows draw larger, flush left, on a band of the heading color", function()
+  -- red under: a group row drawn as one more gray row in the list's own small font.
+  E.with(function()
+    local head, headReleased = fakeItem("header:mine")
+    local row = fakeItem(1)
+    local dd = { pullout = { items = { head, row } } }
+    function dd.pullout:IterateItems() return ipairs(self.items) end
+    assertEqual(NS.__dressBandSetHeaders(dd), 1, "one group row dressed")
+    assertTrue(head.text.font[2] > 10, "its font is larger")
+    assertTrue(head.text.x < 18, "flush left, where a set's check would sit")
+    local band = head.frame.textures[1]
+    assertTrue(band ~= nil and band.shown, "a band sits behind it")
+    assertEqual(band.layer, "BACKGROUND")
+    local r, g, b = NS.Skin.Color("text.heading")
+    assertEqual(band.color[1], r, "in the heading color")
+    assertEqual(band.color[2], g)
+    assertEqual(band.color[3], b)
+    assertTrue(band.color[4] > 0 and band.color[4] < 0.5, "faint, so the text reads over it")
+    assertEqual(#row.frame.textures, 0, "a set's row is left alone")
+    assertEqual(row.text.font[2], 10)
+    -- A pull-out item is pooled for every dropdown in the client: its release puts it back stock.
+    head:OnRelease()
+    assertEqual(headReleased(), 1, "the item's own release still runs")
+    assertEqual(head.text.font[2], 10, "the stock font is back")
+    assertEqual(head.text.x, 18, "and the stock inset")
+    assertFalse(band.shown, "the band is hidden")
+    head:OnRelease()
+    assertEqual(headReleased(), 2, "and the wrapper is gone after one release")
+    NS.__dressBandSetHeaders(dd)
+    assertEqual(#head.frame.textures, 1, "a reused item reuses its band")
+    assertTrue(band.shown)
+  end)
+end)
+
+test("bandsets: a group row that fails to undress still goes back to AceGUI's pool", function()
+  -- R5-REV: the pull-out item is pooled for every addon's dropdowns, and AceGUI:Release calls OnRelease
+  -- raw, so an undress that throws must not skip the item's own release (its SetDisabled(false), its
+  -- unparenting). Red under: the chain calling undressHeader unguarded.
+  E.with(function()
+    local head, headReleased = fakeItem("header:mine")
+    local dd = { pullout = { items = { head } } }
+    function dd.pullout:IterateItems() return ipairs(self.items) end
+    local stock = head.OnRelease
+    assertEqual(NS.__dressBandSetHeaders(dd), 1)
+    head.text.SetPoint = function() error("boom") end
+    local realPrint = print
+    rawset(_G, "print", function() end)
+    local ok, err = pcall(head.OnRelease, head)
+    rawset(_G, "print", realPrint)
+    assertTrue(ok, "the release raised: " .. tostring(err))
+    assertEqual(headReleased(), 1, "the item's own release still ran")
+    assertEqual(rawget(head, "OnRelease"), stock, "and the chain is taken back")
+  end)
+end)
+
+-- ── R5-RM-02: a set of yours made from a class preset wears that class's color (the owner, round 5:
+-- "Color code your band sets which are spawned from a class reset by that class color") ──
+
+test("bandsets: your sets made from a class preset read in that class's color; the rest stay plain", function()
+  -- red under: every set of yours plain, whatever preset it came from.
+  E.with(function()
+    local P = NS.BandSetsPage
+    local war = B.Create(nil, "warrior")
+    local caster = B.Create(nil, "caster40")
+    local blank = B.Create("Blank", { { from = 0, label = "ANY" } })
+    local list = NS.__bandSetPickerEntries()
+    local mage = B.DefaultId()
+    assertEqual(B.Get(mage).origin, "mage", "the env's seeded default is the Mage set")
+    assertEqual(list[mage]:find(P.ClassColored("mage", B.Get(mage).name), 1, true), 1,
+      "the default set is in the mage color, its (default) tag after it")
+    assertEqual(list[war], P.ClassColored("warrior", B.Get(war).name), "a set from the Warrior preset is in the warrior color")
+    assertTrue(list[war]:find("|cff", 1, true) == 1)
+    assertNil(list[caster]:find("|cff", 1, true), "a set from a general preset stays plain")
+    assertNil(list[blank]:find("|cff", 1, true), "and so does a set with no preset")
+    B.Rename(war, "Arms bands")
+    B.SetBand(war, 1, "label", "XX")
+    list = NS.__bandSetPickerEntries()
+    assertEqual(list[war]:find(P.ClassColored("warrior", "Arms bands"), 1, true), 1,
+      "renamed and modified, it keeps its class color: it still came from the Warrior preset")
+  end)
+end)
+
+-- ── R5-RM-03: the general presets wear colors of their own, none a class's (the owner, round 5: "Give
+-- unique non class colors for Shipped Presets") ──
+
+-- The client's class colors (RAID_CLASS_COLORS, Retail's; WoW Forever's classes share these), as hex.
+local CLASS_HEX = { "c69b6d", "f48cba", "aad372", "fff468", "ffffff", "c41e3a", "0070dd", "3fc7eb", "8788ee",
+  "00ff98", "ff7c0a", "a330c9", "33937f" }
+-- The other colors a general preset sits beside in the open list: a disabled row's gray (AceGUI's .5)
+-- and the heading gold the group rows' band is drawn in.
+local NEAR_HEX = { "808080", "ffd100" }
+
+--- CIE L*a*b* (D65) of hex `h`, for a perceptual distance: "apart" means apart to the eye, not merely
+--- a different hex (R5-REV; core/Constants.lua PRESET_COLORS claims a distance of 34 or more).
+local function lab(h)
+  local function lin(i)
+    local c = tonumber(h:sub(i, i + 1), 16) / 255
+    return c > 0.04045 and ((c + 0.055) / 1.055) ^ 2.4 or c / 12.92
+  end
+  local r, g, b = lin(1), lin(3), lin(5)
+  local function f(t) return t > 0.008856 and t ^ (1 / 3) or 7.787 * t + 16 / 116 end
+  local fx = f((r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047)
+  local fy = f(r * 0.2126 + g * 0.7152 + b * 0.0722)
+  local fz = f((r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883)
+  return 116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)
+end
+local function deltaE(h1, h2)
+  local l1, a1, b1 = lab(h1)
+  local l2, a2, b2 = lab(h2)
+  return math.sqrt((l1 - l2) ^ 2 + (a1 - a2) ^ 2 + (b1 - b2) ^ 2)
+end
+local MIN_DELTA_E = 34
+
+test("bandsets: the general presets read in colors of their own, apart from every class's and each other's", function()
+  -- red under: Melee / Ranged, Caster 40 and Healer listed plain, or in a color a hex away from a class's
+  -- (R5-REV: 3fc7ec, one step from the mage's, passed an inequality check).
+  E.with(function()
+    local list = NS.__bandSetPickerEntries()
+    local seen = {}
+    for _, key in ipairs(B.PresetKeys().general) do
+      local text = list["preset:" .. key]
+      local hex = text:match("^|cff(%x%x%x%x%x%x)")
+      assertTrue(hex ~= nil, key .. " is colored")
+      hex = hex:lower()
+      assertEqual(hex, NS.Constants.PRESET_COLORS[key]:lower(), key .. " in its own color")
+      assertTrue(text:find(B.PresetSet(key).name, 1, true) ~= nil, key .. " keeps its name")
+      for _, class in ipairs(CLASS_HEX) do
+        assertTrue(deltaE(hex, class) >= MIN_DELTA_E, key .. " reads apart from the class color " .. class)
+      end
+      for _, near in ipairs(NEAR_HEX) do
+        assertTrue(deltaE(hex, near) >= MIN_DELTA_E, key .. " reads apart from " .. near)
+      end
+      for other in pairs(seen) do
+        assertTrue(deltaE(hex, other) >= MIN_DELTA_E, key .. " reads apart from the general preset in " .. other)
+      end
+      seen[hex] = true
+    end
+    assertEqual(#B.PresetKeys().general, 3, "Melee / Ranged, Caster 40 and Healer")
+    -- A set of yours made from one stays plain (R5-RM-02: only a class source colors your set).
+    local caster = B.Create(nil, "caster40")
+    assertNil(NS.__bandSetPickerEntries()[caster]:find("|cff", 1, true), "your copy of a general preset is plain")
   end)
 end)

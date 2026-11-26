@@ -24,7 +24,7 @@ unless a check names one. The anchors are run as a matrix, one result per mode a
 | RANGE-1..21 | Range engine | brackets, unknown, the Forever ladder, the ticker's rate and stop, the seed spells; the anchor probes: reported ranges under talents, rank IDs, the talent event, overrides, Auto Shot unarmed; the seed-validation ladder changes |
 | DRAW-1..12 | Containers drawn | brackets drawn, unknown gray, elements and order, the skin face, disable, the Bar dot's border and gloss, Fixed colors, outline and shadow, the border and the spell chips following the skin, Class mode in test mode, High Contrast's HUD shadow |
 | CONT-1..14 | Containers page | New container (no band preview), the rail, Position, Duplicate / Delete / Copy settings from, Defaults, Color from, the Dot tab and its Style tiles, Border opacity, the caption's positions, the caption's styling, one line, the skin companion rows, the Style tiles' Scope, the frame picker's label |
-| BANDS-1..40 | Band sets page | the picker, the Bands editor (no band ribbon), shared sets, the friendly override, the unknown label; spell bands: the rule controls, the read-out, the owner's Hawk Eye case, the dead zone, the v1 -> v2 conversion, the band rail; every class's own set per client, the tier roles, an old profile kept; the band set manager: Delete in the header, Add and Remove band side by side, every class preset listed, New from a preset, modified and Restore, Copy bands from, a preset read-only, Undo; the band set per character: two characters on one profile, a character's class default and "(default)", the upgrade, a deleted set, the friendly pick; the assignment: a new profile's one set, the second character assigned and shown, swaps and a /reload, Use for this character, a deleted assigned set, the Ka0s preset, an existing profile kept, a Devourer, a profile copy and reset, Use for this character on an old profile |
+| BANDS-1..44 | Band sets page | the picker, the Bands editor (no band ribbon), shared sets, the friendly override, the unknown label; spell bands: the rule controls, the read-out, the owner's Hawk Eye case, the dead zone, the v1 -> v2 conversion, the band rail; every class's own set per client, the tier roles, an old profile kept; the band set manager: Delete in the header, Add and Remove band side by side, every class preset listed, New from a preset, modified and Restore, Copy bands from, a preset read-only, Undo; the band set per character: two characters on one profile, a character's class default and "(default)", the upgrade, a deleted set, the friendly pick; the assignment: a new profile's one set, the second character assigned and shown, swaps and a /reload, Use for this character, a deleted assigned set, the Ka0s preset, an existing profile kept, a Devourer, a profile copy and reset, Use for this character on an old profile; round 5: the picker's group rows, your class sets in class colors, the general presets' own colors, only the class's set made for you |
 | PRESET-1..5 | Presets | the first-run picker, Apply on an empty profile, Apply over containers with Undo, what each of the six shows, the dropdown's selected row |
 | ANCHOR-1..13 | Anchors | every mode on both clients: screen, unit frames (Blizzard, EllesmereUI, custom, missing), own nameplate, all nameplates, cursor, the picker, all nameplates except target, the drag strip's marks, the cast bar part, Frame strata and Frame level on a plate, the preview nameplate, the drag strip's right-click |
 | VIS-1..3 | Visibility | combat and reaction rules, out-of-combat opacity, the master rows |
@@ -196,8 +196,9 @@ The addon's own seams that a client language could reach, enumerated from the co
   `LibKa0s-Compat-1.0`, spells are keyed by spell id (`defaults/SpellSeeds.lua`) and classes by class
   token. A spell's name is read only beside its id, for the Sim sweep's range, and its icon for the
   chips; neither is compared with a string.
-- The one name lookup is the Expert preset reusing a band set called `Healer`, which is this
-  addon's own English string, the same on every client.
+- The one name lookup is the Expert and Ka0s presets finding the player's band set called `Healer`
+  (else one made from the healer preset), which is this addon's own English string, the same on
+  every client.
 - It writes no header, token or key another tool parses, apart from the diagnostics report's markers,
   which carry the brand in English on every client by design.
 
@@ -724,6 +725,39 @@ paladin and a hunter, as BANDS-26, on a NEW profile made for the run unless a ch
   now reads **Default band set (<the new set>)** and draws its bands. A container on any other set keeps
   it. Log onto a second character → its containers are unchanged. Result:
 
+BANDS-41 to BANDS-44 are the band set picker's looks and the one auto-created set (the owner's round 5
+of 2026-11-26; Ka0sAddonsCommonTasks `docs/2026-11-26-OWNER_FEEDBACK_ROUND5/`, R5-RM-01 to R5-RM-04).
+Check each under Ka0s Default and one other skin (Obsidian, or WoW Forever on Forever).
+
+- **BANDS-41. The group rows stand out** ("Make the category headers more obvious (larger font,
+  background color, etc)"). Band sets → open the **Band set** picker → **Your band sets**, **Shipped
+  presets · Classes** and **Shipped presets · General** each draw larger than the rows under them,
+  flush left, on a faint band of the heading color, and clicking one changes nothing. **New…** → its
+  preset dropdown shows the two Shipped presets rows the same way. Close the panel, open another
+  addon's settings dropdown (any AceGUI one) → its rows are the normal size, with no band. Result:
+- **BANDS-42. Your class sets wear their class color** ("Color code your band sets which are spawned
+  from a class reset by that class color"). On the paladin, Band sets → the picker → under **Your band
+  sets**, **Paladin (default)** is in the paladin's pink, as **Paladin (your class)** is under the
+  classes. Pick **Shipped presets · Classes → Warrior** → **Use this preset…** → Create → the new
+  Warrior set is in the warrior's tan; rename it (General → Name) and change a band's label → still
+  tan, now tagged `· modified`. Make **Caster 40** yours the same way → it stays plain white. The
+  closed picker shows the chosen set in its color too. Result:
+- **BANDS-43. The general presets have colors of their own** ("Give unique non class colors for
+  Shipped Presets"). The picker → **Shipped presets · General** → Melee / Ranged reads lime, Caster 40
+  rose and Healer aqua: none looks like any class color above it, and no two match. **New…** → its
+  preset dropdown shows them the same. Result:
+- **BANDS-44. Only the class's set is made for you** ("Why is Healer a 'your bandset' preset for my
+  level 11 retribution paladin? it should only be there if i create it - only that should get auto
+  created is the class one"). On the paladin, Profiles → New profile `SmokeR5` → the first-run preset
+  picker → pick **Ka0s** → **Apply** → Band sets → **Your band sets** lists **Paladin (default)**
+  alone, no Healer. Containers → Target → **Friendly band set** reads Same as Band set; target a
+  friendly player → the Paladin bands. General → Presets → **Apply Expert…** → still Paladin alone.
+  Now Band sets → **Shipped presets · General → Healer** → **Use this preset…** → Create, and apply
+  **Ka0s** again → Target, Focus and Mouseover read **Healer** for friends, Pet does not, and no second
+  Healer set appears. On **SmokeTest5** (the profile from the report) the old Healer set is still
+  there: no update removes it (it cannot be told from one you made); delete it by hand if you want it
+  gone, and the three displays read Same as Band set for friends after. Result:
+
 ## Presets
 
 - **PRESET-1. First-run picker.** On a new profile the **Choose a preset** window opens above the
@@ -956,6 +990,9 @@ Set the rules on Containers → Visibility.
 | BANDS-18..25 | the band set manager (branch feat/2026-11-25-band-set-manager, BS-01 to BS-04; RangeMaster#21), 2026-11-25 | the header row, the grouped picker, the origin line, the read-only preset view, the three dialogs, Add band beside Remove band and `/rm bands undo` have not been seen in a client yet. Passed, the owner, 2026-11-25. |
 | BANDS-26..30 | the band set per character (branch feat/2026-11-26-band-set-per-character, BSC-1; the owner's report of 2026-11-26) | each character's own Band set and Friendly band set on a shared profile, the class default and "(default)", the v5 upgrade, a deleted set and a profile copy and reset have not been seen in a client yet |
 | BANDS-31..40 | the band set assigned to each character and the one-set seed (branch feat/2026-11-26-owner-feedback-round4, R4-RM-01 and R4-RM-02, and the review's R4-REV; the owner's round 4 of 2026-11-26) | the assignment written at a character's first load, the page opening on it, Use for this character, a deleted assigned set, the Ka0s preset, the one-set seed on a new profile, an old profile kept, the Devourer's deferred assignment, a profile copy and reset and Use for this character on a profile older than v5 have not been seen in a client yet |
+| BANDS-41..43 | the band set picker's looks (branch feat/2026-11-26-owner-feedback-round5, R5-RM-01 to R5-RM-03; the owner's round 5 of 2026-11-26) | the group rows' larger font and band, in the page picker and the dialogs, another addon's dropdown drawing stock after them, your sets from class presets in class colors and the general presets' own colors have not been seen in a client yet |
+| BANDS-44 | the one auto-created set (branch feat/2026-11-26-owner-feedback-round5, R5-RM-04; the owner's round 5 of 2026-11-26) | Expert and Ka0s making no Healer set, using the player's own for friends when there is one, and an old preset-made Healer set left in place have not been seen in a client yet |
+| BANDS-30, BANDS-36, PRESET-1, PRESET-4 (amended) | the one auto-created set (R5-RM-04), 2026-11-26 | wherever these expect Expert or Ka0s to read the Healer set on friends, or Your band sets to gain Healer when one is applied, BANDS-44 supersedes them: a preset makes no Healer set, and its friendly override is your own Healer set only when you made one (else Same as Band set) |
 | BANDS-1, BANDS-13, BANDS-14, BANDS-15 (amended) | the one-set seed (R4-RM-02), 2026-11-26 | wherever these expect a new profile's picker to list the four generic sets (Melee / Ranged, Caster 40, Healer, Hunter) after the class's own, or a Devourer's new profile to list the Demon Hunter set second, BANDS-31 and BANDS-38 supersede them: a new profile holds its creator's set alone, and the generic sets are under Shipped presets · General. Each class's own bands (BANDS-14, BANDS-15) are unchanged |
 | BANDS-26, BANDS-27, BANDS-29 (amended) | the band set assigned to each character (R4-RM-01), 2026-11-26 | wherever these expect a character with no set of its own on the profile (a rogue on the paladin's profile) to read Melee / Ranged, a container whose own set is generic to keep it, or a deleted set's character to fall back by class, BANDS-32, BANDS-35 and BANDS-37 supersede them: every character is assigned its own class set at its first load, a container with no pick follows the assignment, and a delete moves the assignment where the containers went |
 | BANDS-1, BANDS-2, BANDS-11 (amended) | the band set manager (RangeMaster#21), 2026-11-25 | wherever these name **New band set**, **Duplicate band set** or **Delete band set…** on the General tab, or Remove band among a band's controls, BANDS-18, BANDS-19 and BANDS-21 supersede them: the acts are in the header as New…, Duplicate and Delete…, and Remove band sits beside Add band under the rail |

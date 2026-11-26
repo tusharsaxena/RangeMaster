@@ -22,11 +22,13 @@ local _, NS = ...
 -- The confirm before it is the caller's (the Presets tab, `/rm preset`, plan Task 8).
 --
 -- THE BAND SETS ARE THE PLAYER'S, picked for their class on first run: every preset container uses
--- the default set. Expert alone touches the band-set registry, through its writers and only to add:
--- its friendly override is the "Healer" set (the one named so, else a new one from the healer
--- preset), and its out-of-range warning puts OOR_SOUND on the last band of the target's set when
--- that band has no sound yet (NS.BandSets.SetBandSound). Undo restores both registries
--- (NS.CM.Snapshot).
+-- the default set. A preset never adds a set (R5-RM-04; the owner, round 5: "it should only be there
+-- if i create it - only that should get auto created is the class one"): Expert's and Ka0s's friendly
+-- override is the player's own Healer set (healerSet: the one named so, else one made from the healer
+-- preset), and with none a friend reads the same set as a foe. Ka0s's class set is the one exception,
+-- the class's set the player may always be given (classSet). Expert's out-of-range warning puts
+-- OOR_SOUND on the last band of the target's set when that band has no sound yet
+-- (NS.BandSets.SetBandSound). Undo restores both registries (NS.CM.Snapshot).
 --
 -- THE UNDO SLOT BELONGS TO THE PROFILE IT WAS TAKEN ON. A switch, copy or reset replaces the profile
 -- whole, so core/RangeMaster.lua's adoptProfile calls ForgetUndo: an Undo there would otherwise put
@@ -46,8 +48,9 @@ local _, NS = ...
 --   Intermediate (Range Text)      the band's text label.
 --   Intermediate (Range Numbers)   the range number.
 --   Advanced                       dot + number + text.
---   Expert                         dot + number + text + spell chips; the Healer set for friendly
---                                  target, focus and mouseover, the OOR sound on Target; plus Target
+--   Expert                         dot + number + text + spell chips; the player's Healer set, when
+--                                  they have one, for friendly target, focus and mouseover, the OOR
+--                                  sound on Target; plus Target
 --                                  on its own nameplate (diamond + number) and every other
 --                                  nameplate, friend or foe (dot + the short `max` number), both shown whenever
 --                                  their unit is there (no caption on a plate).
@@ -118,12 +121,18 @@ local function four(show)
         onScreen("mouseover", show) }
 end
 
---- The Healer band set's id: the stored set named so, else a new one from the healer preset.
+--- The player's Healer band set: the stored set named so, else the first made from the healer preset;
+--- nil when they have none. Never made here (R5-RM-04): until round 5 this created the set from the
+--- preset when the profile had none, and since R4-RM-02 seeds a new profile with its class set alone,
+--- picking Expert or Ka0s put a Healer set under Your band sets that the player never made.
 local function healerSet()
+    local fromPreset
     for _, id in ipairs(NS.BandSets.List()) do
-        if NS.BandSets.Get(id).name == L["Healer"] then return id end
+        local set = NS.BandSets.Get(id)
+        if set.name == L["Healer"] then return id end
+        if fromPreset == nil and set.origin == "healer" then fromPreset = id end
     end
-    return NS.BandSets.Create(nil, "healer")
+    return fromPreset
 end
 
 --- Every preset's nameplate attachment (the owner, 2026-11-20): on the cast bar while the unit
@@ -184,9 +193,9 @@ Presets.__classSet = classSet
 
 --- The owner's own setup (the "Ka0s" profile on WoW Forever, re-read 2026-11-20): the four on screen
 --- with the range number above the band's label (a column, not one line), for any unit, friend or
---- foe; the class's own band set (Hunter on a hunter), the
---- Healer set on friends for target, focus and mouseover; the target's own plate with the number alone
---- (the owner turned its dot off). Every one frameless: no border and no background (the owner turned
+--- foe; the class's own band set (Hunter on a hunter), the player's Healer set, when they have one, on
+--- friends for target, focus and mouseover; the target's own plate with the number alone (the owner
+--- turned its dot off). Every one frameless: no border and no background (the owner turned
 --- both off). No every-plate container, and no sound (only Expert sounds, the owner, 2026-11-20).
 local function ka0s()
     local list = four({ number = true, text = true })
@@ -269,7 +278,7 @@ end
 
 --- Preview preset `key`: the player's set snapshotted at the first pick, then the preset built.
 --- A later pick first puts the player's set back, so what an earlier pick added to the band sets
---- (Expert's Healer set and out-of-range sound) does not outlive it into the preset kept.
+--- (Expert's out-of-range sound) does not outlive it into the preset kept.
 --- Answers false for an unknown key or no profile (nothing changed).
 function Presets.BeginPreview(key)
     if not BUILD[key] or not NS.CM.Get then return false end
@@ -380,14 +389,14 @@ local DESCRIBE = {
     } },
     expert = { name = L["Expert"], count = 6, items = {
         L["Everything in Advanced, with spell-range chips (class spells)"],
-        L["Healer band set for friendly target, focus and mouseover"],
+        L["Your Healer band set, if you have one, for friendly target, focus and mouseover"],
         L["Target on its own nameplate + dot on every other plate, friend or foe"],
         L["Band-change sound on target (out-of-range warning)"],
         L["Visibility rules: any unit, friend or foe"],
     } },
     ka0s = { name = L["Ka0s"], count = 5, items = {
         L["Target, Focus, Pet, Mouseover: range number over band name, no frame"],
-        L["Healer band set for friendly target, focus and mouseover"],
+        L["Your Healer band set, if you have one, for friendly target, focus and mouseover"],
         L["Target on its own nameplate: the range number, on the cast bar while casting"],
         L["No sounds"],
         L["Any unit, friend or foe, on the class's own band set"],

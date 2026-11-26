@@ -172,7 +172,7 @@ Total.
 - bandset seeding: a new profile holds its creator's set alone, and grows as characters arrive
 - bandset seeding: a Devourer's new profile, seeded before the spec reads, holds Caster 40 alone
 - bandset seeding: a Devourer leaves a Demon Hunter set alone once it is edited or someone uses it
-- bandset seeding: a container preset adds the sets it uses, and nothing else
+- bandset seeding: a container preset adds no set; only the class's set is ever made for you
 - bandset seeding: an existing profile keeps every set it has (owner: new profiles only)
 
 ### test_container_manager.lua (17)
@@ -199,8 +199,8 @@ Total.
 
 - presets: test_six_presets — the picker's six, in order, each with its own elements on the same four homes
 - presets: test_simple_to_advanced_plain — the four lighter presets hold four containers, no sound, no friendly set
-- presets: test_expert_shape — six containers: the four with spell chips, both plates, the sound and the Healer set
-- presets: Expert creates the Healer set when the profile has none, and reuses one it has
+- presets: test_expert_shape — six containers: the four with spell chips, both plates and the sound
+- presets: test_preset_healer_only_yours — Expert and Ka0s make no Healer set, and use the one you made for friends
 - presets: Expert keeps a sound the player already put on the out-of-range band
 - presets: test_preset_undo_restores — Undo puts back the containers and band sets from before
 - presets: an unknown key applies nothing and keeps the Undo slot
@@ -771,7 +771,7 @@ Total.
 - settings: test_dot_shape_row — the Shape row offers the seven shapes, Bar and Spell icon, and /rm set takes the new ones
 - settings: test_plate_part_and_level_rows — Attach to part opens On the nameplate wherever it shows; Frame level sits under Attach to in every mode
 
-### test_settings_bandsets.lua (25)
+### test_settings_bandsets.lua (29)
 
 - bandsets: test_bandset_paths_get_set — /rm set bandSet.matchBy changes the selected band set
 - bandsets: SetBand moves an edge and the next band follows; an edge that would leave no width is refused
@@ -798,6 +798,10 @@ Total.
 - bandsets: Use this preset and Copy into a set of mine open their dialogs with the preset
 - bandsets: /rm set bandSet.*, /rm reset bandSet.* and Defaults refuse while a preset is viewed; /rm bands ends the view
 - bandsets: the Defaults tooltip points to Restore for the bands
+- bandsets: the picker's group rows draw larger, flush left, on a band of the heading color
+- bandsets: a group row that fails to undress still goes back to AceGUI's pool
+- bandsets: your sets made from a class preset read in that class's color; the rest stay plain
+- bandsets: the general presets read in colors of their own, apart from every class's and each other's
 
 ### test_settings_bandset_dialogs.lua (14)
 
@@ -1107,7 +1111,7 @@ Total.
 | test_optionssetup.lua | 16 |
 | test_realpages.lua | 7 |
 | test_settings_containers.lua | 32 |
-| test_settings_bandsets.lua | 25 |
+| test_settings_bandsets.lua | 29 |
 | test_settings_bandset_dialogs.lua | 14 |
 | test_settings_presets.lua | 15 |
 | test_skinsetup.lua | 12 |
@@ -1131,4 +1135,4 @@ Total.
 | test_skin_switch.lua | 20 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **881** |
+| **Total** | **885** |

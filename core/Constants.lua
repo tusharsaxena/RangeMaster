@@ -48,6 +48,12 @@ C.BAND_RAMP = { "4ade80", "a3e635", "facc15", "fb923c", "ef4444" }
 C.UNKNOWN_COLOR = "9ca3af"
 C.UNKNOWN_LABEL = "?"
 
+-- The general presets' own colors in the Band sets picker (R5-RM-03; the owner, round 5: "Give unique
+-- non class colors for Shipped Presets"): lime, rose and aqua, each far from every class's color in
+-- RAID_CLASS_COLORS (CIE L*a*b* distance 34 or more, the gray of a disabled row and the heading gold
+-- included) and from one another. The addon's own: they follow no skin, as the class colors do not.
+C.PRESET_COLORS = { melee_ranged = "99ff33", caster40 = "ff199f", healer = "19ffec" }
+
 -- The tier roles (RangeMaster#20): beside melee, ranged and friendly, a band rule may name one of a
 -- class's own range tiers, `tierN`, the class's spells that reach N yd (defaults/SpellSeeds.lua's
 -- anchors: the Forever paladin's tier10 is Judgment and Hammer of Justice). One vocabulary for every
