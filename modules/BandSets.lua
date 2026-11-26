@@ -22,6 +22,7 @@ local _, NS = ...
 --   NS.BandSets.Diff(id) -> { { band?, field, mine, preset }, ... } | nil   nil: no origin on this client
 --   NS.BandSets.IsModified(id) -> boolean                 Diff has an entry
 --   NS.BandSets.RestorePreset(id, keepSounds?) -> boolean  bands, matchBy, unknown back to the origin
+--   NS.BandSets.ReplaceWithPreset(id, key) -> boolean   the set becomes preset `key`, its id kept
 --   NS.BandSets.CopyFrom(id, source, opts?) -> boolean     source a set id or { preset = key };
 --                                                          opts { sounds?, general? }
 --
@@ -699,36 +700,43 @@ function BandSets.Delete(id, reassignTo)
         if p.bandSetOrder[i] == id then table.remove(p.bandSetOrder, i) end
     end
     local named = reassignTo ~= nil and reassignTo ~= id and p.bandSets[reassignTo] ~= nil
-    reassign(id, named and reassignTo or defaultIdOf(p), named)
-    -- Every character's pick on it (modules/BandSetChoice.lua) moves with the named set, else clears.
-    if NS.BandSetChoice then NS.BandSetChoice.Forget(id, named and reassignTo or nil) end
+    local target = named and reassignTo or defaultIdOf(p)
+    reassign(id, target, named)
+    -- Every character's pick on it (modules/BandSetChoice.lua) moves with the named set, else clears;
+    -- every character's assignment on it moves where the containers went (R4-RM-01).
+    if NS.BandSetChoice then NS.BandSetChoice.Forget(id, named and reassignTo or nil, target) end
     announce()
     return true
 end
 
---- The seed routine (the load pass calls it on a profile with no band set): the player's class
---- default first, so it is the default set (DefaultFor: the spec's override, else the class's own
---- preset, RangeMaster#20), then the class's own preset when a spec override took first place (a
---- Devourer keeps the Demon Hunter set for a later respec), then the generic presets
---- (NS.BandSetPresets.ORDER) not already in. Announces nothing: no reader is up yet.
+--- The seed routine (the load pass calls it on a profile with no band set): the creating
+--- character's own set alone, its class or spec default (DefaultFor: the spec's override, else the
+--- class's own preset, RangeMaster#20). Every other set joins the profile only when something
+--- assigns or picks it (R4-RM-02; the owner, round 4: "Only bandsets that have been assigned to a
+--- character should show up in 'Your band sets'"): another character's first load
+--- (modules/BandSetChoice.lua), a container preset, or the player's New, Duplicate or Use this preset.
+--- A profile that has sets is never seeded, so an existing one keeps all it has (the owner: "New
+--- profiles only"). Announces nothing: no reader is up yet.
 --- @return number  how many sets were seeded
 function BandSets.Seed(p)
     if defaultIdOf(p) then return 0 end
-    local classFile = NS.Compat.PlayerClass()
-    local first = NS.BandSetPresets.DefaultFor(classFile, NS.Compat.PlayerSpecID())
-    local n = 0
-    local keys, taken = {}, {}
-    local function add(key)
-        if not taken[key] then keys[#keys + 1], taken[key] = key, true end
-    end
-    add(first)
-    add(NS.BandSetPresets.DefaultFor(classFile))
-    for _, key in ipairs(NS.BandSetPresets.ORDER) do add(key) end
-    for _, key in ipairs(keys) do
-        insert(p, build(nil, key))
-        n = n + 1
-    end
-    return n
+    local key = NS.BandSetPresets.DefaultFor(NS.Compat.PlayerClass(), NS.Compat.PlayerSpecID())
+    insert(p, build(nil, key))
+    return 1
+end
+
+--- Make stored set `id` a fresh copy of preset `key` in place: same id, so every reference to it
+--- stays. The seed a deferred spec left (R4-REV): Seed cannot wait for the spec, so a Devourer's new
+--- profile is seeded with the Demon Hunter set, and modules/BandSetChoice.lua turns that seed, while
+--- it is still unmodified and no other character's, into the Caster 40 the Devourer is assigned.
+--- Refuses an unknown id or key.
+function BandSets.ReplaceWithPreset(id, key)
+    local p, set = profile(), build(nil, key)
+    if not (set and p and p.bandSets and p.bandSets[id]) then return false end
+    set.name = BandSets.UniqueName(set.name, id)
+    p.bandSets[id] = set
+    announce()
+    return true
 end
 
 -- ---------------------------------------------------------------------------

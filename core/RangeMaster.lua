@@ -213,9 +213,20 @@ function addon:OnAddonLoaded(_, name)
     NS.Anchors.Frame.Retry(name)
 end
 
+--- A character whose band set waited on its spec (a Devourer at login, modules/BandSetChoice.lua) is
+--- assigned at the first event that can read it; its containers redraw on it. Once written, nothing
+--- here moves it (R4-RM-01).
+local function ensureAssigned()
+    local Choice = NS.BandSetChoice
+    if not (Choice and Choice.EnsureAssigned) then return end
+    local _, wrote = Choice.EnsureAssigned()
+    if wrote and NS.CM and NS.CM.RequestApply then NS.CM.RequestApply() end
+end
+
 function addon:OnSpellsChanged()
-    -- A respec can move this character's class default band set (Devourer, modules/BandSetChoice.lua).
+    -- The old chain (no assignment yet) reads the spec, so its cache goes (modules/BandSetChoice.lua).
     if NS.BandSetChoice then NS.BandSetChoice.Invalidate() end
+    ensureAssigned()
     NS.Range.Rebuild()
 end
 
@@ -231,6 +242,7 @@ end
 function addon:OnEnterWorld(_, isLogin, isReload)
     NS.Debug("World", "entering world (%s)",
         isLogin and "login" or isReload and "reload" or "zone change")
+    ensureAssigned()
     -- EllesmereUI spawns its unit frames at PLAYER_LOGIN, after this addon's first apply may have run.
     NS.Anchors.Frame.Retry("PLAYER_ENTERING_WORLD")
 end

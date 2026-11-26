@@ -14,16 +14,17 @@ test("database: the account-wide schemaVersion default is 0 (savedvariables-§1)
   assertEqual(NS.defaults.global.schemaVersion, 0)
 end)
 
-test("database: the ladder holds five steps, v0 -> v1 (the frame defaults), v1 -> v2 (band rules), v2 -> v3 (own looks), v3 -> v4 (band set origins) and v4 -> v5 (per-character band sets), and a fresh install is stamped 5", function()
+test("database: the ladder holds six steps, v0 -> v1 (the frame defaults), v1 -> v2 (band rules), v2 -> v3 (own looks), v3 -> v4 (band set origins), v4 -> v5 (per-character band sets) and v5 -> v6 (the band set assigned to each character), and a fresh install is stamped 6", function()
   -- Red under the v0.1.0 ladder, which was empty with a target of 0, and under the three-step ladder.
-  assertEqual(#NS.__migrationSteps, 5, "five steps")
+  assertEqual(#NS.__migrationSteps, 6, "six steps")
   assertEqual(NS.__migrationSteps[1].to, 1, "the first step climbs to v1")
   assertEqual(NS.__migrationSteps[2].to, 2, "the second step climbs to v2")
   assertEqual(NS.__migrationSteps[3].to, 3, "the third step climbs to v3")
   assertEqual(NS.__migrationSteps[4].to, 4, "the fourth step climbs to v4")
   assertEqual(NS.__migrationSteps[5].to, 5, "the fifth step climbs to v5 (tests/test_bandset_choice.lua)")
-  assertEqual(NS.SCHEMA_VERSION, 5, "the runner's target is the highest step's `to`")
-  assertEqual(NS.db.global.schemaVersion, 5, "a fresh install is stamped at the target")
+  assertEqual(NS.__migrationSteps[6].to, 6, "the sixth step climbs to v6 (R4-RM-01, tests/test_bandset_choice.lua)")
+  assertEqual(NS.SCHEMA_VERSION, 6, "the runner's target is the highest step's `to`")
+  assertEqual(NS.db.global.schemaVersion, 6, "a fresh install is stamped at the target")
 end)
 
 test("database: RunMigrations is a safe no-op when the DB is absent", function()
@@ -48,7 +49,7 @@ test("database: the runner climbs every step, stamps each, and is idempotent", f
   g.schemaVersion = NS.SCHEMA_VERSION
   assertTrue(ok, tostring(err))
   assertEqual(table.concat(ran, ","), "1,2", "each step ran once, in order")
-  assertEqual(stamp, 5, "the stamp advanced past each step")
+  assertEqual(stamp, 6, "the stamp advanced past each step")
 end)
 
 test("database: a step that raises leaves the stamp unmoved and says so once in chat", function()
@@ -160,18 +161,18 @@ test("database: the load pass repairs a container whose band set ids name no sto
   end)
 end)
 
-test("database: test_first_run_seeds_presets — a fresh profile gets the class's own set first, then the four", function()
+test("database: test_first_run_seeds_presets — a fresh profile gets the creating class's own set alone", function()
   local p = {}
   withProfile(p, function()
     D.PrepareProfile(p)
-    assertEqual(#p.bandSetOrder, 5, "the Mage set and the four generic sets seeded (RangeMaster#20)")
-    assertEqual(p.nextBandSetId, 6)
+    assertEqual(#p.bandSetOrder, 1, "the Mage set alone (R4-RM-02; before, the four generic sets too)")
+    assertEqual(p.nextBandSetId, 2)
     assertEqual(p.seeded, false, "the first-run container picker has not run")
     assertEqual(NS.BandSets.Get(NS.BandSets.DefaultId()).name, NS.BandSetPresets.mage.name,
       "a Mage's default is the Mage set")
     -- idempotent: a second pass seeds nothing more
     D.PrepareProfile(p)
-    assertEqual(#p.bandSetOrder, 5)
+    assertEqual(#p.bandSetOrder, 1)
   end, "MAGE")
   local pal = {}
   withProfile(pal, function()
@@ -187,16 +188,11 @@ test("database: test_first_run_seeds_presets — a fresh profile gets the class'
     D.PrepareProfile(h)
     assertEqual(NS.BandSets.Get(NS.BandSets.DefaultId()).name, NS.BandSetPresets.hunter.name,
       "a Hunter's default is the Hunter set")
-    assertEqual(#h.bandSetOrder, 4, "the Hunter set is the class's own: four sets, no duplicate")
-    local seen = {}
-    for _, id in ipairs(h.bandSetOrder) do seen[NS.BandSets.Get(id).name] = true end
-    for _, key in ipairs(NS.BandSetPresets.ORDER) do
-      assertTrue(seen[NS.BandSetPresets[key].name], key .. " seeded")
-    end
+    assertEqual(#h.bandSetOrder, 1, "the Hunter set alone")
   end, "HUNTER")
 end)
 
-test("database: a Devourer's seed keeps its caster default and still gets the Demon Hunter set", function()
+test("database: a Devourer's seed is its caster default alone", function()
   local realSpec = NS.Compat.PlayerSpecID
   NS.Compat.PlayerSpecID = function() return 1480 end
   local ok, err = pcall(function()
@@ -205,17 +201,11 @@ test("database: a Devourer's seed keeps its caster default and still gets the De
       D.PrepareProfile(p)
       local names = {}
       for _, id in ipairs(p.bandSetOrder) do names[#names + 1] = NS.BandSets.Get(id).name end
-      assertEqual(names[1], NS.BandSetPresets.caster40.name, "the spec override stays the default")
-      if NS.BandSetPresets.demonhunter then
-        -- red under: the override took first place and the class's own preset was never seeded.
-        assertEqual(names[2], NS.BandSetPresets.demonhunter.name, "the Demon Hunter set follows it")
-        assertEqual(#p.bandSetOrder, 5, "caster40, demonhunter, then the three other generic sets")
-        assertEqual(p.nextBandSetId, 6)
-      else
-        -- a client with no Demon Hunter preset (WoW Forever): the four generic sets alone.
-        assertEqual(#p.bandSetOrder, 4, "no class preset on this client: the four generic sets")
-        assertEqual(p.nextBandSetId, 5)
-      end
+      assertEqual(names[1], NS.BandSetPresets.caster40.name, "the spec override is the set")
+      -- R4-RM-02: one set; a respec to a Demon Hunter spec never re-assigns (modules/BandSetChoice.lua),
+      -- and the Demon Hunter set is one click away under Shipped presets.
+      assertEqual(#p.bandSetOrder, 1, "the creator's set alone")
+      assertEqual(p.nextBandSetId, 2)
     end, "DEMONHUNTER")
   end)
   NS.Compat.PlayerSpecID = realSpec
@@ -698,7 +688,7 @@ end)
 test("database: step 4 through the runner from v3, then a fresh profile's seed carries its origins", function()
   local p = { bandSets = { [1] = v3Set(NS.BandSetPresets.caster40.name) }, bandSetOrder = { 1 }, nextBandSetId = 2 }
   migrate({ profile = p, global = { schemaVersion = 3 } }, function(db)
-    assertEqual(db.global.schemaVersion, 5, "stamped at v5, the ladder's top")
+    assertEqual(db.global.schemaVersion, 6, "stamped at v6, the ladder's top")
   end)
   assertEqual(p.bandSets[1].origin, "caster40", "the climb from v3 runs step 4")
   local fresh = {}

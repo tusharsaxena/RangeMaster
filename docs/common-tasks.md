@@ -95,7 +95,8 @@ Recipes for the changes made most often here. Each names the real files; run the
   band ends there (`tools/seeds/seeds.py`'s `tier-reach` and `band-reach` check both). A new generic
   preset key joins `ORDER`, its name and labels join
   `locales/enUS.lua`, and the table in `docs/schema.md` follows. Presets are copied into a profile
-  only on a fresh profile (the seed), by `NS.BandSets.Create(name, key)`, or when the player asks
+  only on a fresh profile (the seed: the creator's own set alone), at a character's first load on a
+  profile that lacks its class set (`NS.BandSetChoice.EnsureAssigned`), by `NS.BandSets.Create(name, key)`, or when the player asks
   (`CopyFrom` from a preset, `RestorePreset`); otherwise a stored set is the player's and is never rewritten (the one exception is the v1 -> v2 step, which gave every stored
   band the rule its yards suggest, `docs/schema.md`). A stored set made from the preset you changed
   then reads `· modified` on the Band sets page, and its Restore preset… takes the new bands. A preset

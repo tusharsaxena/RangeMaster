@@ -388,6 +388,8 @@ local SCHEMA_STEPS = {
     -- v4 -> v5, the band set a container uses is the character's own (spec 2026-11-26, C7): the
     -- loading character keeps each container's set as its own pick, unless it is another class's.
     { to = 5, apply = function(db) NS.BandSetChoice.Migrate(db) end },
+    -- v5 -> v6, the band set assigned to each character (R4-RM-01): the table its first load fills.
+    { to = 6, apply = function(db) NS.BandSetChoice.MigrateAssigned(db) end },
 }
 
 --- The runner's target: the highest step's `to`, or 0 with no step.
