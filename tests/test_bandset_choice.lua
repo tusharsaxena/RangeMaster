@@ -21,6 +21,12 @@ local function setFrom(key)
   end
 end
 
+--- The first set from preset `key`, made from the preset when the profile has none (as New from a
+--- preset does): a new profile holds its creator's set alone (R4-RM-02).
+local function own(key)
+  return setFrom(key) or B.Create(nil, key)
+end
+
 --- A container stored straight into the active profile (no renderer apply), answering its id.
 local function addContainer(p, bandSet)
   local id = p.nextContainerId or 1
@@ -74,8 +80,8 @@ test("bandset choice: two characters sharing one profile keep separate selection
     local p = acct.login("Pal - Realm", "PALADIN")
     local cid = addContainer(p)
     NS.SelectContainer(cid)
-    local caster = setFrom("caster40")
-    local hunterSet = setFrom("hunter")
+    local caster = own("caster40")
+    local hunterSet = own("hunter")
     -- The paladin picks Caster 40 through the row, as the dropdown writes it.
     row("container.bandSet").set(caster)
     assertEqual(B.ForUnit(p.containers[cid], "target", cid), caster, "the paladin reads its pick")
@@ -118,7 +124,7 @@ test("bandset choice: a new character with no pick gets its own class preset", f
     assertEqual(NS.BandSetChoice.FallbackId(p.containers[cid]), NS.BandSetChoice.CharacterDefaultId(),
       "the row's Default band set names the set '(default)' marks")
     -- The assignment outranks a container's profile field, even a generic one (R4-RM-01).
-    local generic = addContainer(p, setFrom("caster40"))
+    local generic = addContainer(p, own("caster40"))
     assertEqual(B.ForUnit(p.containers[generic], "target", generic), setFrom("rogue"),
       "the character's assignment over the profile's Caster 40")
   end)
@@ -159,7 +165,7 @@ test("bandset choice: friendly nil follows hostile; false is Same as Band set; a
     local c = p.containers[cid]
     local isFriend = true
     M.UnitIsFriend = function() return isFriend end
-    local caster, healer = setFrom("caster40"), setFrom("healer")
+    local caster, healer = own("caster40"), own("healer")
     NS.BandSetChoice.Set(cid, "bandSet", caster)
     assertEqual(B.ForUnit(c, "target", cid), caster, "no friendly anywhere: a friend reads the hostile set")
     -- The profile's override (a container preset's Healer) applies while the character has not chosen.
@@ -184,10 +190,10 @@ test("bandset choice: the v5 step keeps the migrating character's pick, but neve
   local seed = {}
   withAccount(function(acct)
     local p = acct.login("Pal - Realm", "PALADIN")
-    local c1, c2 = addContainer(p, setFrom("caster40")), addContainer(p, setFrom("paladin"))
-    seed.c1, seed.c2, seed.caster, seed.paladin = c1, c2, setFrom("caster40"), setFrom("paladin")
+    local c1, c2 = addContainer(p, own("caster40")), addContainer(p, setFrom("paladin"))
+    seed.c1, seed.c2, seed.caster, seed.paladin = c1, c2, own("caster40"), setFrom("paladin")
+    seed.healer = own("healer")
     seed.profile = NS.Database.DeepCopy(p)
-    seed.healer = setFrom("healer")
   end)
   local raid = NS.Database.DeepCopy(seed.profile)
   raid.containers[seed.c1].bandSet = seed.healer
@@ -233,7 +239,7 @@ test("bandset choice: profile copy carries the picks, reset forgets them, a cont
   withAccount(function(acct)
     local p = acct.login("Hunt - Realm", "HUNTER")
     local cid = addContainer(p)
-    local caster = setFrom("caster40")
+    local caster = own("caster40")
     NS.BandSetChoice.Set(cid, "bandSet", caster)
     -- A container copy and a duplicate take the source's pick.
     local other = addContainer(p)
@@ -263,7 +269,7 @@ test("bandset choice: the AceDB profile events reach every character's picks", f
   withAccount(function(acct)
     local p = acct.login("Pal - Realm", "PALADIN")
     local cid = addContainer(p)
-    local caster, healer = setFrom("caster40"), setFrom("healer")
+    local caster, healer = own("caster40"), own("healer")
     NS.BandSetChoice.Set(cid, "bandSet", caster)
     acct.login("Hunt - Realm", "HUNTER")
     NS.BandSetChoice.Set(cid, "bandSet", healer)
@@ -289,13 +295,13 @@ test("bandset choice: the load pass drops a pick on a deleted container", functi
   withAccount(function(acct)
     local p = acct.login("Hunt - Realm", "HUNTER")
     local keep, gone = addContainer(p), addContainer(p)
-    NS.BandSetChoice.Set(keep, "bandSet", setFrom("caster40"))
-    NS.BandSetChoice.Set(gone, "bandSet", setFrom("caster40"))
+    NS.BandSetChoice.Set(keep, "bandSet", own("caster40"))
+    NS.BandSetChoice.Set(gone, "bandSet", own("caster40"))
     assertTrue(NS.CM.Delete(gone))
     acct.login("Hunt - Realm", "HUNTER")
     local mine = acct.sv.char["Hunt - Realm"].bandSetChoice.Default
     assertNil(mine[gone], "the deleted container's pick is pruned")
-    assertEqual(mine[keep].hostile, setFrom("caster40"), "the live one's stays")
+    assertEqual(mine[keep].hostile, own("caster40"), "the live one's stays")
   end)
 end)
 
@@ -324,10 +330,10 @@ test("bandset choice: Copy settings without the band-set sections leaves the pic
   withAccount(function(acct)
     local p = acct.login("Hunt - Realm", "HUNTER")
     local from, to = addContainer(p), addContainer(p)
-    NS.BandSetChoice.Set(from, "bandSet", setFrom("caster40"))
-    NS.BandSetChoice.Set(to, "bandSet", setFrom("healer"))
+    NS.BandSetChoice.Set(from, "bandSet", own("caster40"))
+    NS.BandSetChoice.Set(to, "bandSet", own("healer"))
     assertTrue(NS.CM.CopySettings(from, to, { "layout" }))
-    assertEqual(B.ForUnit(p.containers[to], "target", to), setFrom("healer"), "the target keeps its own pick")
+    assertEqual(B.ForUnit(p.containers[to], "target", to), own("healer"), "the target keeps its own pick")
   end)
 end)
 
@@ -340,7 +346,7 @@ test("bandset choice: other characters' picks are counted for the Used by line",
     assertEqual(NS.BandSetChoice.OthersUsing(a), 0, "this character's own pick is not an other's")
     acct.login("Hunt - Realm", "HUNTER")
     assertEqual(NS.BandSetChoice.OthersUsing(a), 1, "the paladin's pick, seen from the hunter")
-    assertEqual(NS.BandSetChoice.OthersUsing(setFrom("caster40")), 0)
+    assertEqual(NS.BandSetChoice.OthersUsing(own("caster40")), 0)
   end)
 end)
 
@@ -405,7 +411,7 @@ end)
 test("bandset assignment: an edited or renamed copy of the class set is reused, never duplicated", function()
   withAccount(function(acct)
     acct.login("Pal - Realm", "PALADIN")
-    local hunter = setFrom("hunter")
+    local hunter = own("hunter")
     B.Rename(hunter, "My hunter bands")
     B.SetBand(hunter, 1, "label", "XX")
     local before = #B.List()
@@ -419,7 +425,7 @@ test("bandset assignment: 'Use for this character' changes it; every container w
   withAccount(function(acct)
     local p = acct.login("Hunt - Realm", "HUNTER")
     local free, picked = addContainer(p), addContainer(p)
-    local caster, healer = setFrom("caster40"), setFrom("healer")
+    local caster, healer = own("caster40"), own("healer")
     NS.BandSetChoice.Set(picked, "bandSet", healer)
     NS.SelectBandSet(caster)
     local line = NS.__bandSetOriginLine()
@@ -455,7 +461,7 @@ test("bandset assignment: deleting an assigned set moves the assignment, and nev
     acct.login("Pal - Realm", "PALADIN")
     -- Seen from the paladin, the hunter's assignment counts on the Used by line.
     assertEqual(NS.BandSetChoice.OthersUsing(hunter), 1, "red before: only picks were counted")
-    local caster = setFrom("caster40")
+    local caster = own("caster40")
     assertTrue(B.Delete(hunter, caster))
     assertEqual(assignedOf(acct, "Hunt - Realm"), caster, "the named target takes the assignment")
     acct.login("Hunt - Realm", "HUNTER")
@@ -476,7 +482,7 @@ test("bandset assignment: a profile copy copies every character's, a reset or de
   withAccount(function(acct)
     acct.login("Pal - Realm", "PALADIN")
     acct.login("Hunt - Realm", "HUNTER")
-    local caster = setFrom("caster40")
+    local caster = own("caster40")
     NS.BandSetChoice.Assign(caster)
     -- A copy, as AceDB does it: the source copied into the active profile, then OnProfileCopied.
     acct.sv.profiles.Raid = NS.Database.DeepCopy(acct.sv.profiles.Default)
@@ -503,8 +509,8 @@ test("bandset assignment: the Ka0s container preset reads it, never a set matche
     local before = #B.List()
     assertEqual(NS.Presets.__classSet(), hunter, "red before: a renamed class set was created again")
     assertEqual(#B.List(), before)
-    NS.BandSetChoice.Assign(setFrom("caster40"))
-    assertEqual(NS.Presets.__classSet(), setFrom("caster40"), "a manual assignment is the preset's class set")
+    NS.BandSetChoice.Assign(own("caster40"))
+    assertEqual(NS.Presets.__classSet(), own("caster40"), "a manual assignment is the preset's class set")
   end)
 end)
 
@@ -519,10 +525,10 @@ test("bandset assignment: a Devourer whose spec is not readable yet is assigned 
     assertNil(assignedOf(acct, "DH - Realm"), "an unreadable spec defers the assignment")
     spec = 1480
     NS:OnEnterWorld("PLAYER_ENTERING_WORLD", true, false)
-    assertEqual(assignedOf(acct, "DH - Realm"), setFrom("caster40"), "Devourer: Caster 40, not Demon Hunter")
+    assertEqual(assignedOf(acct, "DH - Realm"), own("caster40"), "Devourer: Caster 40, not Demon Hunter")
     spec = 577
     NS:OnSpellsChanged()
-    assertEqual(assignedOf(acct, "DH - Realm"), setFrom("caster40"), "and a respec never moves it")
+    assertEqual(assignedOf(acct, "DH - Realm"), own("caster40"), "and a respec never moves it")
   end)
   NS.Compat.PlayerSpecID = realSpec
   assertTrue(ok, tostring(err))
@@ -537,4 +543,60 @@ test("bandset assignment: the schema is v6, and no character store means no assi
     assertEqual(acct.sv.global.schemaVersion, 6, "a v5 account is stamped v6")
     assertEqual(type(acct.sv.char["Pal - Realm"].bandSetAssigned), "table", "with the table")
   end, { profiles = { Default = {} }, char = {}, global = { schemaVersion = 5 } })
+end)
+
+-- ---------------------------------------------------------------------------
+-- R4-RM-02: a new profile seeds only its creator's set; "Your band sets" grows as characters are
+-- assigned or pick sets (the owner, round 4: "Only bandsets that have been assigned to a character
+-- should show up in 'Your band sets'"; answered "New profiles only")
+-- ---------------------------------------------------------------------------
+
+--- The origins of the stored sets, in order, as one string.
+local function origins()
+  local out = {}
+  for _, id in ipairs(B.List()) do out[#out + 1] = tostring(B.Get(id).origin) end
+  return table.concat(out, ",")
+end
+
+test("bandset seeding: a new profile holds its creator's set alone, and grows as characters arrive", function()
+  withAccount(function(acct)
+    acct.login("Pal - Realm", "PALADIN")
+    assertEqual(origins(), "paladin", "red before: the seed added Melee / Ranged, Caster 40, Healer and Hunter too")
+    acct.login("Hunt - Realm", "HUNTER")
+    assertEqual(origins(), "paladin,hunter", "the hunter's first load adds its own set")
+    local list = NS.__bandSetPickerEntries()
+    assertTrue(list[setFrom("hunter")]:find("(default)", 1, true) ~= nil, "and the hunter's picker marks it")
+    -- The hunter makes Caster 40 its own through "Use this preset" (New, from the preset) and uses it.
+    local caster = B.Create(nil, "caster40")
+    assertTrue(NS.UseBandSetForCharacter(caster))
+    assertEqual(origins(), "paladin,hunter,caster40", "a set the player made joins the list")
+    acct.login("Pal - Realm", "PALADIN")
+    acct.login("Hunt - Realm", "HUNTER")
+    assertEqual(NS.BandSetChoice.Assigned(), caster, "the hunter's pick persists")
+    acct.login("Rogue - Realm", "ROGUE")
+    assertEqual(origins(), "paladin,hunter,caster40,rogue", "a rogue gets its own set, nothing else is added")
+  end)
+end)
+
+test("bandset seeding: a container preset adds the sets it uses, and nothing else", function()
+  withAccount(function(acct)
+    acct.login("Pal - Realm", "PALADIN")
+    NS.Presets.Apply("ka0s")
+    assertEqual(origins(), "paladin,healer", "Ka0s adds the Healer set for friends")
+  end)
+end)
+
+test("bandset seeding: an existing profile keeps every set it has (owner: new profiles only)", function()
+  local five = {}
+  for _, key in ipairs({ "paladin", "melee_ranged", "caster40", "healer", "hunter" }) do
+    five[#five + 1] = key
+  end
+  withAccount(function(acct)
+    local p = acct.login("Pal - Realm", "PALADIN")
+    for i = 2, #five do B.Create(nil, five[i]) end
+    acct.sv.global.schemaVersion = 5
+    acct.login("Mage - Realm", "MAGE")
+    assertEqual(origins(), table.concat(five, ",") .. ",mage", "nothing pruned; the mage's own set is added")
+    assertEqual(#p.bandSetOrder, 6)
+  end)
 end)

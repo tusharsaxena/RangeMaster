@@ -708,29 +708,20 @@ function BandSets.Delete(id, reassignTo)
     return true
 end
 
---- The seed routine (the load pass calls it on a profile with no band set): the player's class
---- default first, so it is the default set (DefaultFor: the spec's override, else the class's own
---- preset, RangeMaster#20), then the class's own preset when a spec override took first place (a
---- Devourer keeps the Demon Hunter set for a later respec), then the generic presets
---- (NS.BandSetPresets.ORDER) not already in. Announces nothing: no reader is up yet.
+--- The seed routine (the load pass calls it on a profile with no band set): the creating
+--- character's own set alone, its class or spec default (DefaultFor: the spec's override, else the
+--- class's own preset, RangeMaster#20). Every other set joins the profile only when something
+--- assigns or picks it (R4-RM-02; the owner, round 4: "Only bandsets that have been assigned to a
+--- character should show up in 'Your band sets'"): another character's first load
+--- (modules/BandSetChoice.lua), a container preset, or the player's New, Duplicate or Use this preset.
+--- A profile that has sets is never seeded, so an existing one keeps all it has (the owner: "New
+--- profiles only"). Announces nothing: no reader is up yet.
 --- @return number  how many sets were seeded
 function BandSets.Seed(p)
     if defaultIdOf(p) then return 0 end
-    local classFile = NS.Compat.PlayerClass()
-    local first = NS.BandSetPresets.DefaultFor(classFile, NS.Compat.PlayerSpecID())
-    local n = 0
-    local keys, taken = {}, {}
-    local function add(key)
-        if not taken[key] then keys[#keys + 1], taken[key] = key, true end
-    end
-    add(first)
-    add(NS.BandSetPresets.DefaultFor(classFile))
-    for _, key in ipairs(NS.BandSetPresets.ORDER) do add(key) end
-    for _, key in ipairs(keys) do
-        insert(p, build(nil, key))
-        n = n + 1
-    end
-    return n
+    local key = NS.BandSetPresets.DefaultFor(NS.Compat.PlayerClass(), NS.Compat.PlayerSpecID())
+    insert(p, build(nil, key))
+    return 1
 end
 
 -- ---------------------------------------------------------------------------

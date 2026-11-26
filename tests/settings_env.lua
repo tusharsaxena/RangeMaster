@@ -13,6 +13,18 @@ local NS, M = T.NS, T.mocks
 local E = {}
 
 --- Run `body(p)` on a fresh profile.
+--- The four generic sets an older seed added after the class's own (R4-RM-02 seeds the class's alone,
+--- and leaves a profile that has them as it is): the pages are tested on a profile holding several.
+local function legacySets()
+  for _, key in ipairs(NS.BandSetPresets.ORDER) do
+    local have = false
+    for _, id in ipairs(NS.BandSets.List()) do
+      if NS.BandSets.Get(id).origin == key then have = true end
+    end
+    if not have then NS.BandSets.Create(nil, key) end
+  end
+end
+
 function E.with(body)
   local saved = { db = NS.db, popup = M.StaticPopup_Show, combat = M.InCombatLockdown,
     selC = NS.State.selectedContainer, selB = NS.State.selectedBandSet, band = NS.State.selectedBand,
@@ -25,6 +37,7 @@ function E.with(body)
   NS.Presets.__reset()
   local ok, err = pcall(function()
     NS.Database.PrepareProfile(p)
+    legacySets()
     body(p)
   end)
   -- The renderer's instances go too: a preview built here (the picker's) watches its units on the

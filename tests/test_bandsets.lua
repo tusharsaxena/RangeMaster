@@ -232,11 +232,8 @@ end)
 
 test("bandsets: names stay unique: Create, Duplicate and Rename suffix a taken name, in any case", function()
   withFreshProfile(function()
-    local caster
-    for _, id in ipairs(B.List()) do
-      if B.Get(id).name == "Caster 40" then caster = id end
-    end
-    assertTrue(caster ~= nil, "the seed holds Caster 40")
+    local caster = B.Create(nil, "caster40")
+    assertEqual(B.Get(caster).name, "Caster 40", "a set from the Caster 40 preset")
     local d1, d2 = B.Duplicate(caster), B.Duplicate(caster)
     assertEqual(B.Get(d1).name, "Caster 40 copy")
     assertEqual(B.Get(d2).name, "Caster 40 copy 2", "a second copy is numbered, never a second 'Caster 40 copy'")
@@ -315,7 +312,7 @@ end)
 
 test("bandsets: deleting the default set makes the next one the default", function()
   withFreshProfile(function()
-    local first, second = B.List()[1], B.List()[2]
+    local first, second = B.List()[1], B.Create(nil, "healer")
     assertEqual(B.DefaultId(), first)
     assertTrue(B.Delete(first))
     assertEqual(B.DefaultId(), second)

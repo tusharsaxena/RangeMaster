@@ -161,18 +161,18 @@ test("database: the load pass repairs a container whose band set ids name no sto
   end)
 end)
 
-test("database: test_first_run_seeds_presets — a fresh profile gets the class's own set first, then the four", function()
+test("database: test_first_run_seeds_presets — a fresh profile gets the creating class's own set alone", function()
   local p = {}
   withProfile(p, function()
     D.PrepareProfile(p)
-    assertEqual(#p.bandSetOrder, 5, "the Mage set and the four generic sets seeded (RangeMaster#20)")
-    assertEqual(p.nextBandSetId, 6)
+    assertEqual(#p.bandSetOrder, 1, "the Mage set alone (R4-RM-02; before, the four generic sets too)")
+    assertEqual(p.nextBandSetId, 2)
     assertEqual(p.seeded, false, "the first-run container picker has not run")
     assertEqual(NS.BandSets.Get(NS.BandSets.DefaultId()).name, NS.BandSetPresets.mage.name,
       "a Mage's default is the Mage set")
     -- idempotent: a second pass seeds nothing more
     D.PrepareProfile(p)
-    assertEqual(#p.bandSetOrder, 5)
+    assertEqual(#p.bandSetOrder, 1)
   end, "MAGE")
   local pal = {}
   withProfile(pal, function()
@@ -188,16 +188,11 @@ test("database: test_first_run_seeds_presets — a fresh profile gets the class'
     D.PrepareProfile(h)
     assertEqual(NS.BandSets.Get(NS.BandSets.DefaultId()).name, NS.BandSetPresets.hunter.name,
       "a Hunter's default is the Hunter set")
-    assertEqual(#h.bandSetOrder, 4, "the Hunter set is the class's own: four sets, no duplicate")
-    local seen = {}
-    for _, id in ipairs(h.bandSetOrder) do seen[NS.BandSets.Get(id).name] = true end
-    for _, key in ipairs(NS.BandSetPresets.ORDER) do
-      assertTrue(seen[NS.BandSetPresets[key].name], key .. " seeded")
-    end
+    assertEqual(#h.bandSetOrder, 1, "the Hunter set alone")
   end, "HUNTER")
 end)
 
-test("database: a Devourer's seed keeps its caster default and still gets the Demon Hunter set", function()
+test("database: a Devourer's seed is its caster default alone", function()
   local realSpec = NS.Compat.PlayerSpecID
   NS.Compat.PlayerSpecID = function() return 1480 end
   local ok, err = pcall(function()
@@ -206,17 +201,11 @@ test("database: a Devourer's seed keeps its caster default and still gets the De
       D.PrepareProfile(p)
       local names = {}
       for _, id in ipairs(p.bandSetOrder) do names[#names + 1] = NS.BandSets.Get(id).name end
-      assertEqual(names[1], NS.BandSetPresets.caster40.name, "the spec override stays the default")
-      if NS.BandSetPresets.demonhunter then
-        -- red under: the override took first place and the class's own preset was never seeded.
-        assertEqual(names[2], NS.BandSetPresets.demonhunter.name, "the Demon Hunter set follows it")
-        assertEqual(#p.bandSetOrder, 5, "caster40, demonhunter, then the three other generic sets")
-        assertEqual(p.nextBandSetId, 6)
-      else
-        -- a client with no Demon Hunter preset (WoW Forever): the four generic sets alone.
-        assertEqual(#p.bandSetOrder, 4, "no class preset on this client: the four generic sets")
-        assertEqual(p.nextBandSetId, 5)
-      end
+      assertEqual(names[1], NS.BandSetPresets.caster40.name, "the spec override is the set")
+      -- R4-RM-02: one set; a respec to a Demon Hunter spec never re-assigns (modules/BandSetChoice.lua),
+      -- and the Demon Hunter set is one click away under Shipped presets.
+      assertEqual(#p.bandSetOrder, 1, "the creator's set alone")
+      assertEqual(p.nextBandSetId, 2)
     end, "DEMONHUNTER")
   end)
   NS.Compat.PlayerSpecID = realSpec
