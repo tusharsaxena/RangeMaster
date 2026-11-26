@@ -3,7 +3,7 @@
 ![WoW](https://img.shields.io/badge/WoW-Midnight_12.1.5_and_Forever_1.60.1-purple)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 ![Standard](https://img.shields.io/badge/Ka0s-WoW_Addon_Standard-yellow)
-![Tests](https://img.shields.io/badge/Tests-813%2F813_passing-green)
+![Tests](https://img.shields.io/badge/Tests-877%2F877_passing-green)
 
 Supports Retail and WoW Forever. Range Master lets you build your own range displays for your
 target, your focus, your pet, whatever is under your mouse, and every enemy nameplate on screen.
@@ -104,7 +104,8 @@ Everything else is under Settings → AddOns → Ka0s Range Master, and `/rm hel
 | Does it show the exact distance? | No addon can. The game only answers "in range of this spell or not", so Range Master shows the narrowest bracket the answers allow. |
 | Does it work on WoW Forever? | Yes, from the same download. Range Master uses each client's own spells and items to measure distance. |
 | Can I have a different band set for friends? | Yes. Each display has a Friendly band set, used whenever its unit is friendly. The Expert and Ka0s presets set it to Healer. |
-| My characters share a profile. Does each one keep its own band set? | Yes. The Band set and Friendly band set you pick for a display belong to the character you are on. A character that has not picked uses its own class's band set, so a hunter and a paladin on one profile see the Hunter and Paladin sets. |
+| My characters share a profile. Does each one keep its own band set? | Yes. Each character is given its own class's band set the first time it loads a profile, so a hunter and a paladin on one profile see the Hunter and Paladin sets, and it stays that character's until you change it: Band sets → pick a set → **Use for this character**. A Band set or Friendly band set you pick for one display also belongs to the character you are on. |
+| Why does a new profile list only one band set? | A new profile starts with its creator's class set. Each character that loads it adds its own, and any set you make joins the list. Every shipped set is still under **Shipped presets** in the picker. |
 | Does it follow range talents such as Hawk Eye? | Yes, on bands defined by a spell. The preset band sets use them, so a hunter with Hawk Eye sees Auto Shot's band reach past 35 yards without changing anything. A band you set to yards stays at its yards. |
 | I changed my class's band set. Can I get the original back? | Yes. Band sets → pick the set, then its Restore button under the picker (**Restore Paladin preset…** on a paladin's set). It lists what changes first, and can keep the sounds you added. `/rm bands undo` takes the restore back. |
 | Will it slow my game down? | It does one small pass ten or twenty times a second, only while a display is watching a unit, and none at all when the addon is turned off. |

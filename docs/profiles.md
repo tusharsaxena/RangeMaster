@@ -7,12 +7,16 @@ AceDBOptions' table, and `/rm profile [name]` lists profiles or switches to an e
 
 - **Per profile:** everything under `db.profile` (`docs/schema.md`): the Master controls, the skin
   choice, both registries (the containers and the band sets) and the first-run sentinel `seeded`. A
-  new profile starts with no container, the class's own preset band set and the four generic ones, and is offered the first-run
-  preset picker.
-- **Per character, within each profile:** `db.char.bandSetChoice`, which holds the Band set and
-  Friendly band set each character picked for each container (`modules/BandSetChoice.lua`,
-  `docs/schema.md` The character store). A profile copy carries every character's picks to the new
-  profile, and a reset or a delete forgets them (`OnProfileDeleted`).
+  new profile starts with no container and one band set, its creator's class (or spec) preset, and is
+  offered the first-run preset picker. Other sets join it as characters load on it or the player
+  makes them (R4-RM-02); a profile made before that keeps every set it has.
+- **Per character, within each profile:** `db.char.bandSetAssigned`, the band set each character is
+  assigned on each profile (written at its first load there, changed only by **Use for this
+  character** on the Band sets page or a delete of the set), and `db.char.bandSetChoice`, which holds
+  the Band set and Friendly band set each character picked for each container (`modules/BandSetChoice.lua`,
+  `docs/schema.md` The character store). A profile copy carries every character's assignment and picks
+  to the new profile, and a reset or a delete forgets them (`OnProfileDeleted`); after a reset only the
+  character that reset it is assigned again, at once.
 - **Installation-wide:** `db.global` — the schema stamp, the minimap button (`global.minimap`, so a
   profile switch never moves the button) and the one-time skin notice.
 - **Session only:** the debug flag, Test mode, Sim mode, the selected container and band set, and

@@ -37,8 +37,8 @@ addresses them, and an AceDB default with no row is a setting nobody can reach (
 
 | Key | Fresh profile | Writer | Notes |
 |---|---|---|---|
-| `bandSets` | the class's own preset, then the generic ones it is not: five sets, or four for a hunter (its own is the Hunter set) and for an unreadable class or one this client has no preset for (its default is Melee / Ranged). A Devourer (spec 1480) seeds Caster 40 first, then the Demon Hunter set, then the other three generic ones | `modules/BandSets.lua` | `[id] = NS.BANDSET_TEMPLATE` shape: `name`, `matchBy` (`"max"`/`"min"`), `unknown = { label = "?", color }`, `bands = { { from, to, label, frameColor, textColor, indicatorColor, sound, rule }, ... }` (`rule`: below), and `origin` (schema v4: below) |
-| `bandSetOrder` | `{ 1, 2, 3, 4, 5 }` (`{ 1, 2, 3, 4 }` in the four-set cases) | `modules/BandSets.lua` | the first id is the **default set**; the seed puts the class default (or the spec's override) first |
+| `bandSets` | one set: the creating character's class (or spec) preset (R4-RM-02), Melee / Ranged for an unreadable class or one this client has no preset for, Caster 40 for a Devourer (spec 1480). Other sets join as characters are assigned or pick them (The character store, below); a profile seeded before R4-RM-02 keeps the five the older seed gave | `modules/BandSets.lua` | `[id] = NS.BANDSET_TEMPLATE` shape: `name`, `matchBy` (`"max"`/`"min"`), `unknown = { label = "?", color }`, `bands = { { from, to, label, frameColor, textColor, indicatorColor, sound, rule }, ... }` (`rule`: below), and `origin` (schema v4: below) |
+| `bandSetOrder` | `{ 1 }` | `modules/BandSets.lua` | the first id is the **default set**; the seed puts the class default (or the spec's override) first |
 | `nextBandSetId` | `6` (`5` in the four-set cases) | `modules/BandSets.lua` | the id counter, bumped past the highest stored id on load |
 | `containers` | `{}` | `modules/ContainerManager.lua` (`NS.CM`) | `[id] = NS.CONTAINER_TEMPLATE` shape (design spec 5.2) |
 | `containerOrder` | `{}` | likewise | rebuilt on load to hold exactly the stored ids |
@@ -98,7 +98,7 @@ lowercase class token. The bands sit at the class's range tiers in that client's
 | `demonhunter` | 0-5 MELEE [melee], 5-15 BLADE [tier15], 15-30 RANGE [ranged], 30+ OOR [beyond] | (none) |
 | `evoker` | 0-8 CLOSE, 8-25 CAST [ranged], 25+ OOR [beyond] | (none) |
 
-Class defaults (`NS.BandSetPresets.DefaultFor(classFile, specID)`, the spec from `NS.Compat.PlayerSpecID`): a spec that plays unlike its class comes first, so Devourer (the Demon Hunter's 25 yd Intellect spec, 1480) → `caster40`; then the class's own preset on the running client; a class the client lacks, or an unreadable one → `melee_ranged`. Healer is the friendly override, no class's default. The first-run seed stores the class default, then the class's own preset when a spec override took first place (a Devourer keeps the Demon Hunter set), then `ORDER` (`melee_ranged`, `caster40`, `healer`, `hunter`) without either; `NS.BandSets.Create(name, key)` takes any key the client has (`NS.BandSetPresets.CLASS_KEYS`).
+Class defaults (`NS.BandSetPresets.DefaultFor(classFile, specID)`, the spec from `NS.Compat.PlayerSpecID`): a spec that plays unlike its class comes first, so Devourer (the Demon Hunter's 25 yd Intellect spec, 1480) → `caster40`; then the class's own preset on the running client; a class the client lacks, or an unreadable one → `melee_ranged`. Healer is the friendly override, no class's default. The first-run seed stores the class default alone (R4-RM-02; before, it added the class's own preset after a spec override and then `ORDER`, `melee_ranged`, `caster40`, `healer`, `hunter`); `ORDER` is now the Band sets picker's Shipped presets · General list. `NS.BandSets.Create(name, key)` takes any key the client has (`NS.BandSetPresets.CLASS_KEYS`). `NS.BandSetPresets.SpecDependent(classFile)` says whether a class's default waits on its spec (Demon Hunter, where the client has its preset).
 
 **What the load pass repairs.** A member that is not a table, or is stored under a key that is not a
 positive integer, is dropped (a numeric string key is moved to its number); every member is backfilled
@@ -168,29 +168,44 @@ companion: `font = ""` is already the skin's face. A stored container moves once
 
 ## The character store (`db.char`)
 
-AceDB's character scope holds one thing: each character's band set picks (`modules/BandSetChoice.lua`,
-the store's one runtime writer; spec `docs/superpowers/specs/2026-11-26-band-set-per-character-design.md`).
-There are no defaults: an absent key is "no pick".
+AceDB's character scope holds each character's band set assignment and picks (`modules/BandSetChoice.lua`,
+the store's one runtime writer; spec `docs/superpowers/specs/2026-11-26-band-set-per-character-design.md`,
+then R4-RM-01 in Ka0sAddonsCommonTasks `docs/2026-11-26-OWNER_FEEDBACK_ROUND4/`). There are no
+defaults: an absent key is "no pick" or "not assigned yet".
 
 | Key | Shape | Notes |
 |---|---|---|
+| `bandSetAssigned[<profile name>]` | a set id, or absent | the band set this character uses on that profile wherever a container has no pick of its own (schema v6) |
 | `bandSetChoice[<profile name>][<container id>].hostile` | a set id, or absent | this character's Band set for that container; absent: no pick |
 | `bandSetChoice[<profile name>][<container id>].friendly` | a set id, `false`, or absent | a set id is the Friendly band set; `false` is Same as Band set; absent: the profile's `bandSetFriendly` |
 
-The profile's name comes first because container ids repeat across profiles. **Which set a container
-uses.** Hostile: this character's pick; else this character's class default, the first set in
+The profile's name comes first because container ids repeat across profiles. **The assignment** is
+written once, at the character's first load on a profile (`EnsureAssigned`, from the load pass): the
+first set in `bandSetOrder` whose `origin` is `DefaultFor(class, spec)`, an edited or renamed copy
+included, else a new set made from that preset. A class whose default waits on its spec
+(`SpecDependent`: a Devourer) is not assigned while the spec reads nil; `PLAYER_ENTERING_WORLD` and the
+spell and spec events try again. It then never moves by itself, not on a respec, a profile swap or a
+login: **Use for this character** on the Band sets page (`Assign`) changes it, and a delete of the set
+moves it to where the delete moved the containers (the set it names, else the profile's first set). An
+assignment that names no set (a hand edit) is dropped by the load pass, which then assigns afresh. This
+reverses the per-character spec's C3 ("nothing is written back") for the hostile set.
+
+**Which set a container uses.** Hostile: this character's pick; else its assignment; else, while none is
+written, the old chain: this character's class default, the first set in
 `bandSetOrder` whose `origin` is `DefaultFor(class, spec)`, else `DefaultFor(class)`; else the
 container's `bandSet`, unless its `origin` is another class's preset; else the first set in the order
 that is not another class's preset (a rogue on a profile a paladin seeded gets Melee / Ranged, never
-the Paladin set); else the default set. "(default)" on the Band sets page is the same chain without a
-container. Friendly: this character's pick (`false`: the hostile set);
-else the container's `bandSetFriendly`; else the hostile set. Nothing is written back. A band set
-delete clears every character's picks on it, or moves them to the set the delete names. Every
-character's store is reached through `db.sv.char`. A container copy or duplicate copies the picks. A
-profile copy carries them to the new profile's name, and a profile reset or delete forgets them. The
-load pass (`NS:RunMigrations`, after `PrepareProfile`) drops the current character's picks that name a
-container or a set that no longer exists. Without a character scope (the no-AceDB fallback) the
-container's two fields are the selection, as before.
+the Paladin set); else the default set. "(default)" on the Band sets page, the Containers row's
+**Default band set (X)** and the set the Band sets page opens on are the same chain without a
+container: the assignment. Friendly: this character's pick (`false`: the hostile set);
+else the container's `bandSetFriendly`; else the hostile set. A band set delete clears every
+character's picks on it, or moves them to the set the delete names. Every character's store is reached
+through `db.sv.char`. A container copy or duplicate copies the picks. A profile copy carries the picks
+and the assignments to the new profile's name, and a profile reset or delete forgets them. The load
+pass (`NS:RunMigrations`, after `PrepareProfile`) drops the current character's picks that name a
+container or a set that no longer exists. The Band sets page's Used by line counts the other
+characters assigned the set or picking it. Without a character scope (the no-AceDB fallback) there is
+no assignment and the container's two fields are the selection, as before.
 
 ## The global store (`db.global`)
 
@@ -210,7 +225,7 @@ the band sets' one-level Undo slot (`settings/BandSetDialogs.lua`, dropped on a 
 
 ## Migrations
 
-`core/Database.lua`'s ladder has five steps, so `NS.SCHEMA_VERSION` is 5 (the declared default stays 0).
+`core/Database.lua`'s ladder has six steps, so `NS.SCHEMA_VERSION` is 6 (the declared default stays 0).
 **v0 -> v1, the frame defaults:** a new container draws its border at 25% (`frame.border.alpha`, new)
 over a background (`frame.background.enabled` now true) with a matte dot; so that an existing one keeps
 its look, the step writes `frame.border.alpha = 1`, `frame.background.enabled = false` and
@@ -263,3 +278,9 @@ scope the step changes nothing. **A known trade-off:** data from before step 5 d
 character chose a set, so a generic set (Caster 40, say) is pinned on whichever character loads first.
 If the paladin chose Caster 40 and the hunter loads first, the hunter keeps Caster 40 and the paladin
 reads its Paladin set until it picks again.
+
+**Step 6, the band set assigned to each character** (R4-RM-01, the owner's round 4, 2026-11-26). It
+makes the loading character's `db.char.bandSetAssigned` table. It writes no assignment: `sv.char` holds
+no class, so each character's first load on each profile writes its own (`EnsureAssigned`). Existing
+profiles keep every set they hold; nothing is pruned (the owner: "New profiles only"). Without a
+character scope the step changes nothing.

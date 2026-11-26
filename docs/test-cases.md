@@ -69,7 +69,7 @@ Total.
 ### test_database.lua (32)
 
 - database: the account-wide schemaVersion default is 0 (savedvariables-§1)
-- database: the ladder holds four steps, v0 -> v1 (the frame defaults), v1 -> v2 (band rules), v2 -> v3 (own looks) and v3 -> v4 (band set origins), and a fresh install is stamped 4
+- database: the ladder holds six steps, v0 -> v1 (the frame defaults), v1 -> v2 (band rules), v2 -> v3 (own looks), v3 -> v4 (band set origins), v4 -> v5 (per-character band sets) and v5 -> v6 (the band set assigned to each character), and a fresh install is stamped 6
 - database: RunMigrations is a safe no-op when the DB is absent
 - database: the runner climbs every step, stamps each, and is idempotent
 - database: a step that raises leaves the stamp unmoved and says so once in chat
@@ -79,8 +79,8 @@ Total.
 - database: a profile reset re-reads the latch and traces once
 - database: test_template_fill_missing_keys — a stored container gains what a later build added
 - database: the load pass repairs a container whose band set ids name no stored set
-- database: test_first_run_seeds_presets — a fresh profile gets the class's own set first, then the four
-- database: a Devourer's seed keeps its caster default and still gets the Demon Hunter set
+- database: test_first_run_seeds_presets — a fresh profile gets the creating class's own set alone
+- database: a Devourer's seed is its caster default alone
 - database: the load pass normalizes a stored band set and repairs its counter and order
 - database: the active profile was prepared at load
 - database: step 1 writes border opacity 100% and the plain dot onto every stored container, in every profile
@@ -143,6 +143,33 @@ Total.
 - bandsets: CopyFrom one of my sets takes its bands, its sounds when asked, and its origin
 - bandsets: CopyFrom refuses copying into itself, an unknown target, source or preset, and announces nothing
 - bandsets: a Snapshot taken before RestorePreset or CopyFrom undoes it whole, origin included
+
+### test_bandset_choice.lua (24)
+
+- bandset choice: two characters sharing one profile keep separate selections
+- bandset choice: a new character with no pick gets its own class preset
+- bandset choice: a deleted set falls back, on every character, and a named target moves the pick
+- bandset choice: friendly nil follows hostile; false is Same as Band set; an id is the override
+- bandset choice: the v5 step keeps the migrating character's pick, but never another class's set
+- bandset choice: profile copy carries the picks, reset forgets them, a container copy copies them
+- bandset choice: with no character store the profile fields are read and written as before (spec C8)
+- bandset choice: the AceDB profile events reach every character's picks
+- bandset choice: the load pass drops a pick on a deleted container
+- bandset choice: a respec never moves the assignment (R4-RM-01)
+- bandset choice: Copy settings without the band-set sections leaves the picks alone
+- bandset choice: other characters' picks are counted for the Used by line
+- bandset assignment: written at a character's first load on a profile, and shown as its default
+- bandset assignment: a swap away and back, another profile and a /reload change nothing
+- bandset assignment: an edited or renamed copy of the class set is reused, never duplicated
+- bandset assignment: 'Use for this character' changes it; every container without a pick follows
+- bandset assignment: deleting an assigned set moves the assignment, and never re-creates the preset
+- bandset assignment: a profile copy copies every character's, a reset or delete forgets them
+- bandset assignment: the Ka0s container preset reads it, never a set matched by name
+- bandset assignment: a Devourer whose spec is not readable yet is assigned at the first event that reads it
+- bandset assignment: the schema is v6, and no character store means no assignment (spec C8)
+- bandset seeding: a new profile holds its creator's set alone, and grows as characters arrive
+- bandset seeding: a container preset adds the sets it uses, and nothing else
+- bandset seeding: an existing profile keeps every set it has (owner: new profiles only)
 
 ### test_container_manager.lua (17)
 
@@ -1044,6 +1071,7 @@ Total.
 | test_schema.lua | 36 |
 | test_database.lua | 32 |
 | test_bandsets.lua | 40 |
+| test_bandset_choice.lua | 24 |
 | test_container_manager.lua | 17 |
 | test_presets.lua | 17 |
 | test_number_format.lua | 6 |
@@ -1099,4 +1127,4 @@ Total.
 | test_skin_switch.lua | 20 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **853** |
+| **Total** | **877** |

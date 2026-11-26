@@ -33,7 +33,7 @@ change. A secret or failed answer reads as *unknown*, never as out of range.
 | Component | Files | What it does |
 |---|---|---|
 | Range engine | `modules/Range.lua` (`NS.Range`), `modules/Ticker.lua` (`NS.Ticker`), `core/Compat.lua` | A guarded, memoized bracket per unit token per tick; the per-class anchor spells resolved at rebuild and asked once per spell per unit per tick (shared with the chips); one adaptive ticker that sends `RANGE_UPDATED` on change |
-| Band set picks | `modules/BandSetChoice.lua` (`NS.BandSetChoice`) | Each character's own Band set and Friendly band set per container, in `db.char`; with no pick, the character's class default set (by `origin`), then the container's profile field unless it is another class's set, then the first set that is no other class's |
+| Band set picks | `modules/BandSetChoice.lua` (`NS.BandSetChoice`) | Each character's assigned band set per profile and its own Band set and Friendly band set per container, in `db.char`; with no pick, the character's assignment (written at its first load on the profile, R4-RM-01), and only while none is written the old chain: its class default set (by `origin`), then the container's profile field unless it is another class's set, then the first set that is no other class's |
 | Band sets | `modules/BandSets.lua` (`NS.BandSets`), `defaults/BandSetPresets.lua` | Named, shared, normalized bands of yards, each of which may carry a spell, dead-zone or beyond rule (its yards then the fallback); `Resolve` turns a bracket into a band, `ForUnit` picks the friendly override; a set remembers the preset it came from (`origin`), so `Diff`, `RestorePreset` and `CopyFrom` can compare with it, restore it or copy from it |
 | Containers and presets | `modules/ContainerManager.lua` (`NS.CM`), `modules/Presets.lua` (`NS.Presets`) | The container registry's one writer and its coalesced, combat-held apply; Simple, Intermediate (Range Text), Intermediate (Range Numbers), Advanced, Expert and Ka0s, with a one-level Undo |
 | Rendering | `modules/Container.lua` (`NS.Container`), `modules/Style.lua`, `modules/Elements_*.lua` | One pooled instance per enabled container (one per plate for `nameplates` and `nameplatesExceptTarget`), repainted only on a band or text change |
@@ -112,12 +112,16 @@ its template. A delete re-selects the deleted item's neighbor (`NS.NeighborAfter
 `core/Database.lua`'s `Database.PrepareProfile` (called from `NS:RunMigrations`, so only from
 `InitDB` and the three AceDB profile callbacks): it re-keys and backfills every member from its
 template, rebuilds each order array, bumps each counter past the highest stored id, normalizes every
-band set, seeds the class's own preset band set and the four generic ones on a profile with none, points a container at the default
+band set, seeds the creating character's own class (or spec) preset band set alone on a profile with none (R4-RM-02), points a container at the default
 set when its `bandSet` names none, and sets `seeded` to `false` when absent.
 
-- **Band set picks** (`db.char`, not the profile): `bandSetChoice[<profile>][<container id>]`. Runtime
-  writer `modules/BandSetChoice.lua` (`Set`, `Forget`, `CopyContainer`, `CopyProfile`, `ForgetProfile`,
-  `Prepare`, and schema v5's `Migrate`). It holds the Band set and Friendly band set each character picked.
+- **Band set picks and assignments** (`db.char`, not the profile): `bandSetChoice[<profile>][<container id>]`
+  and `bandSetAssigned[<profile>]`. Runtime writer `modules/BandSetChoice.lua` (`Set`, `Assign`,
+  `EnsureAssigned`, `Forget`, `CopyContainer`, `CopyProfile`, `ForgetProfile`, `Prepare`, schema v5's
+  `Migrate` and v6's `MigrateAssigned`). It holds the band set each character is assigned on each profile
+  and the Band set and Friendly band set each character picked. `EnsureAssigned` runs in the load pass
+  and, for a character whose default waits on its spec, from `PLAYER_ENTERING_WORLD` and the spell and
+  spec events; it may create the character's class set there, through `NS.BandSets.Create`.
   `NS.BandSets.ForUnit(container, unit, id)` reads them (`docs/schema.md`, The character store).
 - **Band sets**: `bandSets`, `bandSetOrder`, `nextBandSetId`. Runtime writer `modules/BandSets.lua`
   (`Create`, `Delete`, `Duplicate`, `Rename`, `Normalize`, `SetBandSound`, `SetBandRule`, `RestorePreset`, `CopyFrom`,
@@ -127,7 +131,8 @@ set when its `bandSet` names none, and sets `seeded` to `false` when absent.
   `BandSets.ConvertSet` with the migration ladder (`docs/schema.md`). `Delete` also moves the
   `bandSet` / `bandSetFriendly` references of the containers that used the deleted set, through the
   container registry's writer `NS.CM.SetField` (architecture-§5), and clears or moves every character's
-  pick on it through `NS.BandSetChoice.Forget`. The Band
+  pick on it, and moves every character's assignment on it to where the containers went, through
+  `NS.BandSetChoice.Forget`. The Band
   sets page writes through `SetField` (match rule, unknown label and color), `SetBand` (an edge, a
   label, a color; an edge that would leave a band without width is refused), `AddBand` and
   `RemoveBand`, each normalizing after the write, and `SetBandRule` (a band's rule: Defined by, Role,
@@ -348,11 +353,14 @@ follows the skin.
 - A role's candidates are ordered at rebuild by the range the client reports; a buff that stretches a
   ranged spell for a few seconds (Spatial Paradox, Sniper Shot) is read through that spell's own
   in-range answer, but does not reorder the candidates until the next rebuild.
-- The class default band set is picked by class at the first-run seed, and by spec only for
-  Devourer (Caster 40, with the Demon Hunter set seeded second); a later spec change does not swap the default. Every class has its own
-  preset per client (RangeMaster#20), but a profile seeded before the class presets existed keeps
-  its stored sets: the class's set is only created by `NS.BandSets.Create(name, key)` (the Band sets
-  page's New… or Use this preset…, or the Ka0s preset) or on a fresh profile.
+- A character's band set is assigned at its first load on a profile, by class, and by spec only for
+  Devourer (Caster 40); a later spec change never moves it (R4-RM-01), so a Demon Hunter who respecs
+  picks its set with **Use for this character**. A Devourer whose spec the client cannot read at load
+  is assigned at the first event that can. Deleting a set with no replacement named moves every
+  character's assignment on it to the profile's first set, which may be another class's: that
+  character picks its own again with **Use for this character** (the assignment is never cleared, so
+  a deleted class set is never re-created behind the player's back). A profile made before R4-RM-02
+  keeps every set the older seed gave it (the owner: "New profiles only").
 - A tier band (`tier10` ... `tier30`) asks a spell the class learns at some level or through a talent
   (Shadowstep, Felblade, Skull Bash, WoW Forever's Drain Life); until it is learned, and while it is
   unusable (WoW Forever's spell 20271 with no seal up, Charge in combat), the band reads its yards.

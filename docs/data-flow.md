@@ -168,7 +168,7 @@ normalized on each write and on load (sorted, contiguous from 0, last band open-
 band, at least one band), so `Resolve` is total over [0, infinity). `ForUnit(container, unit)` picks
 the container's `bandSetFriendly` when it is set, exists and `NS.Compat.IsFriend` says the unit is
 friendly, else its `bandSet`, else the default. The default set is the first in `bandSetOrder`; the
-first-run seed puts the class (and spec) default there (`NS.BandSetPresets.DefaultFor`: the class's own preset on the running client, RangeMaster#20; Devourer reads Caster 40). Deleting a set moves
+first-run seed puts the creating character's class (and spec) default there, alone (`NS.BandSetPresets.DefaultFor`: the class's own preset on the running client, RangeMaster#20; Devourer reads Caster 40; R4-RM-02). With a character scope, a container with no pick of its own reads the character's assigned set instead (`modules/BandSetChoice.lua`, R4-RM-01). Deleting a set moves
 every container on it to the named replacement or the default (a friendly override on it falls away
 unless a replacement was named), and the last set cannot be deleted. Names stay unique, case-blind:
 `Create`, `Duplicate` (`"<name> copy"`) and `Rename` all go through `UniqueName` (`Caster 40 copy`,
