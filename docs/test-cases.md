@@ -144,7 +144,7 @@ Total.
 - bandsets: CopyFrom refuses copying into itself, an unknown target, source or preset, and announces nothing
 - bandsets: a Snapshot taken before RestorePreset or CopyFrom undoes it whole, origin included
 
-### test_bandset_choice.lua (24)
+### test_bandset_choice.lua (25)
 
 - bandset choice: two characters sharing one profile keep separate selections
 - bandset choice: a new character with no pick gets its own class preset
@@ -162,6 +162,7 @@ Total.
 - bandset assignment: a swap away and back, another profile and a /reload change nothing
 - bandset assignment: an edited or renamed copy of the class set is reused, never duplicated
 - bandset assignment: 'Use for this character' changes it; every container without a pick follows
+- bandset assignment: 'Use for this character' moves the containers the v5 step pinned to the old default
 - bandset assignment: deleting an assigned set moves the assignment, and never re-creates the preset
 - bandset assignment: a profile copy copies every character's, a reset or delete forgets them
 - bandset assignment: the Ka0s container preset reads it, never a set matched by name
@@ -1071,7 +1072,7 @@ Total.
 | test_schema.lua | 36 |
 | test_database.lua | 32 |
 | test_bandsets.lua | 40 |
-| test_bandset_choice.lua | 24 |
+| test_bandset_choice.lua | 25 |
 | test_container_manager.lua | 17 |
 | test_presets.lua | 17 |
 | test_number_format.lua | 6 |
@@ -1127,4 +1128,4 @@ Total.
 | test_skin_switch.lua | 20 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **877** |
+| **Total** | **878** |

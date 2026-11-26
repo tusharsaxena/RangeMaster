@@ -12,7 +12,7 @@ local _, NS = ...
 --   NS.BandSetChoice.FallbackId(c) -> setId            what a container with no pick uses
 --   NS.BandSetChoice.CharacterDefaultId() -> setId     this character's default ("(default)")
 --   NS.BandSetChoice.Assigned() -> setId | nil         this character's assignment (R4-RM-01)
---   NS.BandSetChoice.Assign(setId) -> boolean          "Use for this character" (the one manual writer)
+--   NS.BandSetChoice.Assign(setId) -> boolean, n       "Use for this character" (the one manual writer)
 --   NS.BandSetChoice.EnsureAssigned() -> setId | nil   the first-load writer (Prepare, the spec events)
 --   NS.BandSetChoice.Forget(setId, target?, assignTo?)   a band set was deleted
 --   NS.BandSetChoice.OthersUsing(setId) -> number      other characters on it (Used by)
@@ -38,7 +38,9 @@ local _, NS = ...
 -- needs its spec (a Devourer, NS.BandSetPresets.SpecDependent) waits while the spec reads nil, and
 -- the first PLAYER_ENTERING_WORLD or spell/spec event that can read it writes it. It then never moves
 -- by itself, not on a respec, a profile swap or a login: only "Use for this character" (Assign, the
--- Band sets page) and a delete of the set (Forget moves it to the delete's target) change it. A
+-- Band sets page) and a delete of the set (Forget moves it to the delete's target) change it. Assign
+-- also releases this character's hostile picks on the set it used until then (R4-REV: the v5 step
+-- pinned every container's profile field as the loading character's pick). A
 -- profile copy copies every character's, and a reset or delete forgets them. This reverses spec C3
 -- ("nothing is written back") for the hostile set a container with no pick uses.
 --
@@ -222,17 +224,40 @@ function Choice.Assigned()
     return nil
 end
 
+--- This character's hostile picks on set `old` in the active profile are released (cleared), so those
+--- containers follow the new assignment. Answers how many.
+local function releasePins(old)
+    local t, n, empty = mine(false), 0, {}
+    if not (t and old ~= nil) then return 0 end
+    for cid, e in pairs(t) do
+        if type(e) == "table" and e.hostile == old then
+            e.hostile, n = nil, n + 1
+            if e.friendly == nil then empty[#empty + 1] = cid end
+        end
+    end
+    for _, cid in ipairs(empty) do t[cid] = nil end
+    return n
+end
+
 --- Store `setId` as this character's assignment on the active profile ("Use for this character").
---- Refuses without a store or a profile name, and a set id that names no set.
+--- Refuses without a store or a profile name, and a set id that names no set. This character's
+--- hostile picks on the set it used before are released too (R4-REV): the v5 step (Migrate) pinned
+--- every container's profile field as the loading character's pick, so on a profile older than v5
+--- those containers would otherwise keep the old default. A pick made by hand on that same set is
+--- released with them (the two cannot be told apart); a pick on any other set stays.
+--- @return boolean stored, number released
 function Choice.Assign(setId)
     local name = profileName()
-    if not (name and setId ~= nil and sets()[setId]) then return false end
+    if not (name and setId ~= nil and sets()[setId]) then return false, 0 end
     local t = assignedTable(true)
-    if not t then return false end
+    if not t then return false, 0 end
+    local before = Choice.CharacterDefaultId()
     t[name] = setId
-    NS.Debug("BandSets", "band set %s assigned to this character on profile %s", tostring(setId), name)
+    local released = before ~= setId and releasePins(before) or 0
+    NS.Debug("BandSets", "band set %s assigned to this character on profile %s (%d pick(s) on %s released)",
+        tostring(setId), name, released, tostring(before))
     if NS.CM and NS.CM.RequestApply then NS.CM.RequestApply() end
-    return true
+    return true, released
 end
 
 --- Whether this character's default needs a spec the client cannot read yet (a Devourer at login).

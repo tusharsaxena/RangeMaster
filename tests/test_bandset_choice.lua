@@ -453,6 +453,39 @@ test("bandset assignment: 'Use for this character' changes it; every container w
   end)
 end)
 
+test("bandset assignment: 'Use for this character' moves the containers the v5 step pinned to the old default", function()
+  -- A v4 profile the paladin made: two containers on the Paladin set, one on Caster 40 (the
+  -- paladin's own choice). The v5 step pins all three as the loading paladin's picks.
+  local seed = {}
+  withAccount(function(acct)
+    local p = acct.login("Pal - Realm", "PALADIN")
+    seed.paladin, seed.caster = setFrom("paladin"), own("caster40")
+    seed.a, seed.b = addContainer(p, seed.paladin), addContainer(p, seed.paladin)
+    seed.c = addContainer(p, seed.caster)
+    seed.profile = NS.Database.DeepCopy(p)
+  end)
+  withAccount(function(acct)
+    local p = acct.login("Pal - Realm", "PALADIN")
+    local picks = acct.sv.char["Pal - Realm"].bandSetChoice.Default
+    assertEqual(picks[seed.a].hostile, seed.paladin, "the v5 step pinned the old default")
+    assertEqual(assignedOf(acct, "Pal - Realm"), seed.paladin, "and the paladin is assigned Paladin")
+    local healer = own("healer")
+    assertTrue(NS.UseBandSetForCharacter(healer))
+    assertEqual(B.ForUnit(p.containers[seed.a], "target", seed.a), healer,
+      "red before: a container pinned on the old default kept drawing Paladin")
+    assertEqual(B.ForUnit(p.containers[seed.b], "target", seed.b), healer, "every one of them")
+    assertNil(picks[seed.a], "the pin is released, so the row reads Default band set (Healer)")
+    assertEqual(B.ForUnit(p.containers[seed.c], "target", seed.c), seed.caster,
+      "a container on another set keeps it")
+    -- Another character's picks are never touched.
+    acct.login("Hunt - Realm", "HUNTER")
+    NS.BandSetChoice.Set(seed.a, "bandSet", seed.caster)
+    acct.login("Pal - Realm", "PALADIN")
+    assertTrue(NS.UseBandSetForCharacter(seed.paladin))
+    assertEqual(acct.sv.char["Hunt - Realm"].bandSetChoice.Default[seed.a].hostile, seed.caster)
+  end, { profiles = { Default = NS.Database.DeepCopy(seed.profile) }, char = {}, global = { schemaVersion = 4 } })
+end)
+
 test("bandset assignment: deleting an assigned set moves the assignment, and never re-creates the preset", function()
   withAccount(function(acct)
     acct.login("Pal - Realm", "PALADIN")

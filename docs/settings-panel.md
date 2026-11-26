@@ -137,7 +137,9 @@ A preset's value is `preset:<key>` (`NS.BandSets.PresetKeys`). Choosing one **vi
   line.
 - A set of yours always ends the line with its character act (R4-RM-01; the owner, round 4: "One per
   character"): **Use for this character** makes it the band set this character uses on this profile,
-  which every container without a band set of its own follows (other characters keep theirs; chat says
+  which every container without a band set of its own follows. A container whose Band set this character
+  had on the set it used until then follows too: the v5 upgrade pinned every container's old set as the
+  loading character's pick, so on an older profile those read as picks (other characters keep theirs; chat says
   `'<name>' is now this character's band set on this profile.`). On the set already assigned it reads
   **This character's band set**, disabled. A set with no origin shows the act beside `This character
   uses this band set.` or `This character uses <name>.` The page opens on the assigned set after a

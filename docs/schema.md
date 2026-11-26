@@ -185,7 +185,9 @@ first set in `bandSetOrder` whose `origin` is `DefaultFor(class, spec)`, an edit
 included, else a new set made from that preset. A class whose default waits on its spec
 (`SpecDependent`: a Devourer) is not assigned while the spec reads nil; `PLAYER_ENTERING_WORLD` and the
 spell and spec events try again. It then never moves by itself, not on a respec, a profile swap or a
-login: **Use for this character** on the Band sets page (`Assign`) changes it, and a delete of the set
+login: **Use for this character** on the Band sets page (`Assign`) changes it (and releases this
+character's `hostile` picks on the set it used until then, so the containers the v5 step pinned to the
+old default follow the new one; a pick on any other set stays), and a delete of the set
 moves it to where the delete moved the containers (the set it names, else the profile's first set). An
 assignment that names no set (a hand edit) is dropped by the load pass, which then assigns afresh. This
 reverses the per-character spec's C3 ("nothing is written back") for the hostile set.

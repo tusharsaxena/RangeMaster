@@ -636,7 +636,7 @@ local function characterAct(id)
     local assigned = NS.BandSetChoice.Assigned() == id
     return {
         text = assigned and L["This character's band set"] or L["Use for this character"], disabled = assigned,
-        tooltip = L["Make this the band set this character uses on this profile. Every container without a band set of its own follows it; other characters keep theirs."],
+        tooltip = L["Make this the band set this character uses on this profile. Every container without a band set of its own, or on the band set this character used until now, follows it; other characters keep theirs."],
         onClick = function() NS.UseBandSetForCharacter(id) end,
     }
 end
