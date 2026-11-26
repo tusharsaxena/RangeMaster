@@ -651,3 +651,63 @@ test("bandsets: the Defaults tooltip points to Restore for the bands", function(
     assertNil(tip:find("Delete band set", 1, true), "not Delete")
   end)
 end)
+
+-- ── R5-RM-01: the picker's group rows stand out (the owner, round 5: "Make the category headers more
+-- obvious (larger font, background color, etc)") ──
+
+--- A pull-out item as AceGUI's Dropdown-Item-Toggle carries it: its frame, its text and the value
+--- the Dropdown stored on it. Answers the item and a reader of how often its own OnRelease ran.
+local function fakeItem(value)
+  local text = { font = { "Fonts\\FRIZQT__.TTF", 10, "" }, x = 18 }
+  function text:GetFont() return self.font[1], self.font[2], self.font[3] end
+  function text:SetFont(path, size, flags) self.font = { path, size, flags } end
+  function text:SetPoint(point, _, _, x) if point == "TOPLEFT" then self.x = x end end
+  local frame = { textures = {} }
+  function frame:CreateTexture(_, layer)
+    local tex = { layer = layer, shown = true }
+    tex.SetColorTexture = function(t, r, g, b, a) t.color = { r, g, b, a } end
+    tex.SetAllPoints = function() end
+    tex.Show = function(t) t.shown = true end
+    tex.Hide = function(t) t.shown = false end
+    self.textures[#self.textures + 1] = tex
+    return tex
+  end
+  local released = 0
+  local item = { frame = frame, text = text, userdata = { value = value } }
+  item.OnRelease = function() released = released + 1 end
+  return item, function() return released end
+end
+
+test("bandsets: the picker's group rows draw larger, flush left, on a band of the heading color", function()
+  -- red under: a group row drawn as one more gray row in the list's own small font.
+  E.with(function()
+    local head, headReleased = fakeItem("header:mine")
+    local row = fakeItem(1)
+    local dd = { pullout = { items = { head, row } } }
+    function dd.pullout:IterateItems() return ipairs(self.items) end
+    assertEqual(NS.__dressBandSetHeaders(dd), 1, "one group row dressed")
+    assertTrue(head.text.font[2] > 10, "its font is larger")
+    assertTrue(head.text.x < 18, "flush left, where a set's check would sit")
+    local band = head.frame.textures[1]
+    assertTrue(band ~= nil and band.shown, "a band sits behind it")
+    assertEqual(band.layer, "BACKGROUND")
+    local r, g, b = NS.Skin.Color("text.heading")
+    assertEqual(band.color[1], r, "in the heading color")
+    assertEqual(band.color[2], g)
+    assertEqual(band.color[3], b)
+    assertTrue(band.color[4] > 0 and band.color[4] < 0.5, "faint, so the text reads over it")
+    assertEqual(#row.frame.textures, 0, "a set's row is left alone")
+    assertEqual(row.text.font[2], 10)
+    -- A pull-out item is pooled for every dropdown in the client: its release puts it back stock.
+    head:OnRelease()
+    assertEqual(headReleased(), 1, "the item's own release still runs")
+    assertEqual(head.text.font[2], 10, "the stock font is back")
+    assertEqual(head.text.x, 18, "and the stock inset")
+    assertFalse(band.shown, "the band is hidden")
+    head:OnRelease()
+    assertEqual(headReleased(), 2, "and the wrapper is gone after one release")
+    NS.__dressBandSetHeaders(dd)
+    assertEqual(#head.frame.textures, 1, "a reused item reuses its band")
+    assertTrue(band.shown)
+  end)
+end)

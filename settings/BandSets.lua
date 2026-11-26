@@ -28,7 +28,8 @@ local _, NS = ...
 -- THE PICKER IS GROUPED: "Your band sets" (the default first, "(default)"; a set that differs from
 -- its preset, "modified"), "Shipped presets · Classes" (every class preset this client has, in its
 -- class color, yours tagged "your class") and "Shipped presets · General". The group names are
--- disabled rows (AceGUI's SetItemDisabled), so only a set or a preset can be chosen. A preset's key
+-- disabled rows (AceGUI's SetItemDisabled), so only a set or a preset can be chosen, and each draws
+-- larger, flush left, on a band of the heading color (R5-RM-01, dressHeaders). A preset's key
 -- in the list is "preset:<key>"; choosing one VIEWS it (NS.ViewPreset, settings/Schema.lua).
 --
 -- THE ORIGIN LINE: a set made from a preset (`set.origin`, modules/BandSets.lua) says so, and
@@ -546,6 +547,69 @@ local function addHeader(list, order, headers, name, text)
     headers[#headers + 1] = key
 end
 
+-- A group row's look in the open list (R5-RM-01; the owner, round 5: "Make the category headers more
+-- obvious (larger font, background color, etc)"): its text HEADER_GROW points larger than a set's,
+-- flush left where a set's check sits, on a band of the heading color at HEADER_BAND_ALPHA. AceGUI
+-- pools the pull-out's items for every dropdown in the client, so the dress is undone on the item's
+-- next release (its own OnRelease, chained once, as LibKa0s's Skin:OnRelease chains a widget's).
+local HEADER_GROW, HEADER_BAND_ALPHA = 3, 0.22
+local HEADER_TEXT_X, STOCK_TEXT_X = 6, 18   -- AceGUI's ItemBase lays the text 18 px in, past the check
+
+--- Put pull-out item `item` back as AceGUI made it: its font, its inset, its band hidden.
+local function undressHeader(item)
+    local st = rawget(item, "rmHeader")
+    if not st then return end
+    item.rmHeader = nil
+    if st.font[1] then item.text:SetFont(st.font[1], st.font[2], st.font[3]) end
+    item.text:SetPoint("TOPLEFT", item.frame, "TOPLEFT", STOCK_TEXT_X, 0)
+    if st.band then st.band:Hide() end
+end
+
+--- Dress pull-out item `item` as a group row, and chain its undress onto its next release.
+local function dressHeader(item, r, g, b)
+    if rawget(item, "rmHeader") then return end
+    local frame, fs = item.frame, item.text
+    local path, size, flags = fs:GetFont()
+    local band = frame.rmHeaderBand
+    if not band then
+        band = frame:CreateTexture(nil, "BACKGROUND")
+        band:SetAllPoints()
+        frame.rmHeaderBand = band
+    end
+    band:SetColorTexture(r, g, b, HEADER_BAND_ALPHA)
+    band:Show()
+    item.rmHeader = { font = { path, size, flags }, band = band }
+    if path and type(size) == "number" then fs:SetFont(path, size + HEADER_GROW, flags) end
+    fs:SetPoint("TOPLEFT", frame, "TOPLEFT", HEADER_TEXT_X, 0)
+    local had = rawget(item, "OnRelease")
+    item.OnRelease = function(self, ...)
+        rawset(self, "OnRelease", had)
+        undressHeader(self)
+        local orig = self.OnRelease
+        if type(orig) == "function" then return orig(self, ...) end
+    end
+end
+
+--- Dress the group rows of dropdown `dd`'s pull-out (its items exist once SetList has run). Answers
+--- how many it dressed; none without a pull-out (the test kit's Dropdown has none).
+local function dressHeaders(dd)
+    local po = type(dd) == "table" and dd.pullout
+    if not (type(po) == "table" and type(po.IterateItems) == "function") then return 0 end
+    local r, g, b = NS.Skin.Color("text.heading")
+    if type(r) ~= "number" then r, g, b = 1, 0.82, 0 end
+    local n = 0
+    for _, item in po:IterateItems() do
+        local ud = type(item) == "table" and item.userdata
+        local v = type(ud) == "table" and ud.value
+        if type(v) == "string" and v:find(HEADER_KEY, 1, true) == 1 then
+            dressHeader(item, r, g, b)
+            n = n + 1
+        end
+    end
+    return n
+end
+NS.__dressBandSetHeaders = dressHeaders
+
 --- The player's sets into `list` and `order`, all but `except`, in order: this character's default
 --- (its class set, else the first that is no other class's; modules/BandSetChoice.lua, spec C5, C10), "(default)"; a
 --- set that differs from its preset, "modified". Answers how many it added.
@@ -693,7 +757,7 @@ end
 NS.BandSetsPage = {
     PresetName = presetName, ClassColored = classColored, YourClassKey = yourClassKey, Colored = colored,
     DiffWords = DIFF_WORDS, RuleText = ruleText, Match = MATCH, HeaderKey = HEADER_KEY, ViewPrefix = VIEW_PREFIX,
-    AddHeader = addHeader, AddOwnSets = addOwnSets, AddPresets = addPresets,
+    AddHeader = addHeader, AddOwnSets = addOwnSets, AddPresets = addPresets, DressHeaders = dressHeaders,
 }
 
 local function doCopyBands()
@@ -751,6 +815,7 @@ local function headerPicker(value)
     for _, key in ipairs(headers) do
         if dd.SetItemDisabled then dd:SetItemDisabled(key, true) end
     end
+    dressHeaders(dd)
     dd:SetValue(value)
     dd:SetRelativeWidth(PICKER_W)
     dd:SetCallback("OnValueChanged", function(_, _, v)

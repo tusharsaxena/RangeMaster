@@ -296,7 +296,9 @@ follows the skin.
   first edit never makes a copy (the owner, 2026-11-25). While one is viewed, every `bandSet.*` write is
   refused; `/rm get bandSet.*` still reads the selected set of yours.
 - The picker's group names (Your band sets, Shipped presets · Classes, Shipped presets · General) are
-  disabled rows, not true headers: AceGUI's dropdown takes one item type for every row.
+  disabled rows, not true headers: AceGUI's dropdown takes one item type for every row. Each is dressed
+  after `SetList` (a larger font, flush left, a faint band behind it; R5-RM-01) and undressed on the
+  pooled item's next release, so another addon's dropdown that reuses the item draws it stock.
 - The preset picker (a window shaped as AuraMaster's: a dropdown, each pick previewed on the real
   screen in test mode, Apply / Not now) has no style switch and no Empty preset, which this addon's
   presets do not have; a disabled addon that is enabled later is not offered it on first run.

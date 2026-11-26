@@ -771,7 +771,7 @@ Total.
 - settings: test_dot_shape_row — the Shape row offers the seven shapes, Bar and Spell icon, and /rm set takes the new ones
 - settings: test_plate_part_and_level_rows — Attach to part opens On the nameplate wherever it shows; Frame level sits under Attach to in every mode
 
-### test_settings_bandsets.lua (25)
+### test_settings_bandsets.lua (26)
 
 - bandsets: test_bandset_paths_get_set — /rm set bandSet.matchBy changes the selected band set
 - bandsets: SetBand moves an edge and the next band follows; an edge that would leave no width is refused
@@ -798,6 +798,7 @@ Total.
 - bandsets: Use this preset and Copy into a set of mine open their dialogs with the preset
 - bandsets: /rm set bandSet.*, /rm reset bandSet.* and Defaults refuse while a preset is viewed; /rm bands ends the view
 - bandsets: the Defaults tooltip points to Restore for the bands
+- bandsets: the picker's group rows draw larger, flush left, on a band of the heading color
 
 ### test_settings_bandset_dialogs.lua (14)
 
@@ -1107,7 +1108,7 @@ Total.
 | test_optionssetup.lua | 16 |
 | test_realpages.lua | 7 |
 | test_settings_containers.lua | 32 |
-| test_settings_bandsets.lua | 25 |
+| test_settings_bandsets.lua | 26 |
 | test_settings_bandset_dialogs.lua | 14 |
 | test_settings_presets.lua | 15 |
 | test_skinsetup.lua | 12 |
@@ -1131,4 +1132,4 @@ Total.
 | test_skin_switch.lua | 20 |
 | test_client_globals.lua | 3 |
 | Skipped | 1 |
-| **Total** | **881** |
+| **Total** | **882** |
