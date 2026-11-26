@@ -766,9 +766,34 @@ end)
 -- The client's class colors (RAID_CLASS_COLORS, Retail's; WoW Forever's classes share these), as hex.
 local CLASS_HEX = { "c69b6d", "f48cba", "aad372", "fff468", "ffffff", "c41e3a", "0070dd", "3fc7eb", "8788ee",
   "00ff98", "ff7c0a", "a330c9", "33937f" }
+-- The other colors a general preset sits beside in the open list: a disabled row's gray (AceGUI's .5)
+-- and the heading gold the group rows' band is drawn in.
+local NEAR_HEX = { "808080", "ffd100" }
+
+--- CIE L*a*b* (D65) of hex `h`, for a perceptual distance: "apart" means apart to the eye, not merely
+--- a different hex (R5-REV; core/Constants.lua PRESET_COLORS claims a distance of 34 or more).
+local function lab(h)
+  local function lin(i)
+    local c = tonumber(h:sub(i, i + 1), 16) / 255
+    return c > 0.04045 and ((c + 0.055) / 1.055) ^ 2.4 or c / 12.92
+  end
+  local r, g, b = lin(1), lin(3), lin(5)
+  local function f(t) return t > 0.008856 and t ^ (1 / 3) or 7.787 * t + 16 / 116 end
+  local fx = f((r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047)
+  local fy = f(r * 0.2126 + g * 0.7152 + b * 0.0722)
+  local fz = f((r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883)
+  return 116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)
+end
+local function deltaE(h1, h2)
+  local l1, a1, b1 = lab(h1)
+  local l2, a2, b2 = lab(h2)
+  return math.sqrt((l1 - l2) ^ 2 + (a1 - a2) ^ 2 + (b1 - b2) ^ 2)
+end
+local MIN_DELTA_E = 34
 
 test("bandsets: the general presets read in colors of their own, apart from every class's and each other's", function()
-  -- red under: Melee / Ranged, Caster 40 and Healer listed plain.
+  -- red under: Melee / Ranged, Caster 40 and Healer listed plain, or in a color a hex away from a class's
+  -- (R5-REV: 3fc7ec, one step from the mage's, passed an inequality check).
   E.with(function()
     local list = NS.__bandSetPickerEntries()
     local seen = {}
@@ -779,8 +804,15 @@ test("bandsets: the general presets read in colors of their own, apart from ever
       hex = hex:lower()
       assertEqual(hex, NS.Constants.PRESET_COLORS[key]:lower(), key .. " in its own color")
       assertTrue(text:find(B.PresetSet(key).name, 1, true) ~= nil, key .. " keeps its name")
-      for _, class in ipairs(CLASS_HEX) do assertTrue(hex ~= class, key .. " is no class's color") end
-      assertNil(seen[hex], key .. " shares no color with another general preset")
+      for _, class in ipairs(CLASS_HEX) do
+        assertTrue(deltaE(hex, class) >= MIN_DELTA_E, key .. " reads apart from the class color " .. class)
+      end
+      for _, near in ipairs(NEAR_HEX) do
+        assertTrue(deltaE(hex, near) >= MIN_DELTA_E, key .. " reads apart from " .. near)
+      end
+      for other in pairs(seen) do
+        assertTrue(deltaE(hex, other) >= MIN_DELTA_E, key .. " reads apart from the general preset in " .. other)
+      end
       seen[hex] = true
     end
     assertEqual(#B.PresetKeys().general, 3, "Melee / Ranged, Caster 40 and Healer")
