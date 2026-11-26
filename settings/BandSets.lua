@@ -619,8 +619,39 @@ local function diffSummary(diff)
     return text
 end
 
+--- Make stored set `id` this character's band set on the active profile ("Use for this character",
+--- R4-RM-01: every container without its own pick follows it). Answers whether it was stored.
+function NS.UseBandSetForCharacter(id)
+    local set = NS.BandSets.Get(id)
+    if not (set and NS.BandSetChoice.Assign(id)) then return false end
+    printf(L["'%s' is now this character's band set on this profile."], set.name)
+    NS.RequestPanelRefresh()
+    return true
+end
+
+--- The origin line's character act for stored set `id`: "Use for this character", or, on the set
+--- already assigned, a disabled "This character's band set". Nil without a character store.
+local function characterAct(id)
+    if not (id and NS.BandSetChoice.HasStore()) then return nil end
+    local assigned = NS.BandSetChoice.Assigned() == id
+    return {
+        text = assigned and L["This character's band set"] or L["Use for this character"], disabled = assigned,
+        tooltip = L["Make this the band set this character uses on this profile. Every container without a band set of its own follows it; other characters keep theirs."],
+        onClick = function() NS.UseBandSetForCharacter(id) end,
+    }
+end
+
+--- The line a set with no preset shows beside its character act: which set this character uses.
+local function characterText(id)
+    local own = NS.BandSetChoice.CharacterDefaultId()
+    if own == id then return L["This character uses this band set."] end
+    local set = own and NS.BandSets.Get(own)
+    return L["This character uses %s."]:format(set and set.name or "?")
+end
+
 --- The origin line for the page's subject: { text, acts = { { text, tooltip, onClick, disabled } } },
---- or nil for a set with no preset on this client.
+--- or nil for a set with no preset on this client and no character act. A stored set's line ends with
+--- its character act (R4-RM-01).
 local function originLine()
     local viewed = NS.ViewedPreset()
     if viewed then
@@ -635,7 +666,10 @@ local function originLine()
     end
     local set, id = NS.SelectedBandSet()
     local diff = id and NS.BandSets.Diff(id)
-    if not diff then return nil end
+    local mine = characterAct(id)
+    if not diff then
+        return mine and { text = characterText(id), acts = { mine } } or nil
+    end
     local name = presetName(set.origin)
     local text = #diff > 0 and L["From the %s preset \194\183 modified (%s)"]:format(name, diffSummary(diff))
         or L["From the %s preset"]:format(name)
@@ -643,7 +677,7 @@ local function originLine()
         text = L["Restore %s preset\226\128\166"]:format(name), disabled = #diff == 0,
         tooltip = L["Put this set's bands, match rule and unknown label and color back to its preset. Shows what changes first."],
         onClick = function() NS.ShowRestoreBandSetDialog(id) end,
-    } } }
+    }, mine } }
 end
 NS.__bandSetOriginLine = originLine
 

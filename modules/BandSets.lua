@@ -699,9 +699,11 @@ function BandSets.Delete(id, reassignTo)
         if p.bandSetOrder[i] == id then table.remove(p.bandSetOrder, i) end
     end
     local named = reassignTo ~= nil and reassignTo ~= id and p.bandSets[reassignTo] ~= nil
-    reassign(id, named and reassignTo or defaultIdOf(p), named)
-    -- Every character's pick on it (modules/BandSetChoice.lua) moves with the named set, else clears.
-    if NS.BandSetChoice then NS.BandSetChoice.Forget(id, named and reassignTo or nil) end
+    local target = named and reassignTo or defaultIdOf(p)
+    reassign(id, target, named)
+    -- Every character's pick on it (modules/BandSetChoice.lua) moves with the named set, else clears;
+    -- every character's assignment on it moves where the containers went (R4-RM-01).
+    if NS.BandSetChoice then NS.BandSetChoice.Forget(id, named and reassignTo or nil, target) end
     announce()
     return true
 end

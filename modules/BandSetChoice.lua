@@ -11,12 +11,16 @@ local _, NS = ...
 --   NS.BandSetChoice.Friendly(cid, c) -> setId | nil   its friendly override, nil: the hostile set
 --   NS.BandSetChoice.FallbackId(c) -> setId            what a container with no pick uses
 --   NS.BandSetChoice.CharacterDefaultId() -> setId     this character's default ("(default)")
---   NS.BandSetChoice.Forget(setId, target?)            a band set was deleted
---   NS.BandSetChoice.OthersUsing(setId) -> number      other characters picking it (Used by)
+--   NS.BandSetChoice.Assigned() -> setId | nil         this character's assignment (R4-RM-01)
+--   NS.BandSetChoice.Assign(setId) -> boolean          "Use for this character" (the one manual writer)
+--   NS.BandSetChoice.EnsureAssigned() -> setId | nil   the first-load writer (Prepare, the spec events)
+--   NS.BandSetChoice.Forget(setId, target?, assignTo?)   a band set was deleted
+--   NS.BandSetChoice.OthersUsing(setId) -> number      other characters on it (Used by)
 --   NS.BandSetChoice.CopyContainer(fromId, toId, fields?)   a container copy or duplicate
 --   NS.BandSetChoice.CopyProfile(source, dest), ForgetProfile(name)   the AceDB profile events
 --   NS.BandSetChoice.Prepare()                         the load pass: prune this character's picks
 --   NS.BandSetChoice.Migrate(db)                       schema v5 (core/Database.lua)
+--   NS.BandSetChoice.MigrateAssigned(db)               schema v6: the assignment table
 --   NS.BandSetChoice.Invalidate()                      drop the class-set cache
 --
 -- THE STORE: db.char.bandSetChoice[<profile name>][<container id>] = { hostile?, friendly? }.
@@ -26,12 +30,24 @@ local _, NS = ...
 -- also reachable as db.sv.char[<charKey>] (real AceDB-3.0), so a delete or a profile event reaches all
 -- of them (spec C4).
 --
--- THE RESOLUTION (spec section 2). Hostile: the character's pick; else this character's class
--- default (the first set whose `origin` is DefaultFor(class, spec), else DefaultFor(class)); else the
--- container's profile field, unless that is another class's preset; else the first set that is not
--- another class's (a rogue on a paladin's profile gets Melee / Ranged, never Paladin; BSC-REV); else
--- the default set. Friendly: the character's pick (false: the hostile
--- set); else the profile's bandSetFriendly; else the hostile set. Nothing is written back (spec C3).
+-- THE ASSIGNMENT (R4-RM-01; the owner, round 4: "the right class specific bandset should be assigned
+-- to that character", answered "One per character"): db.char.bandSetAssigned[<profile name>] = setId,
+-- a table apart from bandSetChoice, so Prepare's per-container pruning never touches it. It is WRITTEN
+-- ONCE, at the character's first load on a profile (EnsureAssigned, from Prepare): the first set whose
+-- `origin` is DefaultFor(class, spec), else a new one made from that preset. A class whose default
+-- needs its spec (a Devourer, NS.BandSetPresets.SpecDependent) waits while the spec reads nil, and
+-- the first PLAYER_ENTERING_WORLD or spell/spec event that can read it writes it. It then never moves
+-- by itself, not on a respec, a profile swap or a login: only "Use for this character" (Assign, the
+-- Band sets page) and a delete of the set (Forget moves it to the delete's target) change it. A
+-- profile copy copies every character's, and a reset or delete forgets them. This reverses spec C3
+-- ("nothing is written back") for the hostile set a container with no pick uses.
+--
+-- THE RESOLUTION (spec section 2, R4-RM-01). Hostile: the character's pick; else its assignment;
+-- else, while none is written (a deferred spec), the old chain: this character's class default (the
+-- first set whose `origin` is DefaultFor(class, spec), else DefaultFor(class)); else the container's
+-- profile field, unless that is another class's preset; else the first set that is not another
+-- class's (BSC-REV); else the default set. Friendly: the character's pick (false: the hostile set);
+-- else the profile's bandSetFriendly; else the hostile set.
 --
 -- WITHOUT A CHARACTER STORE (the no-AceDB fallback and the test kit's AceDB fake, spec C8) the profile
 -- fields are the selection, exactly as before: Read answers unhandled, Set refuses, and the resolution
@@ -83,15 +99,14 @@ local function mine(create)
     return sub(sub(NS.db.char, "bandSetChoice", create), profileName(), create)
 end
 
---- Call `fn(byProfile)` with each character's bandSetChoice table: every store under db.sv.char and
---- the current one, each once.
-local function eachCharacter(fn)
+--- Call `fn(store)` with each character's store: every one under db.sv.char and the current one,
+--- each once.
+local function eachStore(fn)
     local db, seen = NS.db, {}
     local function visit(store)
-        local bsc = type(store) == "table" and store.bandSetChoice
-        if type(bsc) == "table" and not seen[bsc] then
-            seen[bsc] = true
-            fn(bsc)
+        if type(store) == "table" and not seen[store] then
+            seen[store] = true
+            fn(store)
         end
     end
     if type(db) ~= "table" then return end
@@ -99,6 +114,20 @@ local function eachCharacter(fn)
         for _, store in pairs(db.sv.char) do visit(store) end
     end
     visit(db.char)
+end
+
+--- Call `fn(byProfile)` with each character's bandSetChoice table.
+local function eachCharacter(fn)
+    eachStore(function(store)
+        if type(store.bandSetChoice) == "table" then fn(store.bandSetChoice) end
+    end)
+end
+
+--- Call `fn(byProfile)` with each character's bandSetAssigned table.
+local function eachAssigned(fn)
+    eachStore(function(store)
+        if type(store.bandSetAssigned) == "table" then fn(store.bandSetAssigned) end
+    end)
 end
 
 -- ---------------------------------------------------------------------------
@@ -175,10 +204,70 @@ local function defaultId()
     return NS.BandSets.DefaultId()
 end
 
---- The set a container with no pick uses (spec section 2, BSC-REV): this character's class set; else
---- the container's profile field unless it is another class's set; else the first set that is not
---- another class's; else the default set. Without a store, the profile field, else the default.
+-- ---------------------------------------------------------------------------
+-- The assignment (R4-RM-01)
+-- ---------------------------------------------------------------------------
+
+--- This character's assignment table (made when `create`), or nil.
+local function assignedTable(create)
+    if not Choice.HasStore() then return nil end
+    return sub(NS.db.char, "bandSetAssigned", create)
+end
+
+--- This character's assignment on the active profile, while it names a set; else nil.
+function Choice.Assigned()
+    local t, name = assignedTable(false), profileName()
+    local id = t and name and t[name]
+    if id ~= nil and sets()[id] then return id end
+    return nil
+end
+
+--- Store `setId` as this character's assignment on the active profile ("Use for this character").
+--- Refuses without a store or a profile name, and a set id that names no set.
+function Choice.Assign(setId)
+    local name = profileName()
+    if not (name and setId ~= nil and sets()[setId]) then return false end
+    local t = assignedTable(true)
+    if not t then return false end
+    t[name] = setId
+    NS.Debug("BandSets", "band set %s assigned to this character on profile %s", tostring(setId), name)
+    if NS.CM and NS.CM.RequestApply then NS.CM.RequestApply() end
+    return true
+end
+
+--- Whether this character's default needs a spec the client cannot read yet (a Devourer at login).
+local function specPending()
+    local C = NS.Compat
+    return C.PlayerSpecID() == nil and NS.BandSetPresets.SpecDependent(C.PlayerClass())
+end
+
+--- The first-load writer: when this character has no assignment that names a set on the active
+--- profile, assign the first set from its class (or spec) preset, made from the preset when the
+--- profile has none. Waits while the spec is pending. Answers the assignment (nil: none yet) and
+--- whether this call wrote it.
+function Choice.EnsureAssigned()
+    local current = Choice.Assigned()
+    if current then return current, false end
+    local p, name = profile(), profileName()
+    if not (Choice.HasStore() and name and p and type(p.bandSets) == "table") or specPending() then
+        return nil, false
+    end
+    local key = classKeys()
+    local id = firstFrom(p, key) or NS.BandSets.Create(nil, key)
+    if id == nil then return nil, false end
+    assignedTable(true)[name] = id
+    Choice.Invalidate()
+    NS.Debug("BandSets", "first load on profile %s: band set %s assigned (%s)", name, tostring(id), key)
+    return id, true
+end
+
+--- The set a container with no pick uses (spec section 2, BSC-REV, R4-RM-01): this character's
+--- assignment; else its class set; else the container's profile field unless it is another class's
+--- set; else the first set that is not another class's; else the default set. Without a store, the
+--- profile field, else the default.
 function Choice.FallbackId(c)
+    local assigned = Choice.Assigned()
+    if assigned then return assigned end
     local r = Choice.HasStore() and resolved() or nil
     if r and r.id then return r.id end
     local field = type(c) == "table" and c.bandSet
@@ -260,9 +349,14 @@ local function repoint(e, setId, target)
 end
 
 --- Band set `setId` was deleted: every character's pick on it, in the active profile, moves to
---- `target` when one is named, else is cleared (that container then falls back, section 2).
-function Choice.Forget(setId, target)
+--- `target` when one is named, else is cleared (that container then falls back, section 2). Every
+--- character's assignment on it moves to `assignTo` (the set the delete moved the containers to), so a
+--- character's next load never re-creates the preset the player deleted (R4-RM-01).
+function Choice.Forget(setId, target, assignTo)
     local name = profileName()
+    eachAssigned(function(bsa)
+        if name ~= nil and bsa[name] == setId then bsa[name] = assignTo end
+    end)
     eachCharacter(function(bsc)
         local t = sub(bsc, name, false)
         if not t then return end
@@ -278,19 +372,26 @@ function Choice.Forget(setId, target)
     Choice.Invalidate()
 end
 
---- How many other characters (every store under db.sv.char but this one) pick set `setId` on a
---- container of the active profile: the Band sets page's Used by line counts them (BSC-REV).
+--- Whether character store `store` uses set `setId` on profile `name`: its assignment, or a pick on
+--- one of the profile's containers.
+local function storeUses(store, name, setId)
+    local bsa = type(store.bandSetAssigned) == "table" and store.bandSetAssigned
+    if bsa and bsa[name] == setId then return true end
+    for _, e in pairs(sub(store.bandSetChoice, name, false) or {}) do
+        if type(e) == "table" and (e.hostile == setId or e.friendly == setId) then return true end
+    end
+    return false
+end
+
+--- How many other characters (every store under db.sv.char but this one) are assigned set `setId`
+--- or pick it on a container of the active profile: the Band sets page's Used by line counts them
+--- (BSC-REV, R4-RM-01).
 function Choice.OthersUsing(setId)
     local name, n = profileName(), 0
-    local own = Choice.HasStore() and sub(NS.db.char, "bandSetChoice", false) or nil
-    eachCharacter(function(bsc)
-        if bsc == own then return end
-        for _, e in pairs(sub(bsc, name, false) or {}) do
-            if type(e) == "table" and (e.hostile == setId or e.friendly == setId) then
-                n = n + 1
-                return
-            end
-        end
+    if name == nil then return 0 end
+    local own = Choice.HasStore() and NS.db.char or nil
+    eachStore(function(store)
+        if store ~= own and storeUses(store, name, setId) then n = n + 1 end
     end)
     return n
 end
@@ -312,19 +413,21 @@ function Choice.CopyContainer(fromId, toId, fields)
     end)
 end
 
---- A profile copy: every character's picks for `source` become its picks for `dest`.
+--- A profile copy: every character's picks and assignment for `source` become its own for `dest`.
 function Choice.CopyProfile(source, dest)
     if source == nil or dest == nil or source == dest then return end
     eachCharacter(function(bsc)
         bsc[dest] = type(bsc[source]) == "table" and NS.Database.DeepCopy(bsc[source]) or nil
     end)
+    eachAssigned(function(bsa) bsa[dest] = bsa[source] end)
     Choice.Invalidate()
 end
 
---- A profile reset or delete: every character's picks for profile `name` are forgotten.
+--- A profile reset or delete: every character's picks and assignment for profile `name` are forgotten.
 function Choice.ForgetProfile(name)
     if name == nil then return end
     eachCharacter(function(bsc) bsc[name] = nil end)
+    eachAssigned(function(bsa) bsa[name] = nil end)
     Choice.Invalidate()
 end
 
@@ -337,10 +440,8 @@ local function pruneEntry(e, known)
     return not isEmpty(e)
 end
 
---- The load pass (NS:RunMigrations, after PrepareProfile): this character's picks for the active
---- profile lose any container or set that no longer exists.
-function Choice.Prepare()
-    Choice.Invalidate()
+--- This character's picks for the active profile lose any container or set that no longer exists.
+local function prunePicks()
     local p, t = profile(), mine(false)
     if not (t and p and type(p.containers) == "table") then return end
     local drop = {}
@@ -348,6 +449,16 @@ function Choice.Prepare()
         if not p.containers[cid] or not pruneEntry(e, sets()) then drop[#drop + 1] = cid end
     end
     for _, cid in ipairs(drop) do t[cid] = nil end
+end
+
+--- The load pass (NS:RunMigrations, after PrepareProfile): the picks are pruned, an assignment that
+--- names no set is dropped, and a character with none is assigned (its first load, R4-RM-01).
+function Choice.Prepare()
+    Choice.Invalidate()
+    prunePicks()
+    local t, name = assignedTable(false), profileName()
+    if t and name and t[name] ~= nil and not sets()[t[name]] then t[name] = nil end
+    Choice.EnsureAssigned()
 end
 
 -- ---------------------------------------------------------------------------
@@ -389,4 +500,12 @@ function Choice.Migrate(db)
     for name, t in pairs(bsc) do
         if type(t) == "table" and next(t) == nil then bsc[name] = nil end
     end
+end
+
+--- v5 -> v6 (R4-RM-01): the loading character's assignment table. Its entries are written by each
+--- character's own first load on each profile (EnsureAssigned): sv.char holds no class, so no step can
+--- write another character's. A value that is not a table is replaced.
+function Choice.MigrateAssigned(db)
+    if type(db) ~= "table" or type(db.char) ~= "table" then return end
+    sub(db.char, "bandSetAssigned", true)
 end

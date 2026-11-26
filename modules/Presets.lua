@@ -166,9 +166,12 @@ local function expert()
     return list
 end
 
---- The band set of this character's class (and spec) default preset (defaults/BandSetPresets.lua
---- DefaultFor): the stored set named so, else a new one, whichever set is the profile's default.
+--- This character's band set: its assignment (modules/BandSetChoice.lua, R4-RM-01), so a renamed or
+--- hand-picked set is used as it is; without one, the band set of its class (and spec) default preset
+--- (defaults/BandSetPresets.lua DefaultFor): the stored set named so, else a new one.
 local function classSet()
+    local assigned = NS.BandSetChoice and NS.BandSetChoice.Assigned()
+    if assigned then return assigned end
     local key = NS.BandSetPresets.DefaultFor(NS.Compat.PlayerClass(), NS.Compat.PlayerSpecID())
     local preset = NS.BandSetPresets[key]
     local name = type(preset) == "table" and preset.name

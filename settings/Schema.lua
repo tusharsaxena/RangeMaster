@@ -544,7 +544,9 @@ function NS.SelectedContainer()
     return CM.Get(id), id
 end
 
---- The selected band set, and its id; else the first (the default set); else nil.
+--- The selected band set, and its id; else this character's own (its assignment, R4-RM-01:
+--- modules/BandSetChoice.lua CharacterDefaultId, the set "(default)" names); else nil. The selection
+--- is session state, so the page opens on the character's set after a login or a profile change.
 --- @return table|nil set, number|nil id
 function NS.SelectedBandSet()
     local B = NS.BandSets
@@ -552,7 +554,8 @@ function NS.SelectedBandSet()
     local id = NS.State.selectedBandSet
     local set = id ~= nil and B.Get(id) or nil
     if set then return set, id end
-    id = B.DefaultId()
+    local Choice = NS.BandSetChoice
+    id = Choice and Choice.CharacterDefaultId and Choice.CharacterDefaultId() or B.DefaultId()
     if id == nil then return nil end
     return B.Get(id), id
 end

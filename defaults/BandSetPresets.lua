@@ -9,6 +9,7 @@ local _, NS = ...
 --   NS.BandSetPresets.CLASS_KEYS     every class preset key this client has, in class order
 --   NS.BandSetPresets.BY_CLIENT      [classFile] = <CLASS>_BY_CLIENT (both clients' lists, for tests)
 --   NS.BandSetPresets.DefaultFor(classFile, specID?) -> key   the class default the seed puts first
+--   NS.BandSetPresets.SpecDependent(classFile) -> boolean     its default needs the spec to be read
 --
 -- THE GENERIC PRESETS are Melee / Ranged, Caster 40 and Healer, plus the Hunter set, which the seed has
 -- always added. Healer is the friendly override (a container's bandSetFriendly): no class's default.
@@ -275,6 +276,8 @@ Presets.ORDER = { "melee_ranged", "caster40", "healer", "hunter" }
 -- A spec that plays unlike its class: Devourer, the Demon Hunter's 25 yd Intellect spec (the owner,
 -- 2026-11-19), reads as a caster.
 local SPEC_DEFAULT = { [1480] = "caster40" }
+-- The classes one of those specs belongs to.
+local SPEC_CLASS = { DEMONHUNTER = true }
 
 --- The preset key the first-run seed makes the default for `classFile` (and `specID`, when known):
 --- the spec's override, else the class's own preset on this client, else Melee / Ranged (a class
@@ -282,6 +285,14 @@ local SPEC_DEFAULT = { [1480] = "caster40" }
 --- @return string
 function Presets.DefaultFor(classFile, specID)
     return SPEC_DEFAULT[specID or 0] or CLASS_DEFAULT[classFile] or "melee_ranged"
+end
+
+--- Whether `classFile`'s default can depend on its spec on this client (a class with a spec override
+--- and a preset of its own here): until the spec is read, its default is not known yet
+--- (modules/BandSetChoice.lua defers the character's assignment; R4-RM-01).
+--- @return boolean
+function Presets.SpecDependent(classFile)
+    return SPEC_CLASS[classFile] == true and CLASS_DEFAULT[classFile] ~= nil
 end
 
 NS.BandSetPresets = Presets
