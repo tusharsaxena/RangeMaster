@@ -31,8 +31,8 @@ local _, NS = ...
 -- A STOOD-DOWN ADDON ARMS NO TIMER (slash-commands-§7). A write while stood down still lands in the
 -- registry; nothing is lost, because the stand-up asks for one apply of everything as it is then.
 --
--- A SNAPSHOT IS BOTH REGISTRIES. A preset (modules/Presets.lua) may add the Healer band set and an
--- out-of-range sound, so its Undo must put the band sets back too. That half is the band-set
+-- A SNAPSHOT IS BOTH REGISTRIES. A preset (modules/Presets.lua) may add the class's band set (Ka0s,
+-- on a profile without it) and an out-of-range sound, so its Undo must put the band sets back too. That half is the band-set
 -- registry's own writer's (NS.BandSets.Snapshot / RestoreSnapshot), so each registry keeps one writer.
 
 NS.CM = NS.CM or {}

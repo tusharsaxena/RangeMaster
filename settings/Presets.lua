@@ -183,8 +183,8 @@ local BLURBS = {
     text     = L["Target, focus, pet and mouseover, free on screen: the band's label as text."],
     numbers  = L["Target, focus, pet and mouseover, free on screen: the range number."],
     advanced = L["Target, focus, pet and mouseover, free on screen: dot, range number and label."],
-    expert   = L["Advanced with spell chips, a healer set for friends, an out-of-range sound and combat nameplate markers."],
-    ka0s     = L["The author's own setup: range number above band name for any unit, no frame, a healer set for friends, and the number on the target's nameplate, moving to its cast bar while it casts. No sounds."],
+    expert   = L["Advanced with spell chips, your Healer set (if you have one) for friends, an out-of-range sound and combat nameplate markers."],
+    ka0s     = L["The author's own setup: range number above band name for any unit, no frame, your Healer set (if you have one) for friends, and the number on the target's nameplate, moving to its cast bar while it casts. No sounds."],
 }
 
 -- The window's session state: `sel` what the dropdown shows, `picked` whether the player chose

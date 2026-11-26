@@ -127,7 +127,7 @@ test("presets: test_simple_to_advanced_plain — the four lighter presets hold f
   end
 end)
 
-test("presets: test_expert_shape — six containers: the four with spell chips, both plates, the sound and the Healer set", function()
+test("presets: test_expert_shape — six containers: the four with spell chips, both plates and the sound", function()
   -- red under: no Expert preset (Advanced held the extras, on unit frames).
   withFreshProfile(function()
     Presets.Apply("expert")
@@ -139,12 +139,12 @@ test("presets: test_expert_shape — six containers: the four with spell chips, 
       assertTrue(c.elements.spells.enabled, unit .. " shows spell chips")
       assertEqual(#NS.CM.SpellChips(c), #seeds.chips, unit .. ": the class's chips")
     end
-    local healer = setNamed("Healer")
-    assertTrue(healer ~= nil, "the Healer set exists")
-    for _, unit in ipairs({ "target", "focus", "mouseover" }) do
-      assertEqual(find(unit, "screen").bandSetFriendly, healer, unit .. " reads the Healer set on a friendly unit")
+    -- R5-RM-04: only the class's set is ever made for the player; with no Healer set of theirs, a friend
+    -- reads the same set as a foe (test_preset_healer_only_yours).
+    assertNil(setNamed("Healer"), "Expert makes no Healer set")
+    for _, unit in ipairs({ "target", "focus", "mouseover", "pet" }) do
+      assertNil(find(unit, "screen").bandSetFriendly, unit .. " reads one set for friend and foe")
     end
-    assertNil(find("pet").bandSetFriendly, "a pet is always friendly: one set")
     -- the target's own nameplate: diamond + number
     local plate = find("target", "nameplate")
     assertEqual(enabledElements(plate), "indicator,number")
@@ -178,18 +178,33 @@ test("presets: test_expert_shape — six containers: the four with spell chips, 
   end)
 end)
 
-test("presets: Expert creates the Healer set when the profile has none, and reuses one it has", function()
-  withFreshProfile(function()
-    B.Delete(setNamed("Healer"))
-    assertNil(setNamed("Healer"))
-    Presets.Apply("expert")
-    local made = setNamed("Healer")
-    assertTrue(made ~= nil, "created")
-    local n = #B.List()
-    Presets.Apply("expert")
-    assertEqual(#B.List(), n, "a second apply reuses it")
-    assertEqual(find("target", "screen").bandSetFriendly, made)
-  end)
+test("presets: test_preset_healer_only_yours — Expert and Ka0s make no Healer set, and use the one you made for friends", function()
+  -- red under: healerSet creating the Healer set from its preset when the profile had none (R5-RM-04; the
+  -- owner, round 5: "Why is Healer a 'your bandset' preset for my level 11 retribution paladin? it should
+  -- only be there if i create it - only that should get auto created is the class one").
+  for _, key in ipairs({ "expert", "ka0s" }) do
+    withFreshProfile(function()
+      local n = #B.List()
+      Presets.Apply(key)
+      assertEqual(#B.List(), n, key .. ": no set added to Your band sets")
+      assertNil(find("target", "screen").bandSetFriendly, key .. ": a friend reads the target's own set")
+    end)
+    withFreshProfile(function()
+      local mine = B.Create("Raid heals", "healer")   -- made by the player (New, from the Healer preset)
+      local n = #B.List()
+      Presets.Apply(key)
+      assertEqual(#B.List(), n, key .. ": still nothing added")
+      for _, unit in ipairs({ "target", "focus", "mouseover" }) do
+        assertEqual(find(unit, "screen").bandSetFriendly, mine, key .. ": " .. unit .. " reads your Healer set on a friend")
+      end
+      assertNil(find("pet", "screen").bandSetFriendly, key .. ": a pet is always friendly: one set")
+    end)
+    withFreshProfile(function()
+      local named = B.Create("Healer", { { from = 0, label = "ANY" } })   -- a set of yours called Healer
+      Presets.Apply(key)
+      assertEqual(find("target", "screen").bandSetFriendly, named, key .. ": a set named Healer is used too")
+    end)
+  end
 end)
 
 test("presets: Expert keeps a sound the player already put on the out-of-range band", function()
@@ -215,7 +230,7 @@ test("presets: test_preset_undo_restores — Undo puts back the containers and b
     assertEqual(#p.containerOrder, 1)
     assertEqual(p.containerOrder[1], mine)
     assertEqual(CM.Get(mine).name, "Mine")
-    assertEqual(#B.List(), setsBefore, "the Healer set Expert created is gone again")
+    assertEqual(#B.List(), setsBefore, "the band sets are as they were")
     local bands = B.Get(B.DefaultId()).bands
     assertNil(bands[#bands].sound, "the OOR sound is gone again")
     assertFalse(Presets.CanUndo(), "one level")
@@ -254,7 +269,7 @@ test("presets: Describe answers each preset's name, container count and bullet i
     advanced = { onScreen, L["Dot + range number + text label"], oneSet, noSounds },
     expert = {
       L["Everything in Advanced, with spell-range chips (class spells)"],
-      L["Healer band set for friendly target, focus and mouseover"],
+      L["Your Healer band set, if you have one, for friendly target, focus and mouseover"],
       L["Target on its own nameplate + dot on every other plate, friend or foe"],
       L["Band-change sound on target (out-of-range warning)"],
       L["Visibility rules: any unit, friend or foe"],
@@ -274,7 +289,7 @@ test("presets: test_preview_swap_restores — a later pick in the picker drops w
     B.Delete(setNamed("Healer"))
     local setsBefore = #B.List()
     assertTrue(Presets.BeginPreview("expert"))
-    assertTrue(setNamed("Healer") ~= nil, "Expert's preview made the Healer set")
+    assertNil(setNamed("Healer"), "Expert's preview makes no Healer set (R5-RM-04)")
     assertTrue(Presets.BeginPreview("simple"))
     assertTrue(Presets.EndPreview(true))
     assertEqual(#containers(), 4, "Simple kept")
@@ -400,17 +415,15 @@ test("presets: test_ka0s_shape — the owner's Ka0s profile: five containers, nu
     Presets.Apply("ka0s")
     local list = containers()
     assertEqual(#list, 5)
-    local healer = setNamed("Healer")
     local key = NS.BandSetPresets.DefaultFor(NS.Compat.PlayerClass(), NS.Compat.PlayerSpecID())
     local own = setNamed(NS.BandSetPresets[key].name)
     for _, c in ipairs(list) do
       assertEqual(c.visibility.reaction, "any", c.name .. ": any unit, friend or foe")
       assertEqual(c.bandSet, own, c.name .. ": the class's own band set")
     end
-    for _, unit in ipairs({ "target", "focus", "mouseover" }) do
-      assertEqual(find(unit, "screen").bandSetFriendly, healer, unit .. " reads the Healer set on a friend")
+    for _, unit in ipairs({ "target", "focus", "mouseover", "pet" }) do
+      assertNil(find(unit, "screen").bandSetFriendly, unit .. ": no Healer set of yours, one set (R5-RM-04)")
     end
-    assertNil(find("pet", "screen").bandSetFriendly)
     for _, c in ipairs(list) do
       assertFalse(c.sounds.enabled, c.name .. ": no sound (only Expert sounds, the owner, 2026-11-20)")
     end

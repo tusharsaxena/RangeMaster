@@ -172,7 +172,7 @@ Total.
 - bandset seeding: a new profile holds its creator's set alone, and grows as characters arrive
 - bandset seeding: a Devourer's new profile, seeded before the spec reads, holds Caster 40 alone
 - bandset seeding: a Devourer leaves a Demon Hunter set alone once it is edited or someone uses it
-- bandset seeding: a container preset adds the sets it uses, and nothing else
+- bandset seeding: a container preset adds no set; only the class's set is ever made for you
 - bandset seeding: an existing profile keeps every set it has (owner: new profiles only)
 
 ### test_container_manager.lua (17)
@@ -199,8 +199,8 @@ Total.
 
 - presets: test_six_presets — the picker's six, in order, each with its own elements on the same four homes
 - presets: test_simple_to_advanced_plain — the four lighter presets hold four containers, no sound, no friendly set
-- presets: test_expert_shape — six containers: the four with spell chips, both plates, the sound and the Healer set
-- presets: Expert creates the Healer set when the profile has none, and reuses one it has
+- presets: test_expert_shape — six containers: the four with spell chips, both plates and the sound
+- presets: test_preset_healer_only_yours — Expert and Ka0s make no Healer set, and use the one you made for friends
 - presets: Expert keeps a sound the player already put on the out-of-range band
 - presets: test_preset_undo_restores — Undo puts back the containers and band sets from before
 - presets: an unknown key applies nothing and keeps the Undo slot

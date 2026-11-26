@@ -686,11 +686,19 @@ test("bandset seeding: a Devourer leaves a Demon Hunter set alone once it is edi
   assertTrue(ok2, tostring(err2))
 end)
 
-test("bandset seeding: a container preset adds the sets it uses, and nothing else", function()
+test("bandset seeding: a container preset adds no set; only the class's set is ever made for you", function()
+  -- R5-RM-04 (the owner, round 5: a level 11 Retribution Paladin found Healer under Your band sets after
+  -- picking Ka0s on a new profile: "it should only be there if i create it - only that should get auto
+  -- created is the class one"). Red under: "paladin,healer".
   withAccount(function(acct)
     acct.login("Pal - Realm", "PALADIN")
     NS.Presets.Apply("ka0s")
-    assertEqual(origins(), "paladin,healer", "Ka0s adds the Healer set for friends")
+    assertEqual(origins(), "paladin", "Ka0s adds nothing")
+    NS.Presets.Apply("expert")
+    assertEqual(origins(), "paladin", "nor does Expert")
+    assertTrue(NS.Presets.BeginPreview("ka0s"))
+    assertTrue(NS.Presets.EndPreview(true))
+    assertEqual(origins(), "paladin", "nor the first-run picker keeping Ka0s")
   end)
 end)
 

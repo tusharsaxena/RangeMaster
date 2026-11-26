@@ -714,7 +714,9 @@ end
 --- class's own preset, RangeMaster#20). Every other set joins the profile only when something
 --- assigns or picks it (R4-RM-02; the owner, round 4: "Only bandsets that have been assigned to a
 --- character should show up in 'Your band sets'"): another character's first load
---- (modules/BandSetChoice.lua), a container preset, or the player's New, Duplicate or Use this preset.
+--- (modules/BandSetChoice.lua), the Ka0s container preset's class set, or the player's New, Duplicate
+--- or Use this preset. No other set is ever made for the player (R5-RM-04: a container preset no longer
+--- makes the Healer set).
 --- A profile that has sets is never seeded, so an existing one keeps all it has (the owner: "New
 --- profiles only"). Announces nothing: no reader is up yet.
 --- @return number  how many sets were seeded

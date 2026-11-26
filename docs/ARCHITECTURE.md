@@ -282,6 +282,13 @@ follows the skin.
   Band sets page's Bands editor only: a band is one of a list the player grows, which no schema path
   can name, so `/rm get|set` reaches a band set's name, match rule and unknown label and color, not
   its bands (design spec 5.6 records this).
+- A Healer set the Expert or Ka0s preset made before R5-RM-04 (round 5: a preset now makes no set but
+  the class's) stays under Your band sets, and so does the old seed's on a profile older than R4-RM-02.
+  No migration removes it: such a set is byte for byte the set the player gets from Shipped presets
+  · General → Healer → Use this preset…, a container's friendly field pointing at it is written the
+  same by a preset and by a pick made before the band set per character, and nothing records which
+  made it. The player deletes it on the Band sets page (Delete…; the containers on it fall back to
+  their own set for friends).
 - A set's `origin` on a profile stored before schema v4 is a guess by name: a set still named after one
   preset (case-blind, trimmed) gets that preset, and a renamed one, or a name two presets share, gets
   none and so has no origin line and no Restore. Copy bands from a preset gives it one.
